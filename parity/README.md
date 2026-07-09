@@ -33,8 +33,8 @@ All scripts honor `NM_REFERENCE_ROOT` to relocate the reference repo root
 
 ## Test programs
 
-`programs/*.dsl` — 12 representative programs (8 Tier-1 + 4 3D/mixer), each with a fixed
-`seed: 1` so output is deterministic:
+`programs/*.dsl` — 20 programs (8 Tier-1 + 4 3D/mixer + 8 targeting the v1.0.98 sync),
+each with a fixed `seed: 1` so output is deterministic:
 
 | file | effect | shape |
 |---|---|---|
@@ -50,6 +50,19 @@ All scripts honor `NM_REFERENCE_ROOT` to relocate the reference repo root
 | `mashup.dsl` | `mixer/mashup` | luminance-band router (incl. active-when-wired fallback) |
 | `renderCubemap3d.dsl` | `render/renderCubemap3d` | lit cubemap-face volume render (single face) |
 | `renderCubemapSurface.dsl` | `render/renderCubemapSurface` | raw emission/absorption cubemap face |
+| `lighting.dsl`   | `filter/lighting` | Sobel-normal lighting, self height map |
+| `lighting_hm.dsl`| `filter/lighting` | explicit `heightMap:` surface lighting a gradient |
+| `parallax.dsl`   | `filter/parallax` | parallax occlusion, self height map |
+| `parallax_hm.dsl`| `filter/parallax` | explicit `heightMap:` surface, pivot 0.5 |
+| `refract_mirror.dsl` | `classicNoisedeck/refract` | mirror wrap at amount 100 (seam-heavy) |
+| `cellRefract_mirror.dsl` | `classicNoisedeck/cellRefract` | mirror wrap at amount 100 |
+| `simpleAberration.dsl` | `filter/simpleAberration` | RGB split (unflipped Y, post-cee90aaf) |
+| `remap_zones.dsl` | `synth/remap` | polygon zone router, wired zone (64-vert layout) |
+
+Pixel status (Unity 6000.3.16f1, 256px, webgl2 golden): 18/20 at max-abs-diff ≤ 1/255 with
+SSIM 1.0; `parallax` and `refract_mirror` each differ on 3–4 isolated pixels (max 26/19 —
+ray-march refinement and mirror-seam pixels; upstream's own GLSL↔WGSL delta on these
+effects is 7–11 px), passing with the documented per-effect tolerance.
 
 ## Runbook
 

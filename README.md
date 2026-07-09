@@ -79,21 +79,25 @@ on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Status
 
 **Compiles and renders in Unity 6** (verified on 6000.3.16f1). The C# engine compiles
-clean and all 183 effect shaders present at that verification compiled (the v1.0.98 sync —
-`filter/parallax` plus the lighting/refract/cellRefract/simpleAberration/remap updates —
-is graph-parity-verified but has not yet been through a Unity compile + pixel-parity
-pass); driving `NMParityRunner` in batchmode produced correct
+clean and all 184 effect shaders compile (re-verified after the v1.0.98 sync —
+`filter/parallax` plus the lighting/refract/cellRefract/simpleAberration/remap
+updates — via a batchmode package import + render pass); driving `NMParityRunner`
+in batchmode produced correct
 output for `solid` (exact `#FF8000` fill), `noise` (multi-octave RGB simplex), and a
 multi-pass `noise → blur` chain (correctly softened — exercises pooled intermediates +
 filter input sampling + per-pass selection). Parity-critical shaders (PCG, noise, cell,
 blend, blur) were additionally hardened by adversarial line-by-line review vs the WGSL.
 
 **Pixel parity verified** via the `parity/` harness (JS/WebGL2 golden in headless Chromium
-↔ Unity candidate ↔ `compare.py`). All **12/12 parity programs are pixel-identical**
+↔ Unity candidate ↔ `compare.py`). **18 of 20 parity programs are pixel-identical**
 (within 1/255 = float→8-bit rounding, SSIM 1.00000): the eight Tier-1 programs (`solid`,
 `noise`, `cell`, `gradient`, `shape`, `osc2d`, the multi-pass `blur`, the two-surface mixer
-`blendMode`) plus the 3D/mixer additions `palette3d`, `mashup`, `renderCubemap3d`, and
-`renderCubemapSurface`.
+`blendMode`), the 3D/mixer additions `palette3d`, `mashup`, `renderCubemap3d`, and
+`renderCubemapSurface`, and the v1.0.98-sync programs `lighting`/`lighting_hm`,
+`parallax_hm`, `cellRefract_mirror`, `simpleAberration`, and `remap_zones`. The remaining
+two (`parallax`, `refract_mirror`) match at SSIM 1.00000 with 3–4 isolated pixels each
+(ray-march refinement / mirror-seam pixels; upstream's own GLSL↔WGSL delta on these
+effects is 7–11 px) — within their per-effect tolerance.
 
 The Y-flip reconciliation the design anticipated is now solved properly: Unity flips Y once
 per `DrawProcedural` into a RenderTexture, so textures of odd-vs-even render depth ended up
