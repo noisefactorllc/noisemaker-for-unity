@@ -25,9 +25,9 @@
 //    HLSL matrices are row-major in source; the WGSL builds column vectors. We
 //    keep the same numeric mat product A = mul(mul(T,Q),S) and the same dot-form
 //    `dot(mul(tv, A), uv)`; see bicubic() for the explicit column construction.
-//  * `% 1.0` in WGSL float-`%` = e1 - e2*trunc(e1/e2) (sign of DIVIDEND) =
-//    HLSL fmod, NOT GLSL mod / nm_mod. The dividend here can go negative, so the
-//    distinction is pixel-visible. (This is WGSL `%`, not a `mod()` call -> fmod.)
+//  * The refract wrap is floored mod: upstream 3c614a7d replaced the WGSL's
+//    truncated `% 1.0` (== fmod, sign of dividend) with fract(), which equals
+//    GLSL mod(x, 1.0) == nm_mod. All three backends now agree; use nm_mod.
 //  * Coordinate: WGSL `uv = fragCoord.xy / resolution`; snow uses raw
 //    `fragCoord.xy` (NOT +tileOffset). We use NM_FragCoord(i) (top-left, +0.5),
 //    dividing by resolution for uv. Sampling is done in 0..1 lensedCoords space
@@ -228,11 +228,11 @@ float4 g_glitch(float2 st_in, float aspectRatioV, float timev, float xChonkV, fl
 
     float refractAmt = g * 0.125;
 
-    // GLSL golden (glitch.glsl:165-166) uses floor-based mod (sign of divisor).
-    // The dividend can be negative here (st.x near 0, sin(...)*refractAmt in
-    // [-0.125,0.125]); there mod and the WGSL `%`/fmod diverge:
-    // nm_mod(-0.04,1)=0.96 vs fmod(-0.04,1)=-0.04. The parity golden is
-    // WebGL2/GLSL, so match GLSL: use nm_mod.
+    // Floored mod (sign of divisor): the dividend can be negative here (st.x
+    // near 0, sin(...)*refractAmt in [-0.125,0.125]), where floored and
+    // truncated mod diverge: nm_mod(-0.04,1)=0.96 vs fmod(-0.04,1)=-0.04.
+    // The GLSL golden always used mod(); the WGSL's truncated `% 1.0` was the
+    // bug, fixed upstream (3c614a7d) with fract() == nm_mod(x, 1.0).
     st.x = nm_mod(st.x + sin(xOffset * G_TAU) * refractAmt, 1.0);
     st.y = nm_mod(st.y + sin(yOffset * G_TAU) * refractAmt, 1.0);
 

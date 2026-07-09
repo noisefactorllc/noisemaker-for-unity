@@ -4,9 +4,10 @@
 // =============================================================================
 // ShaderGraph Custom Function wrapper for filter/lighting.
 //
-// Single-pass filter: samples InputTex, computes Sobel normals, applies
-// Lambertian diffuse + Blinn-Phong specular + ambient + optional refraction
-// and reflection (chromatic aberration).
+// Single-pass filter: samples InputTex, computes Sobel normals from HeightMap
+// (wire InputTex into HeightMap for the classic self-lit behavior — that is the
+// runtime default, upstream ad984822), applies Lambertian diffuse + Blinn-Phong
+// specular + ambient + optional refraction and reflection (chromatic aberration).
 //
 // All helpers mirrored VERBATIM from Shaders/Effects/filter/Lighting.hlsl,
 // name-prefixed `nmsg_` to avoid symbol clashes. Self-contained; does NOT
@@ -22,7 +23,7 @@ float nmsg_lighting_getLuminosity(float3 color)
 }
 
 float3 nmsg_lighting_calculateNormal(
-    UnityTexture2D InputTex, UnitySamplerState SS,
+    UnityTexture2D HeightMap, UnitySamplerState SS,
     float2 uv, float2 texelSize,
     float normalStrength, float smoothing)
 {
@@ -50,7 +51,7 @@ float3 nmsg_lighting_calculateNormal(
     float dy = 0.0;
     for (int i = 0; i < 9; i = i + 1)
     {
-        float4 s = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, uv + offsets[i]);
+        float4 s = SAMPLE_TEXTURE2D(HeightMap.tex, SS.samplerstate, uv + offsets[i]);
         float  h = nmsg_lighting_getLuminosity(s.rgb);
         dx += h * sobel_x[i];
         dy += h * sobel_y[i];
@@ -91,6 +92,7 @@ float4 nmsg_lighting_applyReflection(
 // UV must be the input-texture-space 0..1 coordinate (fragCoord / texDims).
 void NM_Lighting_float(
     UnityTexture2D InputTex,
+    UnityTexture2D HeightMap,
     UnitySamplerState SS,
     float2  UV,
     float   NormalStrength,
@@ -112,7 +114,7 @@ void NM_Lighting_float(
     float2 texelSize = 1.0 / texSize;
 
     float4 origColor = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, UV);
-    float3 normal    = nmsg_lighting_calculateNormal(InputTex, SS, UV, texelSize,
+    float3 normal    = nmsg_lighting_calculateNormal(HeightMap, SS, UV, texelSize,
                            NormalStrength, Smoothing);
     float3 lightDir  = normalize(LightDirection);
     float3 viewDir   = float3(0.0, 0.0, 1.0);

@@ -14,9 +14,10 @@
 // PORTING-GUIDE notes / hazards handled:
 //  * UV = fragCoord / inputTex dimensions (WGSL: position.xy / textureDimensions).
 //    NOT divided by fullResolution. NM_FragCoord(i) / float2(texW, texH).
-//  * wrap == 0 (mirror): WGSL does nothing — relies on the sampler's mirror wrap.
-//    SamplerState sampler_inputTex is declared as the default (mirror) address mode
-//    by the runtime. wrap == 1 uses frac(); wrap == 2 clamps.
+//  * wrap == 0 (mirror): uv = abs(mod(uv+1, 2) - 1) — explicit mirror reflection.
+//    (Upstream 7194deaf: the mirror branch used to be a no-op in BOTH reference
+//    backends; both now apply this idiom.) wrap == 1 uses frac(); wrap == 2 clamps.
+//    WGSL uses the sign-corrected ((x%2)+2)%2 == floored mod == nm_mod (H6).
 //  * blend_colors in the WGSL reads mixAmt and blendMode as module-scope globals.
 //    In HLSL we use the per-effect uniform declarations.
 //  * mix -> lerp; fract -> frac; clamp/abs/min/max/cos/sin map 1:1.
@@ -314,6 +315,7 @@ float3 nm_refract_blend_colors(float4 color1, float4 color2)
 //               uv.y += sin(brightness*TAU)*amount*0.01
 //   if mode==1: uv.y += desaturate(derivX(uv,false))*amount*0.01
 //               uv.x += desaturate(derivY(uv,false))*amount*0.01
+//   if wrap==0: uv = abs(((uv + 1) % 2 + 2) % 2 - 1)   (mirror)
 //   if wrap==1: uv = fract(uv)
 //   if wrap==2: uv = clamp(uv, 0, 1)
 //   color = textureSample(inputTex, samp, uv)
@@ -345,7 +347,9 @@ float4 NMFrag_refract(NMVaryings i) : SV_Target
     [branch]
     if (wrap == 0)
     {
-        // mirror — rely on sampler address mode; no UV change (WGSL: no-op)
+        // mirror (default) — WGSL: abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
+        // (sign-corrected truncated % == floored mod == nm_mod, H6)
+        uv = abs(nm_mod(uv + 1.0, float2(2.0, 2.0)) - 1.0);
     }
     else if (wrap == 1)
     {

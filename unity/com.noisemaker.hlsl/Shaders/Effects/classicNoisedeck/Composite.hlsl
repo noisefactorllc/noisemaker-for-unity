@@ -23,7 +23,8 @@
 //  * range: definition.js type "float", default 20. Declared float.
 //  * UV: WGSL uses textureDimensions(inputTex,0) for st, samples BOTH inputs
 //    with that same st — identical to how mixer/blendMode works. Follow WGSL.
-//  * WGSL `%` on f32 is floored mod. Translated to nm_mod (PORTING-GUIDE H6).
+//  * Float mod is FLOORED (nm_mod, PORTING-GUIDE H6). The WGSL rgb2hsv hue
+//    wrap is sign-corrected upstream (3c614a7d): ((x % 6) + 6) % 6 == nm_mod.
 //  * mix() -> lerp(). fract() -> frac(). step() stays step().
 //    smoothstep(a,b,x) — WGSL and HLSL share the same argument order.
 //  * WGSL `select(false_val, true_val, cond)` does NOT appear in this shader.
@@ -73,7 +74,7 @@ float3 hsv2rgb(float3 hsv)
 
 // -----------------------------------------------------------------------------
 // rgb2hsv — ported VERBATIM from composite.wgsl lines 46-73. Per-effect copy.
-// WGSL `%` on f32 -> nm_mod (H6).
+// Hue wrap: WGSL (post-3c614a7d) ((x % 6) + 6) % 6 == floored mod == nm_mod (H6).
 // -----------------------------------------------------------------------------
 float3 rgb2hsv(float3 rgb)
 {

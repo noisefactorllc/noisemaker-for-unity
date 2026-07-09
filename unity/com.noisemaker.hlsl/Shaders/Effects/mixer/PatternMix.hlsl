@@ -16,12 +16,11 @@
 //    Runtime branches with [branch] per compile-time-define → runtime-uniform
 //    conversion rule.
 //  * invert: definition.js `uniform: "invert"` — declared int uniform.
-//  * WGSL `%` on float (hexagons `(p % s)`, checkerboard `(cell.x+cell.y) % 2.0`)
-//    is the `%` OPERATOR, which the WGSL spec defines as TRUNCATED remainder
-//    (e1 - e2*trunc(e1/e2)) — sign-of-dividend, == HLSL `fmod`. It is NOT the
-//    floor-based `modulo()`/GLSL `mod()` that maps to nm_mod (H6). The operands
-//    here are negative (centered/scaled p; floor(p) cells), so the two differ;
-//    use `fmod` to match the canonical WGSL output exactly.
+//  * Checkerboard parity + hexagon grids use FLOORED mod (nm_mod, H6). The
+//    operands are negative (centered/scaled p; floor(p) cells), where floored
+//    and truncated mod differ. The WGSL's plain truncated `%` was the bug —
+//    upstream 3c614a7d sign-corrected it to ((x % k) + k) % k == nm_mod; the
+//    GLSL always used mod(). All backends now agree.
 //  * atan2 arg order: WGSL atan2(y,x) → HLSL atan2(y,x) — copied literally.
 //  * WGSL `select(b, a, cond)` appears in hexagons length comparison — translated
 //    to a plain if/else matching the WGSL logic exactly.
@@ -87,11 +86,11 @@ float nm_pm_checkerboard(float2 p, float sm)
     float2 f = frac(p);
     float d = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
     float2 cell = floor(p);
-    // GLSL golden uses `mod(cell.x + cell.y, 2.0)` = FLOOR-based modulo
-    // (a - b*floor(a/b)), NOT the WGSL `%` truncated remainder. `p` is centered
-    // (st-0.5)*2, so cell=floor(p) is NEGATIVE over the left/bottom half; there
+    // FLOOR-based modulo (a - b*floor(a/b)): `p` is centered (st-0.5)*2, so
+    // cell=floor(p) is NEGATIVE over the left/bottom half; there
     // fmod(-1,2)=-1 but mod(-1,2)=+1, flipping the checker parity (produced a
-    // black triangle on the negative-coordinate side). Match GLSL: use nm_mod.
+    // black triangle on the negative-coordinate side). The GLSL golden always
+    // used mod(); upstream 3c614a7d fixed the WGSL's truncated `%` to match.
     float check = nm_mod(cell.x + cell.y, 2.0);
     float edge = smoothstep(0.0, sm * 0.5, d);
     return lerp(1.0 - check, check, edge);
@@ -130,16 +129,16 @@ float hexDist(float2 p)
 
 // -----------------------------------------------------------------------------
 // hexagons — ported VERBATIM from patternMix.wgsl lines 66-80.
-// WGSL `p % s` is the `%` operator (truncated remainder) on vec2 → fmod.
+// WGSL (post-3c614a7d): ((p % s) + s) % s — sign-corrected == nm_mod.
 // WGSL `select(a,b,cond)` → if/else (note WGSL select(false_val,true_val,cond)).
 // -----------------------------------------------------------------------------
 float nm_pm_hexagons(float2 p, float t, float sm)
 {
     float2 s = float2(1.0, NM_PM_SQRT3);
     float2 h = s * 0.5;
-    // GLSL golden uses `mod(p, s)` / `mod(p + h, s)` = FLOOR-based modulo, NOT the
-    // WGSL `%` truncated remainder. p is centered/scaled (negative over half the
-    // image) so fmod and floor-mod diverge there. Match GLSL: use nm_mod.
+    // FLOOR-based modulo: p is centered/scaled (negative over half the image)
+    // so fmod and floor-mod diverge there. The GLSL golden always used mod();
+    // upstream 3c614a7d fixed the WGSL's truncated `%` to match.
     float2 a = nm_mod(p, s) - h;
     float2 b = nm_mod(p + h, s) - h;
     float2 g;

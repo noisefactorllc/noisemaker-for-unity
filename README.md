@@ -78,7 +78,9 @@ on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Status
 
 **Compiles and renders in Unity 6** (verified on 6000.3.16f1). The C# engine compiles
-clean and all 183 effect shaders compile; driving `NMParityRunner` in batchmode produced correct
+clean and all 183 effect shaders present at that verification compiled (the v1.0.98 sync —
+`filter/parallax` plus the lighting/refract/cellRefract/simpleAberration updates — has not
+yet been through a Unity compile + parity pass); driving `NMParityRunner` in batchmode produced correct
 output for `solid` (exact `#FF8000` fill), `noise` (multi-octave RGB simplex), and a
 multi-pass `noise → blur` chain (correctly softened — exercises pooled intermediates +
 filter input sampling + per-pass selection). Parity-critical shaders (PCG, noise, cell,
@@ -105,10 +107,10 @@ reserved-word collisions in the (now-removed, MPB-driven) `Properties` blocks, t
 reserved word `point` in `Cell.hlsl`, and `export-graph` starter-op + compile-time-`define`
 promotion. See `parity/README.md` for the runbook.
 
-**Effect coverage: 184 effect definitions** — every namespace complete:
-`synth` 29 · `filter` 90 · `mixer` 15 · `classicNoisedeck` 20 · `points` 10 · `synth3d` 7 ·
+**Effect coverage: 185 effect definitions** — every namespace complete:
+`synth` 29 · `filter` 91 · `mixer` 15 · `classicNoisedeck` 20 · `points` 10 · `synth3d` 7 ·
 `filter3d` 2 · `render` 11 (the `render` count includes the `loopBegin`/`loopEnd`/`meshLoader`
-control passes). 183 ship a renderable shader; `synth/media` is a definition-only stub (no
+control passes). 184 ship a renderable shader; `synth/media` is a definition-only stub (no
 shader — external image/video input is out of scope).
 
 Each ported effect ships an `.hlsl` core, a `.shader`, and a runtime `Effects/*.json`;

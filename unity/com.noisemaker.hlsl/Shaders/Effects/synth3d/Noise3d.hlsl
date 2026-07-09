@@ -42,8 +42,8 @@
 //    int->uint REINTERPRET: (uint4)((int4)(ps*1000.0)+65536). >> vec4<u32>(16u)
 //    -> >> 16u (logical). Divisor 4294967295.0. Reproduced verbatim.
 //  * grad4 offsets 127.1 / 269.5 / 419.2 and normalize() copied literally.
-//  * wrapW uses WGSL `w % W_PERIOD` (float modulo) -> nm_mod(w, W_PERIOD)
-//    (a - b*floor(a/b)); NEVER fmod (H6).
+//  * wrapW is floored mod: WGSL (post-3c614a7d) (w % P + P) % P ->
+//    nm_mod(w, W_PERIOD) (a - b*floor(a/b)); NEVER fmod (H6).
 //  * noise4D: 16-corner quadrilinear with quintic weights; all dot/mix terms
 //    copied literally (do not reassociate — H10).
 //  * fbm4D: octave loop bound by runtime OCTAVES (was compile-time); clamp,

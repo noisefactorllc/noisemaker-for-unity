@@ -11,18 +11,16 @@
 //   - WGSL pcg()  -> nm_pcg()  (identical mixing).
 //   - WGSL prng() -> nm_prng() — the FOLD variant (perlin is Variant A,
 //     ref 08 §1.2). Divisor 4294967295.0 (= f32(0xffffffff); ref 08 L136-140).
-//   - WGSL wrapZ() float `%` -> nm_mod (ref 08 §"mod vs %", L502). See TODO below.
+//   - WGSL wrapZ() -> nm_mod (ref 08 §"mod vs %", L502; floored, see H6 below).
 // hash3/grad3/quintic/smoothlerp/noise2D/noise3D/fbm*/domainWarp* are
 // per-effect and ported inline (NOT hoisted). TAU/Z_PERIOD are local consts
 // matching the WGSL literals exactly.
 //
 // PARITY HAZARDS handled here:
-//   H6/mod-vs-% — WGSL wrapZ uses float `%` (sign-of-dividend); GLSL uses
-//     `mod` (sign-of-divisor). In this effect `z` is always >= 0 (time>=0,
-//     speed>=0, channelOffset>=0), so the two agree. We use nm_mod (the
-//     always-positive form mandated by the guide). TODO(verify): negative z
-//     is unreachable in the active param ranges; if a future caller feeds
-//     z<0, WGSL `%` would differ — revisit then.
+//   H6/mod-vs-% — wrapZ is FLOORED mod on all backends: GLSL uses `mod`
+//     (sign-of-divisor), and upstream 3c614a7d sign-corrected the WGSL's
+//     truncated `%` to (z % P + P) % P == nm_mod. nm_mod is exact for all z,
+//     negative included (the former TODO(verify) on z<0 is resolved).
 //   §1.1/§1.2 — prng FOLD + truncating uint cast: nm_prng matches.
 //     WGSL writes select(-p*2+1, p*2, p>=0) == p>=0 ? p*2 : -p*2+1 == nm_prng.
 //   hash3 cast — `(uint3)((int3)(ps*1000.0) + 65536)`: float->int truncation
@@ -109,7 +107,7 @@ float nm_perlin_smoothlerp(float x, float a, float b)
 }
 
 // Wrap z index for periodicity at lattice level (verbatim L110-112).
-// WGSL: z % Z_PERIOD. Active domain z>=0 so == nm_mod. See header TODO(verify).
+// WGSL (post-3c614a7d): (z % Z_PERIOD + Z_PERIOD) % Z_PERIOD == nm_mod exactly.
 float nm_perlin_wrapZ(float z)
 {
     return nm_mod(z, NM_PERLIN_Z_PERIOD);

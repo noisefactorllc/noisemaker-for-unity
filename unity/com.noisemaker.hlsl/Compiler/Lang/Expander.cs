@@ -550,7 +550,7 @@ namespace Noisemaker.Hlsl.Compiler
             foreach (string argName in step.Args.Keys)
             {
                 ArgValue arg = step.Args.Get(argName);
-                if (arg != null && arg.Kind == ArgKind.Surface && IsColorModeSurfaceKind(arg.Surface.Kind))
+                if (arg != null && arg.Kind == ArgKind.Surface && IsTextureArgKind(arg.Surface.Kind))
                 {
                     string colorModeUniform = GlobalColorModeUniform(effectDef, argName);
                     if (colorModeUniform != null)
@@ -569,7 +569,7 @@ namespace Noisemaker.Hlsl.Compiler
             foreach (string argName in step.Args.Keys)
             {
                 ArgValue arg = step.Args.Get(argName);
-                if (arg != null && arg.Kind == ArgKind.Surface && IsColorModeSurfaceKind(arg.Surface.Kind)) continue;
+                if (arg != null && arg.Kind == ArgKind.Surface && IsTextureArgKind(arg.Surface.Kind)) continue;
                 if (argName == "_skip") continue;
                 string uniformName = GlobalUniformName(effectDef, argName) ?? argName;
                 if (colorModeControlled.Contains(uniformName)) continue;
@@ -727,7 +727,7 @@ namespace Noisemaker.Hlsl.Compiler
                 foreach (string argName in step.Args.Keys)
                 {
                     ArgValue arg = step.Args.Get(argName);
-                    if (arg != null && arg.Kind == ArgKind.Surface && IsColorModeSurfaceKind(arg.Surface.Kind)) continue;
+                    if (arg != null && arg.Kind == ArgKind.Surface && IsTextureArgKind(arg.Surface.Kind)) continue;
                     if (argName == "_skip") continue;
                     string uniformName = GlobalUniformName(effectDef, argName) ?? argName;
                     if (IsColorModeControlled(effectDef, uniformName)) continue;
@@ -848,7 +848,22 @@ namespace Noisemaker.Hlsl.Compiler
                             string key = "node_" + s.Index + "_out";
                             pass.Inputs.Add(uniformName, _textureMap.TryGetValue(key, out string tv) ? tv : null);
                         }
+                        else if (s.Kind == "pipeline")
+                        {
+                            // A surface global defaulted to the pipeline input by the
+                            // validator (e.g. lighting/parallax heightMap: inputTex).
+                            // Bind the live cursor (expander.js, upstream ad984822).
+                            // Other pipeline names emit NO input, matching the JS
+                            // fall-through.
+                            if (s.Name == "inputTex" || s.Name == "inputColor")
+                                pass.Inputs.Add(uniformName, cur ?? s.Name);
+                        }
                         else
+                            // expander.js lists these kinds explicitly (output/source/
+                            // vol/geo/xyz/vel/rgba — NOT feedback, which the validator
+                            // never produces as a step arg); an unlisted kind would
+                            // emit no input there. Keep this catch-all in sync if a
+                            // new SurfaceRef kind is ever added.
                             pass.Inputs.Add(uniformName, s.Name == "none" ? "none" : "global_" + s.Name);
                     }
                     else if (arg.Kind == ArgKind.String)
@@ -987,10 +1002,15 @@ namespace Noisemaker.Hlsl.Compiler
             return name == "global_xyz" || name == "global_vel" || name == "global_rgba" ||
                    name == "global_points_trail" || name == "global_life_data";
         }
-        private static bool IsColorModeSurfaceKind(string kind)
+        // Mirrors expander.js TEXTURE_ARG_KINDS (upstream ad984822): every surface-ref
+        // kind, including "pipeline" (a surface global defaulted to inputTex/inputColor
+        // by the validator) and the 3D "vol"/"geo" kinds. Texture args are skipped by
+        // the uniform loops and handled by the colorMode first pass / pass-input wiring.
+        private static bool IsTextureArgKind(string kind)
         {
             return kind == "temp" || kind == "output" || kind == "source" || kind == "feedback" ||
-                   kind == "xyz" || kind == "vel" || kind == "rgba";
+                   kind == "vol" || kind == "geo" ||
+                   kind == "xyz" || kind == "vel" || kind == "rgba" || kind == "pipeline";
         }
 
         private static string GlobalUniformName(EffectDefinition def, string argName)

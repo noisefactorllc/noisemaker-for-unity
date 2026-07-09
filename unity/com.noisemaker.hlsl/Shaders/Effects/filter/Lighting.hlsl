@@ -15,6 +15,9 @@
 // PORTING-GUIDE notes / hazards handled:
 //  * uv = pos.xy / textureDimensions(inputTex) — divide by INPUT texture dims,
 //    NOT fullResolution. Mirrors WGSL exactly.
+//  * Sobel normals sample the heightMap surface (default: the pipeline input),
+//    NOT inputTex (upstream ad984822). Refraction/reflection still sample
+//    inputTex. uv/texelSize stay derived from inputTex dimensions.
 //  * texelSize = 1.0 / texSize (WGSL: let texelSize = 1.0 / texSize).
 //  * sampleSize = texelSize * uniforms.smoothing
 //  * Normal construction: normalize(vec3(-dx, -dy, 1.0)) — note the negations.
@@ -30,9 +33,14 @@
 
 #include "../../Include/NMFullscreen.hlsl"
 
-// ---- Input texture + sampler (reference binding: inputSampler@0, inputTex@1) -
+// ---- Input textures + sampler (reference: inputSampler@0, inputTex@1,
+//      heightMap@2). heightMap defaults to the pipeline input (definition.js
+//      globals.heightMap.default = "inputTex") — the expander binds it to the
+//      live cursor when the user doesn't wire a surface.
 Texture2D    inputTex;
 SamplerState sampler_inputTex;
+Texture2D    heightMap;
+SamplerState sampler_heightMap;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 float3 diffuseColor;        // default [1,1,1]
@@ -54,6 +62,15 @@ float  aberration;          // default 0.0
 float nm_lighting_getLuminosity(float3 color)
 {
     return dot(color, float3(0.299, 0.587, 0.114));
+}
+
+// -----------------------------------------------------------------------------
+// getHeight — verbatim from WGSL (upstream ad984822: height map input)
+//   return getLuminosity(textureSample(heightMap, inputSampler, uv).rgb);
+// -----------------------------------------------------------------------------
+float nm_lighting_getHeight(float2 uv)
+{
+    return nm_lighting_getLuminosity(heightMap.Sample(sampler_heightMap, uv).rgb);
 }
 
 // -----------------------------------------------------------------------------
@@ -91,8 +108,7 @@ float3 nm_lighting_calculateNormal(float2 uv, float2 texelSize)
 
     for (int i = 0; i < 9; i = i + 1)
     {
-        float4 s = inputTex.Sample(sampler_inputTex, uv + offsets[i]);
-        float  h = nm_lighting_getLuminosity(s.rgb);
+        float h = nm_lighting_getHeight(uv + offsets[i]);
         dx += h * sobel_x[i];
         dy += h * sobel_y[i];
     }

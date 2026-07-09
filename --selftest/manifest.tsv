@@ -59,6 +59,7 @@ filter__octaveWarp	--selftest/filter__octaveWarp.dsl
 filter__osd	--selftest/filter__osd.dsl
 filter__outline	--selftest/filter__outline.dsl
 filter__palette	--selftest/filter__palette.dsl
+filter__parallax	--selftest/filter__parallax.dsl
 filter__pinch	--selftest/filter__pinch.dsl
 filter__pixelSort	--selftest/filter__pixelSort.dsl
 filter__pixels	--selftest/filter__pixels.dsl

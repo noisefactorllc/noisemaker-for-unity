@@ -168,6 +168,9 @@ DepositVaryings vert_deposit(uint vertexIndex : SV_VertexID)
     // counter-flip so the deposited density lands where the field passes read it;
     // otherwise the lenia field is vertically mirrored vs the simulation that
     // consumes it (corrupting the dynamics + the final trail).
+    // (Upstream 70d32b47 fixed the same bug in deposit.wgsl — its VS now emits
+    // (pos.x*2-1, 1-pos.y*2) to match WebGL point projection. Our counter-flip
+    // is the Unity-RT equivalent of that reconciliation; no further change.)
     o.positionCS = float4(clipPos.x, clipPos.y * _ProjectionParams.x, 0.0, 1.0);
     o.amount = depositAmount;
     return o;

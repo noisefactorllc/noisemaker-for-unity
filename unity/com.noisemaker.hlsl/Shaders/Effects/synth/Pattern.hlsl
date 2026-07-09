@@ -78,7 +78,7 @@ float nmp_checkerboard(float2 p, float sm)
     float2 f = frac(p);
     float d = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
     float2 cell = floor(p);
-    // WGSL: (cell.x + cell.y) % 2.0  — float modulo via nm_mod
+    // WGSL (post-3c614a7d): ((cell.x + cell.y) % 2 + 2) % 2 — floored mod == nm_mod
     float check = nm_mod(cell.x + cell.y, 2.0);
     float edge = smoothstep(0.0, sm * 0.5, d);
     return lerp(1.0 - check, check, edge);
@@ -115,7 +115,7 @@ float nmp_hexagons(float2 p, float t, float sm)
     float2 s = float2(1.0, NMP_SQRT3);
     float2 h = s * 0.5;
 
-    // WGSL: (p % s) - h  and  ((p + h) % s) - h
+    // WGSL (post-3c614a7d): ((p % s) + s) % s - h  and  (((p + h) % s) + s) % s - h
     float2 a = float2(nm_mod(p.x, s.x), nm_mod(p.y, s.y)) - h;
     float2 b = float2(nm_mod(p.x + h.x, s.x), nm_mod(p.y + h.y, s.y)) - h;
 

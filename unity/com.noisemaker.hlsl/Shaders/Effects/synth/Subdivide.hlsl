@@ -28,8 +28,9 @@
 //    = 4294967295.0). prng here is the SIMPLE variant (no sign-fold) — (uint3)p is
 //    float->uint TRUNCATION toward zero, matching uvec3(uint(p.x),...). Copy as-is;
 //    do NOT substitute NMCore's sign-fold nm_prng.
-//  * texUv wrap modes use nm_mod (NEVER fmod): WGSL `(texUv + 1.0) % 2.0`,
-//    `texUv % 1.0` -> nm_mod(texUv + 1.0, 2.0), nm_mod(texUv, 1.0).
+//  * texUv wrap modes use nm_mod (NEVER fmod): the WGSL (post-3c614a7d) is the
+//    sign-corrected ((x % k) + k) % k == floored mod == nm_mod(texUv + 1.0, 2.0)
+//    (mirror) and nm_mod(texUv, 1.0) (repeat).
 //  * Shape/shade helpers (circleShape/diamondShape/squareShape/arcShape/drawShape/
 //    shadeFromHash) are this effect's OWN copies — ported VERBATIM inline.
 //  * i32() truncation toward zero -> (int) cast. step()/length()/min/max/mix/frac/

@@ -16,12 +16,10 @@
 //        let dims = vec2f(textureDimensions(inputTex, 0));
 //        let uv   = position.xy / dims;
 //    texelSize = 1.0 / dims.  tileOffset is NOT added (WGSL does not).
-//  * wrapCoords: WGSL mode 0 (mirror):
-//        st = abs(st % vec2f(2.0) - vec2f(1.0));
+//  * wrapCoords: WGSL mode 0 (mirror), sign-corrected upstream (3c614a7d):
+//        st = abs((st % vec2f(2.0) + vec2f(2.0)) % vec2f(2.0) - vec2f(1.0));
 //        st = vec2f(1.0) - st;
-//    nm_mod(x,y) == x - y*floor(x/y) maps to the WGSL % for positives.
-//    For a general signed st we use nm_mod which is the GLSL mod equivalent
-//    used across this codebase.
+//    == abs(nm_mod(st, 2) - 1): floored mod (nm_mod, H6) on all backends.
 //  * WGSL `antialias: i32` — tested as `antialias != 0` in WGSL; we do the
 //    same with an int uniform.
 //  * dpdx/dpdy -> ddx/ddy in HLSL.
@@ -128,7 +126,7 @@ float2 wrapCoords(float2 st_in)
     float2 st = st_in;
     if (wrap == 0)
     {
-        // mirror: WGSL: st = abs(st % vec2(2.0) - vec2(1.0)); st = 1.0 - st;
+        // mirror: WGSL (post-3c614a7d): abs((st % 2 + 2) % 2 - 1) == abs(nm_mod(st,2) - 1)
         st = abs(nm_mod(st, float2(2.0, 2.0)) - float2(1.0, 1.0));
         st = float2(1.0, 1.0) - st;
     }

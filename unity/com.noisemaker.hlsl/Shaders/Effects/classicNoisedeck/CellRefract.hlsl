@@ -309,7 +309,14 @@ float4 NMFrag_cellRefract(NMVaryings i) : SV_Target
     st.x += cos(refLen * CR_TAU) * refAmt;
     st.y += sin(refLen * CR_TAU) * refAmt;
 
-    if (wrap == 1)
+    if (wrap == 0)
+    {
+        // mirror (default) — WGSL: abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
+        // (sign-corrected truncated % == floored mod == nm_mod, H6). Upstream
+        // 7194deaf: mirror used to silently fall through with no wrap applied.
+        st = abs(nm_mod(st + 1.0, float2(2.0, 2.0)) - 1.0);
+    }
+    else if (wrap == 1)
     {
         st = frac(st);
     }
