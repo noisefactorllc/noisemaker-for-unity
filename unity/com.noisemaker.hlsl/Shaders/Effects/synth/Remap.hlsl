@@ -39,23 +39,73 @@ float zone5_count;  float zone5_active;  float zone5_alpha;
 float zone6_count;  float zone6_active;  float zone6_alpha;
 float zone7_count;  float zone7_active;  float zone7_alpha;
 
-// Per-zone vertex pair uniforms (8 pairs per zone = 16 verts, packed xy+zw)
+// Per-zone vertex pair uniforms (32 pairs per zone = 64 verts, packed xy+zw).
+// Upstream ba7e789f raised the per-zone vertex cap 16 -> 64 (uniformLayout
+// slots 10..265); we keep the GLSL-style individual named uniforms.
 float4 zone0_v0; float4 zone0_v1; float4 zone0_v2; float4 zone0_v3;
 float4 zone0_v4; float4 zone0_v5; float4 zone0_v6; float4 zone0_v7;
+float4 zone0_v8; float4 zone0_v9; float4 zone0_v10; float4 zone0_v11;
+float4 zone0_v12; float4 zone0_v13; float4 zone0_v14; float4 zone0_v15;
+float4 zone0_v16; float4 zone0_v17; float4 zone0_v18; float4 zone0_v19;
+float4 zone0_v20; float4 zone0_v21; float4 zone0_v22; float4 zone0_v23;
+float4 zone0_v24; float4 zone0_v25; float4 zone0_v26; float4 zone0_v27;
+float4 zone0_v28; float4 zone0_v29; float4 zone0_v30; float4 zone0_v31;
 float4 zone1_v0; float4 zone1_v1; float4 zone1_v2; float4 zone1_v3;
 float4 zone1_v4; float4 zone1_v5; float4 zone1_v6; float4 zone1_v7;
+float4 zone1_v8; float4 zone1_v9; float4 zone1_v10; float4 zone1_v11;
+float4 zone1_v12; float4 zone1_v13; float4 zone1_v14; float4 zone1_v15;
+float4 zone1_v16; float4 zone1_v17; float4 zone1_v18; float4 zone1_v19;
+float4 zone1_v20; float4 zone1_v21; float4 zone1_v22; float4 zone1_v23;
+float4 zone1_v24; float4 zone1_v25; float4 zone1_v26; float4 zone1_v27;
+float4 zone1_v28; float4 zone1_v29; float4 zone1_v30; float4 zone1_v31;
 float4 zone2_v0; float4 zone2_v1; float4 zone2_v2; float4 zone2_v3;
 float4 zone2_v4; float4 zone2_v5; float4 zone2_v6; float4 zone2_v7;
+float4 zone2_v8; float4 zone2_v9; float4 zone2_v10; float4 zone2_v11;
+float4 zone2_v12; float4 zone2_v13; float4 zone2_v14; float4 zone2_v15;
+float4 zone2_v16; float4 zone2_v17; float4 zone2_v18; float4 zone2_v19;
+float4 zone2_v20; float4 zone2_v21; float4 zone2_v22; float4 zone2_v23;
+float4 zone2_v24; float4 zone2_v25; float4 zone2_v26; float4 zone2_v27;
+float4 zone2_v28; float4 zone2_v29; float4 zone2_v30; float4 zone2_v31;
 float4 zone3_v0; float4 zone3_v1; float4 zone3_v2; float4 zone3_v3;
 float4 zone3_v4; float4 zone3_v5; float4 zone3_v6; float4 zone3_v7;
+float4 zone3_v8; float4 zone3_v9; float4 zone3_v10; float4 zone3_v11;
+float4 zone3_v12; float4 zone3_v13; float4 zone3_v14; float4 zone3_v15;
+float4 zone3_v16; float4 zone3_v17; float4 zone3_v18; float4 zone3_v19;
+float4 zone3_v20; float4 zone3_v21; float4 zone3_v22; float4 zone3_v23;
+float4 zone3_v24; float4 zone3_v25; float4 zone3_v26; float4 zone3_v27;
+float4 zone3_v28; float4 zone3_v29; float4 zone3_v30; float4 zone3_v31;
 float4 zone4_v0; float4 zone4_v1; float4 zone4_v2; float4 zone4_v3;
 float4 zone4_v4; float4 zone4_v5; float4 zone4_v6; float4 zone4_v7;
+float4 zone4_v8; float4 zone4_v9; float4 zone4_v10; float4 zone4_v11;
+float4 zone4_v12; float4 zone4_v13; float4 zone4_v14; float4 zone4_v15;
+float4 zone4_v16; float4 zone4_v17; float4 zone4_v18; float4 zone4_v19;
+float4 zone4_v20; float4 zone4_v21; float4 zone4_v22; float4 zone4_v23;
+float4 zone4_v24; float4 zone4_v25; float4 zone4_v26; float4 zone4_v27;
+float4 zone4_v28; float4 zone4_v29; float4 zone4_v30; float4 zone4_v31;
 float4 zone5_v0; float4 zone5_v1; float4 zone5_v2; float4 zone5_v3;
 float4 zone5_v4; float4 zone5_v5; float4 zone5_v6; float4 zone5_v7;
+float4 zone5_v8; float4 zone5_v9; float4 zone5_v10; float4 zone5_v11;
+float4 zone5_v12; float4 zone5_v13; float4 zone5_v14; float4 zone5_v15;
+float4 zone5_v16; float4 zone5_v17; float4 zone5_v18; float4 zone5_v19;
+float4 zone5_v20; float4 zone5_v21; float4 zone5_v22; float4 zone5_v23;
+float4 zone5_v24; float4 zone5_v25; float4 zone5_v26; float4 zone5_v27;
+float4 zone5_v28; float4 zone5_v29; float4 zone5_v30; float4 zone5_v31;
 float4 zone6_v0; float4 zone6_v1; float4 zone6_v2; float4 zone6_v3;
 float4 zone6_v4; float4 zone6_v5; float4 zone6_v6; float4 zone6_v7;
+float4 zone6_v8; float4 zone6_v9; float4 zone6_v10; float4 zone6_v11;
+float4 zone6_v12; float4 zone6_v13; float4 zone6_v14; float4 zone6_v15;
+float4 zone6_v16; float4 zone6_v17; float4 zone6_v18; float4 zone6_v19;
+float4 zone6_v20; float4 zone6_v21; float4 zone6_v22; float4 zone6_v23;
+float4 zone6_v24; float4 zone6_v25; float4 zone6_v26; float4 zone6_v27;
+float4 zone6_v28; float4 zone6_v29; float4 zone6_v30; float4 zone6_v31;
 float4 zone7_v0; float4 zone7_v1; float4 zone7_v2; float4 zone7_v3;
 float4 zone7_v4; float4 zone7_v5; float4 zone7_v6; float4 zone7_v7;
+float4 zone7_v8; float4 zone7_v9; float4 zone7_v10; float4 zone7_v11;
+float4 zone7_v12; float4 zone7_v13; float4 zone7_v14; float4 zone7_v15;
+float4 zone7_v16; float4 zone7_v17; float4 zone7_v18; float4 zone7_v19;
+float4 zone7_v20; float4 zone7_v21; float4 zone7_v22; float4 zone7_v23;
+float4 zone7_v24; float4 zone7_v25; float4 zone7_v26; float4 zone7_v27;
+float4 zone7_v28; float4 zone7_v29; float4 zone7_v30; float4 zone7_v31;
 
 // ---- Zone texture inputs -------------------------------------------------------
 Texture2D    zone0_tex; SamplerState sampler_zone0_tex;
@@ -84,56 +134,152 @@ float2 nm_remap_getVert(uint zoneIdx, uint vertIdx)
             case 0: packed = zone0_v0; break; case 1: packed = zone0_v1; break;
             case 2: packed = zone0_v2; break; case 3: packed = zone0_v3; break;
             case 4: packed = zone0_v4; break; case 5: packed = zone0_v5; break;
-            case 6: packed = zone0_v6; break; default: packed = zone0_v7; break;
+            case 6: packed = zone0_v6; break; case 7: packed = zone0_v7; break;
+            case 8: packed = zone0_v8; break; case 9: packed = zone0_v9; break;
+            case 10: packed = zone0_v10; break; case 11: packed = zone0_v11; break;
+            case 12: packed = zone0_v12; break; case 13: packed = zone0_v13; break;
+            case 14: packed = zone0_v14; break; case 15: packed = zone0_v15; break;
+            case 16: packed = zone0_v16; break; case 17: packed = zone0_v17; break;
+            case 18: packed = zone0_v18; break; case 19: packed = zone0_v19; break;
+            case 20: packed = zone0_v20; break; case 21: packed = zone0_v21; break;
+            case 22: packed = zone0_v22; break; case 23: packed = zone0_v23; break;
+            case 24: packed = zone0_v24; break; case 25: packed = zone0_v25; break;
+            case 26: packed = zone0_v26; break; case 27: packed = zone0_v27; break;
+            case 28: packed = zone0_v28; break; case 29: packed = zone0_v29; break;
+            case 30: packed = zone0_v30; break; default: packed = zone0_v31; break;
         }
     } else if (zoneIdx == 1u) {
         [branch] switch (pairIdx) {
             case 0: packed = zone1_v0; break; case 1: packed = zone1_v1; break;
             case 2: packed = zone1_v2; break; case 3: packed = zone1_v3; break;
             case 4: packed = zone1_v4; break; case 5: packed = zone1_v5; break;
-            case 6: packed = zone1_v6; break; default: packed = zone1_v7; break;
+            case 6: packed = zone1_v6; break; case 7: packed = zone1_v7; break;
+            case 8: packed = zone1_v8; break; case 9: packed = zone1_v9; break;
+            case 10: packed = zone1_v10; break; case 11: packed = zone1_v11; break;
+            case 12: packed = zone1_v12; break; case 13: packed = zone1_v13; break;
+            case 14: packed = zone1_v14; break; case 15: packed = zone1_v15; break;
+            case 16: packed = zone1_v16; break; case 17: packed = zone1_v17; break;
+            case 18: packed = zone1_v18; break; case 19: packed = zone1_v19; break;
+            case 20: packed = zone1_v20; break; case 21: packed = zone1_v21; break;
+            case 22: packed = zone1_v22; break; case 23: packed = zone1_v23; break;
+            case 24: packed = zone1_v24; break; case 25: packed = zone1_v25; break;
+            case 26: packed = zone1_v26; break; case 27: packed = zone1_v27; break;
+            case 28: packed = zone1_v28; break; case 29: packed = zone1_v29; break;
+            case 30: packed = zone1_v30; break; default: packed = zone1_v31; break;
         }
     } else if (zoneIdx == 2u) {
         [branch] switch (pairIdx) {
             case 0: packed = zone2_v0; break; case 1: packed = zone2_v1; break;
             case 2: packed = zone2_v2; break; case 3: packed = zone2_v3; break;
             case 4: packed = zone2_v4; break; case 5: packed = zone2_v5; break;
-            case 6: packed = zone2_v6; break; default: packed = zone2_v7; break;
+            case 6: packed = zone2_v6; break; case 7: packed = zone2_v7; break;
+            case 8: packed = zone2_v8; break; case 9: packed = zone2_v9; break;
+            case 10: packed = zone2_v10; break; case 11: packed = zone2_v11; break;
+            case 12: packed = zone2_v12; break; case 13: packed = zone2_v13; break;
+            case 14: packed = zone2_v14; break; case 15: packed = zone2_v15; break;
+            case 16: packed = zone2_v16; break; case 17: packed = zone2_v17; break;
+            case 18: packed = zone2_v18; break; case 19: packed = zone2_v19; break;
+            case 20: packed = zone2_v20; break; case 21: packed = zone2_v21; break;
+            case 22: packed = zone2_v22; break; case 23: packed = zone2_v23; break;
+            case 24: packed = zone2_v24; break; case 25: packed = zone2_v25; break;
+            case 26: packed = zone2_v26; break; case 27: packed = zone2_v27; break;
+            case 28: packed = zone2_v28; break; case 29: packed = zone2_v29; break;
+            case 30: packed = zone2_v30; break; default: packed = zone2_v31; break;
         }
     } else if (zoneIdx == 3u) {
         [branch] switch (pairIdx) {
             case 0: packed = zone3_v0; break; case 1: packed = zone3_v1; break;
             case 2: packed = zone3_v2; break; case 3: packed = zone3_v3; break;
             case 4: packed = zone3_v4; break; case 5: packed = zone3_v5; break;
-            case 6: packed = zone3_v6; break; default: packed = zone3_v7; break;
+            case 6: packed = zone3_v6; break; case 7: packed = zone3_v7; break;
+            case 8: packed = zone3_v8; break; case 9: packed = zone3_v9; break;
+            case 10: packed = zone3_v10; break; case 11: packed = zone3_v11; break;
+            case 12: packed = zone3_v12; break; case 13: packed = zone3_v13; break;
+            case 14: packed = zone3_v14; break; case 15: packed = zone3_v15; break;
+            case 16: packed = zone3_v16; break; case 17: packed = zone3_v17; break;
+            case 18: packed = zone3_v18; break; case 19: packed = zone3_v19; break;
+            case 20: packed = zone3_v20; break; case 21: packed = zone3_v21; break;
+            case 22: packed = zone3_v22; break; case 23: packed = zone3_v23; break;
+            case 24: packed = zone3_v24; break; case 25: packed = zone3_v25; break;
+            case 26: packed = zone3_v26; break; case 27: packed = zone3_v27; break;
+            case 28: packed = zone3_v28; break; case 29: packed = zone3_v29; break;
+            case 30: packed = zone3_v30; break; default: packed = zone3_v31; break;
         }
     } else if (zoneIdx == 4u) {
         [branch] switch (pairIdx) {
             case 0: packed = zone4_v0; break; case 1: packed = zone4_v1; break;
             case 2: packed = zone4_v2; break; case 3: packed = zone4_v3; break;
             case 4: packed = zone4_v4; break; case 5: packed = zone4_v5; break;
-            case 6: packed = zone4_v6; break; default: packed = zone4_v7; break;
+            case 6: packed = zone4_v6; break; case 7: packed = zone4_v7; break;
+            case 8: packed = zone4_v8; break; case 9: packed = zone4_v9; break;
+            case 10: packed = zone4_v10; break; case 11: packed = zone4_v11; break;
+            case 12: packed = zone4_v12; break; case 13: packed = zone4_v13; break;
+            case 14: packed = zone4_v14; break; case 15: packed = zone4_v15; break;
+            case 16: packed = zone4_v16; break; case 17: packed = zone4_v17; break;
+            case 18: packed = zone4_v18; break; case 19: packed = zone4_v19; break;
+            case 20: packed = zone4_v20; break; case 21: packed = zone4_v21; break;
+            case 22: packed = zone4_v22; break; case 23: packed = zone4_v23; break;
+            case 24: packed = zone4_v24; break; case 25: packed = zone4_v25; break;
+            case 26: packed = zone4_v26; break; case 27: packed = zone4_v27; break;
+            case 28: packed = zone4_v28; break; case 29: packed = zone4_v29; break;
+            case 30: packed = zone4_v30; break; default: packed = zone4_v31; break;
         }
     } else if (zoneIdx == 5u) {
         [branch] switch (pairIdx) {
             case 0: packed = zone5_v0; break; case 1: packed = zone5_v1; break;
             case 2: packed = zone5_v2; break; case 3: packed = zone5_v3; break;
             case 4: packed = zone5_v4; break; case 5: packed = zone5_v5; break;
-            case 6: packed = zone5_v6; break; default: packed = zone5_v7; break;
+            case 6: packed = zone5_v6; break; case 7: packed = zone5_v7; break;
+            case 8: packed = zone5_v8; break; case 9: packed = zone5_v9; break;
+            case 10: packed = zone5_v10; break; case 11: packed = zone5_v11; break;
+            case 12: packed = zone5_v12; break; case 13: packed = zone5_v13; break;
+            case 14: packed = zone5_v14; break; case 15: packed = zone5_v15; break;
+            case 16: packed = zone5_v16; break; case 17: packed = zone5_v17; break;
+            case 18: packed = zone5_v18; break; case 19: packed = zone5_v19; break;
+            case 20: packed = zone5_v20; break; case 21: packed = zone5_v21; break;
+            case 22: packed = zone5_v22; break; case 23: packed = zone5_v23; break;
+            case 24: packed = zone5_v24; break; case 25: packed = zone5_v25; break;
+            case 26: packed = zone5_v26; break; case 27: packed = zone5_v27; break;
+            case 28: packed = zone5_v28; break; case 29: packed = zone5_v29; break;
+            case 30: packed = zone5_v30; break; default: packed = zone5_v31; break;
         }
     } else if (zoneIdx == 6u) {
         [branch] switch (pairIdx) {
             case 0: packed = zone6_v0; break; case 1: packed = zone6_v1; break;
             case 2: packed = zone6_v2; break; case 3: packed = zone6_v3; break;
             case 4: packed = zone6_v4; break; case 5: packed = zone6_v5; break;
-            case 6: packed = zone6_v6; break; default: packed = zone6_v7; break;
+            case 6: packed = zone6_v6; break; case 7: packed = zone6_v7; break;
+            case 8: packed = zone6_v8; break; case 9: packed = zone6_v9; break;
+            case 10: packed = zone6_v10; break; case 11: packed = zone6_v11; break;
+            case 12: packed = zone6_v12; break; case 13: packed = zone6_v13; break;
+            case 14: packed = zone6_v14; break; case 15: packed = zone6_v15; break;
+            case 16: packed = zone6_v16; break; case 17: packed = zone6_v17; break;
+            case 18: packed = zone6_v18; break; case 19: packed = zone6_v19; break;
+            case 20: packed = zone6_v20; break; case 21: packed = zone6_v21; break;
+            case 22: packed = zone6_v22; break; case 23: packed = zone6_v23; break;
+            case 24: packed = zone6_v24; break; case 25: packed = zone6_v25; break;
+            case 26: packed = zone6_v26; break; case 27: packed = zone6_v27; break;
+            case 28: packed = zone6_v28; break; case 29: packed = zone6_v29; break;
+            case 30: packed = zone6_v30; break; default: packed = zone6_v31; break;
         }
     } else {
         [branch] switch (pairIdx) {
             case 0: packed = zone7_v0; break; case 1: packed = zone7_v1; break;
             case 2: packed = zone7_v2; break; case 3: packed = zone7_v3; break;
             case 4: packed = zone7_v4; break; case 5: packed = zone7_v5; break;
-            case 6: packed = zone7_v6; break; default: packed = zone7_v7; break;
+            case 6: packed = zone7_v6; break; case 7: packed = zone7_v7; break;
+            case 8: packed = zone7_v8; break; case 9: packed = zone7_v9; break;
+            case 10: packed = zone7_v10; break; case 11: packed = zone7_v11; break;
+            case 12: packed = zone7_v12; break; case 13: packed = zone7_v13; break;
+            case 14: packed = zone7_v14; break; case 15: packed = zone7_v15; break;
+            case 16: packed = zone7_v16; break; case 17: packed = zone7_v17; break;
+            case 18: packed = zone7_v18; break; case 19: packed = zone7_v19; break;
+            case 20: packed = zone7_v20; break; case 21: packed = zone7_v21; break;
+            case 22: packed = zone7_v22; break; case 23: packed = zone7_v23; break;
+            case 24: packed = zone7_v24; break; case 25: packed = zone7_v25; break;
+            case 26: packed = zone7_v26; break; case 27: packed = zone7_v27; break;
+            case 28: packed = zone7_v28; break; case 29: packed = zone7_v29; break;
+            case 30: packed = zone7_v30; break; default: packed = zone7_v31; break;
         }
     }
     return ((vertIdx & 1u) == 0u) ? packed.xy : packed.zw;
@@ -186,7 +332,7 @@ bool nm_remap_pointInZone(float2 p, uint zoneIdx)
     bool inside = false;
     float2 prev = nm_remap_getVert(zoneIdx, (uint)n - 1u);
     [loop]
-    for (uint i = 0u; i < 16u; i = i + 1u)
+    for (uint i = 0u; i < 64u; i = i + 1u)
     {
         if ((int)i >= n) { break; }
         float2 cur = nm_remap_getVert(zoneIdx, i);
@@ -214,7 +360,7 @@ float nm_remap_distToZoneEdge(float2 p, uint zoneIdx)
     float d = 1e9;
     float2 prev = nm_remap_getVert(zoneIdx, (uint)n - 1u);
     [loop]
-    for (uint i = 0u; i < 16u; i = i + 1u)
+    for (uint i = 0u; i < 64u; i = i + 1u)
     {
         if ((int)i >= n) { break; }
         float2 cur = nm_remap_getVert(zoneIdx, i);

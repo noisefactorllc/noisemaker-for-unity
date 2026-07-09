@@ -46,9 +46,10 @@ renderSurface`). That is the seam. noisemaker-hlsl produces the same graph two w
   engine — point `NM_REFERENCE_ROOT` at its root; it is **not** included in this package. To
   render immediately with no external dependency, import the bundled **Quick Start** sample
   (it ships a ready `graph.json`) — see *Quick start* below.
-- **Live / in-Unity** — the C# `Compiler/` port compiles DSL at runtime; it is *intended*
-  to be validated by diffing its graph JSON against the golden path, but is still early and
-  unverified — prefer the golden `graph.json` for anything you rely on.
+- **Live / in-Unity** — the C# `Compiler/` port compiles DSL at runtime. It is validated
+  by diffing its graph JSON against the golden path: 148/148 programs byte-clean (the 12
+  parity programs + the full `--selftest` corpus) via `tools/graphdump` — see
+  `parity/README.md` § Graph parity.
 
 Both feed the same `NMPipeline` executor + HLSL shaders, so visual parity depends only
 on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -79,8 +80,9 @@ on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 **Compiles and renders in Unity 6** (verified on 6000.3.16f1). The C# engine compiles
 clean and all 183 effect shaders present at that verification compiled (the v1.0.98 sync —
-`filter/parallax` plus the lighting/refract/cellRefract/simpleAberration updates — has not
-yet been through a Unity compile + parity pass); driving `NMParityRunner` in batchmode produced correct
+`filter/parallax` plus the lighting/refract/cellRefract/simpleAberration/remap updates —
+is graph-parity-verified but has not yet been through a Unity compile + pixel-parity
+pass); driving `NMParityRunner` in batchmode produced correct
 output for `solid` (exact `#FF8000` fill), `noise` (multi-octave RGB simplex), and a
 multi-pass `noise → blur` chain (correctly softened — exercises pooled intermediates +
 filter input sampling + per-pass selection). Parity-critical shaders (PCG, noise, cell,

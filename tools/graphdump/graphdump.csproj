@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Console stand-in for NMParityRunner.CompileDslDumpBatchFromCommandLine.
+       The Compiler assembly is pure C# (no UnityEngine), so GRAPH parity needs
+       no Unity editor — just a .NET 8 SDK. See parity/README.md. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>9.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>graphdump</AssemblyName>
+    <RootNamespace>GraphDump</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/com.noisemaker.hlsl/Compiler/**/*.cs" />
+  </ItemGroup>
+</Project>

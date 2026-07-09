@@ -30,3 +30,7 @@ parity/**/*.png
 # generated parity sweep/corpus outputs (regenerable via export-graph / batch-golden)
 parity/corpus-out/
 parity/out/
+
+# tools/graphdump — the one intentional (non-Unity-generated) csproj in the repo
+!tools/graphdump/graphdump.csproj
+tools/graphdump/bin/

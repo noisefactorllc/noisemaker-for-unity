@@ -9,8 +9,9 @@
 // final blit, render surface resolution. Subchain markers + DSL loops implemented.
 //
 // PARITY-CRITICAL behaviors replicated:
-//  - compile-time defines: globals are SORTED by name; suffix is sorted entries joined
-//    `__K_V`; value stringified like JS String(v) (reference/03 §4.5 hazard 3).
+//  - compile-time defines: GLOBALS are iterated sorted by name; the suffix joins the
+//    entries `__K_V` in that insertion order (NOT re-sorted by define name); value
+//    stringified like JS String(v) (reference/03 §4.5 hazard 3).
 //  - ALL programs get the nodeId prefix; per-program uniformLayouts take precedence.
 //  - colorMode first-pass / non-surface second-pass arg ordering (reference/03 §4.8).
 //  - inputs resolution order (reference/03 §5.1); outputs incl. last-pass fusion (§5.3).
@@ -408,13 +409,22 @@ namespace Noisemaker.Hlsl.Compiler
                     // member-string default would resolve via enum; numeric/define values in scope.
                     if (value.HasValue)
                     {
-                        pairs.Add(new KeyValuePair<string, double>(defineName, value.Value));
+                        // JS: compileTimeDefines[def.define] = value — an object keyed by
+                        // define name, so a duplicate define overwrites IN PLACE (first
+                        // insertion keeps its position).
+                        int existing = pairs.FindIndex(p => p.Key == defineName);
+                        if (existing >= 0) pairs[existing] = new KeyValuePair<string, double>(defineName, value.Value);
+                        else pairs.Add(new KeyValuePair<string, double>(defineName, value.Value));
                         rawValues[defineName] = value.Value;
                     }
                 }
             }
-            // suffix uses SORTED entries (reference: Object.entries(compileTimeDefines) sorted).
-            pairs.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+            // Suffix order = Object.entries(compileTimeDefines) INSERTION order, which is
+            // the global-name-sorted loop above — the reference does NOT re-sort by define
+            // name (expander.js 371-394: sortedGlobalNames drives the object; entries are
+            // read back in insertion order). Re-sorting here by define name diverged for
+            // effects where the orders differ (e.g. classicNoisedeck noise: global `type`
+            // sorts last but its define NOISE_TYPE sorts before REFRACT_MODE).
             var sb = new System.Text.StringBuilder();
             foreach (var p in pairs)
             {

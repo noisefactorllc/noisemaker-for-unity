@@ -101,10 +101,24 @@ UNITY=/path/to/Unity UNITY_PROJECT=/path/to/proj ./parity/graph-verify.sh       
 UNITY=... UNITY_PROJECT=... ./parity/graph-verify.sh noise mashup                 # a subset
 ```
 
+**No Unity needed:** the `Compiler/` assembly is pure C#, so `tools/graphdump/` builds
+the same dump path as a .NET 8 console app:
+
+```bash
+dotnet build -c Release tools/graphdump
+# manifest lines: <dslPath>\t<outPath>
+dotnet tools/graphdump/bin/Release/net8.0/graphdump.dll \
+  unity/com.noisemaker.hlsl/Effects manifest.tsv
+python3 parity/graph-diff.py <name>.ref.graph.json <name>.cs.graph.json
+```
+
 `graph-diff.py` compares the normalized graphs structurally, ignoring the per-instance
-`id` hash and `source`; a clean run is `0 deltas`. **Current status: 12/12 programs
-byte-clean** — the C# normalized graph is identical to the reference oracle. This is the
-"diffed against the golden path" validation the live-DSL path was always meant to have.
+`id` hash and `source`; a clean run is `0 deltas`. **Current status: 148/148 programs
+byte-clean** — the 12 `parity/programs`, the full 129-program `--selftest` corpus, and
+7 targeted variants (lighting/parallax heightMap default / explicit surface / mid-chain;
+remap default + wired zones; a pointsBillboardRender particle pipeline), all identical
+to the reference oracle via the console harness. This is the "diffed against the golden
+path" validation the live-DSL path was always meant to have.
 
 ## Parity hazards (must match between golden and candidate)
 

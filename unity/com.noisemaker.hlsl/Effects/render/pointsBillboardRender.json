@@ -200,12 +200,7 @@
       },
       "drawMode": "billboards",
       "count": "input",
-      "blend": true,
-      "conditions": {
-        "runIf": [
-          { "uniform": "blendMode", "equals": 0 }
-        ]
-      }
+      "blend": true
     },
     {
       "name": "deposit_alpha",
@@ -236,12 +231,10 @@
       },
       "drawMode": "billboards",
       "count": "input",
-      "blend": ["ONE", "ONE_MINUS_SRC_ALPHA"],
-      "conditions": {
-        "runIf": [
-          { "uniform": "blendMode", "equals": 1 }
-        ]
-      }
+      "blend": [
+        "ONE",
+        "ONE_MINUS_SRC_ALPHA"
+      ]
     },
     {
       "name": "blend",
