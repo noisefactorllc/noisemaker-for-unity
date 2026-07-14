@@ -164,8 +164,13 @@ namespace Noisemaker.Hlsl
 
                 // reuse-if-unchanged: preserves sim state across recompile/resize.
                 RenderTexture existingRead = _store.Get(readId);
-                if (existingRead != null &&
-                    existingRead.width == w && existingRead.height == h)
+                RenderTexture existingWrite = _store.Get(writeId);
+                RenderTextureFormat mappedFormat = TextureStore.MapFormat(format);
+                if (existingRead != null && existingWrite != null &&
+                    existingRead.width == w && existingRead.height == h &&
+                    existingWrite.width == w && existingWrite.height == h &&
+                    existingRead.format == mappedFormat &&
+                    existingWrite.format == mappedFormat)
                 {
                     // keep both buffers; ensure record exists.
                     if (!_surfaces.ContainsKey(name))
@@ -307,15 +312,12 @@ namespace Noisemaker.Hlsl
             }
         }
 
-        // §10.6 per-iteration swap (between iterations of a repeated pass).
-        // PARITY (pipeline.js swapIterationBuffers): swap surface.read <-> surface.write
-        // then set the frame maps FROM the swapped record (NOT from the prior frame-map
-        // values). This makes the next iteration READ the texel just written (new
-        // surface.read == old surface.write) and WRITE the buffer it just read from.
-        // Setting the maps from the prior frame-map state instead desyncs repeated
-        // sims (reactionDiffusion `simulate`, navierStokes `pressure`): the next
-        // iteration would read stale state and overwrite the fresh result.
-        public void SwapIterationBuffers(Pass pass)
+        // §10.6 per-iteration adoption (after a repeated pass advances the frame
+        // maps). PARITY (pipeline.js adoptIterationBindings): the frame-local maps are
+        // the source of truth. Mirror them into the persistent record; never derive a
+        // swap from rec.Read/Write because a preceding non-repeat pass may have advanced
+        // only the frame maps and left the record stale.
+        public void AdoptIterationBindings(Pass pass)
         {
             int oc = pass.Outputs.Count;
             for (int i = 0; i < oc; i++)
@@ -325,12 +327,14 @@ namespace Noisemaker.Hlsl
                 if (name == null) continue;
                 SurfaceRecord rec = GetSurface(name);
                 if (rec == null) continue;
-                // swap surface.read <-> surface.write.
-                string tmp = rec.Read; rec.Read = rec.Write; rec.Write = tmp;
-                // frame maps mirror the swapped record (reference reads surface.read/
-                // surface.write AFTER the swap).
-                _frameRead[name] = rec.Read;
-                _frameWrite[name] = rec.Write;
+
+                string frameRead;
+                if (_frameRead.TryGetValue(name, out frameRead))
+                    rec.Read = frameRead;
+
+                string frameWrite;
+                if (_frameWrite.TryGetValue(name, out frameWrite))
+                    rec.Write = frameWrite;
             }
         }
 

@@ -5,16 +5,16 @@
 // The runtime never re-runs the JS liveness allocator: the normalized graph JSON
 // already carries graph.allocations (virtual texId -> "phys_N"). So this store:
 //   * resolves a virtual/pooled texId to its physical slot id via allocations,
-//   * creates exactly one RenderTexture per distinct phys_N (sized from the spec
-//     of one of the texIds mapped to it — they share a slot only when liveness
-//     proved compatible sizes, so any mapped spec is representative),
+//   * creates one provisional RenderTexture per distinct phys_N at the maximum
+//     mapped dimensions; ResolvePhysical gives incompatible format/is3D aliases
+//     dedicated virtual-id textures,
 //   * resolves dimensions with the EXACT reference rounding rules.
 //
 // Formats (GRAPH-JSON-SCHEMA.md "## Formats", reference/04 §8): rgba16f->ARGBHalf,
 // rgba32f->ARGBFloat, rgba8->ARGB32. ALL created RenderTextureReadWrite.Linear,
 // 4-channel, no sRGB. Surfaces that compute passes write also need enableRandomWrite
 // = false (we use fragment MRT, not UAV) but DO need to be valid render targets;
-// bilinear clamp filter to match the reference sampler defaults.
+// point/clamp filtering to match current reference render-surface sampling.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -27,6 +27,12 @@ namespace Noisemaker.Hlsl
         // texId / surface-buffer-id -> RenderTexture handle.
         private readonly Dictionary<string, RenderTexture> _textures =
             new Dictionary<string, RenderTexture>();
+
+        // Logical is3D identity cannot be inferred from RenderTexture.dimension:
+        // volume specs intentionally remain 2D atlases. Track it beside each RT so
+        // pooling can reject aliases that differ only in logical texture identity.
+        private readonly Dictionary<RenderTexture, bool> _logicalIs3D =
+            new Dictionary<RenderTexture, bool>();
 
         public int ScreenWidth { get; private set; }
         public int ScreenHeight { get; private set; }
@@ -46,6 +52,14 @@ namespace Noisemaker.Hlsl
         public bool Has(string id) { return _textures.ContainsKey(id); }
 
         public IEnumerable<string> Keys { get { return _textures.Keys; } }
+
+        public bool MatchesLogical3D(RenderTexture texture, bool is3D)
+        {
+            bool existingIs3D;
+            return texture != null &&
+                _logicalIs3D.TryGetValue(texture, out existingIs3D) &&
+                existingIs3D == is3D;
+        }
 
         // ---- format map (reference/04 §8) ---------------------------------
         public static RenderTextureFormat MapFormat(string format)
@@ -160,25 +174,27 @@ namespace Noisemaker.Hlsl
         // TODO(verify): if a future effect needs a hardware Tex3D, gate it on an
         // explicit spec flag; none of the 13+ ported 3D effects do (all atlas).
 
-        // Create (or reuse if size matches) an RT for a given id. Mirrors the
-        // recreateTextures reuse rule: if an existing RT matches w/h keep it (preserves
-        // sim/volume state); else destroy + recreate. `is3D` selects the 2D VOLUME-ATLAS
-        // layout (see convention above); `depth` is recorded but the RT stays 2D.
+        // Create (or reuse if size, mapped format, and logical identity match) an RT
+        // for a given id. Matching instances preserve sim/volume state; incompatible
+        // instances are destroyed and recreated. `is3D` selects the logical 2D
+        // VOLUME-ATLAS identity (see convention above); `depth` is informational.
         public RenderTexture CreateOrReuse(string id, int width, int height,
             string format, bool is3D, int depth)
         {
+            var fmt = MapFormat(format);
             RenderTexture existing;
             if (_textures.TryGetValue(id, out existing) && existing != null)
             {
                 bool sizeMatch = existing.width == width && existing.height == height;
+                bool formatMatch = existing.format == fmt;
                 // Atlas RTs are 2D; identity is fully determined by width/height
-                // (height already encodes the slice stack volumeSize^2). Do NOT compare
-                // volumeDepth — the atlas RT has volumeDepth==1 by construction.
-                if (sizeMatch) return existing;
+                // plus tracked logical is3D (height encodes the slice stack). Do NOT
+                // compare volumeDepth — it is always 1 for the physical 2D atlas.
+                if (sizeMatch && formatMatch && MatchesLogical3D(existing, is3D))
+                    return existing;
                 Destroy(id);
             }
 
-            var fmt = MapFormat(format);
             // ALWAYS a 2D RenderTexture, including the volume atlas (is3D). See the
             // VOLUME ATLAS CONVENTION above: the 64x4096 atlas is a 2D sheet, read by
             // integer texel fetch, NOT a hardware Tex3D.
@@ -208,6 +224,7 @@ namespace Noisemaker.Hlsl
             ClearToTransparentBlack(rt);
 
             _textures[id] = rt;
+            _logicalIs3D[rt] = is3D;
             return rt;
         }
 
@@ -231,6 +248,7 @@ namespace Noisemaker.Hlsl
             {
                 if (rt != null)
                 {
+                    _logicalIs3D.Remove(rt);
                     rt.Release();
 #if UNITY_EDITOR
                     Object.DestroyImmediate(rt);
@@ -253,10 +271,11 @@ namespace Noisemaker.Hlsl
         // mapped to it (a smaller pass renders into a sub-viewport of the larger RT;
         // reduction passes whose GetDimensions/Load span the physical size still see
         // the same global min/max because the out-of-range reads hit the unchanged
-        // sentinel side of min()/max()). First-seen format/is3D is representative.
+        // sentinel side of min()/max()). The first-seen format/is3D initializes the
+        // provisional slot; ResolvePhysical isolates incompatible aliases by virtual id.
         public void AllocatePooled(RenderGraph graph, System.Func<string, double?> uniforms)
         {
-            // phys_N -> max (w,h,d) + representative format/is3D across mapped texIds.
+            // phys_N -> max (w,h,d) + first-seen provisional format/is3D.
             var maxW = new Dictionary<string, int>();
             var maxH = new Dictionary<string, int>();
             var maxD = new Dictionary<string, int>();
@@ -291,7 +310,7 @@ namespace Noisemaker.Hlsl
                     if (w > maxW[physId]) maxW[physId] = w;
                     if (h > maxH[physId]) maxH[physId] = h;
                     if (d > maxD[physId]) maxD[physId] = d;
-                    // first-seen format/is3D wins (all mapped texIds share a format).
+                    // Keep the provisional identity; incompatible aliases are dedicated.
                 }
             }
 
@@ -315,6 +334,7 @@ namespace Noisemaker.Hlsl
                 }
             }
             _textures.Clear();
+            _logicalIs3D.Clear();
         }
     }
 }

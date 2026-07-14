@@ -43,7 +43,7 @@ style preference.
 | logical shift | `v >> 16u` | `v >> 16u` | `v >> 16u` | unsigned |
 | ternary / select | `c ? a : b` | `select(b,a,c)` | `c ? a : b` | WGSL `select(false,true,cond)` — reversed! |
 | texture decl | `uniform sampler2D t` | `texture_2d<f32>`+`sampler` | `Texture2D t; SamplerState sampler_t;` | |
-| sample | `texture(t,uv)` | `textureSample(t,s,uv)` | `t.Sample(sampler_t, uv)` | linear, clamp, **non-sRGB** |
+| sample | `texture(t,uv)` | `textureSample(t,s,uv)` | `t.Sample(sampler_t, uv)` | render surfaces: point/clamp; imported media: linear; **non-sRGB** |
 | tex size | `textureSize(t,0)` | `textureDimensions(t)` | `uint w,h; t.GetDimensions(w,h)` | |
 | frag coord | `gl_FragCoord.xy` (bottom-left) | `position.xy` (top-left) | **`NM_FragCoord(i)`** | top-left, +0.5 centered |
 | out color | `out vec4 fragColor` | `@location(0)` return | `return float4` : `SV_Target` | |
@@ -76,12 +76,23 @@ style preference.
 - Canonical origin is top-left (WGSL). Ported-from-WGSL bodies need no flip. If the
   parity harness shows a vertical mirror on a given graphics API, flip once via
   `#define NM_FLIP_Y 1` (handled in `NMFullscreen.hlsl`) — never per-effect.
-- Render targets are **linear half-float** (`RenderTextureFormat.ARGBHalf`), 4-channel.
-  No sRGB encode/decode in the pipeline. Ensure the RenderTexture is created with
-  `RenderTextureReadWrite.Linear` and the project does not auto-sRGB it (H2, H7).
-- Samplers: bilinear, clamp-to-edge by default (repeat only where the effect tiles).
+- Render targets are linear, four-channel, and use each texture definition's format:
+  `rgba16f` → `ARGBHalf`, `rgba32f` → `ARGBFloat`, and `rgba8`/`rgba8unorm`
+  → `ARGB32`. An `rgba8unorm` intermediate therefore quantizes between passes;
+  preserving that boundary is required parity. No pipeline target uses sRGB transfer.
+- Render-surface and intermediate samplers are point-filtered and clamp-to-edge at
+  current upstream HEAD. Imported external image/video media remains linear-filtered.
   Declare `SamplerState` explicitly; do not rely on Unity's `sampler2D` sRGB path.
 - Pixel center is `+0.5` in GLSL/WGSL/HLSL alike.
+
+## Repeat binding parity
+
+- After every pass, frame-local read/write bindings advance so later work reads the
+  texture just written. For a repeated global-surface pass, copy those already-advanced
+  IDs into the persistent surface record after each execution; never recompute a swap
+  from that record, because an earlier non-repeat seed pass may have left it stale.
+- The same adoption rule applies at DSL loop-bracket iteration boundaries. End-of-frame
+  state persistence/display swapping remains a separate final step.
 
 ## Numeric-exactness hazards (bit-for-bit)
 

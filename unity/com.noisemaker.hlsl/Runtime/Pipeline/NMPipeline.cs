@@ -258,7 +258,7 @@ namespace Noisemaker.Hlsl
                     _backend.ExecutePass(_cmd, pass, _uniformLookup);
                     _surfaces.UpdateFrameSurfaceBindings(pass); // §10.2
                     if (repeatCount > 1)
-                        _surfaces.SwapIterationBuffers(pass);   // §10.6
+                        _surfaces.AdoptIterationBindings(pass); // §10.6
                 }
             }
 
@@ -279,8 +279,8 @@ namespace Noisemaker.Hlsl
         // `start`. Returns the LAST pass index of the bracket (the caller's for-loop
         // then increments past it). The bracket is the maximal contiguous run of passes
         // with the same non-zero LoopGroupId; the whole run executes LoopIterations
-        // times, ping-ponging its global outputs between iterations (reference/04 §10.6
-        // swapIterationBuffers). Per-pass `repeat` still applies inside each iteration.
+        // times, adopting its frame-local global bindings between iterations
+        // (reference/04 §10.6). Per-pass `repeat` still applies inside each iteration.
         // TODO(verify): no JS reference exists for subchain N-fold expansion (the JS
         // reference loops via loopBegin/loopEnd accumulator effects, not a bracket), so
         // the exact buffer holding the presented result after N iterations must be
@@ -305,16 +305,16 @@ namespace Noisemaker.Hlsl
                         _backend.ExecutePass(_cmd, lp, _uniformLookup);
                         _surfaces.UpdateFrameSurfaceBindings(lp); // §10.2
                         if (rc > 1)
-                            _surfaces.SwapIterationBuffers(lp);   // §10.6 (inner repeat)
+                            _surfaces.AdoptIterationBindings(lp); // §10.6 (inner repeat)
                     }
                 }
-                // Per-loop-iteration ping-pong: swap each global surface written by the
-                // bracket so the next iteration reads this iteration's output. Skipped on
-                // the last iteration so the post-loop chain and end-of-frame swap see the
-                // final content in the current read buffer.
+                // At each boundary, mirror frame-local bindings for every bracket output
+                // into its persistent record. The frame maps already make the next
+                // iteration read this iteration's output. Preserve the existing final-
+                // iteration skip so post-loop/end-of-frame handling remains unchanged.
                 if (iter < loopIters - 1)
                     for (int p = start; p <= end; p++)
-                        _surfaces.SwapIterationBuffers(Graph.Passes[p]); // §10.6
+                        _surfaces.AdoptIterationBindings(Graph.Passes[p]); // §10.6
             }
             return end;
         }
@@ -463,8 +463,9 @@ namespace Noisemaker.Hlsl
         // node_0_volumeCache 64x4096 aliased with node_3_out screen 256x256 grows phys
         // to 256x4096): NM_FragCoord then spans the wrong width and fullscreen samplers
         // read by normalized UV across the oversized RT, scrambling the atlas. When this
-        // texId's LOGICAL size differs from the pooled physical, fall back to the
-        // reference behavior: a DEDICATED RT keyed by the virtual texId at logical size.
+        // texId's LOGICAL size, mapped format, or logical is3D identity differs from
+        // the pooled physical, fall back to the reference behavior: a DEDICATED RT
+        // keyed by the virtual texId at its logical specification.
         private RenderTexture ResolvePhysical(string texId)
         {
             if (string.IsNullOrEmpty(texId) || texId == "none") return null;
@@ -474,14 +475,16 @@ namespace Noisemaker.Hlsl
                 RenderTexture rt = _store.Get(phys);
                 if (rt != null)
                 {
-                    // If this virtual's own logical size differs from the pooled physical
-                    // RT, the alias is unsafe — use a dedicated logical-sized RT instead.
+                    // If this virtual's logical specification differs from the pooled
+                    // physical RT, the alias is unsafe — use a dedicated RT instead.
                     TextureSpec s;
                     if (Graph.Textures.TryGetValue(texId, out s) && s != null)
                     {
                         int lw = TextureStore.ResolveDimension(s.Width, _width, UniformLookup);
                         int lh = TextureStore.ResolveDimension(s.Height, _height, UniformLookup);
-                        if (lw != rt.width || lh != rt.height)
+                        if (lw != rt.width || lh != rt.height ||
+                            rt.format != TextureStore.MapFormat(s.Format) ||
+                            !_store.MatchesLogical3D(rt, s.Is3D))
                             return CreateLazyPhysical(texId, texId);
                     }
                     return rt;
