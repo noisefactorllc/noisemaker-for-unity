@@ -22,7 +22,9 @@
 // InputTex  : source surface
 // SS        : sampler state (bilinear, clamp, linear/non-sRGB)
 // UV        : 0..1 fragment UV (top-left, multiply by InputTex dimensions to get fragCoord)
-// Kernel    : 0=fine, 1=bold
+// Kernel    : 0=fine, 1=bold, 2=contour
+// Level     : contour level, 0..100
+// ContourSide: 0=lower, 1=upper
 // Size      : 1=kernel5x5, 2=kernel7x7
 // Blend     : 0=add..8=screen (see edge.json choices)
 // Invert    : 0=off, 1=on
@@ -35,6 +37,8 @@ void NM_Edge_float(
     UnitySamplerState SS,
     float2            UV,
     int               Kernel,
+    float             Level,
+    int               ContourSide,
     int               Size,
     int               Blend,
     int               Invert,
@@ -45,21 +49,24 @@ void NM_Edge_float(
     out float4        Out)
 {
     // Assign globals so nm_edge_frag reads them correctly.
-    kernel    = Kernel;
-    size      = Size;
-    blend     = Blend;
-    invert    = Invert;
-    channel   = Channel;
-    threshold = Threshold;
-    amount    = Amount;
-    mixAmt    = MixAmt;
+    kernel_u    = Kernel;
+    level       = Level;
+    contourSide = ContourSide;
+    size        = Size;
+    blend       = Blend;
+    invert      = Invert;
+    channel     = Channel;
+    threshold   = Threshold;
+    amount      = Amount;
+    mixAmt      = MixAmt;
 
     // Reconstruct fragCoord from UV * texSize (matches WGSL pos.xy = uv * texSize).
     uint tw, th;
     InputTex.tex.GetDimensions(tw, th); // TODO(verify): UnityTexture2D .tex field name
     float2 fragCoord = UV * float2((float)tw, (float)th);
 
-    Out = nm_edge_frag(InputTex.tex, SS.samplerstate, fragCoord);
+    // Shader Graph is untiled; the canonical radius scale is therefore 1.
+    Out = nm_edge_frag(InputTex.tex, SS.samplerstate, fragCoord, 1.0);
 }
 
 #endif // NM_EDGE_SG_INCLUDED

@@ -5,75 +5,175 @@
 // Emboss.hlsl — filter/emboss, ported PIXEL-IDENTICALLY from the canonical WGSL:
 //   shaders/effects/filter/emboss/wgsl/emboss.wgsl
 //
-// WGSL main() summary:
-//   texSize   = vec2<f32>(textureDimensions(inputTex))
-//   uv        = pos.xy / texSize              // pos = @builtin(position), top-left
-//   texelSize = 1.0 / texSize
-//   origColor = textureSample(inputTex, inputSampler, uv)
-//   kernel    = [-2,-1,0, -1,1,1, 0,1,2]     // 3×3 emboss
-//   offsets   = 9 neighbour texel offsets (±texelSize)
-//   for i in 0..9: conv += textureSample(inputTex, inputSampler, uv + offsets[i]*amount).rgb * kernel[i]
-//   return vec4<f32>(clamp(conv, 0, 1), origColor.a)
-//
-// PORTING notes:
-//  * One named uniform: float amount (definition.js globals.amount.uniform).
-//  * uv divides by the INPUT TEXTURE's own dimensions (textureDimensions(inputTex)),
-//    NOT fullResolution. NM_FragCoord(i) / inputTex dimensions is exact.
-//  * No PRNG / no special math; no helpers beyond standard HLSL clamp/float ops.
-//  * WGSL is canonical; no Y-flip needed.
+// Two visual contracts: the original color convolution (STYLE 0) and an opt-in
+// gray directional relief (STYLE 1). Global-to-local texture mapping makes both
+// paths tile-safe. The default color path stays literal and never uses trig.
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
 
-// Per-effect uniform (definition.js globals.amount)
+int STYLE;
 float amount;
+float angle;
+float height;
+float colorAmount;
+
+static const float3 NM_EMBOSS_LUMA = float3(0.2126, 0.7152, 0.0722);
+
+float3 nm_emboss_sampleGlobal(
+    Texture2D inputTex,
+    SamplerState sampler_inputTex,
+    float2 globalUV)
+{
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    float2 texSize = float2(tw, th);
+    float2 fullDims = texSize;
+    if (fullResolution.x > 0.0) { fullDims = fullResolution; }
+    float2 localUV = (globalUV * fullDims - tileOffset) / texSize;
+    return inputTex.Sample(sampler_inputTex, localUV).rgb;
+}
+
+float3 nm_emboss_colorDefault(
+    Texture2D inputTex,
+    SamplerState sampler_inputTex,
+    float2 uv,
+    float2 texelSize)
+{
+    float kernel[9] = {-2.0, -1.0, 0.0, -1.0, 1.0, 1.0, 0.0, 1.0, 2.0};
+
+    // COLOR_DEFAULT_EXACT_BEGIN
+    // Literal pre-angle/height offsets and arithmetic order. Do not route the
+    // default through the rotated general path.
+    float2 offsets[9] = {
+        float2(-texelSize.x, -texelSize.y),
+        float2(0.0, -texelSize.y),
+        float2(texelSize.x, -texelSize.y),
+        float2(-texelSize.x, 0.0),
+        float2(0.0, 0.0),
+        float2(texelSize.x, 0.0),
+        float2(-texelSize.x, texelSize.y),
+        float2(0.0, texelSize.y),
+        float2(texelSize.x, texelSize.y)
+    };
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    float2 texSize = float2(tw, th);
+    float2 fullDims = texSize;
+    if (fullResolution.x > 0.0) { fullDims = fullResolution; }
+
+    float3 conv = float3(0.0, 0.0, 0.0);
+    [unroll]
+    for (int i = 0; i < 9; i = i + 1)
+    {
+        float2 g = uv + offsets[i] * amount * renderScale;
+        float3 sampleColor = inputTex.Sample(sampler_inputTex,
+            (g * fullDims - tileOffset) / texSize).rgb;
+        conv = conv + sampleColor * kernel[i];
+    }
+    // COLOR_DEFAULT_EXACT_END
+    return conv;
+}
+
+float3 nm_emboss_colorGeneral(
+    Texture2D inputTex,
+    SamplerState sampler_inputTex,
+    float2 uv,
+    float2 texelSize)
+{
+    float kernel[9] = {-2.0, -1.0, 0.0, -1.0, 1.0, 1.0, 0.0, 1.0, 2.0};
+    float2 baseOffsetsPx[9] = {
+        float2(-1.0, -1.0), float2(0.0, -1.0), float2(1.0, -1.0),
+        float2(-1.0,  0.0), float2(0.0,  0.0), float2(1.0,  0.0),
+        float2(-1.0,  1.0), float2(0.0,  1.0), float2(1.0,  1.0)
+    };
+    float theta = radians(angle - 135.0);
+    float ct = cos(theta);
+    float st = sin(theta);
+
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    float2 texSize = float2(tw, th);
+    float2 fullDims = texSize;
+    if (fullResolution.x > 0.0) { fullDims = fullResolution; }
+
+    float3 conv = float3(0.0, 0.0, 0.0);
+    [unroll]
+    for (int i = 0; i < 9; i = i + 1)
+    {
+        float2 basePx = baseOffsetsPx[i];
+        float2 rotatedPx = float2(
+            ct * basePx.x + st * basePx.y,
+            -st * basePx.x + ct * basePx.y) * height;
+        float2 offsetUV = rotatedPx * texelSize * amount * renderScale;
+        float2 g = uv + offsetUV;
+        float3 sampleColor = inputTex.Sample(sampler_inputTex,
+            (g * fullDims - tileOffset) / texSize).rgb;
+        conv = conv + sampleColor * kernel[i];
+    }
+    return conv;
+}
+
+float3 nm_emboss_gray(
+    Texture2D inputTex,
+    SamplerState sampler_inputTex,
+    float2 uv,
+    float3 centerRGB)
+{
+    float theta = radians(angle);
+    float2 direction = float2(cos(theta), sin(theta));
+    float2 offsetUV = direction * (height * renderScale) / fullResolution;
+    float positiveLuma = dot(nm_emboss_sampleGlobal(inputTex, sampler_inputTex, uv + offsetUV), NM_EMBOSS_LUMA);
+    float negativeLuma = dot(nm_emboss_sampleGlobal(inputTex, sampler_inputTex, uv - offsetUV), NM_EMBOSS_LUMA);
+    float signedEdge = positiveLuma - negativeLuma;
+    float edgeMagnitude = abs(signedEdge);
+    float relief = 0.5 + 0.5 * signedEdge;
+    float centerLuma = dot(centerRGB, NM_EMBOSS_LUMA);
+    float3 sourceChroma = centerRGB - (float3)centerLuma;
+    float3 tracedColor = sourceChroma * edgeMagnitude * clamp(colorAmount / 100.0, 0.0, 1.0);
+    return (float3)relief + tracedColor;
+}
 
 // -----------------------------------------------------------------------------
 // nm_emboss — core per-pixel evaluation.
-// Caller is responsible for supplying the already-computed uv and texelSize
-// (both derived from inputTex dimensions) so the SG wrapper and the render pass
-// share identical math.
+// Full per-pixel evaluation, including global-to-local tile sampling.
 // -----------------------------------------------------------------------------
 float4 nm_emboss(
     Texture2D    inputTex,
     SamplerState sampler_inputTex,
-    float2       uv,
-    float2       texelSize,
-    float4       origColor)
+    float2       fragCoord)
 {
-    // Emboss kernel (row-major, matches WGSL array literal exactly):
-    // -2 -1  0
-    // -1  1  1
-    //  0  1  2
-    float kernel[9];
-    kernel[0] = -2.0; kernel[1] = -1.0; kernel[2] =  0.0;
-    kernel[3] = -1.0; kernel[4] =  1.0; kernel[5] =  1.0;
-    kernel[6] =  0.0; kernel[7] =  1.0; kernel[8] =  2.0;
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    float2 texSize = float2(tw, th);
+    float2 globalCoord = fragCoord + tileOffset;
+    float2 globalUV = globalCoord / fullResolution;
+    float2 texelSize = 1.0 / texSize;
+    float2 uv = fragCoord / texSize;
+    float4 origColor = inputTex.Sample(sampler_inputTex, uv);
+    bool fullFrame = all(tileOffset == float2(0.0, 0.0)) && all(fullResolution == texSize);
+    float2 colorTexelSize = 1.0 / fullResolution;
+    if (fullFrame) { colorTexelSize = texelSize; }
 
-    float2 offsets[9];
-    offsets[0] = float2(-texelSize.x, -texelSize.y);
-    offsets[1] = float2( 0.0,         -texelSize.y);
-    offsets[2] = float2( texelSize.x, -texelSize.y);
-    offsets[3] = float2(-texelSize.x,  0.0);
-    offsets[4] = float2( 0.0,          0.0);
-    offsets[5] = float2( texelSize.x,  0.0);
-    offsets[6] = float2(-texelSize.x,  texelSize.y);
-    offsets[7] = float2( 0.0,          texelSize.y);
-    offsets[8] = float2( texelSize.x,  texelSize.y);
-
-    float3 conv = float3(0.0, 0.0, 0.0);
-
-    // WGSL: for (var i = 0; i < 9; i = i + 1)
-    [loop]
-    for (int i = 0; i < 9; i = i + 1)
+    float3 result;
+    [branch]
+    if (STYLE == 0)
     {
-        // WGSL: textureSample(inputTex, inputSampler, uv + offsets[i] * uniforms.amount).rgb
-        float3 s = inputTex.Sample(sampler_inputTex, uv + offsets[i] * amount).rgb;
-        conv = conv + s * kernel[i];
+        [branch]
+        if (angle == 135.0 && height == 1.0)
+        {
+            result = nm_emboss_colorDefault(inputTex, sampler_inputTex, globalUV, colorTexelSize);
+        }
+        else
+        {
+            result = nm_emboss_colorGeneral(inputTex, sampler_inputTex, globalUV, colorTexelSize);
+        }
     }
-
-    // WGSL: return vec4<f32>(clamp(conv, vec3<f32>(0.0), vec3<f32>(1.0)), origColor.a)
-    return float4(clamp(conv, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0)), origColor.a);
+    else
+    {
+        result = nm_emboss_gray(inputTex, sampler_inputTex, globalUV, origColor.rgb);
+    }
+    return float4(clamp(result, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0)), origColor.a);
 }
 
 #endif // NM_EMBOSS_INCLUDED

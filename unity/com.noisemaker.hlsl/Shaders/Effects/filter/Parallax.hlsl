@@ -13,9 +13,8 @@
 // where the ray first dips below the height field. Single render pass.
 //
 // PORTING-GUIDE notes / hazards handled:
-//  * uv = pos.xy / textureDimensions(inputTex) — divide by INPUT texture dims,
-//    NOT fullResolution. Mirrors WGSL exactly. No per-effect Y flip (ported
-//    from WGSL, top-left canonical).
+//  * The ray starts in global full-frame UV. Both input and height-map samples
+//    map that global UV back into the current tile's local texture coordinates.
 //  * heightMap defaults to the pipeline input (definition.js
 //    globals.heightMap.default = "inputTex"); the expander binds the live
 //    cursor when the user doesn't wire a surface.
@@ -60,7 +59,20 @@ float nm_parallax_getLuminosity(float3 color)
 // -----------------------------------------------------------------------------
 float nm_parallax_getHeight(float2 uv)
 {
-    return nm_parallax_getLuminosity(heightMap.SampleLevel(sampler_heightMap, uv, 0.0).rgb);
+    uint mw, mh;
+    heightMap.GetDimensions(mw, mh);
+    float2 mapSize = float2((float)mw, (float)mh);
+    float2 localUV = (uv * fullResolution - tileOffset) / mapSize;
+    return nm_parallax_getLuminosity(heightMap.SampleLevel(sampler_heightMap, localUV, 0.0).rgb);
+}
+
+float4 nm_parallax_getInput(float2 uv)
+{
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    float2 texSize = float2((float)tw, (float)th);
+    float2 localUV = (uv * fullResolution - tileOffset) / texSize;
+    return inputTex.SampleLevel(sampler_inputTex, localUV, 0.0);
 }
 
 // =============================================================================
@@ -69,12 +81,7 @@ float nm_parallax_getHeight(float2 uv)
 // =============================================================================
 float4 NMFrag_parallax(NMVaryings i) : SV_Target
 {
-    // WGSL: texSize = vec2<f32>(textureDimensions(inputTex));
-    //       uv      = pos.xy / texSize;
-    uint w, h;
-    inputTex.GetDimensions(w, h);
-    float2 texSize = float2((float)w, (float)h);
-    float2 uv      = NM_FragCoord(i) / texSize;
+    float2 uv = NM_GlobalCoord(i) / fullResolution;
 
     // WGSL: var v = vec3f(0.0, 0.0, 1.0);
     //       if (length(uniforms.direction) > 0.0) { v = normalize(direction); }
@@ -84,6 +91,19 @@ float4 NMFrag_parallax(NMVaryings i) : SV_Target
         v = normalize(direction);
     }
     float2 shift = v.xy * NM_PARALLAX_SHIFT_SCALE;
+
+    // Large-format tile rendering is limited to the 256 full-frame-pixel
+    // overlap budget. Untiled rendering is deliberately unchanged.
+    bool isTileRendering = length(tileOffset) > 0.0;
+    if (isTileRendering)
+    {
+        float maxDispPixels = 256.0;
+        float dispPixels = length(shift * fullResolution);
+        if (dispPixels > maxDispPixels)
+        {
+            shift = shift * (maxDispPixels / dispPixels);
+        }
+    }
 
     // View ray crosses this fragment's UV at height == pivot
     float  t     = 1.0;
@@ -112,7 +132,7 @@ float4 NMFrag_parallax(NMVaryings i) : SV_Target
         }
     }
 
-    return inputTex.SampleLevel(sampler_inputTex, rayUV, 0.0);
+    return nm_parallax_getInput(rayUV);
 }
 
 #endif // NM_EFFECT_PARALLAX_INCLUDED

@@ -1,7 +1,8 @@
 Shader "Noisemaker/synth/sacredGeometry"
 {
     // synth/sacredGeometry — flower-of-life and related sacred-geometry lattices.
-    // Single render pass. Generator (no texture inputs).
+    // Single render pass. Generator (no texture inputs); global coordinates are
+    // normalized by fullResolution for seamless large-format tiles.
     // Runtime binds params via MaterialPropertyBlock by the names declared in
     // SacredGeometry.hlsl (geometry, scale, rings, starPoints, rotation,
     // thickness, smoothness, fgColor, bgColor, animation, speed, pulseDepth).

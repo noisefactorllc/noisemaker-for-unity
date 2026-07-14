@@ -28,9 +28,8 @@ Shader "Noisemaker/synth/mandala"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // fragCoord = pixel-centered top-left coordinate (matches WGSL position.xy).
-                float2 fragCoord = NM_FragCoord(i);
-                return nm_mandala(fragCoord);
+                float2 globalCoord = NM_GlobalCoord(i);
+                return nm_mandala(globalCoord);
             }
             ENDHLSL
         }

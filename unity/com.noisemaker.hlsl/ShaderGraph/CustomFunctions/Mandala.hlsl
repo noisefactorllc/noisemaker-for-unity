@@ -13,8 +13,8 @@
 // into the corresponding global before calling the core, following the standard
 // Custom-Function bridging pattern used by other effects in this package.
 //
-// Engine globals (resolution/aspectRatio/time) are seeded from the Resolution
-// and Time inputs so the node is self-contained.
+// Engine globals (fullResolution/aspectRatio/time) are seeded from the Resolution
+// and Time inputs. Untiled node usage has globalCoord == UV * Resolution.
 // =============================================================================
 
 #include "../../Shaders/Effects/synth/Mandala.hlsl"
@@ -59,14 +59,13 @@ void NM_Mandala_float(
     speed        = Speed;
     pulseDepth   = PulseDepth;
 
-    // Seed engine globals used inside nm_mandala (resolution, aspectRatio, time).
+    // Seed engine globals used inside nm_mandala (fullResolution, aspectRatio, time).
     _NM_Resolution     = float4(Resolution, 0.0, 0.0);
     _NM_FullResolution = float4(Resolution, 0.0, 0.0);
     _NM_Time           = Time;
 
-    // fragCoord = UV * Resolution (pixel-centered; tileOffset = 0 for node usage).
-    float2 fragCoord = UV * Resolution;
-    Out = nm_mandala(fragCoord);
+    float2 globalCoord = UV * Resolution;
+    Out = nm_mandala(globalCoord);
 }
 
 #endif // NM_MANDALA_SG_INCLUDED

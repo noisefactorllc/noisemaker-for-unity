@@ -348,8 +348,8 @@ float nmsg_starPolygonMask(float2 p_in, int n)
 // =============================================================================
 float4 nm_sacredGeometry(float2 globalCoord)
 {
-    // WGSL: var st = position.xy / u.resolution
-    float2 st = globalCoord / resolution;
+    // WGSL: st = (position.xy + tileOffset) / fullResolution
+    float2 st = globalCoord / fullResolution;
     // WGSL: st = (st - 0.5) * 2;  st.x *= aspect
     st = (st - float2(0.5, 0.5)) * 2.0;
     st.x = st.x * aspectRatio;  // u.aspect in WGSL = fullResolution.x/fullResolution.y

@@ -6,7 +6,7 @@
 //   shaders/effects/filter/dither/wgsl/dither.wgsl
 //
 // Ordered dithering with classic patterns (Bayer 2x2/4x4/8x8, dot, line,
-// crosshatch, noise) and retro color palettes (monochrome, Game Boy green,
+// crosshatch, noise, blockwise Floyd-Steinberg error diffusion) and retro color palettes (monochrome, Game Boy green,
 // amber monitor, PICO-8, C64, CGA, ZX Spectrum, Apple II, EGA), plus a
 // per-channel quantization mode driven by `levels`. Single render pass.
 //
@@ -59,6 +59,7 @@ float mixAmount;    // globals.mix.uniform "mixAmount", default 1.0
 #define DITHER_LINE 4
 #define DITHER_CROSSHATCH 5
 #define DITHER_NOISE 6
+#define DITHER_ERROR_DIFFUSION 7
 
 // Palette constants (WGSL const)
 #define PALETTE_INPUT 0
@@ -417,21 +418,145 @@ float3 ditherWithPalette(float3 color, float ditherValue, float thresh, int pale
     return findClosestPaletteColor(dithered, paletteType);
 }
 
+// Error diffusion (Floyd-Steinberg). Each fragment re-simulates its containing
+// 4x4 cell block with jittered left/top burn-in aprons. The 18-lane row and the
+// inner loop are fixed/unrolled so every HLSL array index becomes constant.
+static const int NM_FS_BLOCK = 4;
+static const int NM_FS_APRON_MIN = 4;
+static const int NM_FS_APRON_MAX = 11;
+static const int NM_FS_RPAD = 2;
+static const int NM_FS_ERR_W = 18;
+
+float3 nm_dither_fsQuantize(float3 v, int paletteType, float levelsArg)
+{
+    if (paletteType == PALETTE_INPUT)
+    {
+        float maxLevel = levelsArg - 1.0;
+        return floor(v * maxLevel + 0.5) / maxLevel;
+    }
+    return findClosestPaletteColor(v, paletteType);
+}
+
+float nm_dither_fsScale(int paletteType, float levelsArg)
+{
+    if (paletteType == PALETTE_INPUT) { return 1.0 / levelsArg; }
+    return 0.25;
+}
+
+float3 nm_dither_fsSeedNoise(int2 blockOrigin, int lane)
+{
+    uint3 v = nm_pcg(uint3(
+        (uint)(blockOrigin.x + 1),
+        (uint)(blockOrigin.y + 1),
+        (uint)(lane + 1)));
+    return float3(v) / 4294967295.0 - 0.5;
+}
+
+float3 nm_dither_fsFetchCell(Texture2D inputTexture, int2 cell, float cellSize, int2 texSize)
+{
+    float2 pGlobal = (float2(cell) + 0.5) * cellSize;
+    int2 p = clamp(int2(floor(pGlobal)), int2(0, 0), texSize - 1);
+    return inputTexture.Load(int3(p, 0)).rgb;
+}
+
+float3 nm_dither_errorDiffusion(
+    Texture2D inputTexture,
+    float2 pixelCoord,
+    float cellSize,
+    int paletteType,
+    int levelsInt,
+    float thresh)
+{
+    uint tw, th;
+    inputTexture.GetDimensions(tw, th);
+    int2 texSize = int2((int)tw, (int)th);
+    float levelsArg = (float)levelsInt;
+    int2 cell = int2(floor(pixelCoord / cellSize));
+    int2 blockOrigin = (cell / NM_FS_BLOCK) * NM_FS_BLOCK;
+    int lx = cell.x - blockOrigin.x;
+    int ly = cell.y - blockOrigin.y;
+
+    uint3 jitterHash = nm_pcg(uint3(
+        (uint)(blockOrigin.x + 1),
+        (uint)(blockOrigin.y + 1),
+        0x517cc1b7u));
+    int apronX = NM_FS_APRON_MIN + (int)(jitterHash.x % (uint)(NM_FS_APRON_MAX - NM_FS_APRON_MIN + 1));
+    int apronY = NM_FS_APRON_MIN + (int)(jitterHash.y % (uint)(NM_FS_APRON_MAX - NM_FS_APRON_MIN + 1));
+
+    float stepScale = nm_dither_fsScale(paletteType, levelsArg);
+    float3 bias = (float3)(thresh * stepScale);
+    float3 errRow[18];
+    [unroll]
+    for (int seedLane = 0; seedLane < NM_FS_ERR_W; seedLane = seedLane + 1)
+    {
+        errRow[seedLane] = nm_dither_fsSeedNoise(blockOrigin, seedLane) * stepScale;
+    }
+
+    float3 carried = float3(0.0, 0.0, 0.0);
+    [loop]
+    for (int r = -NM_FS_APRON_MAX; r <= 3; r = r + 1)
+    {
+        if (r > ly || r < -apronY) { continue; }
+        bool lastRow = r == ly;
+        float3 rightErr = nm_dither_fsSeedNoise(blockOrigin,
+            NM_FS_ERR_W + NM_FS_APRON_MAX + r) * stepScale;
+        float3 diag = float3(0.0, 0.0, 0.0);
+        [unroll]
+        for (int c = -NM_FS_APRON_MAX; c < NM_FS_BLOCK + NM_FS_RPAD; c = c + 1)
+        {
+            if (c >= -apronX && !(lastRow && c >= lx))
+            {
+                float3 src = nm_dither_fsFetchCell(inputTexture,
+                    blockOrigin + int2(c, r), cellSize, texSize);
+                float3 v = clamp(src + errRow[c + NM_FS_APRON_MAX + 1] + rightErr + bias,
+                    float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));
+                float3 err = v - nm_dither_fsQuantize(v, paletteType, levelsArg);
+                rightErr = err * (7.0 / 16.0);
+                errRow[c + NM_FS_APRON_MAX] = errRow[c + NM_FS_APRON_MAX] + err * (3.0 / 16.0);
+                errRow[c + NM_FS_APRON_MAX + 1] = diag + err * (5.0 / 16.0);
+                diag = err * (1.0 / 16.0);
+            }
+        }
+        if (lastRow)
+        {
+            float3 incoming = errRow[NM_FS_APRON_MAX + 1];
+            if (lx == 1) { incoming = errRow[NM_FS_APRON_MAX + 2]; }
+            if (lx == 2) { incoming = errRow[NM_FS_APRON_MAX + 3]; }
+            if (lx == 3) { incoming = errRow[NM_FS_APRON_MAX + 4]; }
+            carried = incoming + rightErr;
+        }
+    }
+
+    int2 own = clamp(int2(pixelCoord), int2(0, 0), texSize - 1);
+    float3 src = inputTexture.Load(int3(own, 0)).rgb;
+    float3 v = clamp(src + carried + bias,
+        float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));
+    return nm_dither_fsQuantize(v, paletteType, levelsArg);
+}
+
 // -----------------------------------------------------------------------------
 // nm_dither — core per-pixel evaluation. Takes the already-sampled base color and
 // the raw pixel coordinate (NM_FragCoord, WGSL pos.xy) and returns dithered RGBA.
 // Ported VERBATIM from dither.wgsl main().
 // -----------------------------------------------------------------------------
-float4 nm_dither(float4 color, float2 pixelCoord)
+float4 nm_dither(Texture2D inputTexture, float4 color, float2 pixelCoord)
 {
-    float ditherValue = getDitherThreshold(pixelCoord, ditherType, matrixScale, time);
-
     float3 result;
 
-    if (palette == PALETTE_INPUT) {
-        result = quantizeWithDither(color.rgb, (float)levels, ditherValue, threshold);
-    } else {
-        result = ditherWithPalette(color.rgb, ditherValue, threshold, palette);
+    [branch]
+    if (ditherType == DITHER_ERROR_DIFFUSION)
+    {
+        result = nm_dither_errorDiffusion(inputTexture, pixelCoord, matrixScale,
+            palette, levels, threshold);
+    }
+    else
+    {
+        float ditherValue = getDitherThreshold(pixelCoord, ditherType, matrixScale, time);
+        if (palette == PALETTE_INPUT) {
+            result = quantizeWithDither(color.rgb, (float)levels, ditherValue, threshold);
+        } else {
+            result = ditherWithPalette(color.rgb, ditherValue, threshold, palette);
+        }
     }
 
     result = lerp(color.rgb, result, mixAmount);

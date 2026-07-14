@@ -22,8 +22,8 @@
 //    in HLSL — reversed operand order. Translated literally below.
 //  * nm_mod not fmod (though this effect has no float mod).
 //  * No PRNG in this effect.
-//  * Radius: i32(u.size) + 1, with size choices {kernel5x5:1, kernel7x7:2} so
-//    radius is 2 (5x5) or 3 (7x7). Loop bounds are -3..3 with continue guard.
+//  * Radius: min(i32((u.size + 1) * renderScale), 256). Loop bounds remain
+//    -3..3, matching the canonical WGSL exactly.
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
@@ -48,6 +48,8 @@ float channel;      // 0=color, 1=luminance
 float threshold;    // 0..100
 float amount;       // 0..500
 float mixAmt;       // 0..100 (uniform name "mixAmt", param key "mix")
+float level;        // contour threshold, 0..100
+float contourSide;  // 0=lower, 1=upper
 
 // WGSL: const LUMA = vec3<f32>(0.2126, 0.7152, 0.0722);
 static const float3 LUMA = float3(0.2126, 0.7152, 0.0722);
@@ -98,6 +100,52 @@ float4 nm_edge_applyBlend(float4 edge, float4 orig, int mode)
     return edge;                                                                                   // normal (6)
 }
 
+// Contour: mark only the selected side of a level crossing against the four
+// cardinal neighbors. 1.0 is background; 0.0 is the contour line.
+float3 nm_edge_contourConv(
+    Texture2D inputTex,
+    SamplerState sampler_inputTex,
+    float2 uv,
+    float2 texelSize,
+    float3 centerRGB,
+    float lvl,
+    bool useLuma,
+    bool upperSide)
+{
+    float3 northRGB = inputTex.Sample(sampler_inputTex, uv + float2(0.0,  1.0) * texelSize).rgb;
+    float3 southRGB = inputTex.Sample(sampler_inputTex, uv + float2(0.0, -1.0) * texelSize).rgb;
+    float3 eastRGB  = inputTex.Sample(sampler_inputTex, uv + float2( 1.0, 0.0) * texelSize).rgb;
+    float3 westRGB  = inputTex.Sample(sampler_inputTex, uv + float2(-1.0, 0.0) * texelSize).rgb;
+
+    if (useLuma)
+    {
+        float centerL = dot(centerRGB, LUMA);
+        bool centerOnSide = centerL < lvl;
+        if (upperSide) { centerOnSide = centerL >= lvl; }
+        bool crossing = centerOnSide && (upperSide
+            ? (dot(northRGB, LUMA) < lvl || dot(southRGB, LUMA) < lvl ||
+               dot(eastRGB, LUMA) < lvl  || dot(westRGB, LUMA) < lvl)
+            : (dot(northRGB, LUMA) >= lvl || dot(southRGB, LUMA) >= lvl ||
+               dot(eastRGB, LUMA) >= lvl  || dot(westRGB, LUMA) >= lvl));
+        return crossing ? float3(0.0, 0.0, 0.0) : float3(1.0, 1.0, 1.0);
+    }
+
+    bool3 centerOnSide = centerRGB < (float3)lvl;
+    if (upperSide) { centerOnSide = centerRGB >= (float3)lvl; }
+
+    bool crossR = centerOnSide.r && (upperSide
+        ? (northRGB.r < lvl || southRGB.r < lvl || eastRGB.r < lvl || westRGB.r < lvl)
+        : (northRGB.r >= lvl || southRGB.r >= lvl || eastRGB.r >= lvl || westRGB.r >= lvl));
+    bool crossG = centerOnSide.g && (upperSide
+        ? (northRGB.g < lvl || southRGB.g < lvl || eastRGB.g < lvl || westRGB.g < lvl)
+        : (northRGB.g >= lvl || southRGB.g >= lvl || eastRGB.g >= lvl || westRGB.g >= lvl));
+    bool crossB = centerOnSide.b && (upperSide
+        ? (northRGB.b < lvl || southRGB.b < lvl || eastRGB.b < lvl || westRGB.b < lvl)
+        : (northRGB.b >= lvl || southRGB.b >= lvl || eastRGB.b >= lvl || westRGB.b >= lvl));
+
+    return float3(crossR ? 0.0 : 1.0, crossG ? 0.0 : 1.0, crossB ? 0.0 : 1.0);
+}
+
 // -----------------------------------------------------------------------------
 // nm_edge_frag — full per-pixel evaluation, called from the .shader pass.
 // Takes the input texture + sampler so it can be shared with the SG wrapper.
@@ -105,7 +153,8 @@ float4 nm_edge_applyBlend(float4 edge, float4 orig, int mode)
 float4 nm_edge_frag(
     Texture2D    inputTex,
     SamplerState sampler_inputTex,
-    float2       fragCoord)   // NM_FragCoord(i), top-left, +0.5 centered
+    float2       fragCoord,   // NM_FragCoord(i), top-left, +0.5 centered
+    float        renderScaleArg)
 {
     uint tw, th;
     inputTex.GetDimensions(tw, th);
@@ -116,7 +165,7 @@ float4 nm_edge_frag(
     float4 origColor = inputTex.Sample(sampler_inputTex, uv);
 
     int kernelType = (int)kernel_u;      // WGSL: i32(u.kernel)
-    int radius     = (int)size + 1;      // WGSL: i32(u.size)+1; default size=1 -> radius=2
+    int radius     = min((int)((size + 1.0) * renderScaleArg), 256);
     int blendMode  = (int)blend;         // WGSL: i32(u.blend)
     bool doInvert  = (invert > 0.5);     // WGSL: u.invert > 0.5
     bool useLuma   = (channel > 0.5);    // WGSL: u.channel > 0.5
@@ -125,35 +174,43 @@ float4 nm_edge_frag(
     float3 conv         = float3(0.0, 0.0, 0.0);
     float  centerWeight = 0.0;
 
-    [loop]
-    for (int dy = -3; dy <= 3; dy = dy + 1) {
+    if (kernelType == 2)
+    {
+        conv = nm_edge_contourConv(inputTex, sampler_inputTex, uv, texelSize,
+            origColor.rgb, level / 100.0, useLuma, contourSide > 0.5);
+    }
+    else
+    {
         [loop]
-        for (int dx = -3; dx <= 3; dx = dx + 1) {
-            if (abs(dx) > radius || abs(dy) > radius) { continue; }
-            if (dx == 0 && dy == 0) { continue; }
+        for (int dy = -3; dy <= 3; dy = dy + 1) {
+            [loop]
+            for (int dx = -3; dx <= 3; dx = dx + 1) {
+                if (abs(dx) > radius || abs(dy) > radius) { continue; }
+                if (dx == 0 && dy == 0) { continue; }
 
-            float w = nm_edge_getWeight(dx, dy, kernelType);
-            if (w == 0.0) { continue; }
+                float w = nm_edge_getWeight(dx, dy, kernelType);
+                if (w == 0.0) { continue; }
 
-            float2 offset = float2((float)dx, (float)dy) * texelSize;
-            float3 s = inputTex.Sample(sampler_inputTex, uv + offset).rgb;
+                float2 offset = float2((float)dx, (float)dy) * texelSize;
+                float3 s = inputTex.Sample(sampler_inputTex, uv + offset).rgb;
 
-            if (useLuma) {
-                conv = conv + float3(dot(s, LUMA), dot(s, LUMA), dot(s, LUMA)) * w;
-            } else {
-                conv = conv + s * w;
+                if (useLuma) {
+                    conv = conv + float3(dot(s, LUMA), dot(s, LUMA), dot(s, LUMA)) * w;
+                } else {
+                    conv = conv + s * w;
+                }
+
+                centerWeight = centerWeight - w;
             }
-
-            centerWeight = centerWeight - w;
         }
-    }
 
-    // Center sample
-    float3 centerSample = origColor.rgb;
-    if (useLuma) {
-        centerSample = float3(dot(centerSample, LUMA), dot(centerSample, LUMA), dot(centerSample, LUMA));
+        // Center sample
+        float3 centerSample = origColor.rgb;
+        if (useLuma) {
+            centerSample = float3(dot(centerSample, LUMA), dot(centerSample, LUMA), dot(centerSample, LUMA));
+        }
+        conv = conv + centerSample * centerWeight;
     }
-    conv = conv + centerSample * centerWeight;
 
     // Amount
     conv = conv * (amount / 50.0);

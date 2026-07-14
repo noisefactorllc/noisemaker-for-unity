@@ -29,7 +29,7 @@ Shader "Noisemaker/filter/edge"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                return nm_edge_frag(inputTex, sampler_inputTex, NM_FragCoord(i));
+                return nm_edge_frag(inputTex, sampler_inputTex, NM_FragCoord(i), renderScale);
             }
             ENDHLSL
         }

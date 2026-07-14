@@ -1,7 +1,7 @@
 Shader "Noisemaker/filter/invert"
 {
-    // filter/invert — RGB luminance inversion (out.rgb = 1 - in.rgb, alpha kept).
-    // Single render pass. No per-effect parameters (definition.js globals: {}).
+    // filter/invert — full RGB inversion or Solarize parity (mode 1).
+    // Single render pass. Alpha is preserved in both modes.
     // The runtime binds the input surface to inputTex via MaterialPropertyBlock.
 
     SubShader

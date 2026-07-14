@@ -7,10 +7,8 @@
 // Ported PIXEL-IDENTICALLY from the canonical WGSL source:
 //   shaders/effects/filter/texture/wgsl/texture.wgsl
 //
-// Generate a height field from one of several texture modes (canvas, crosshatch,
-// halftone, paper, stucco), derive shading from the height-field gradient, then
-// blend the shaded result back into the source pixels by `alpha`. Single render
-// pass. RGB only is affected; alpha is passed through unchanged.
+// Modes 0..4 retain their height-field contract. Modes 5..14 add procedural
+// material textures with intensity/contrast/mono shaping.
 //
 // PORTING-GUIDE notes / hazards handled:
 //  * Sampling UV is the fullscreen 0..1 `uv` (WGSL `in.uv`), used directly for
@@ -47,9 +45,12 @@ SamplerState sampler_inputTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // Bound by the runtime via MaterialPropertyBlock by these exact names.
-int   MODE;   // globals.mode.define = "MODE", choices 0..4, default 3 (paper)
+int   MODE;   // globals.mode.define = "MODE", choices 0..14, default 3 (paper)
 float alpha;  // globals.alpha.uniform, [0,1] default 0.5
 float scale;  // globals.scale.uniform, [0.1,10] default 1.0
+float intensity; // globals.intensity.uniform, [0,100] default 40
+float contrast;  // globals.contrast.uniform, [0,100] default 50
+float mono;      // globals.mono.uniform, boolean bound as 0.0/1.0
 // `time` is engine-provided via NMFullscreen alias.
 
 // ---- Effect-local constants (verbatim from WGSL) ----------------------------
@@ -61,6 +62,12 @@ static const float SHADE_GAIN = 4.4;
 float nm_texture_clamp01(float value)
 {
     return clamp(value, 0.0, 1.0);
+}
+
+float nm_texture_s_curve01(float value)
+{
+    float c = nm_texture_clamp01(value);
+    return c * c * (3.0 - 2.0 * c);
 }
 
 float nm_texture_fade(float t)
@@ -230,13 +237,154 @@ float nm_texture_height_field(float2 uv, float2 base_freq, float motion)
     return nm_texture_height_paper(uv, base_freq, motion);  // 3 = paper (default)
 }
 
+uint nm_texture_material_hash(int2 p, uint salt, uint layer)
+{
+    uint h = salt ^ (layer * 0x9e3779b9u);
+    h ^= asuint(p.x) * 0x27d4eb2du;
+    h = nm_texture_hash_uint(h);
+    h ^= asuint(p.y) * 0xc2b2ae35u;
+    return nm_texture_hash_uint(h);
+}
+
+float2 nm_texture_material_gradient(int2 p, uint salt, uint layer)
+{
+    uint h = nm_texture_material_hash(p, salt, layer);
+    float2 gradient = float2((float)(h & 0xffffu), (float)(h >> 16u)) * (2.0 / 65535.0) - 1.0;
+    gradient *= rsqrt(max(dot(gradient, gradient), 0.000001));
+    return gradient;
+}
+
+float2 nm_texture_material_fade(float2 t)
+{
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+
+float nm_texture_material_gradient_layer(float2 p, uint salt, uint layer)
+{
+    float2 cellFloor = floor(p);
+    int2 cell = int2((int)cellFloor.x, (int)cellFloor.y);
+    float2 local = frac(p);
+    float n00 = dot(nm_texture_material_gradient(cell, salt, layer), local);
+    float n10 = dot(nm_texture_material_gradient(cell + int2(1, 0), salt, layer), local - float2(1.0, 0.0));
+    float n01 = dot(nm_texture_material_gradient(cell + int2(0, 1), salt, layer), local - float2(0.0, 1.0));
+    float n11 = dot(nm_texture_material_gradient(cell + int2(1, 1), salt, layer), local - float2(1.0, 1.0));
+    float2 blendv = nm_texture_material_fade(local);
+    return lerp(lerp(n00, n10, blendv.x), lerp(n01, n11, blendv.x), blendv.y);
+}
+
+float nm_texture_material_noise(float2 globalPixel, float2 cellSize, float motion, uint salt)
+{
+    float2 p = globalPixel / max(cellSize, float2(0.5, 0.5));
+    float zFloor = floor(motion);
+    int z0 = (int)zFloor % Z_LOOP;
+    int z1 = (z0 + 1) % Z_LOOP;
+    float n0 = nm_texture_material_gradient_layer(p, salt, (uint)z0);
+    float n1 = nm_texture_material_gradient_layer(p, salt, (uint)z1);
+    float n = lerp(n0, n1, nm_texture_material_fade((float2)frac(motion)).x);
+    return nm_texture_clamp01(0.5 + n * 0.72);
+}
+
+float nm_texture_material_soft(float2 globalPixel, float motion, uint salt, float size)
+{
+    float2 primaryCell = (float2)max(size * 3.25, 1.5);
+    float primary = nm_texture_material_noise(globalPixel, primaryCell, motion, salt);
+    float secondary = nm_texture_material_noise(globalPixel + float2(17.31, 29.17), primaryCell * 1.87,
+        motion + 0.41, salt ^ 0x68bc21ebu);
+    return primary * 0.68 + secondary * 0.32;
+}
+
+float nm_texture_material_directional(float2 globalPixel, float motion, uint salt, float size)
+{
+    float2 primaryCell = float2(max(size * 22.0, 8.0), max(size * 2.0, 1.25));
+    float2 secondaryCell = float2(max(size * 37.0, 13.0), max(size * 3.7, 2.3));
+    float primary = nm_texture_material_noise(globalPixel, primaryCell, motion, salt);
+    float secondary = nm_texture_material_noise(globalPixel + float2(19.37, 11.83), secondaryCell,
+        motion + 0.41, salt ^ 0x68bc21ebu);
+    return primary * 0.72 + secondary * 0.28;
+}
+
+float nm_texture_material_sprinkles(float2 globalPixel, float motion, uint salt, float size)
+{
+    float2 p = globalPixel / max(4.0 * size, 1.0) + float2(motion * 0.31, motion * 0.19);
+    float2 cellFloor = floor(p);
+    int2 baseCell = int2((int)cellFloor.x, (int)cellFloor.y);
+    float2 local = frac(p);
+    float nearest = 10.0;
+    [unroll]
+    for (int y = -1; y <= 1; y++)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; x++)
+        {
+            int2 cell = baseCell + int2(x, y);
+            float jx = nm_texture_fast_hash(int3(cell, 0), salt) - 0.5;
+            float jy = nm_texture_fast_hash(int3(cell, 1), salt ^ 0x68bc21ebu) - 0.5;
+            float2 point = float2((float)x, (float)y) + 0.5 + float2(jx, jy) * 0.6;
+            nearest = min(nearest, length(local - point));
+        }
+    }
+    return lerp(0.45, 1.0, 1.0 - smoothstep(0.10, 0.22, nearest));
+}
+
+float nm_texture_material_edge_mask(float2 uv, float2 pixelStep)
+{
+    float3 weights = float3(0.2126, 0.7152, 0.0722);
+    float l = dot(inputTex.Sample(sampler_inputTex, uv - float2(pixelStep.x, 0.0)).xyz, weights);
+    float r = dot(inputTex.Sample(sampler_inputTex, uv + float2(pixelStep.x, 0.0)).xyz, weights);
+    float d = dot(inputTex.Sample(sampler_inputTex, uv - float2(0.0, pixelStep.y)).xyz, weights);
+    float u = dot(inputTex.Sample(sampler_inputTex, uv + float2(0.0, pixelStep.y)).xyz, weights);
+    return clamp(length(float2(r - l, u - d)) * 6.0, 0.0, 1.0);
+}
+
+float nm_texture_material_value(float2 globalPixel, float2 dims, float2 uv, float motion, uint salt)
+{
+    float size = max(scale, 0.1);
+    [branch] if (MODE == 6) { return nm_texture_material_soft(globalPixel, motion, salt, size); }
+    [branch] if (MODE == 7) { return nm_texture_material_sprinkles(globalPixel, motion, salt, size); }
+    [branch] if (MODE == 8)
+    {
+        float a = nm_texture_material_noise(globalPixel, (float2)(13.0 * size), motion, salt);
+        float b = nm_texture_material_noise(globalPixel, (float2)(6.0 * size), motion + 0.31, salt ^ 0x9e3779b9u);
+        float c = nm_texture_material_noise(globalPixel, (float2)(2.5 * size), motion + 0.67, salt ^ 0x85ebca6bu);
+        return a * 0.58 + b * 0.28 + c * 0.14;
+    }
+    [branch] if (MODE == 9)
+    {
+        float n = nm_texture_material_noise(globalPixel, (float2)max(size * 1.5, 0.8), motion, salt);
+        return nm_texture_s_curve01(nm_texture_s_curve01(n));
+    }
+    [branch] if (MODE == 10) { return nm_texture_material_noise(globalPixel, (float2)(4.5 * size), motion, salt); }
+    [branch] if (MODE == 11)
+    {
+        return step(0.5, nm_texture_material_noise(globalPixel, (float2)max(size * 1.5, 0.8), motion, salt));
+    }
+    [branch] if (MODE == 12) { return nm_texture_material_directional(globalPixel, motion, salt, size); }
+    [branch] if (MODE == 13) { return nm_texture_material_directional(globalPixel.yx, motion, salt, size); }
+    [branch] if (MODE == 14)
+    {
+        float n = nm_texture_material_noise(globalPixel, (float2)max(size * 1.5, 0.8), motion, salt);
+        return lerp(0.5, n, nm_texture_material_edge_mask(uv, 1.0 / dims));
+    }
+    return nm_texture_material_noise(globalPixel, (float2)max(size * 1.5, 0.8), motion, salt);
+}
+
+float nm_texture_shape_material(float raw)
+{
+    float amount = intensity / 40.0;
+    float shaped = raw * amount + 0.5 * (1.0 - amount);
+    float c = clamp(contrast / 100.0, 0.0, 1.0);
+    if (c < 0.5) { return lerp(0.5, shaped, c * 2.0); }
+    return lerp(shaped, nm_texture_s_curve01(shaped), (c - 0.5) * 2.0);
+}
+
 // ---- Pass: "texture" (progName "texture") -----------------------------------
 float4 NMFrag_texture(NMVaryings i) : SV_Target
 {
-    // WGSL: in.uv is the fullscreen 0..1 UV (used for both sample and domain).
     float2 uv = i.uv;
+    float2 sourceUV = uv;
+    [branch] if (MODE >= 5) { sourceUV.y = 1.0 - sourceUV.y; }
 
-    float4 base_color = inputTex.Sample(sampler_inputTex, uv);
+    float4 base_color = inputTex.Sample(sampler_inputTex, sourceUV);
 
     uint w, h;
     inputTex.GetDimensions(w, h);
@@ -247,6 +395,27 @@ float4 NMFrag_texture(NMVaryings i) : SV_Target
     if (a <= 0.0)
     {
         return base_color;
+    }
+
+    [branch]
+    if (MODE >= 5)
+    {
+        float2 globalDims = dims;
+        if (fullResolution.x > 0.0) { globalDims = fullResolution; }
+        float2 globalPixel = NM_GlobalCoord(i);
+        float materialMotion = time * (float)Z_LOOP;
+        float r = nm_texture_shape_material(nm_texture_material_value(
+            globalPixel, globalDims, sourceUV, materialMotion, 0x1234abcdu));
+        float3 material = (float3)r;
+        if (mono <= 0.5)
+        {
+            material.g = nm_texture_shape_material(nm_texture_material_value(
+                globalPixel, globalDims, sourceUV, materialMotion, 0x68bc21ebu));
+            material.b = nm_texture_shape_material(nm_texture_material_value(
+                globalPixel, globalDims, sourceUV, materialMotion, 0x02e5be93u));
+        }
+        return float4(clamp(lerp(base_color.xyz, material, a),
+            float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0)), base_color.w);
     }
 
     // Paper and stucco use different base frequencies

@@ -43,7 +43,7 @@ Shader "Noisemaker/filter/dither"
                 float2 uv = pixelCoord / texSize;
 
                 float4 color = inputTex.Sample(sampler_inputTex, uv);
-                return nm_dither(color, pixelCoord);
+                return nm_dither(inputTex, color, pixelCoord);
             }
             ENDHLSL
         }

@@ -14,8 +14,8 @@
 // inlined). All branches for animation/shape enums use [branch] at runtime.
 //
 // NUMERIC NOTES:
-//  * st built from position.xy / resolution, then remapped to [-1,1]*aspect
-//    exactly as WGSL does — divides by resolution (NOT fullResolution).
+//  * st is built from globalCoord / fullResolution so tiled large-format output
+//    is a crop of the same full-frame mandala.
 //  * floorMod: a - b * floor(a/b), matching WGSL exactly.
 //  * atan2(p.y, p.x) — arg order copied literally from WGSL.
 //  * floor(u.speed) in WGSL — speed is an int uniform here, cast to float.
@@ -185,13 +185,12 @@ float nmm_mandalaMask(float2 p)
 }
 
 // =============================================================================
-// nm_mandala — core per-pixel evaluation. fragCoord is position.xy (top-left).
+// nm_mandala — core per-pixel evaluation. globalCoord includes tileOffset.
 // Mirrors WGSL main() exactly.
 // =============================================================================
-float4 nm_mandala(float2 fragCoord)
+float4 nm_mandala(float2 globalCoord)
 {
-    // WGSL: st = position.xy / resolution  (divides by current render-target size)
-    float2 st = fragCoord / resolution;
+    float2 st = globalCoord / fullResolution;
     st = (st - float2(0.5, 0.5)) * 2.0;
     st.x = st.x * aspectRatio;
 

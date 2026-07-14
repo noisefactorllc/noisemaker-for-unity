@@ -9,9 +9,10 @@
 // Wire InputTex into HeightMap to displace the input by its own luminosity
 // (that is the runtime default).
 //
-// All helpers mirrored VERBATIM from Shaders/Effects/filter/Parallax.hlsl,
-// name-prefixed `nmsg_` to avoid symbol clashes. Self-contained; does NOT
-// include NMFullscreen.hlsl or NMCore.hlsl.
+// The runtime core now maps global full-frame UV back into local tile textures
+// and clamps displaced tiled samples to 256 pixels. This wrapper is explicitly
+// untiled: UV is both global and local, so those mappings collapse to the math
+// below and the current interface needs no extra resolution/tile inputs.
 //
 // TODO(verify): SS must be a clamp, non-sRGB (linear) sampler state to match
 // the runtime's sampling path (H7; the runtime surfaces are point/clamp —

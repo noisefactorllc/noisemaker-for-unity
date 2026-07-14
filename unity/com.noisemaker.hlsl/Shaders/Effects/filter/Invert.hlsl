@@ -5,7 +5,7 @@
 // Invert.hlsl — filter/invert, ported PIXEL-IDENTICALLY from the canonical WGSL:
 //   shaders/effects/filter/invert/wgsl/inv.wgsl
 //
-// Simple RGB inversion: out.rgb = 1.0 - color.rgb, alpha passed through.
+// Full RGB inversion (mode 0) or Solarize parity (mode 1), alpha passed through.
 //
 // WGSL main():
 //   let texSize = vec2<f32>(textureDimensions(inputTex));
@@ -15,7 +15,8 @@
 //   return color;
 //
 // PORTING-GUIDE notes:
-//  * No per-effect params (definition.js globals: {}). Nothing to declare here.
+//  * `mode` is an int uniform. Solarize is exactly min(rgb, 1-rgb), without an
+//    extra clamp (the source can legitimately contain HDR/negative values).
 //  * uv is fragCoord / the INPUT TEXTURE's own dimensions (the WGSL divides by
 //    textureDimensions(inputTex), NOT by fullResolution). We mirror that exactly:
 //    NM_FragCoord(i) (top-left, +0.5 centered) divided by the input tex size.
@@ -30,7 +31,7 @@
 
 #include "../../Include/NMFullscreen.hlsl"
 
-// No per-effect named uniforms (definition.js globals: {}).
+int mode; // 0=full (default), 1=solarize
 
 // -----------------------------------------------------------------------------
 // nm_invert — core per-pixel evaluation. Takes the already-sampled input color
@@ -39,7 +40,11 @@
 // -----------------------------------------------------------------------------
 float4 nm_invert(float4 color)
 {
-    // WGSL: color = vec4<f32>(1.0 - color.rgb, color.a);
+    [branch]
+    if (mode == 1)
+    {
+        return float4(min(color.rgb, 1.0 - color.rgb), color.a);
+    }
     return float4(1.0 - color.rgb, color.a);
 }
 

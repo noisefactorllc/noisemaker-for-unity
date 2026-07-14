@@ -1,7 +1,7 @@
 Shader "Noisemaker/filter/texture"
 {
-    // filter/texture — generate a height field (canvas/crosshatch/halftone/paper/
-    // stucco), shade from its gradient, then blend back into the source by alpha.
+    // filter/texture — legacy height fields plus material texture modes 5..14,
+    // shaped by intensity/contrast/mono and blended by alpha.
     // Single render pass. RGB is affected; alpha is passed through. Inspector-only
     // Properties. The runtime binds these (and the inputTex sampler) via
     // MaterialPropertyBlock using the reference uniform names (alpha, scale) plus

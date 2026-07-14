@@ -10,8 +10,8 @@
 //
 // The core nm_sacredGeometry() reads effect parameters from named global
 // uniforms. This wrapper bridges node inputs to those globals before calling.
-// Engine globals (resolution/aspectRatio/time) are seeded from the
-// Resolution/Time inputs so the node is self-contained.
+// Engine globals (fullResolution/aspectRatio/time) are seeded from the
+// Resolution/Time inputs. Untiled node use has globalCoord == UV * Resolution.
 // =============================================================================
 
 #include "../../Shaders/Effects/synth/SacredGeometry.hlsl"

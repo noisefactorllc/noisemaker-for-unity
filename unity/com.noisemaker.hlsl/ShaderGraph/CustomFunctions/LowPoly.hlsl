@@ -10,7 +10,7 @@
 //
 // The core nm_lowpoly(...) in Shaders/Effects/filter/LowPoly.hlsl reads its scalar
 // parameters from module-scope named uniforms (scale/seed/mode/edgeStrength/
-// edgeColor/alpha/speed) and engine globals (fullResolution/tileOffset/time) —
+// edgeColor/alpha/speed/LP_BORDER/LP_LIGHT) and engine globals (fullResolution/tileOffset/time) —
 // matching the runtime's individual-named-uniform binding model. In a standalone
 // Shader Graph node those globals are not bound by the runtime, so this wrapper
 // assigns the node inputs to them before calling nm_lowpoly, bridging the named
@@ -24,6 +24,8 @@
 //   EdgeColor    : edgeColor    (RGB, linear),       default (0,0,0)
 //   Alpha        : alpha        (0..1),              default 1.0
 //   Speed        : speed        (0..5),              default 0
+//   BorderWidth  : LP_BORDER    (0..100),            default 0
+//   LightIntensity: LP_LIGHT    (0..100),            default 0
 //   Resolution   : full (untiled) target size in px; drives aspect + cell mapping.
 //                  For an untiled node, set Resolution to the texture size.
 //   Time         : normalized animation time (0..1); only used when Speed > 0.
@@ -31,6 +33,7 @@
 //   SS           : sampler state (bilinear, clamp, linear/non-sRGB) for InputTex
 //   UV           : 0..1 fragment UV (top-left origin, WGSL convention)
 //
+// Fragment-stage only: optional border antialiasing uses fwidth().
 // TODO(verify): standalone-node use assumes tileOffset = (0,0) (untiled). The
 // runtime render pass uses the engine _NM_TileOffset; the multi-tile path is only
 // exercised by the C# runtime, not this single-node wrapper.
@@ -46,6 +49,8 @@ void NM_LowPoly_float(
     float3            EdgeColor,
     float             Alpha,
     int               Speed,
+    int               BorderWidth,
+    int               LightIntensity,
     float2            Resolution,
     float             Time,
     UnityTexture2D    InputTex,
@@ -61,6 +66,8 @@ void NM_LowPoly_float(
     edgeColor    = EdgeColor;
     alpha        = Alpha;
     speed        = Speed;
+    LP_BORDER    = BorderWidth;
+    LP_LIGHT     = LightIntensity;
 
     // Bridge engine globals consumed by the core (fullResolution/tileOffset/time).
     _NM_FullResolution = float4(Resolution, 0.0, 0.0);

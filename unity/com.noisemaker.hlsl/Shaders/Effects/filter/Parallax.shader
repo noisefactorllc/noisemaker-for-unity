@@ -1,7 +1,8 @@
 Shader "Noisemaker/filter/parallax"
 {
     // filter/parallax — pseudo-3D perspective shift from a height map.
-    // Ray-marched parallax occlusion mapping with a configurable pivot height.
+    // Ray-marched parallax occlusion mapping with global-to-local tile sampling
+    // and a large-format displacement clamp.
     // Single render pass.
     // Runtime binds all uniforms via MaterialPropertyBlock using the exact names
     // from definition.js globals[*].uniform; textures (inputTex, heightMap) bind

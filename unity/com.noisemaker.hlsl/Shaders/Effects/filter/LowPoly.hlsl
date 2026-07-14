@@ -12,7 +12,8 @@
 //   1 edges    : solid cell color with F2-F1 edge darkening toward edgeColor
 //   2 distance2: cell color * pow(clamp(F2*n),mix(0.5,3.0,edgeStrength))
 //   3 distance3: cell color * pow(clamp(F3*n),mix(0.5,3.0,edgeStrength))
-// Final: rgb = mix(original.rgb, result, alpha); alpha channel passed through.
+// Optional exact Voronoi borders and bounded exposure lighting are composed over
+// the selected mode. With LP_BORDER=LP_LIGHT=0 the original 3x3 result is intact.
 //
 // PORTING-GUIDE notes:
 //  * Single render pass (definition.js passes[].length == 1, program "lowPoly").
@@ -50,6 +51,8 @@ float  edgeStrength; // globals.edgeStrength.uniform default 0.15
 float3 edgeColor;    // globals.edgeColor.uniform    default (0,0,0)
 float  alpha;        // globals.alpha.uniform        default 1.0
 int    speed;        // globals.speed.uniform        default 0   (WGSL f32)
+int    LP_BORDER;    // globals.borderWidth.define   default 0
+int    LP_LIGHT;     // globals.lightIntensity.define default 0
 
 // -----------------------------------------------------------------------------
 // hash2 — ported VERBATIM from lowPoly.wgsl. Per-effect PRNG; uses shared nm_pcg.
@@ -72,6 +75,23 @@ float2 nm_lowpoly_hash2(float2 p, float s)
         (uint)(s   >= 0.0 ? s   * 2.0 : -s   * 2.0 + 1.0)
     ));
     return float2(v.xy) / 4294967295.0;
+}
+
+float2 nm_lowpoly_site(int2 siteCell, float n, float s, float spd)
+{
+    float2 siteCellF = float2(siteCell);
+    float2 offset = nm_lowpoly_hash2(siteCellF, s);
+
+    if (spd > 0.0)
+    {
+        float2 animRand = nm_lowpoly_hash2(siteCellF, s + 100.0);
+        float angle = time * NM_LOWPOLY_TAU + animRand.x * NM_LOWPOLY_TAU;
+        float radius = animRand.y * spd;
+        offset = clamp(offset + float2(cos(angle), sin(angle)) * radius,
+            float2(0.0, 0.0), float2(1.0, 1.0));
+    }
+
+    return (siteCellF + offset) / n;
 }
 
 // -----------------------------------------------------------------------------
@@ -101,6 +121,7 @@ float4 nm_lowpoly(Texture2D inputTex, SamplerState ss, float2 texSize, float2 uv
     float secondDist = 1e10;
     float thirdDist = 1e10;
     float2 nearestPoint = float2(0.0, 0.0);
+    int2 nearestCell = int2(0, 0);
 
     // Search 3x3 neighborhood of cells
     for (int dy = -1; dy <= 1; dy = dy + 1) {
@@ -127,6 +148,7 @@ float4 nm_lowpoly(Texture2D inputTex, SamplerState ss, float2 texSize, float2 uv
                 secondDist = minDist;
                 minDist = d;
                 nearestPoint = cellPoint;
+                nearestCell = neighbor;
             } else if (d < secondDist) {
                 thirdDist = secondDist;
                 secondDist = d;
@@ -157,6 +179,81 @@ float4 nm_lowpoly(Texture2D inputTex, SamplerState ss, float2 texSize, float2 uv
         float raw = clamp(selectedDist * n, 0.0, 1.0);
         float distField = pow(raw, lerp(0.5, 3.0, edgeStrength));
         result = cellColor.rgb * distField;
+    }
+
+    // Optional border and lighting layer. Default zero values skip both blocks
+    // and leave the established mode arithmetic/result untouched.
+    float3 modeResult = result;
+    float borderMask = 0.0;
+
+    [branch]
+    if (LP_BORDER != 0)
+    {
+        float2 borderNearestPoint = nearestPoint;
+        int2 borderNearestCell = nearestCell;
+        float borderNearestDist = minDist;
+        [loop]
+        for (int borderDy = -2; borderDy <= 2; borderDy = borderDy + 1)
+        {
+            [loop]
+            for (int borderDx = -2; borderDx <= 2; borderDx = borderDx + 1)
+            {
+                int2 candidateCell = cell + int2(borderDx, borderDy);
+                float2 candidatePoint = nm_lowpoly_site(candidateCell, n, s, spd);
+                float candidateDist = distance(auv, candidatePoint);
+                if (candidateDist < borderNearestDist)
+                {
+                    borderNearestDist = candidateDist;
+                    borderNearestPoint = candidatePoint;
+                    borderNearestCell = candidateCell;
+                }
+            }
+        }
+
+        float distToEdge = 1e10;
+        [loop]
+        for (int edgeDy = -2; edgeDy <= 2; edgeDy = edgeDy + 1)
+        {
+            [loop]
+            for (int edgeDx = -2; edgeDx <= 2; edgeDx = edgeDx + 1)
+            {
+                int2 candidateCell = cell + int2(edgeDx, edgeDy);
+                if (any(candidateCell != borderNearestCell))
+                {
+                    float2 candidatePoint = nm_lowpoly_site(candidateCell, n, s, spd);
+                    float2 siteVector = candidatePoint - borderNearestPoint;
+                    float siteDistance = max(length(siteVector), 1e-8);
+                    float bisectorDistance = dot(
+                        (borderNearestPoint + candidatePoint) * 0.5 - auv,
+                        siteVector / siteDistance);
+                    distToEdge = min(distToEdge, bisectorDistance);
+                }
+            }
+        }
+
+        float cellRadius = 0.5 / n;
+        float borderHalfWidth = ((float)LP_BORDER / 100.0) * cellRadius;
+        float borderFeather = max(fwidth(distToEdge), 1e-6);
+        borderMask = 1.0 - smoothstep(
+            borderHalfWidth - borderFeather,
+            borderHalfWidth + borderFeather,
+            distToEdge);
+        result = lerp(modeResult, edgeColor, borderMask);
+    }
+
+    [branch]
+    if (LP_LIGHT != 0)
+    {
+        float intensity = clamp((float)LP_LIGHT / 100.0, 0.0, 1.0);
+        float paneValue = max(max(modeResult.r, modeResult.g), modeResult.b);
+        float exposure = lerp(1.0, 2.25, intensity);
+        float litValue = 1.0 - pow(max(1.0 - paneValue, 0.0), exposure);
+        float3 litMode = modeResult;
+        if (paneValue > 1e-6)
+        {
+            litMode = modeResult * (litValue / paneValue);
+        }
+        result = lerp(litMode, edgeColor, borderMask);
     }
 
     // Alpha blend with original

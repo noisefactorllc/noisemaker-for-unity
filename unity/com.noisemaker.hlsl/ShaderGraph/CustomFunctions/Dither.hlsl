@@ -16,7 +16,7 @@
 // nm_dither, bridging the named inputs into the core function.
 //
 // Param mapping (definition.js globals[*].uniform -> node input):
-//   Type        : ditherType  (0..6),                     default 1
+//   Type        : ditherType  (0..7; 7=error diffusion),  default 1
 //   MatrixScale : matrixScale (1..8, WGSL f32 scale),     default 2
 //   Threshold   : threshold   (-0.5..0.5),                default 0.0
 //   Palette     : palette     (0..9),                     default 0
@@ -62,7 +62,8 @@ void NM_Dither_float(
     float2 pixelCoord = UV * texSize;
 
     float4 color = InputTex.Sample(SS, UV);
-    Out = nm_dither(color, pixelCoord);
+    // Pass the texture object because mode 7 performs exact integer texel loads.
+    Out = nm_dither(InputTex.tex, color, pixelCoord);
 }
 
 #endif // NM_DITHER_SG_INCLUDED
