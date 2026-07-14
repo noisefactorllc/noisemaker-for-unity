@@ -664,6 +664,7 @@ namespace Noisemaker.Hlsl.Compiler
                 // earlier bool-only parse dropped the array form, leaving Blend=false for
                 // dla and the alpha deposit).
                 JsonValue blend = passDef.Get("blend");
+                pass.BlendSpecified = passDef.Has("blend");
                 pass.Blend = GraphLoader.IsTruthyBlend(blend);
                 pass.BlendFactors = GraphLoader.ParseBlendFactors(blend);
                 // conditions (runIf/skipIf): the reference expander.js builds each graph

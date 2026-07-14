@@ -231,14 +231,19 @@ namespace Noisemaker.Hlsl.Compiler
             if (p.DrawBuffers.HasValue) { sb.Append(','); WriteKey(sb, "drawBuffers"); sb.Append(p.DrawBuffers.Value); }
             // blend: emit the explicit two-factor array (["src","dst"]) when present
             // (matches the reference normalized graph, which passes the array through),
-            // else the plain bool true for additive. Absent when not blending.
+            // else the explicit bool value whenever the source field was present.
+            // Blend remains runtime truthiness; BlendSpecified preserves the
+            // structural difference between absent and `blend: false`.
             if (p.BlendFactors != null && p.BlendFactors.Length == 2)
             {
                 sb.Append(','); WriteKey(sb, "blend"); sb.Append('[');
                 WriteJsonString(sb, p.BlendFactors[0]); sb.Append(',');
                 WriteJsonString(sb, p.BlendFactors[1]); sb.Append(']');
             }
-            else if (p.Blend) { sb.Append(','); WriteKey(sb, "blend"); sb.Append("true"); }
+            else if (p.BlendSpecified)
+            {
+                sb.Append(','); WriteKey(sb, "blend"); sb.Append(p.Blend ? "true" : "false");
+            }
             // conditions (runIf/skipIf): NOT emitted. The reference compiled graph never
             // carries pass.conditions (expander.js omits the field), so the normalized graph
             // must not either — both pointsBillboardRender deposit passes always run and the

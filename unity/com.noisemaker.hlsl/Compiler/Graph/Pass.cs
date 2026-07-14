@@ -104,6 +104,10 @@ namespace Noisemaker.Hlsl.Compiler.Graph
         public string CountMode { get; set; }
         public string CountUniform { get; set; }  // dynamic count from a uniform
         public int? DrawBuffers { get; set; }     // MRT attachment count
+        // Structural presence is distinct from runtime truthiness: an explicit
+        // `blend: false` must round-trip into normalized graph JSON, while Blend
+        // remains false so execution semantics are unchanged.
+        public bool BlendSpecified { get; set; }
         public bool Blend { get; set; }           // additive deposit -> Blend One One
         // Explicit two-factor blend [src, dst] (reference webgl2 array form), e.g.
         // ["ONE","ONE_MINUS_SRC_ALPHA"] for premultiplied OVER, or ["one","one"] for

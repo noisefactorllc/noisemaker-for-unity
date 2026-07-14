@@ -143,6 +143,7 @@ namespace Noisemaker.Hlsl.Compiler.Graph
             // GetBool only matched the bool form and dropped the array form (dla),
             // leaving Blend=false. Treat any present non-null/non-false value as truthy.
             JsonValue blendVal = p.Get("blend");
+            pass.BlendSpecified = p.Has("blend");
             pass.Blend = IsTruthyBlend(blendVal);
             // Capture an explicit two-factor array ["src","dst"] (e.g. ["ONE",
             // "ONE_MINUS_SRC_ALPHA"] for the alpha deposit; ["one","one"] is additive).
