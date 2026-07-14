@@ -319,8 +319,8 @@ float nm_texture_material_sprinkles(float2 globalPixel, float motion, uint salt,
             int2 cell = baseCell + int2(x, y);
             float jx = nm_texture_fast_hash(int3(cell, 0), salt) - 0.5;
             float jy = nm_texture_fast_hash(int3(cell, 1), salt ^ 0x68bc21ebu) - 0.5;
-            float2 point = float2((float)x, (float)y) + 0.5 + float2(jx, jy) * 0.6;
-            nearest = min(nearest, length(local - point));
+            float2 samplePoint = float2((float)x, (float)y) + 0.5 + float2(jx, jy) * 0.6;
+            nearest = min(nearest, length(local - samplePoint));
         }
     }
     return lerp(0.45, 1.0, 1.0 - smoothstep(0.10, 0.22, nearest));
@@ -382,7 +382,6 @@ float4 NMFrag_texture(NMVaryings i) : SV_Target
 {
     float2 uv = i.uv;
     float2 sourceUV = uv;
-    [branch] if (MODE >= 5) { sourceUV.y = 1.0 - sourceUV.y; }
 
     float4 base_color = inputTex.Sample(sampler_inputTex, sourceUV);
 
@@ -402,7 +401,7 @@ float4 NMFrag_texture(NMVaryings i) : SV_Target
     {
         float2 globalDims = dims;
         if (fullResolution.x > 0.0) { globalDims = fullResolution; }
-        float2 globalPixel = NM_GlobalCoord(i);
+        float2 globalPixel = floor(NM_FragCoord(i)) + 0.5 + tileOffset;
         float materialMotion = time * (float)Z_LOOP;
         float r = nm_texture_shape_material(nm_texture_material_value(
             globalPixel, globalDims, sourceUV, materialMotion, 0x1234abcdu));
