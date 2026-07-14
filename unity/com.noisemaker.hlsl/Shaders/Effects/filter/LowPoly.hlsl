@@ -30,8 +30,9 @@
 //    NM_FragCoord(i) is the HLSL analog of WGSL position.xy (top-left, +0.5).
 //    globalUV uses NM_GlobalCoord (pos.xy + tileOffset) / fullResolution.
 //  * aspect = fullResolution.x / fullResolution.y (precomputed; H-aspect).
-//  * mode: WGSL `i32`; declared int uniform, branched with [branch] to mirror the
-//    if/else chain. distance2/distance3 selected by `mode == 2 ? F2 : F3`.
+//  * mode: logical WGSL `i32`; carried by an HLSL float because the runtime binds
+//    ordinary numeric uniforms with SetFloat, then truncated once for the branch
+//    chain. distance2/distance3 selects mode 2 -> F2 and mode 3 -> F3.
 //  * Loop bounds inclusive (-1..1 on both axes) exactly as written.
 //  * Linear, clamp-to-edge, non-sRGB sampler (H7) — set in LowPoly.shader.
 //  * TODO(verify): the cellColor sample uv can fall outside [0,1] for edge cells;
@@ -43,16 +44,16 @@
 static const float NM_LOWPOLY_TAU = 6.28318530718;
 
 // ---- Per-effect named uniforms (definition.js globals[*].uniform) -----------
-// Bound by the runtime via MaterialPropertyBlock under these exact names.
-int    scale;        // globals.scale.uniform        default 50  (WGSL f32)
-int    seed;         // globals.seed.uniform         default 1   (WGSL f32)
-int    mode;         // globals.mode.uniform         default 1
+// Ordinary values use SetFloat; uppercase define keys use SetInt.
+float  scale;        // globals.scale.uniform        default 50  (WGSL f32)
+float  seed;         // globals.seed.uniform         default 1   (WGSL f32)
+float  mode;         // globals.mode.uniform         default 1   (logical i32)
 float  edgeStrength; // globals.edgeStrength.uniform default 0.15
 float3 edgeColor;    // globals.edgeColor.uniform    default (0,0,0)
 float  alpha;        // globals.alpha.uniform        default 1.0
-int    speed;        // globals.speed.uniform        default 0   (WGSL f32)
-int    LP_BORDER;    // globals.borderWidth.define   default 0
-int    LP_LIGHT;     // globals.lightIntensity.define default 0
+float  speed;        // globals.speed.uniform        default 0   (WGSL f32)
+int    LP_BORDER;    // globals.borderWidth.define   default 0   (SetInt)
+int    LP_LIGHT;     // globals.lightIntensity.define default 0  (SetInt)
 
 // -----------------------------------------------------------------------------
 // hash2 — ported VERBATIM from lowPoly.wgsl. Per-effect PRNG; uses shared nm_pcg.
@@ -105,9 +106,10 @@ float2 nm_lowpoly_site(int2 siteCell, float n, float s, float spd)
 // -----------------------------------------------------------------------------
 float4 nm_lowpoly(Texture2D inputTex, SamplerState ss, float2 texSize, float2 uv, float2 globalUV)
 {
-    float n = max(102.0 - (float)scale, 2.0);
-    float s = (float)seed;
-    float spd = (float)speed * 0.3;
+    float n = max(102.0 - scale, 2.0);
+    float s = seed;
+    float spd = speed * 0.3;
+    int modeInt = (int)mode;
 
     // Aspect-corrected coordinates for square Voronoi cells
     float aspect = fullResolution.x / fullResolution.y;
@@ -163,10 +165,10 @@ float4 nm_lowpoly(Texture2D inputTex, SamplerState ss, float2 texSize, float2 uv
 
     float3 result;
     [branch]
-    if (mode == 0) {
+    if (modeInt == 0) {
         // Flat: pure solid cell color
         result = cellColor.rgb;
-    } else if (mode == 1) {
+    } else if (modeInt == 1) {
         // Edges: solid cell color with F2-F1 edge darkening
         float edgeDist = clamp((secondDist - minDist) * n * 2.0, 0.0, 1.0);
         float edgeFactor = lerp(edgeStrength, 0.0, edgeDist);
@@ -174,7 +176,7 @@ float4 nm_lowpoly(Texture2D inputTex, SamplerState ss, float2 texSize, float2 uv
     } else {
         // Distance: multiply distance field with cell color
         float selectedDist;
-        if (mode == 2) { selectedDist = secondDist; }
+        if (modeInt == 2) { selectedDist = secondDist; }
         else { selectedDist = thirdDist; }
         float raw = clamp(selectedDist * n, 0.0, 1.0);
         float distField = pow(raw, lerp(0.5, 3.0, edgeStrength));

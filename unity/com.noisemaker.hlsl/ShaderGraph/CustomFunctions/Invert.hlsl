@@ -25,7 +25,8 @@ void NM_Invert_float(
     int               Mode,
     out float4        Out)
 {
-    mode = Mode;
+    // The runtime core uses a SetFloat-compatible carrier for this i32 selector.
+    mode = (float)Mode;
     float4 color = InputTex.Sample(SS, UV);
     Out = nm_invert(color);
 }

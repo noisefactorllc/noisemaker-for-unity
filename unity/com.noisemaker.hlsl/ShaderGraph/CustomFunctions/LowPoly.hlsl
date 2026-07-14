@@ -17,15 +17,15 @@
 // inputs into the core function.
 //
 // Param mapping (definition.js globals[*].uniform -> node input):
-//   Scale        : scale        (2..100),            default 50
-//   Seed         : seed         (1..100),            default 1
-//   Mode         : mode         (0 flat,1 edges,2 distance2,3 distance3), default 1
+//   Scale        : scale        (2..100, WGSL f32),  default 50
+//   Seed         : seed         (1..100, WGSL f32),  default 1
+//   Mode         : mode         (logical WGSL i32: 0 flat,1 edges,2 distance2,3 distance3), default 1
 //   EdgeStrength : edgeStrength (0..1),              default 0.15
 //   EdgeColor    : edgeColor    (RGB, linear),       default (0,0,0)
 //   Alpha        : alpha        (0..1),              default 1.0
-//   Speed        : speed        (0..5),              default 0
-//   BorderWidth  : LP_BORDER    (0..100),            default 0
-//   LightIntensity: LP_LIGHT    (0..100),            default 0
+//   Speed        : speed        (0..5, WGSL f32),    default 0
+//   BorderWidth  : LP_BORDER    (0..100, SetInt),    default 0
+//   LightIntensity: LP_LIGHT    (0..100, SetInt),    default 0
 //   Resolution   : full (untiled) target size in px; drives aspect + cell mapping.
 //                  For an untiled node, set Resolution to the texture size.
 //   Time         : normalized animation time (0..1); only used when Speed > 0.
@@ -42,13 +42,13 @@
 #include "../../Shaders/Effects/filter/LowPoly.hlsl"
 
 void NM_LowPoly_float(
-    int               Scale,
-    int               Seed,
+    float             Scale,
+    float             Seed,
     int               Mode,
     float             EdgeStrength,
     float3            EdgeColor,
     float             Alpha,
-    int               Speed,
+    float             Speed,
     int               BorderWidth,
     int               LightIntensity,
     float2            Resolution,
@@ -61,7 +61,7 @@ void NM_LowPoly_float(
     // Bridge node inputs into the core function's module-scope named uniforms.
     scale        = Scale;
     seed         = Seed;
-    mode         = Mode;
+    mode         = (float)Mode;
     edgeStrength = EdgeStrength;
     edgeColor    = EdgeColor;
     alpha        = Alpha;

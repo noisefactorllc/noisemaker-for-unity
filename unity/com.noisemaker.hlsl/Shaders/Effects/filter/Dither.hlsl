@@ -24,8 +24,10 @@
 //    receives an f32 `scale`). definition.js types the param `int` (default 2).
 //    We declare a `float matrixScale` uniform — the runtime feeds the int value as
 //    a float, matching the WGSL's f32 path exactly (floor(pixelCoord/scale)).
-//  * ditherType / palette / levels are `int` uniforms ([branch] over the WGSL
-//    if/else chains). Compile-time `const` enum values inlined as literals below.
+//  * ditherType / palette / levels are logical WGSL `i32` values. The runtime
+//    binds ordinary numeric uniforms with SetFloat, so their HLSL declarations
+//    are float carriers and nm_dither truncates them at the integer branch/call
+//    boundary. Compile-time `const` enum values are inlined as literals below.
 //  * `hash()` (noise dither) is `pcg(...).x / 0xffffffff` after sign-folding p.x,p.y
 //    with z=0 — identical to NMCore nm_random(p) (= nm_prng(float3(p,0)).x). Use
 //    nm_random (the ONE shared primitive; NMCore pcg/prng/random). Divisor is
@@ -43,11 +45,11 @@
 #include "../../Include/NMFullscreen.hlsl"
 
 // ---- Per-effect named uniforms (definition.js globals[*].uniform) -----------
-int   ditherType;   // globals.type.uniform "ditherType", default 1 (bayer4x4)
+float ditherType;   // globals.type.uniform "ditherType", default 1 (logical i32)
 float matrixScale;  // globals.matrixScale.uniform "matrixScale", default 2 (WGSL f32 scale)
 float threshold;    // globals.threshold.uniform "threshold", default 0.0
-int   palette;      // globals.palette.uniform "palette", default 0 (input)
-int   levels;       // globals.levels.uniform "levels", default 4
+float palette;      // globals.palette.uniform "palette", default 0 (logical i32)
+float levels;       // globals.levels.uniform "levels", default 4 (logical i32)
 float mixAmount;    // globals.mix.uniform "mixAmount", default 1.0
 // `time` (WGSL uniforms.time) supplied by NMFullscreen as the engine global `time`.
 
@@ -542,20 +544,23 @@ float3 nm_dither_errorDiffusion(
 float4 nm_dither(Texture2D inputTexture, float4 color, float2 pixelCoord)
 {
     float3 result;
+    int ditherTypeInt = (int)ditherType;
+    int paletteInt = (int)palette;
+    int levelsInt = (int)levels;
 
     [branch]
-    if (ditherType == DITHER_ERROR_DIFFUSION)
+    if (ditherTypeInt == DITHER_ERROR_DIFFUSION)
     {
         result = nm_dither_errorDiffusion(inputTexture, pixelCoord, matrixScale,
-            palette, levels, threshold);
+            paletteInt, levelsInt, threshold);
     }
     else
     {
-        float ditherValue = getDitherThreshold(pixelCoord, ditherType, matrixScale, time);
-        if (palette == PALETTE_INPUT) {
-            result = quantizeWithDither(color.rgb, (float)levels, ditherValue, threshold);
+        float ditherValue = getDitherThreshold(pixelCoord, ditherTypeInt, matrixScale, time);
+        if (paletteInt == PALETTE_INPUT) {
+            result = quantizeWithDither(color.rgb, (float)levelsInt, ditherValue, threshold);
         } else {
-            result = ditherWithPalette(color.rgb, ditherValue, threshold, palette);
+            result = ditherWithPalette(color.rgb, ditherValue, threshold, paletteInt);
         }
     }
 

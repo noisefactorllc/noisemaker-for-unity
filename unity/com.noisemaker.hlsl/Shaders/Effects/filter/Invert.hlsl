@@ -15,8 +15,10 @@
 //   return color;
 //
 // PORTING-GUIDE notes:
-//  * `mode` is an int uniform. Solarize is exactly min(rgb, 1-rgb), without an
-//    extra clamp (the source can legitimately contain HDR/negative values).
+//  * `mode` is a logical WGSL i32 carried by an HLSL float because the runtime
+//    binds ordinary numeric uniforms with SetFloat. It is truncated at the
+//    branch. Solarize is exactly min(rgb, 1-rgb), without an extra clamp (the
+//    source can legitimately contain HDR/negative values).
 //  * uv is fragCoord / the INPUT TEXTURE's own dimensions (the WGSL divides by
 //    textureDimensions(inputTex), NOT by fullResolution). We mirror that exactly:
 //    NM_FragCoord(i) (top-left, +0.5 centered) divided by the input tex size.
@@ -31,7 +33,7 @@
 
 #include "../../Include/NMFullscreen.hlsl"
 
-int mode; // 0=full (default), 1=solarize
+float mode; // 0=full (default), 1=solarize; logical i32 carried via SetFloat
 
 // -----------------------------------------------------------------------------
 // nm_invert — core per-pixel evaluation. Takes the already-sampled input color
@@ -41,7 +43,7 @@ int mode; // 0=full (default), 1=solarize
 float4 nm_invert(float4 color)
 {
     [branch]
-    if (mode == 1)
+    if ((int)mode == 1)
     {
         return float4(min(color.rgb, 1.0 - color.rgb), color.a);
     }

@@ -2,9 +2,9 @@ Shader "Noisemaker/filter/lowPoly"
 {
     // filter/lowPoly — Voronoi low-polygon style with optional borders/lighting.
     // Properties are for the inspector only; the runtime binds these via
-    // MaterialPropertyBlock by their reference uniform names
-    // (scale/seed/mode/edgeStrength/edgeColor/alpha/speed, LP_BORDER, LP_LIGHT) and binds the input
-    // surface to inputTex.
+    // MaterialPropertyBlock by their reference uniform names. Ordinary values
+    // (scale/seed/mode/edgeStrength/edgeColor/alpha/speed) use SetFloat; define
+    // keys LP_BORDER/LP_LIGHT use SetInt. The input surface binds to inputTex.
 
     SubShader
     {

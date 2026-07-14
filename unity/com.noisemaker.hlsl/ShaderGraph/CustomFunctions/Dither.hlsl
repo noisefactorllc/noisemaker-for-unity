@@ -26,6 +26,9 @@
 //   SS          : sampler state (bilinear, clamp, linear/non-sRGB) for InputTex
 //   UV          : 0..1 fragment UV (top-left origin, WGSL convention)
 //
+// Type/Palette/Levels remain integer node inputs, then widen into the float
+// carriers used by the runtime core before nm_dither restores their i32 meaning.
+//
 // NOTE: nm_dither needs the RAW pixel coordinate (WGSL pos.xy) for the dither
 // pattern, not just UV. We recover it as UV * input-texture-size, matching the
 // render pass (pixelCoord = NM_FragCoord(i); uv = pixelCoord / texSize). The
@@ -48,11 +51,11 @@ void NM_Dither_float(
     out float4        Out)
 {
     // Bridge node inputs into the core function's module-scope named uniforms.
-    ditherType  = Type;
+    ditherType  = (float)Type;
     matrixScale = MatrixScale;
     threshold   = Threshold;
-    palette     = Palette;
-    levels      = Levels;
+    palette     = (float)Palette;
+    levels      = (float)Levels;
     mixAmount   = Mix;
 
     // Recover the raw pixel coordinate (WGSL pos.xy) the dither pattern expects.
