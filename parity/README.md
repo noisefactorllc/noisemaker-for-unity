@@ -59,6 +59,32 @@ each with a fixed `seed: 1` so output is deterministic:
 | `simpleAberration.dsl` | `filter/simpleAberration` | RGB split (unflipped Y, post-cee90aaf) |
 | `remap_zones.dsl` | `synth/remap` | polygon zone router, wired zone (64-vert layout) |
 
+### v1.0.104 artistic corpus
+
+`programs/v104/` adds 68 deterministic programs for the v1.0.104 artistic-effects
+sync. Run them at the parity size of 127x127. Filter cases use `synth/testPattern`
+inputs; the tile-aware Mandala and Sacred Geometry cases feed those generators into
+Parallax over a `testPattern` surface so their full-resolution coordinates remain
+observable. Every seed-bearing effect pins `seed: 1`.
+
+The corpus covers all 25 new filters and the changed Dither, Edge, Emboss, Invert,
+Low Poly, Texture, Parallax, Mandala, and Sacred Geometry paths. Focused programs
+separate every disjoint branch required by the sync, including the ten new Texture
+modes, all Median radii, mono Halftone patterns, zero-vector/zero-strength
+passthroughs, and the large-radius blur paths. `programs/v104/manifest.tsv` lists
+each program exactly once as `<name><TAB><repo-relative-dsl-path>` and is accepted
+directly by the batch golden renderer:
+
+```bash
+NM_REFERENCE_ROOT=/path/to/noisemaker \
+node parity/batch-golden.mjs parity/programs/v104/manifest.tsv parity/out/v104 \
+  --size 127 --time 0.25 --backend webgl2
+```
+
+Before the v1.0.104 definitions and shaders are synchronized, this corpus is
+intentionally RED against the Unity target: new filters are unknown and changed
+definitions reject or diverge on their new parameters and enum choices.
+
 Pixel status (Unity 6000.3.16f1, 256px, webgl2 golden): 18/20 at max-abs-diff ≤ 1/255 with
 SSIM 1.0; `parallax` and `refract_mirror` each differ on 3–4 isolated pixels (max 26/19 —
 ray-march refinement and mirror-seam pixels; upstream's own GLSL↔WGSL delta on these
@@ -126,12 +152,14 @@ python3 parity/graph-diff.py <name>.ref.graph.json <name>.cs.graph.json
 ```
 
 `graph-diff.py` compares the normalized graphs structurally, ignoring the per-instance
-`id` hash and `source`; a clean run is `0 deltas`. **Current status: 148/148 programs
-byte-clean** — the 12 `parity/programs`, the full 129-program `--selftest` corpus, and
-7 targeted variants (lighting/parallax heightMap default / explicit surface / mid-chain;
-remap default + wired zones; a pointsBillboardRender particle pipeline), all identical
-to the reference oracle via the console harness. This is the "diffed against the golden
-path" validation the live-DSL path was always meant to have.
+`id` hash and `source`; a clean run is `0 deltas`. **Pre-v1.0.104 baseline status:
+148/148 programs byte-clean** — the 12 `parity/programs`, the full 129-program
+`--selftest` corpus, and 7 targeted variants (lighting/parallax heightMap default /
+explicit surface / mid-chain; remap default + wired zones; a pointsBillboardRender
+particle pipeline), all identical to the reference oracle via the console harness.
+The v1.0.104 corpus above remains a deliberate RED gate until the sync regenerates
+the target definitions. This is the "diffed against the golden path" validation the
+live-DSL path was always meant to have.
 
 ## Parity hazards (must match between golden and candidate)
 
