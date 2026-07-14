@@ -1,6 +1,6 @@
 search points, synth, render
 
-solid()
+perlin()
   .pointsEmit()
   .flock()
   .pointsRender()

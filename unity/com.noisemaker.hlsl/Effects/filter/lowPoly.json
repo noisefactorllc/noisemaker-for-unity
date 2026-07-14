@@ -54,6 +54,24 @@
       ],
       "uniform": "edgeColor"
     },
+    "borderWidth": {
+      "type": "int",
+      "default": 0,
+      "uniform": "borderWidth",
+      "define": "LP_BORDER",
+      "min": 0,
+      "max": 100,
+      "zero": 0
+    },
+    "lightIntensity": {
+      "type": "int",
+      "default": 0,
+      "uniform": "lightIntensity",
+      "define": "LP_LIGHT",
+      "min": 0,
+      "max": 100,
+      "zero": 0
+    },
     "alpha": {
       "type": "float",
       "default": 1,

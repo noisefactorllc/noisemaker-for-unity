@@ -152,14 +152,16 @@ python3 parity/graph-diff.py <name>.ref.graph.json <name>.cs.graph.json
 ```
 
 `graph-diff.py` compares the normalized graphs structurally, ignoring the per-instance
-`id` hash and `source`; a clean run is `0 deltas`. **Pre-v1.0.104 baseline status:
-148/148 programs byte-clean** — the 12 `parity/programs`, the full 129-program
-`--selftest` corpus, and 7 targeted variants (lighting/parallax heightMap default /
-explicit surface / mid-chain; remap default + wired zones; a pointsBillboardRender
-particle pipeline), all identical to the reference oracle via the console harness.
-The v1.0.104 corpus above remains a deliberate RED gate until the sync regenerates
-the target definitions. This is the "diffed against the golden path" validation the
-live-DSL path was always meant to have.
+`id` hash and `source`; a clean run is `0 deltas`. **v1.0.104 status: 302/302 programs
+byte-clean** — the full 207-program `--selftest` corpus, all 88
+`parity/programs/**/*.dsl` cases (including 68 v1.0.104 cases), and 7 targeted
+variants (lighting/parallax heightMap explicit surface / mid-chain; remap default +
+wired zones; a pointsBillboardRender particle pipeline), all identical to the
+reference oracle via the console harness. The current demo generator also reports
+three expected selector skips for the hidden deprecated aliases `filter/bc`,
+`filter/colorspace`, and `filter/hs`; no defaults are fabricated for them. This is
+the "diffed against the golden path" validation the live-DSL path was always meant
+to have.
 
 ## Parity hazards (must match between golden and candidate)
 

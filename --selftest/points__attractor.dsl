@@ -1,6 +1,6 @@
 search points, synth, render
 
-solid()
+perlin()
   .pointsEmit()
   .attractor()
   .pointsRender(viewMode: 1)

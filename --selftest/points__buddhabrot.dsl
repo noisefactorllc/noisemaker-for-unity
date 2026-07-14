@@ -1,6 +1,6 @@
 search points, synth, render
 
-solid()
+perlin()
   .pointsEmit(stateSize: 512)
   .buddhabrot()
   .pointsRender(intensity: 99)
