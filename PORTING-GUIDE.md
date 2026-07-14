@@ -54,18 +54,22 @@ style preference.
 - We bind per-effect uniforms as **individual named uniforms** (the GLSL style),
   NOT the WGSL packed `array<vec4,N> data[]`. Values are identical; this is
   Shader-Graph-friendly. Declare each as a bare global matching the reference
-  `globals[*].uniform` name (e.g. `float scaleX; int seed; int octaves;`).
-- Booleans: declare `int`/`float` and test as the reference does. WGSL uses
-  `data[..] > 0.5`; passing `1.0/0.0` and testing `> 0.5` is exact. Prefer matching
-  the WGSL comparison.
-- Ints: the reference does `i32(float)` truncation. Declaring an HLSL `int` uniform
-  set from an integer value is exact for the non-negative ranges used.
+  `globals[*].uniform` name. `UniformBinder` uploads every ordinary numeric and
+  boolean value with `SetFloat`, so its HLSL carrier must also be `float` (for
+  example `float scaleX; float seed; float octaves; float mono;`).
+- Booleans: keep a `float` carrier and compare as the reference does, normally
+  `mono > 0.5` or `mono != 0.0`. Passing `1.0/0.0` is exact.
+- Integer-looking ordinary globals: keep a `float` carrier, then cast at the
+  logical integer use site (for example `int seedI = (int)seed;`). This preserves
+  WGSL `i32(float)` truncation without creating an HLSL binding-type mismatch.
 - Engine globals (`resolution`,`time`,`tileOffset`,`fullResolution`,`renderScale`,
   `aspectRatio`) are provided by `NMFullscreen.hlsl` via `#define` aliases — use the
   bare names directly.
-- Compile-time `#define`s (`NOISE_TYPE`,`LOOP_OFFSET`): the reference used these only
+- Uppercase definition `defines` (`NOISE_TYPE`,`LOOP_OFFSET`): these are the only
+  effect values uploaded with `SetInt`, so declare their HLSL carriers as `int`.
+  The reference used these only
   to avoid an ANGLE→D3D perf stall; they are **not** correctness-relevant. In HLSL,
-  declare them as `int` uniforms and branch at runtime with `[branch]` (this is what
+  branch at runtime with `[branch]` (this is what
   the WGSL path already does — it keeps all variants and relies on const-folding).
   Default values when unset: `NOISE_TYPE=10` (simplex), `LOOP_OFFSET=300`.
 
