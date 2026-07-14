@@ -5,3 +5,4 @@ Base: `2ab966e`
 
 Task 1: complete (commits 2d7f082..f837c0c, review clean)
 Task 2: complete (commits c36ceb5..e7234a3, review clean; Unity import/compile clean)
+Task 3: complete (commits 08042e7..d2bb2ab, review blockers fixed; SG smoke coverage remains Minor)
