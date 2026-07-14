@@ -81,9 +81,10 @@ node parity/batch-golden.mjs parity/programs/v104/manifest.tsv parity/out/v104 \
   --size 127 --time 0.25 --backend webgl2
 ```
 
-Before the v1.0.104 definitions and shaders are synchronized, this corpus is
-intentionally RED against the Unity target: new filters are unknown and changed
-definitions reject or diverge on their new parameters and enum choices.
+This corpus was the pre-port RED gate: new filters were initially unknown and
+changed definitions diverged on their new parameters and enum choices. The
+definitions are now synchronized and all 68 cases are structurally byte-clean;
+the complete shader/pixel result is recorded by the v1.0.104 verification run.
 
 Pixel status (Unity 6000.3.16f1, 256px, webgl2 golden): 18/20 at max-abs-diff ≤ 1/255 with
 SSIM 1.0; `parallax` and `refract_mirror` each differ on 3–4 isolated pixels (max 26/19 —
@@ -165,9 +166,10 @@ to have.
 
 ## Parity hazards (must match between golden and candidate)
 
-- **Color space** — RTs are `ARGBHalf` + `RenderTextureReadWrite.Linear`; **never
-  sRGB**. Both renderers quantise the linear float readback `round(v*255)` with no
-  gamma. Unity project must be Linear.
+- **Color space and format** — RTs use `RenderTextureReadWrite.Linear`; **never
+  sRGB**. Their physical format follows each definition: `rgba8unorm` maps to
+  `ARGB32`, while `rgba16f` maps to `ARGBHalf`. Both renderers quantise the final
+  linear float readback with no gamma. Unity project must be Linear.
 - **Y orientation** — the JS golden flips GL bottom-left origin to top-down PNG
   rows; Unity's `ReadPixels` is already top-down. The single reconciliation point
   is `NMBlit` / the runner. `// TODO(verify)` against `gradient.dsl` (a directional
