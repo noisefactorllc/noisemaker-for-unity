@@ -158,9 +158,9 @@ float4 nm_extrude(Texture2D tex, SamplerState ss, float2 pos)
         }
         else
         {
-            float2 faceCenter = imgCenter + (cellC - imgCenter) * s;
-            float2 faceHalf = halfCell * s;
-            bool topHit = all(abs(P - faceCenter) <= faceHalf + NM_EXTRUDE_EPS);
+            float2 faceMin = imgCenter + (cellC - imgCenter - halfCell) * s;
+            float2 faceMax = imgCenter + (cellC - imgCenter + halfCell) * s;
+            bool topHit = all(P >= faceMin) && all(P <= faceMax);
             bool sideHit = (!topHit) && all(abs(P - cellC) <= halfCell);
             if (topHit || sideHit)
             {
