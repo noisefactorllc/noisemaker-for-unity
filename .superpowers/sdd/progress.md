@@ -10,3 +10,4 @@ Task 4: complete (commits 12ad7b9..2deca89, Important Extrude bound finding fixe
 Task 5: complete (commit dc3ab80, 25 passes and 13/13 pixels; review approved; two Strokes cases have documented five-pixel max8=2 variance)
 Task 6: complete (commit 43fb72b, 11 Metal passes and 17/17 pixels; review approved; Craquelure has documented nine-channel max8=2 variance)
 Task 7: complete (commits 4489ebb..72bcbdf, 210 definitions, 207 selftests, 302/302 graph parity; review approved)
+Task 8: complete (commits 1dcfdac..2865825; clean Unity/Metal 868/868 with 0 hard diagnostics; 68/68 v1.0.104 accepted with localized evidence; 3/3 true tiled cases exact; original 18 strict + 2 established exceptions; 302/302 canonical and 20/20 supplemental behavioral graph parity)
