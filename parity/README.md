@@ -74,7 +74,8 @@ passthroughs, and the large-radius blur paths. `programs/v104/manifest.tsv` list
 each program exactly once as `<name><TAB><repo-relative-dsl-path>` and is accepted
 directly by the batch golden renderer. Two focused generator cases preserve
 `speed: -1.5` through both graph compilers and cover Mandala/Sacred Geometry's
-negative-fractional animation-speed runtime behavior:
+negative-fractional animation-speed runtime behavior. Both are unexcepted
+tolerance-1 passes (Mandala max byte delta 1; Sacred Geometry byte-exact):
 
 ```bash
 NM_REFERENCE_ROOT=/path/to/noisemaker \
