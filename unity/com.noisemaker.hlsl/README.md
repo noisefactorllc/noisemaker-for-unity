@@ -38,9 +38,9 @@ as Custom Function nodes.
 Add the package by either route (the package lives in a subfolder, not the repo root):
 
 - **From disk:** *Package Manager ▸ Add package from disk…* →
-  `…/noisemaker-unity/unity/com.noisemaker.hlsl/package.json`.
+  `…/noisemaker-for-unity/unity/com.noisemaker.hlsl/package.json`.
 - **From git:** *Add package from git URL…* →
-  `https://github.com/noisefactorllc/noisemaker-unity.git?path=unity/com.noisemaker.hlsl#<tag>`.
+  `https://github.com/noisefactorllc/noisemaker-for-unity.git?path=unity/com.noisemaker.hlsl#<tag>`.
 
 ### Builds & platforms
 

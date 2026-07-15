@@ -21,7 +21,7 @@ import { deflateSync } from 'node:zlib'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // Reference (golden) engine lives in the sibling `noisemaker` repo. Override
 // with NM_REFERENCE_ROOT if it's elsewhere. (This repo was split out of
-// noisemaker/noisemaker-unity/, where the default was just `../..`.)
+// noisemaker/noisemaker-for-unity/, where the default was just `../..`.)
 const REFERENCE_ROOT = process.env.NM_REFERENCE_ROOT
   ? resolve(process.env.NM_REFERENCE_ROOT) : resolve(__dirname, '..', '..', 'noisemaker')
 const HARNESS = join(REFERENCE_ROOT, 'vendor', 'shade-mcp', 'harness', 'index.js')

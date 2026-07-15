@@ -17,7 +17,7 @@ standalone renderer and as **Shader Graph (material) nodes**.
 ## Layout
 
 ```
-noisemaker-unity/
+noisemaker-for-unity/
 ├─ README.md                 ← you are here
 ├─ ARCHITECTURE.md           ← system design; how each reference subsystem maps to C#/HLSL
 ├─ PORTING-GUIDE.md          ← the GLSL/WGSL → HLSL rulebook (read before porting a shader)
@@ -62,7 +62,7 @@ on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
 > and build guide — the defaults will not "just work" in a build.
 
 1. Add the package: *Package Manager → Add package from disk →*
-   `noisemaker-unity/unity/com.noisemaker.hlsl/package.json`.
+   `noisemaker-for-unity/unity/com.noisemaker.hlsl/package.json`.
 2. **Fastest first render (no reference-engine or Node dependency):** in *Package Manager →
    Noisemaker for Unity → Samples* tab, **Import "Quick Start"**. Then, per the sample's README:
    set *Color Space = Linear*, create a *Quad* with an *Unlit/Texture* material, add the

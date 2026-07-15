@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Work only in the detached worktree `/Users/alex/source/.codex-worktrees/noisemaker-unity-v104`; do not create a branch.
+- Work only in the detached worktree `/Users/alex/source/.codex-worktrees/noisemaker-for-unity-v104`; do not create a branch.
 - Treat `/Users/alex/source/noisemaker` at `755071128ba6112753b9e976dc0ebbb8e55449b5` as authoritative and read-only.
 - Work local only: no push, pull request, remote mutation, or surviving feature branch.
 - Preserve exact `uint8` byte-difference measurement and the existing RGB-luminance global SSIM formula.
@@ -472,7 +472,7 @@ git commit -m "docs: record fail-closed parity verification"
 **Interfaces:**
 
 - Consumes: merge base `2ab966e9d7c39e5e2704f345f09ced460dcf7cab`, detached verified HEAD, all Task 11 evidence.
-- Produces: clean reviewed local `main` in `/Users/alex/source/noisemaker-unity` and removal of the detached worktree.
+- Produces: clean reviewed local `main` in `/Users/alex/source/noisemaker-for-unity` and removal of the detached worktree.
 
 - [ ] **Step 1: Request a fresh read-only code review**
 
@@ -484,7 +484,7 @@ For each finding, reproduce it with the narrowest test, apply the minimal fix, r
 
 - [ ] **Step 3: Run verification-before-completion on detached HEAD**
 
-Re-run at minimum unit tests, Python/Node syntax, .NET build, `git diff --check`, `git status --short --branch`, exception-backed saved full reports, and cleanliness checks for `/Users/alex/source/noisemaker`, `/Users/alex/source/noisemaker-unity`, and `/Users/alex/nmhlsl-unity`. Record detached HEAD SHA.
+Re-run at minimum unit tests, Python/Node syntax, .NET build, `git diff --check`, `git status --short --branch`, exception-backed saved full reports, and cleanliness checks for `/Users/alex/source/noisemaker`, `/Users/alex/source/noisemaker-for-unity`, and `/Users/alex/nmhlsl-unity`. Record detached HEAD SHA.
 
 - [ ] **Step 4: Finalize the durable evidence and implementation status**
 
@@ -496,11 +496,11 @@ Require original target checkout clean and still at the expected ancestor, then:
 
 ```bash
 FINAL_SHA=$(git rev-parse HEAD)
-git -C /Users/alex/source/noisemaker-unity merge --ff-only "$FINAL_SHA"
-test "$(git -C /Users/alex/source/noisemaker-unity rev-parse HEAD)" = "$FINAL_SHA"
-test "$(git -C /Users/alex/source/noisemaker-unity branch --show-current)" = main
-git -C /Users/alex/source/noisemaker-unity status --short
-git -C /Users/alex/source/noisemaker-unity branch --list
+git -C /Users/alex/source/noisemaker-for-unity merge --ff-only "$FINAL_SHA"
+test "$(git -C /Users/alex/source/noisemaker-for-unity rev-parse HEAD)" = "$FINAL_SHA"
+test "$(git -C /Users/alex/source/noisemaker-for-unity branch --show-current)" = main
+git -C /Users/alex/source/noisemaker-for-unity status --short
+git -C /Users/alex/source/noisemaker-for-unity branch --list
 ```
 
 Expected: fast-forward succeeds, local `main` equals the reviewed SHA, status is clean, and only pre-existing local branches (in this task, just `main`) exist.
@@ -510,11 +510,11 @@ Expected: fast-forward succeeds, local `main` equals the reviewed SHA, status is
 From outside the worktree:
 
 ```bash
-git -C /Users/alex/source/noisemaker-unity worktree remove /Users/alex/source/.codex-worktrees/noisemaker-unity-v104
-git -C /Users/alex/source/noisemaker-unity worktree prune
-git -C /Users/alex/source/noisemaker-unity worktree list
-git -C /Users/alex/source/noisemaker-unity status --short --branch
-git -C /Users/alex/source/noisemaker-unity log -1 --oneline
+git -C /Users/alex/source/noisemaker-for-unity worktree remove /Users/alex/source/.codex-worktrees/noisemaker-for-unity-v104
+git -C /Users/alex/source/noisemaker-for-unity worktree prune
+git -C /Users/alex/source/noisemaker-for-unity worktree list
+git -C /Users/alex/source/noisemaker-for-unity status --short --branch
+git -C /Users/alex/source/noisemaker-for-unity log -1 --oneline
 ```
 
 Expected: only the original checkout remains, on clean local `main` at the reviewed SHA. Do not push or create a PR.

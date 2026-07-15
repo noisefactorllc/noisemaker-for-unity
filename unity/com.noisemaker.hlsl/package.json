@@ -7,9 +7,9 @@
   "keywords": ["shader", "procedural", "texture", "noise", "dsl", "shadergraph"],
   "author": { "name": "Noisemaker" },
   "license": "MIT",
-  "documentationUrl": "https://github.com/noisefactorllc/noisemaker-unity/blob/main/unity/com.noisemaker.hlsl/README.md",
-  "changelogUrl": "https://github.com/noisefactorllc/noisemaker-unity/blob/main/unity/com.noisemaker.hlsl/CHANGELOG.md",
-  "licensesUrl": "https://github.com/noisefactorllc/noisemaker-unity/blob/main/unity/com.noisemaker.hlsl/LICENSE.md",
+  "documentationUrl": "https://github.com/noisefactorllc/noisemaker-for-unity/blob/main/unity/com.noisemaker.hlsl/README.md",
+  "changelogUrl": "https://github.com/noisefactorllc/noisemaker-for-unity/blob/main/unity/com.noisemaker.hlsl/CHANGELOG.md",
+  "licensesUrl": "https://github.com/noisefactorllc/noisemaker-for-unity/blob/main/unity/com.noisemaker.hlsl/LICENSE.md",
   "samples": [
     {
       "displayName": "Quick Start",

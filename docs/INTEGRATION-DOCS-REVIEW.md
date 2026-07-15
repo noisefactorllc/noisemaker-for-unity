@@ -80,5 +80,5 @@ The accuracy corrections, the package-README integrator sections (Requirements, 
   verified in batchmode (collects 184 shaders, add→present→restore round-trips cleanly).
   This resolves the "builds render nothing" blocker.
 - ⏳ **Host texture-input API**, **`Samples~` scene**, **URP/HDRP verification** — see the
-  commit history / `noisemaker-unity-integration-readiness` notes for current status; the
+  commit history / `noisemaker-for-unity-integration-readiness` notes for current status; the
   package remains output-only and verified on Built-in only until those land.

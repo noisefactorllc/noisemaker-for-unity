@@ -8,7 +8,7 @@ set -u
 export PATH=$HOME/.local/node/bin:$PATH
 UNITY=/Applications/Unity/Hub/Editor/6000.3.16f1/Unity.app/Contents/MacOS/Unity
 PROJ=/tmp/nmverify-proj
-ROOT=/Users/alex/source/noisemaker-unity
+ROOT=/Users/alex/source/noisemaker-for-unity
 DEMO=/tmp/demo
 GOLD=$DEMO/gold
 OUT=$DEMO/out

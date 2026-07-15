@@ -151,7 +151,7 @@ After focused tests pass:
 
 Update `parity/README.md` so examples describe the fail-closed exit contract, the exception-file workflow, the two new fractional-speed cases, and current corpus/graph totals. Record the final commands and measured outcomes in the existing v1.0.104 verification evidence.
 
-After all verification and review findings are clear, commit on the detached worktree, fast-forward `/Users/alex/source/noisemaker-unity` local `main` directly to the verified detached commit, verify `main`, and remove the detached worktree. No feature branch, remote push, or pull request is created.
+After all verification and review findings are clear, commit on the detached worktree, fast-forward `/Users/alex/source/noisemaker-for-unity` local `main` directly to the verified detached commit, verify `main`, and remove the detached worktree. No feature branch, remote push, or pull request is created.
 
 ## Acceptance criteria
 
