@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 
-**Status:** Approved
+**Status:** Implemented with measured shader correction
 
 **Scope:** Close the two important findings from the final v1.0.104 sync review before integrating the detached commit into local `main`.
 
@@ -158,7 +158,21 @@ After all verification and review findings are clear, commit on the detached wor
 - `batch-compare.py` without an exception file returns nonzero for every non-`PASS` result and for an empty run.
 - Only explicitly named, fully bounded `NEAR` cases can yield `ALLOWED_NEAR` and a successful overall result.
 - The two corpus exception files reproduce exactly the documented current raster debt and cannot approve missing, mismatched, low-SSIM, or newly located divergences.
-- Mandala and Sacred Geometry use reference-equivalent `floor(speed)` semantics.
-- Both negative-fractional speed tests are demonstrated RED before the code change and green afterward.
+- Both graph compilers preserve negative-fractional speed values, and the retained
+  HLSL path matches the authoritative rendered output for both focused cases.
+- The proposed direct `floor(speed)` alternative is measured against fresh goldens
+  and rejected if it diverges; the outcome is recorded rather than inferred from
+  source syntax alone.
 - Focused and full regression gates pass, and a fresh reviewer reports no important issues.
 - The verified work lands only as a local fast-forward on `main`; no branch or PR remains.
+
+## Measured implementation correction
+
+The fail-closed comparator design was implemented as specified. The proposed direct
+`floor(speed)` shader edit was rejected after clean end-to-end measurement: with the
+two new `speed: -1.5` reference programs, the existing cast path is a strict pixel
+match, while direct `floor(speed)` produces maximum byte deltas 210 and 207 with
+SSIM 0.074110 and 0.228754. Both graph compilers preserve `-1.5`; the discrepancy is
+therefore in executable backend semantics rather than graph serialization. The
+runtime HLSL remains unchanged, and the two focused programs are retained as
+regressions for the authoritative rendered behavior.

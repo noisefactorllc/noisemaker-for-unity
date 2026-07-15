@@ -61,7 +61,7 @@ each with a fixed `seed: 1` so output is deterministic:
 
 ### v1.0.104 artistic corpus
 
-`programs/v104/` adds 68 deterministic programs for the v1.0.104 artistic-effects
+`programs/v104/` adds 70 deterministic programs for the v1.0.104 artistic-effects
 sync. Run them at the parity size of 127x127. Filter cases use `synth/testPattern`
 inputs; the Mandala and Sacred Geometry cases feed those generators into Parallax
 over a `testPattern` surface. Every seed-bearing effect pins `seed: 1`.
@@ -72,7 +72,9 @@ separate every disjoint branch required by the sync, including the ten new Textu
 modes, all Median radii, mono Halftone patterns, zero-vector/zero-strength
 passthroughs, and the large-radius blur paths. `programs/v104/manifest.tsv` lists
 each program exactly once as `<name><TAB><repo-relative-dsl-path>` and is accepted
-directly by the batch golden renderer:
+directly by the batch golden renderer. Two focused generator cases preserve
+`speed: -1.5` through both graph compilers and cover Mandala/Sacred Geometry's
+negative-fractional animation-speed runtime behavior:
 
 ```bash
 NM_REFERENCE_ROOT=/path/to/noisemaker \
@@ -98,13 +100,15 @@ node parity/batch-golden.mjs parity/programs/v104/tiled-manifest.tsv /tmp/v104-t
 
 This corpus was the pre-port RED gate: new filters were initially unknown and
 changed definitions diverged on their new parameters and enum choices. The
-definitions are now synchronized and all 68 cases are structurally byte-clean;
+definitions are now synchronized and all 70 cases are structurally byte-clean;
 the complete shader/pixel result is recorded by the v1.0.104 verification run.
 
-Pixel status (Unity 6000.3.16f1, 256px, webgl2 golden): 18/20 at max-abs-diff ≤ 1/255 with
-SSIM 1.0; `parallax` and `refract_mirror` each differ on 3–4 isolated pixels (max 26/19 —
-ray-march refinement and mirror-seam pixels; upstream's own GLSL↔WGSL delta on these
-effects is 7–11 px), passing with the documented per-effect tolerance.
+Pixel status: the 70-case v1.0.104 gate reports 66 `PASS` and 4 narrowly bounded
+`ALLOWED_NEAR`; the two negative-fractional speed cases are strict passes. The
+original 20-case regression reports 18 `PASS` and the established `parallax` /
+`refract_mirror` exceptions. Every exception is checked against a per-case maximum
+delta, SSIM floor, exceeded-pixel/channel counts, and exact top-left-origin pixel
+coordinates where declared.
 
 ## Runbook
 
@@ -137,6 +141,25 @@ python parity/compare.py \
 
 Loop over all programs with a shell `for` over `parity/programs/*.dsl`.
 
+For a batch, `batch-compare.py` is fail closed: an empty corpus or any `NEAR`,
+`FAIL`, missing image, or size mismatch returns nonzero. Repository-owned exception
+files may promote only explicitly named, globally high-SSIM `NEAR` results whose
+complete bounds match:
+
+```bash
+python3 parity/batch-compare.py /tmp/v104-golden /tmp/v104-candidate \
+  --tolerance 1 --ssim-min 0.9999 \
+  --exceptions parity/programs/v104/exceptions.json \
+  --out /tmp/v104-report.json
+
+python3 parity/batch-compare.py /tmp/original-golden /tmp/original-candidate \
+  --tolerance 1 --ssim-min 0.9999 \
+  --exceptions parity/programs/exceptions.json
+```
+
+Exit 0 means every compared case is `PASS` or `ALLOWED_NEAR`. `FAIL`, missing,
+mismatched, and empty runs cannot be allowlisted.
+
 ## Graph parity (live-DSL compiler)
 
 The pixel harness above validates the *shaders + executor* from a precompiled graph. A
@@ -168,9 +191,9 @@ python3 parity/graph-diff.py <name>.ref.graph.json <name>.cs.graph.json
 ```
 
 `graph-diff.py` compares the normalized graphs structurally, ignoring the per-instance
-`id` hash and `source`; a clean run is `0 deltas`. **v1.0.104 status: 302/302 programs
-byte-clean** — the full 207-program `--selftest` corpus, all 88
-`parity/programs/**/*.dsl` cases (including 68 v1.0.104 cases), and 7 targeted
+`id` hash and `source`; a clean run is `0 deltas`. **v1.0.104 status: 304/304 programs
+byte-clean** — the full 207-program `--selftest` corpus, all 90
+`parity/programs/**/*.dsl` cases (including 70 v1.0.104 cases), and 7 targeted
 variants (lighting/parallax heightMap explicit surface / mid-chain; remap default +
 wired zones; a pointsBillboardRender particle pipeline), all identical to the
 reference oracle via the console harness. The current demo generator also reports

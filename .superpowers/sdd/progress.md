@@ -12,3 +12,5 @@ Task 6: complete (commit 43fb72b, 11 Metal passes and 17/17 pixels; review appro
 Task 7: complete (commits 4489ebb..72bcbdf, 210 definitions, 207 selftests, 302/302 graph parity; review approved)
 Task 8: complete (commits 1dcfdac..2865825; clean Unity/Metal 868/868 with 0 hard diagnostics; 68/68 v1.0.104 accepted with localized evidence; 3/3 true tiled cases exact; original 18 strict + 2 established exceptions; 302/302 canonical and 20/20 supplemental behavioral graph parity)
 Task 9: complete (commit 34e6436; 17/17 fail-closed comparator contracts pass; v1.0.104 64 PASS + 4 bounded exceptions; original 18 PASS + 2 bounded exceptions; review clean)
+Task 10: complete (commit 562f210; two negative-fractional speed graphs byte-clean and strict pixel passes; direct floor proposal rejected by measured parity)
+Task 11: complete (70-case combined gate 66 PASS + 4 bounded exceptions; tiled 3/3; original 18 PASS + 2 bounded exceptions; .NET and syntax gates clean)
