@@ -21,6 +21,7 @@ lens_flare_prime105	parity/programs/v104/lens_flare_prime105.dsl
 lens_flare_prime35	parity/programs/v104/lens_flare_prime35.dsl
 low_poly_border_lighting	parity/programs/v104/low_poly_border_lighting.dsl
 mandala_large_format	parity/programs/v104/mandala_large_format.dsl
+mandala_negative_fractional_speed	parity/programs/v104/mandala_negative_fractional_speed.dsl
 median_radius_1	parity/programs/v104/median_radius_1.dsl
 median_radius_2	parity/programs/v104/median_radius_2.dsl
 median_radius_3	parity/programs/v104/median_radius_3.dsl
@@ -41,6 +42,7 @@ pond_repeat_no_aa	parity/programs/v104/pond_repeat_no_aa.dsl
 relief_note_paper	parity/programs/v104/relief_note_paper.dsl
 relief_plaster	parity/programs/v104/relief_plaster.dsl
 sacred_geometry_large_format	parity/programs/v104/sacred_geometry_large_format.dsl
+sacred_geometry_negative_fractional_speed	parity/programs/v104/sacred_geometry_negative_fractional_speed.dsl
 scatter_anisotropic	parity/programs/v104/scatter_anisotropic.dsl
 scatter_clumped	parity/programs/v104/scatter_clumped.dsl
 scatter_darken_only	parity/programs/v104/scatter_darken_only.dsl
