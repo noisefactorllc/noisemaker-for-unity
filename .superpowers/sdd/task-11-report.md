@@ -62,8 +62,27 @@ UNITY=/Applications/Unity/Hub/Editor/6000.3.16f1/Unity.app/Contents/MacOS/Unity
 ```
 
 The two Mandala speed expressions and Sacred Geometry helper were then changed to
-direct `floor(speed)`, reimported, and rendered with the same command contract to
-`candidate-green`; comparison that rejected the edit:
+direct `floor(speed)`. This exact manifest and Unity invocation reimported and
+rendered that candidate:
+
+```bash
+awk -F'\t' \
+  -v gold=/private/tmp/noisemaker-task9/speed/golden \
+  -v out=/private/tmp/noisemaker-task9/speed/candidate-green \
+  '{print gold "/" $1 ".graph.json\t" out "/" $1 ".png"}' \
+  /private/tmp/noisemaker-task9/speed/manifest.tsv \
+  > /private/tmp/noisemaker-task9/speed/render-green.tsv
+
+UNITY=/Applications/Unity/Hub/Editor/6000.3.16f1/Unity.app/Contents/MacOS/Unity
+"$UNITY" -batchmode -quit \
+  -projectPath /tmp/nmhlsl-unity-v104.HKAHvK \
+  -logFile /private/tmp/noisemaker-task9/speed/unity-green.log \
+  -executeMethod Noisemaker.Hlsl.Editor.NMParityRunner.RenderBatchFromCommandLine \
+  -nmManifest /private/tmp/noisemaker-task9/speed/render-green.tsv \
+  -nmSize 127 -nmTime 0.25
+```
+
+Comparison that rejected the direct-floor edit:
 
 ```bash
 python3 parity/batch-compare.py \
@@ -74,8 +93,20 @@ python3 parity/batch-compare.py \
 # exit 1: max 210/207; SSIM 0.074110/0.228754
 ```
 
-After restoring the retained cast semantics, the same Unity render command wrote
-`candidate-green` and this command accepted both cases without exceptions:
+After restoring the retained cast semantics, this exact Unity command overwrote
+`candidate-green` with the final candidate:
+
+```bash
+UNITY=/Applications/Unity/Hub/Editor/6000.3.16f1/Unity.app/Contents/MacOS/Unity
+"$UNITY" -batchmode -quit \
+  -projectPath /tmp/nmhlsl-unity-v104.HKAHvK \
+  -logFile /private/tmp/noisemaker-task9/speed/unity-final-cast.log \
+  -executeMethod Noisemaker.Hlsl.Editor.NMParityRunner.RenderBatchFromCommandLine \
+  -nmManifest /private/tmp/noisemaker-task9/speed/render-green.tsv \
+  -nmSize 127 -nmTime 0.25
+```
+
+This command accepted both cases without exceptions:
 
 ```bash
 python3 parity/batch-compare.py \
@@ -84,6 +115,26 @@ python3 parity/batch-compare.py \
   --tolerance 1 --ssim-min 0.9999 \
   --out /private/tmp/noisemaker-task9/speed/final-cast-report.json
 ```
+
+The following results are copied from the machine-readable reports into this
+tracked document, so the decision does not depend on `/private/tmp` retention:
+
+| Candidate | Case | Class | Max diff | Mean diff | SSIM | Exceeded pixels | Exceeded channels |
+|---|---|---|---:|---:|---:|---:|---:|
+| direct `floor(speed)` | Mandala | `FAIL` | 210 | 9.286301072602145 | 0.07411036640405655 | 1942 | 5747 |
+| direct `floor(speed)` | Sacred Geometry | `FAIL` | 207 | 14.738343976687954 | 0.2287544459104538 | 4405 | 12802 |
+| retained cast | Mandala | `PASS` | 1 | 0.000728501457002914 | 0.9999995827674866 | 0 | 0 |
+| retained cast | Sacred Geometry | `PASS` | 0 | 0 | 1.0 | 0 | 0 |
+
+Artifact SHA-256 values at verification time were
+`7ef8450b108d3baf5dba5537314c94668907e8d92a1bd4e05cc34fb3f04fc5f0`
+for `green-report.json`,
+`b3cf43e83389d5013efdcba0184718b89510846884fff65f86d69f70621e2a95`
+for `final-cast-report.json`,
+`7a6152801db6feadcf18d8b670b889c453d9a527cd0a0e9431c12db10f96ce05`
+for `unity-green.log`, and
+`7931b95bcfef270baf780183c278e4ecc8eaa4a8117e64d86f6205bff547f0bb`
+for `unity-final-cast.log`.
 
 Focused graph parity:
 
