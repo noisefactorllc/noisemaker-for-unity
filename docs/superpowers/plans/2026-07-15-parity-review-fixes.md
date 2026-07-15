@@ -33,13 +33,13 @@
 - `unity/com.noisemaker.hlsl/Shaders/Effects/synth/Mandala.hlsl`: two direct `floor(speed)` calculations.
 - `unity/com.noisemaker.hlsl/Shaders/Effects/synth/SacredGeometry.hlsl`: direct `floor(speed)` helper.
 - `parity/README.md`: fail-closed/exception workflow and updated 70-case/304-case totals.
-- `.superpowers/sdd/task-9-report.md`: commands and final measured evidence for these review fixes.
+- `.superpowers/sdd/task-11-report.md`: commands and final measured evidence for these review fixes.
 - `.superpowers/sdd/progress.md`: final Task 9 status.
 - `docs/superpowers/specs/2026-07-15-parity-gate-and-fractional-speed-fixes-design.md`: approved-to-implemented status transition after verification.
 
 ---
 
-### Task 1: Fail-Closed Comparator and Bounded Exceptions
+### Task 9: Fail-Closed Comparator and Bounded Exceptions
 
 **Files:**
 
@@ -214,7 +214,7 @@ git commit -m "fix: make pixel parity gate fail closed"
 
 ---
 
-### Task 2: Negative-Fractional Speed RED/GREEN Parity
+### Task 10: Negative-Fractional Speed RED/GREEN Parity
 
 **Files:**
 
@@ -363,18 +363,16 @@ git commit -m "fix: preserve fractional animation speed semantics"
 
 ---
 
-### Task 3: Full Regression Gates and Documentation
+### Task 11: Full Regression Gates and Documentation
 
 **Files:**
 
 - Modify: `parity/README.md`
-- Create: `.superpowers/sdd/task-9-report.md`
-- Modify: `.superpowers/sdd/progress.md`
-- Modify: `docs/superpowers/specs/2026-07-15-parity-gate-and-fractional-speed-fixes-design.md`
+- Create: `.superpowers/sdd/task-11-report.md`
 
 **Interfaces:**
 
-- Consumes: Task 1 comparator/exception files, Task 2 70-row manifest and shaders, existing disposable Unity project/runtime paths.
+- Consumes: Task 9 comparator/exception files, Task 10 70-row manifest and shaders, existing disposable Unity project/runtime paths.
 - Produces: fresh full pixel reports, 304-case canonical graph evidence, clean Unity/.NET evidence, and repository documentation tied to actual command output.
 
 - [ ] **Step 1: Run static and unit gates**
@@ -449,29 +447,31 @@ Regenerate and render the three `tiled-manifest.tsv` cases using tile `(1536,204
 
 Update `parity/README.md` to state 70 v1.0.104 programs, 90 `parity/programs/**/*.dsl` cases, and 304 canonical graph cases. Document `--exceptions`, the `PASS`/`ALLOWED_NEAR` exit contract, the two exception-file paths, and strict usage for new corpora. Replace prose pixel distributions with counts read from the fresh JSON reports rather than hand-estimated values.
 
-Create `.superpowers/sdd/task-9-report.md` containing the exact reviewed commit range, runtime paths, RED and GREEN focused results, unit-test count, 304-case graph result, clean Unity compiler totals/diagnostic classification, 70/3/20 pixel report counts, definition check, source/original-project cleanliness, and final review result. Update `.superpowers/sdd/progress.md` with Task 9 complete only after all commands pass. Change the design spec status from `Approved` to `Implemented` only after the gates pass.
+Create `.superpowers/sdd/task-11-report.md` containing the exact detached commit range, runtime paths, RED and GREEN focused results, unit-test count, 304-case graph result, clean Unity compiler totals/diagnostic classification, 70/3/20 pixel report counts, definition check, and source/original-project cleanliness. Final review and integration results are appended in Task 12, after they exist.
 
 - [ ] **Step 8: Commit verified documentation**
 
 ```bash
-git add parity/README.md .superpowers/sdd/task-9-report.md .superpowers/sdd/progress.md \
-  docs/superpowers/specs/2026-07-15-parity-gate-and-fractional-speed-fixes-design.md
+git add parity/README.md .superpowers/sdd/task-11-report.md
 git diff --cached --check
 git commit -m "docs: record fail-closed parity verification"
 ```
 
 ---
 
-### Task 4: Fresh Review, Local Main Fast-Forward, and Cleanup
+### Task 12: Fresh Review, Local Main Fast-Forward, and Cleanup
 
 **Files:**
 
 - Modify only if review finds a verified defect: affected source/test/docs files.
+- Modify: `.superpowers/sdd/task-11-report.md`
+- Modify: `.superpowers/sdd/progress.md`
+- Modify: `docs/superpowers/specs/2026-07-15-parity-gate-and-fractional-speed-fixes-design.md`
 - No branch, PR, or remote files.
 
 **Interfaces:**
 
-- Consumes: merge base `2ab966e9d7c39e5e2704f345f09ced460dcf7cab`, detached verified HEAD, all Task 3 evidence.
+- Consumes: merge base `2ab966e9d7c39e5e2704f345f09ced460dcf7cab`, detached verified HEAD, all Task 11 evidence.
 - Produces: clean reviewed local `main` in `/Users/alex/source/noisemaker-unity` and removal of the detached worktree.
 
 - [ ] **Step 1: Request a fresh read-only code review**
@@ -486,7 +486,11 @@ For each finding, reproduce it with the narrowest test, apply the minimal fix, r
 
 Re-run at minimum unit tests, Python/Node syntax, .NET build, `git diff --check`, `git status --short --branch`, exception-backed saved full reports, and cleanliness checks for `/Users/alex/source/noisemaker`, `/Users/alex/source/noisemaker-unity`, and `/Users/alex/nmhlsl-unity`. Record detached HEAD SHA.
 
-- [ ] **Step 4: Fast-forward local main directly to the detached SHA**
+- [ ] **Step 4: Finalize the durable evidence and implementation status**
+
+Append the final review verdict and verification-before-completion results to `.superpowers/sdd/task-11-report.md`. Add the Task 9, Task 10, and Task 11 completion lines with their reviewed commit ranges to `.superpowers/sdd/progress.md`; Task 12's final local-main/worktree outcome is reported directly after it happens. Change the design spec status from `Approved` to `Implemented`. Commit only these evidence/status files as `docs: finalize local parity delivery`, then rerun `git diff --check` and the documentation portion of the fresh review if the reviewer requested wording changes.
+
+- [ ] **Step 5: Fast-forward local main directly to the detached SHA**
 
 Require original target checkout clean and still at the expected ancestor, then:
 
@@ -501,7 +505,7 @@ git -C /Users/alex/source/noisemaker-unity branch --list
 
 Expected: fast-forward succeeds, local `main` equals the reviewed SHA, status is clean, and only pre-existing local branches (in this task, just `main`) exist.
 
-- [ ] **Step 5: Remove the detached worktree and verify local-only delivery**
+- [ ] **Step 6: Remove the detached worktree and verify local-only delivery**
 
 From outside the worktree:
 
