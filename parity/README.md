@@ -171,9 +171,10 @@ to have.
   `ARGB32`, while `rgba16f` maps to `ARGBHalf`. Both renderers quantise the final
   linear float readback with no gamma. Unity project must be Linear.
 - **Y orientation** — the JS golden flips GL bottom-left origin to top-down PNG
-  rows; Unity's `ReadPixels` is already top-down. The single reconciliation point
-  is `NMBlit` / the runner. `// TODO(verify)` against `gradient.dsl` (a directional
-  pattern) once both PNGs exist; mirror in the runner if a vertical flip appears.
+  rows; Unity's `ReadPixels` is already top-down. Directional parity cases verify
+  `NMBlit` / the runner as the single general reconciliation point. Texture's
+  runtime and Shader Graph paths have distinct, separately verified source-UV
+  conventions; do not copy a flip between them without focused pixel evidence.
 - **Premultiplied alpha** — the WebGPU reference present path is premultiplied
   (`reference/04 §7`); match it if rendering the golden with `--backend webgpu`.
 - **Determinism** — seed is in the DSL; time is pinned (paused). Both sides render

@@ -266,13 +266,11 @@ namespace Noisemaker.Hlsl
         // check, so a single phys_N can be shared by texIds of DIFFERENT sizes (e.g.
         // filter/normalize shares phys_2 between a 1x1 reduce2 and the full-res
         // output). The JS WebGL2 runtime never collapses to phys_N — it allocates a
-        // real texture per virtual id at its own logical size. To stay correct under
-        // pooling we size each phys slot to the MAXIMUM dimensions across every texId
-        // mapped to it (a smaller pass renders into a sub-viewport of the larger RT;
-        // reduction passes whose GetDimensions/Load span the physical size still see
-        // the same global min/max because the out-of-range reads hit the unchanged
-        // sentinel side of min()/max()). The first-seen format/is3D initializes the
-        // provisional slot; ResolvePhysical isolates incompatible aliases by virtual id.
+        // real texture per virtual id at its own logical size. AllocatePooled therefore
+        // creates only a provisional phys_N candidate at the maximum dimensions, using
+        // the first-seen format/is3D. ResolvePhysical may reuse that candidate only when
+        // the virtual texture's width, height, mapped format, and dimensionality all
+        // match exactly; every incompatible alias receives a dedicated virtual-id RT.
         public void AllocatePooled(RenderGraph graph, System.Func<string, double?> uniforms)
         {
             // phys_N -> max (w,h,d) + first-seen provisional format/is3D.

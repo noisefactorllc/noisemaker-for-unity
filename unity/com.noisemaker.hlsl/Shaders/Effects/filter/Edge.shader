@@ -22,7 +22,7 @@ Shader "Noisemaker/filter/edge"
             #pragma exclude_renderers gles
             #include "Edge.hlsl"
 
-            // Input surface. Sampler must be bilinear, clamp-to-edge, LINEAR
+            // Input surface. Sampler must be point, clamp-to-edge, LINEAR
             // (non-sRGB) to match the WebGL2/WebGPU RGBA path (H7).
             Texture2D    inputTex;
             SamplerState sampler_inputTex;

@@ -352,8 +352,8 @@ float nmsg_texture_shape_material(float raw, float intensityArg, float contrastA
 // 0..1 UV), derives `dims` from the bound texture (WGSL `textureDimensions`),
 // then applies the texture shading. `Time` is the engine-provided normalized
 // animation time. `Mode` is the int dispatch (passed as float -> int).
-// TODO(verify): SS must be a clamp, non-sRGB (linear) sampler state so it matches
-// the runtime's bilinear/clamp/linear path (H7).
+// SS is caller-provided. Use a point, clamp, non-sRGB sampler to mirror runtime
+// render surfaces; this Shader Graph path retains its own explicit Y flip.
 void NM_Texture_float(
     UnityTexture2D InputTex,
     UnitySamplerState SS,

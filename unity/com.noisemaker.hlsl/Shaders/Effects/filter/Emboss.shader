@@ -21,7 +21,7 @@ Shader "Noisemaker/filter/emboss"
             #pragma exclude_renderers gles
             #include "Emboss.hlsl"
 
-            // Input surface. Sampler: bilinear, clamp-to-edge, linear (non-sRGB) — H7.
+            // Input surface. Sampler: point, clamp-to-edge, linear (non-sRGB) — H7.
             Texture2D    inputTex;
             SamplerState sampler_inputTex;
 

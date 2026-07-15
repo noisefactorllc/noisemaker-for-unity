@@ -12,9 +12,10 @@
 //
 // PORTING-GUIDE notes / hazards handled:
 //  * Sampling UV is the fullscreen 0..1 `uv` (WGSL `in.uv`), used directly for
-//    the textureSample AND as the height-field domain. NM_FragCoord(i) is the
-//    @builtin(position) analog; we use i.uv (the canonical top-left UV) directly,
-//    matching the WGSL `in.uv`. No per-effect Y flip (H8).
+//    the textureSample AND as the height-field domain. Unity's stored runtime
+//    texture orientation already reconciles the WGSL modes 5..14 source-UV flip,
+//    so this path intentionally omits a second flip. Fresh directional pixel
+//    evidence covers this runtime-specific orientation choice.
 //  * `dims = textureDimensions(inputTex)` is the INPUT TEXTURE size; `pixel_step
 //    = 1/dims` is the neighbor offset for the gradient. We mirror exactly.
 //  * MODE is a compile-time const in WGSL (definition.js globals.mode.define =
@@ -33,8 +34,8 @@
 //    matching WGSL i32 `%`. Z_LOOP = 2.
 //  * INV_UINT32_MAX = 1.0 / 4294967295.0 (full-precision divisor, H11).
 //  * `mix` -> `lerp`; `fract` -> `frac`; `f32(u)`/`f32(octave)` -> (float)cast.
-//  * Linear, clamp-to-edge, non-sRGB sampler (H7) — set on the SamplerState in
-//    Texture.shader / supplied by the Shader Graph node.
+//  * Point, clamp-to-edge, non-sRGB sampler (H7) — enforced for runtime render
+//    surfaces by TextureStore. Shader Graph receives its sampler from the caller.
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
