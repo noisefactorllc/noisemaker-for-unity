@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "parallax": {
+      "max_abs_diff": 26,
+      "ssim_min": 0.999998,
+      "max_exceeded_pixels": 3,
+      "max_exceeded_channels": 8,
+      "allowed_exceeded_pixels": [
+        [148, 39],
+        [117, 69],
+        [61, 197]
+      ]
+    },
+    "refract_mirror": {
+      "max_abs_diff": 19,
+      "ssim_min": 0.999998,
+      "max_exceeded_pixels": 7,
+      "max_exceeded_channels": 18,
+      "allowed_exceeded_pixels": [
+        [7, 44],
+        [252, 49],
+        [196, 50],
+        [172, 102],
+        [180, 148],
+        [190, 201],
+        [146, 250]
+      ]
+    }
+  }
+}
