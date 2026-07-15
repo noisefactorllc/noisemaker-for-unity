@@ -14,9 +14,8 @@
 // untiled: UV is both global and local, so those mappings collapse to the math
 // below and the current interface needs no extra resolution/tile inputs.
 //
-// TODO(verify): SS must be a clamp, non-sRGB (linear) sampler state to match
-// the runtime's sampling path (H7; the runtime surfaces are point/clamp —
-// see TextureStore).
+// SS is caller-provided. Use a point, clamp, non-sRGB sampler to mirror the
+// runtime render-surface sampling path (H7; see TextureStore).
 // =============================================================================
 
 static const int   nmsg_PARALLAX_MARCH_STEPS = 32;

@@ -9,7 +9,8 @@
 //
 //   Unity -batchmode -quit -projectPath <proj> \
 //     -executeMethod Noisemaker.Hlsl.Editor.NMParityRunner.RenderFromCommandLine \
-//     -nmGraph <graph.json> -nmOut <candidate.png> -nmSize 256 -nmTime 0.25
+//     -nmGraph <graph.json> -nmOut <candidate.png> -nmSize 256 -nmTime 0.25 \
+//     [-nmTileX 0 -nmTileY 0 -nmFullWidth W -nmFullHeight H -nmRenderScale 1]
 //
 // Determinism: the seed is baked into the graph's uniforms (e.g. seed=1). Time is
 // normalized 0..1 (reference/04 §6). We build the pipeline at the SAME size as the
@@ -22,9 +23,8 @@
 //     the same way. Player/Editor color space must be Linear.
 //   * Y orientation: the JS golden flips GL bottom-left origin to top-down PNG row
 //     order. Unity's RenderTexture is top-left origin; ReadPixels gives top-down.
-//     We therefore write WITHOUT an extra flip and reconcile any residual flip in
-//     NMBlit (the single Y-flip point, ARCHITECTURE.md). // TODO(verify) against a
-//     gradient golden once both PNGs exist; flip here if a vertical mirror appears.
+//     We therefore write WITHOUT an extra flip; directional parity cases verify
+//     NMBlit/the runner as the single general Y-reconciliation point.
 //   * Premultiplied alpha (reference/04 §7, WebGPU path): if the golden was
 //     rendered on the webgpu backend, match premultiplied alpha on present.
 //
@@ -255,8 +255,9 @@ namespace Noisemaker.Hlsl.Editor
         // ---- Batch entry --------------------------------------------------------
         // Renders MANY graphs in ONE editor session (avoids ~25s startup per graph).
         // -nmManifest <file>: each non-empty line is "<graphJson>\t<outPng>".
-        // -nmSize / -nmTime apply to all. Per-graph failures are logged (NM-BATCH
-        // FAIL <graph>: <msg>) and do not abort the batch.
+        // -nmSize / -nmTime and optional -nmTileX/-nmTileY/-nmFullWidth/
+        // -nmFullHeight/-nmRenderScale apply to all. Per-graph failures are logged
+        // (NM-BATCH FAIL <graph>: <msg>) and do not abort the batch.
         public static void RenderBatchFromCommandLine()
         {
             string manifest = GetArg("-nmManifest");
@@ -713,6 +714,21 @@ namespace Noisemaker.Hlsl.Editor
             int syncEvery = ParseIntArg("-nmSyncEvery", 0);
             var pipeline = new NMPipeline(graph);
             pipeline.Init(size, size);
+
+            int fullWidth = ParseIntArg("-nmFullWidth", 0);
+            int fullHeight = ParseIntArg("-nmFullHeight", 0);
+            if ((fullWidth > 0) != (fullHeight > 0))
+                throw new Exception("-nmFullWidth and -nmFullHeight must be provided together.");
+            if (fullWidth > 0)
+            {
+                float tileX = ParseFloatArg("-nmTileX", 0f);
+                float tileY = ParseFloatArg("-nmTileY", 0f);
+                float tileScale = ParseFloatArg("-nmRenderScale", 1f);
+                if (tileScale <= 0f) throw new Exception("-nmRenderScale must be positive.");
+                pipeline.SetTileRegion(new Vector2(tileX, tileY),
+                    new Vector2(fullWidth, fullHeight), tileScale);
+                Debug.Log($"[NMParity] tile region offset=({tileX},{tileY}) full={fullWidth}x{fullHeight} scale={tileScale}");
+            }
             Texture2D sync1 = syncEvery > 0 ? new Texture2D(1, 1, TextureFormat.RGBAFloat, false) : null;
             for (int i = 0; i < frames; i++)
             {

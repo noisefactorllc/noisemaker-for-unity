@@ -30,7 +30,7 @@
 //                  For an untiled node, set Resolution to the texture size.
 //   Time         : normalized animation time (0..1); only used when Speed > 0.
 //   InputTex     : source surface
-//   SS           : sampler state (bilinear, clamp, linear/non-sRGB) for InputTex
+//   SS           : caller-provided sampler; use point, clamp, linear/non-sRGB
 //   UV           : 0..1 fragment UV (top-left origin, WGSL convention)
 //
 // Fragment-stage only: optional border antialiasing uses fwidth().

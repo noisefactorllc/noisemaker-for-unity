@@ -15,7 +15,7 @@
 #include "../../Shaders/Effects/filter/Invert.hlsl"
 
 // InputTex : source surface to invert
-// SS       : sampler state (bilinear, clamp, linear/non-sRGB) for InputTex
+// SS       : caller-provided sampler; use point, clamp, linear/non-sRGB
 // UV       : 0..1 fragment UV (top-left origin, WGSL convention)
 // Mode     : 0=full (default), 1=solarize
 void NM_Invert_float(

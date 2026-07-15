@@ -20,7 +20,7 @@
 #include "../../Shaders/Effects/filter/Edge.hlsl"
 
 // InputTex  : source surface
-// SS        : sampler state (bilinear, clamp, linear/non-sRGB)
+// SS        : caller-provided sampler; use point, clamp, linear/non-sRGB
 // UV        : 0..1 fragment UV (top-left, multiply by InputTex dimensions to get fragCoord)
 // Kernel    : 0=fine, 1=bold, 2=contour
 // Level     : contour level, 0..100

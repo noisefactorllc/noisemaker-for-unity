@@ -63,9 +63,8 @@ each with a fixed `seed: 1` so output is deterministic:
 
 `programs/v104/` adds 68 deterministic programs for the v1.0.104 artistic-effects
 sync. Run them at the parity size of 127x127. Filter cases use `synth/testPattern`
-inputs; the tile-aware Mandala and Sacred Geometry cases feed those generators into
-Parallax over a `testPattern` surface so their full-resolution coordinates remain
-observable. Every seed-bearing effect pins `seed: 1`.
+inputs; the Mandala and Sacred Geometry cases feed those generators into Parallax
+over a `testPattern` surface. Every seed-bearing effect pins `seed: 1`.
 
 The corpus covers all 25 new filters and the changed Dither, Edge, Emboss, Invert,
 Low Poly, Texture, Parallax, Mandala, and Sacred Geometry paths. Focused programs
@@ -79,6 +78,22 @@ directly by the batch golden renderer:
 NM_REFERENCE_ROOT=/path/to/noisemaker \
 node parity/batch-golden.mjs parity/programs/v104/manifest.tsv parity/out/v104 \
   --size 127 --time 0.25 --backend webgl2
+```
+
+`programs/v104/tiled-manifest.tsv` reuses the Mandala, Sacred Geometry, and
+Parallax cases for a focused nonzero-tile gate. The 4096px full frame makes
+`fullResolution` differ from the 127px tile and activates Parallax's 256px
+displacement clamp:
+
+```bash
+node parity/batch-golden.mjs parity/programs/v104/tiled-manifest.tsv /tmp/v104-tiled-golden \
+  --size 127 --time 0.25 --backend webgl2 \
+  --tile-x 1536 --tile-y 2048 --full-width 4096 --full-height 4096 --render-scale 1
+
+"$UNITY" -batchmode -quit -projectPath "$UNITY_PROJECT" \
+  -executeMethod Noisemaker.Hlsl.Editor.NMParityRunner.RenderBatchFromCommandLine \
+  -nmManifest /tmp/v104-tiled-render.tsv -nmSize 127 -nmTime 0.25 \
+  -nmTileX 1536 -nmTileY 2048 -nmFullWidth 4096 -nmFullHeight 4096 -nmRenderScale 1
 ```
 
 This corpus was the pre-port RED gate: new filters were initially unknown and

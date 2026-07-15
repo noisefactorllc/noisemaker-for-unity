@@ -9,7 +9,7 @@
 //
 // Inputs:
 //   InputTex — source surface
-//   SS       — sampler state (bilinear, clamp, linear/non-sRGB)
+//   SS       — caller-provided sampler; use point, clamp, linear/non-sRGB
 //   UV       — 0..1 fragment UV (top-left origin, WGSL convention)
 //   Style    — 0=color (default), 1=gray
 //   Amount   — color convolution strength (default 1.0)

@@ -23,7 +23,7 @@
 //   Levels      : levels      (2..16),                    default 4
 //   Mix         : mixAmount   (0..1),                      default 1.0
 //   InputTex    : source surface to dither
-//   SS          : sampler state (bilinear, clamp, linear/non-sRGB) for InputTex
+//   SS          : caller-provided sampler; use point, clamp, linear/non-sRGB
 //   UV          : 0..1 fragment UV (top-left origin, WGSL convention)
 //
 // Type/Palette/Levels remain integer node inputs, then widen into the float
