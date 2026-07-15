@@ -18,7 +18,9 @@
 //    is a crop of the same full-frame mandala.
 //  * floorMod: a - b * floor(a/b), matching WGSL exactly.
 //  * atan2(p.y, p.x) — arg order copied literally from WGSL.
-//  * floor(u.speed) in WGSL — speed is an int uniform here, cast to float.
+//  * Ordinary numeric/boolean uniforms are float carriers because the runtime
+//    binds them with SetFloat. Integer-looking values are truncated at their
+//    logical enum/loop boundaries, matching WGSL i32 conversion.
 //  * WGSL loop `for i < 12; if i >= layers break` — reproduced with [loop].
 // =============================================================================
 
@@ -29,17 +31,17 @@ float  scale;           // [1,20]   default 10
 float  rotation;        // [-180,180] default 0
 float  thickness;       // [0,1]    default 0.2
 float  smoothness;      // [0,1]    default 0.02
-int    symmetry;        // [3,24]   default 12
-int    bindu;           // 0|1      default 0  (boolean)
-int    shape;           // 0=petal,1=triangle,2=dot  default 0
-int    layers;          // [1,12]   default 6
+float  symmetry;        // [3,24]   default 12; logical int
+float  bindu;           // 0|1      default 0  (boolean)
+float  shape;           // 0=petal,1=triangle,2=dot; logical int
+float  layers;          // [1,12]   default 6; logical int
 float  layerSpacing;    // [0.5,3]  default 1.5
 float  twist;           // [-45,45] default 0
 float  shapeGrowth;     // [-1,1]   default 0
 float3 fgColor;         // default (1,1,1)
 float3 bgColor;         // default (0,0,0)
-int    animation;       // 0..6     default 0
-int    speed;           // [-5,5]   default 1
+float  animation;       // 0..6     default 0; logical int
+float  speed;           // [-5,5]   default 1; logical int
 float  pulseDepth;      // [0,1]    default 0.15
 
 // ---- Constants (verbatim from WGSL) -----------------------------------------
@@ -98,24 +100,29 @@ float nmm_fillEdge(float d)
 // ---- mandalaMask ------------------------------------------------------------
 float nmm_mandalaMask(float2 p)
 {
+    int symmetryI = (int)symmetry;
+    int shapeI = (int)shape;
+    int layersI = (int)layers;
+    int animationI = (int)animation;
+    float speedStep = floor((float)(int)speed);
     float r = length(p);
     float theta = atan2(p.y, p.x) - NMM_PI * 0.5;
-    float wedge = NMM_TAU / (float)symmetry;
+    float wedge = NMM_TAU / (float)symmetryI;
     float twistRad = twist * NMM_PI / 180.0;
     float baseSize = 0.25 + thickness * 0.65;
 
     // spiralWave: twist oscillates over the cycle using `twist` as amplitude.
     float dynTwistRad = twistRad;
     [branch]
-    if (animation == NMM_ANIM_SPIRALWAVE)
+    if (animationI == NMM_ANIM_SPIRALWAVE)
     {
-        dynTwistRad = twistRad * sin(time * NMM_TAU * floor((float)speed));
+        dynTwistRad = twistRad * sin(time * NMM_TAU * speedStep);
     }
 
     float m = 0.0;
 
     [branch]
-    if (bindu != 0)
+    if (bindu > 0.5)
     {
         float dBindu = length(p) - (0.15 + thickness * 0.15);
         m = max(m, nmm_fillEdge(dBindu));
@@ -124,24 +131,24 @@ float nmm_mandalaMask(float2 p)
     [loop]
     for (int i = 0; i < 12; i = i + 1)
     {
-        if (i >= layers) { break; }
+        if (i >= layersI) { break; }
         float Rlayer = (float)(i + 1) * layerSpacing;
 
         // Per-layer animation rotation.
         float layerAnimRot = 0.0;
         [branch]
-        if (animation == NMM_ANIM_DIFFERENTIAL)
+        if (animationI == NMM_ANIM_DIFFERENTIAL)
         {
-            layerAnimRot = time * NMM_TAU * (floor((float)speed) + (float)i);
+            layerAnimRot = time * NMM_TAU * (speedStep + (float)i);
         }
-        else if (animation == NMM_ANIM_COUNTERROTATE)
+        else if (animationI == NMM_ANIM_COUNTERROTATE)
         {
             float dir = 1.0;
             if (nmm_floorMod((float)i, 2.0) >= 0.5)
             {
                 dir = -1.0;
             }
-            layerAnimRot = time * NMM_TAU * floor((float)speed) * dir;
+            layerAnimRot = time * NMM_TAU * speedStep * dir;
         }
 
         float layerTheta = theta - (float)i * dynTwistRad - layerAnimRot;
@@ -150,26 +157,26 @@ float nmm_mandalaMask(float2 p)
         float tangent = folded * Rlayer;
 
         float lt = 0.0;
-        if (layers > 1)
+        if (layersI > 1)
         {
-            lt = (float)i / (float)(layers - 1) - 0.5;
+            lt = (float)i / (float)(layersI - 1) - 0.5;
         }
         float shapeSize = baseSize * (1.0 + shapeGrowth * lt);
 
         // ripple: per-layer pulse with phase offset.
         [branch]
-        if (animation == NMM_ANIM_RIPPLE)
+        if (animationI == NMM_ANIM_RIPPLE)
         {
-            shapeSize = shapeSize * (1.0 + pulseDepth * sin(time * NMM_TAU * floor((float)speed) - (float)i * 0.6));
+            shapeSize = shapeSize * (1.0 + pulseDepth * sin(time * NMM_TAU * speedStep - (float)i * 0.6));
         }
 
         [branch]
-        if (shape == NMM_SHAPE_PETAL)
+        if (shapeI == NMM_SHAPE_PETAL)
         {
             float d = length(float2(radial * 0.55, tangent)) - shapeSize;
             m = max(m, nmm_fillEdge(d));
         }
-        else if (shape == NMM_SHAPE_TRIANGLE)
+        else if (shapeI == NMM_SHAPE_TRIANGLE)
         {
             float2 q = float2(tangent, -radial);
             float d = nmm_sdEquilateralTriangle(q, shapeSize);
@@ -190,6 +197,8 @@ float nmm_mandalaMask(float2 p)
 // =============================================================================
 float4 nm_mandala(float2 globalCoord)
 {
+    int animationI = (int)animation;
+    float speedStep = floor((float)(int)speed);
     float2 st = globalCoord / fullResolution;
     st = (st - float2(0.5, 0.5)) * 2.0;
     st.x = st.x * aspectRatio;
@@ -198,16 +207,16 @@ float4 nm_mandala(float2 globalCoord)
     st = nmm_rotate2D(st, rad);
 
     [branch]
-    if (animation == NMM_ANIM_ROTATE)
+    if (animationI == NMM_ANIM_ROTATE)
     {
-        st = nmm_rotate2D(st, time * NMM_TAU * floor((float)speed));
+        st = nmm_rotate2D(st, time * NMM_TAU * speedStep);
     }
 
     float scaleFactor = 21.0 - scale;
     [branch]
-    if (animation == NMM_ANIM_PULSE)
+    if (animationI == NMM_ANIM_PULSE)
     {
-        scaleFactor = scaleFactor * (1.0 + pulseDepth * sin(time * NMM_TAU * floor((float)speed)));
+        scaleFactor = scaleFactor * (1.0 + pulseDepth * sin(time * NMM_TAU * speedStep));
     }
 
     float2 p = st * scaleFactor;

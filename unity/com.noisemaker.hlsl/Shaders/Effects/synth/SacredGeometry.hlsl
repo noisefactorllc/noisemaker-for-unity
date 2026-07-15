@@ -16,17 +16,17 @@
 #include "../../Include/NMFullscreen.hlsl"
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
-int    geometry;        // enum: flower=0,fruit=1,metatron=3,seed=4,vesica=5,borromean=6,starPolygon=7,triquetra=8
+float  geometry;        // enum carrier; logical int at dispatch
 float  scale;           // [1,20] default 10
-int    rings;           // [1,6] default 3
-int    starPoints;      // [5,12] default 5
+float  rings;           // [1,6] default 3; logical int
+float  starPoints;      // [5,12] default 5; logical int
 float  rotation;        // degrees [-180,180] default 0
 float  thickness;       // [0,1] default 0.2
 float  smoothness;      // [0,1] default 0.02
 float3 fgColor;         // default (1,1,1)
 float3 bgColor;         // default (0,0,0)
-int    animation;       // enum: none=0,rotate=1,pulse=2,ripple=4,unfold=5
-int    speed;           // [-5,5] default 1
+float  animation;       // enum carrier; logical int at dispatch
+float  speed;           // [-5,5] default 1; logical int
 float  pulseDepth;      // [0,1] default 0.15
 
 // Local constants matching WGSL exactly.
@@ -47,6 +47,11 @@ static const int NMSG_GEOM_VESICA    = 5;
 static const int NMSG_GEOM_BORROMEAN = 6;
 static const int NMSG_GEOM_STARPOLYGON = 7;
 static const int NMSG_GEOM_TRIQUETRA = 8;
+
+// Ordinary uniforms are bound with SetFloat. Centralize the WGSL i32
+// truncation used by enum branches and the integer-valued speed control.
+int nmsg_animationMode() { return (int)animation; }
+float nmsg_speedStep() { return floor((float)(int)speed); }
 
 // fn rotate2D — verbatim from WGSL
 float2 nmsg_rotate2D(float2 p, float angle)
@@ -74,13 +79,13 @@ float nmsg_outlineEdge(float d, float w)
 // fn ripplePulse — verbatim; reads `pulseDepth`, `time`, `speed`
 float nmsg_ripplePulse(float phase)
 {
-    return 1.0 + pulseDepth * sin(time * NMSG_TAU * floor((float)speed) - phase);
+    return 1.0 + pulseDepth * sin(time * NMSG_TAU * nmsg_speedStep() - phase);
 }
 
 // fn unfoldVis — verbatim; reads `time`, `speed`
 float nmsg_unfoldVis(float t_e)
 {
-    return max(0.0, sin((time - t_e * 0.5) * NMSG_TAU * floor((float)speed)));
+    return max(0.0, sin((time - t_e * 0.5) * NMSG_TAU * nmsg_speedStep()));
 }
 
 // fn flowerMask — verbatim from WGSL
@@ -105,14 +110,14 @@ float nmsg_flowerMask(float2 p_in, int ringsN, float figureScale)
             float hexDist = max(max(abs((float)q), abs((float)r)), abs((float)(q + r)));
 
             float circleR = circleRadius;
-            if (animation == NMSG_ANIM_RIPPLE)
+            if (nmsg_animationMode() == NMSG_ANIM_RIPPLE)
             {
                 circleR = circleR * nmsg_ripplePulse(hexDist * 1.4);
             }
             float d = length(p - center) - circleR;
 
             float vis = 1.0;
-            if (animation == NMSG_ANIM_UNFOLD)
+            if (nmsg_animationMode() == NMSG_ANIM_UNFOLD)
             {
                 float t_e = hexDist / max((float)ringsN, 1.0);
                 vis = nmsg_unfoldVis(t_e);
@@ -160,14 +165,14 @@ float nmsg_fruitMask(float2 p_in, bool drawLines)
         float distFromOrigin = length(centers[i]);
 
         float circleR = 1.0;
-        if (animation == NMSG_ANIM_RIPPLE)
+        if (nmsg_animationMode() == NMSG_ANIM_RIPPLE)
         {
             circleR = circleR * nmsg_ripplePulse(distFromOrigin * 0.8);
         }
         float d = length(p - centers[i]) - circleR;
 
         float vis = 1.0;
-        if (animation == NMSG_ANIM_UNFOLD)
+        if (nmsg_animationMode() == NMSG_ANIM_UNFOLD)
         {
             float t_e = distFromOrigin / maxCircleDist * circleUnfoldRange;
             vis = nmsg_unfoldVis(t_e);
@@ -179,7 +184,7 @@ float nmsg_fruitMask(float2 p_in, bool drawLines)
     if (drawLines)
     {
         float lineVis = 1.0;
-        if (animation == NMSG_ANIM_UNFOLD)
+        if (nmsg_animationMode() == NMSG_ANIM_UNFOLD)
         {
             lineVis = nmsg_unfoldVis(0.65);
         }
@@ -209,7 +214,7 @@ float nmsg_vesicaMask(float2 p_in)
 
     float rA = r;
     float rB = r;
-    if (animation == NMSG_ANIM_RIPPLE)
+    if (nmsg_animationMode() == NMSG_ANIM_RIPPLE)
     {
         rA = rA * nmsg_ripplePulse(0.0);
         rB = rB * nmsg_ripplePulse(NMSG_PI);
@@ -217,7 +222,7 @@ float nmsg_vesicaMask(float2 p_in)
 
     float visA = 1.0;
     float visB = 1.0;
-    if (animation == NMSG_ANIM_UNFOLD)
+    if (nmsg_animationMode() == NMSG_ANIM_UNFOLD)
     {
         visA = nmsg_unfoldVis(0.0);
         visB = nmsg_unfoldVis(0.5);
@@ -247,7 +252,7 @@ float nmsg_triquetraMask(float2 p_in)
     float r0 = r;
     float r1 = r;
     float r2 = r;
-    if (animation == NMSG_ANIM_RIPPLE)
+    if (nmsg_animationMode() == NMSG_ANIM_RIPPLE)
     {
         r0 = r0 * nmsg_ripplePulse(0.0);
         r1 = r1 * nmsg_ripplePulse(NMSG_TAU / 3.0);
@@ -261,7 +266,7 @@ float nmsg_triquetraMask(float2 p_in)
     float v01 = 1.0;
     float v02 = 1.0;
     float v12 = 1.0;
-    if (animation == NMSG_ANIM_UNFOLD)
+    if (nmsg_animationMode() == NMSG_ANIM_UNFOLD)
     {
         v01 = nmsg_unfoldVis(0.0);
         v02 = nmsg_unfoldVis(0.33);
@@ -291,14 +296,14 @@ float nmsg_borromeanMask(float2 p_in)
         float2 c = dist * float2(cos(angle), sin(angle));
 
         float circleR = r;
-        if (animation == NMSG_ANIM_RIPPLE)
+        if (nmsg_animationMode() == NMSG_ANIM_RIPPLE)
         {
             circleR = circleR * nmsg_ripplePulse((float)i * NMSG_TAU / 3.0);
         }
         float d = length(p - c) - circleR;
 
         float vis = 1.0;
-        if (animation == NMSG_ANIM_UNFOLD)
+        if (nmsg_animationMode() == NMSG_ANIM_UNFOLD)
         {
             vis = nmsg_unfoldVis((float)i / 3.0);
         }
@@ -315,7 +320,7 @@ float nmsg_starPolygonMask(float2 p_in, int n)
     float2 p = p_in * 0.32;
     float radius = 2.8;
 
-    if (animation == NMSG_ANIM_RIPPLE)
+    if (nmsg_animationMode() == NMSG_ANIM_RIPPLE)
     {
         radius = radius * nmsg_ripplePulse(0.0);
     }
@@ -333,7 +338,7 @@ float nmsg_starPolygonMask(float2 p_in, int n)
         float dL = nmsg_lineSegmentSDF(p, a, b);
 
         float vis = 1.0;
-        if (animation == NMSG_ANIM_UNFOLD)
+        if (nmsg_animationMode() == NMSG_ANIM_UNFOLD)
         {
             vis = nmsg_unfoldVis((float)i / (float)n);
         }
@@ -348,6 +353,12 @@ float nmsg_starPolygonMask(float2 p_in, int n)
 // =============================================================================
 float4 nm_sacredGeometry(float2 globalCoord)
 {
+    int geometryI = (int)geometry;
+    int ringsI = (int)rings;
+    int starPointsI = (int)starPoints;
+    int animationI = nmsg_animationMode();
+    float speedStep = nmsg_speedStep();
+
     // WGSL: st = (position.xy + tileOffset) / fullResolution
     float2 st = globalCoord / fullResolution;
     // WGSL: st = (st - 0.5) * 2;  st.x *= aspect
@@ -357,51 +368,51 @@ float4 nm_sacredGeometry(float2 globalCoord)
     float rad = rotation * NMSG_PI / 180.0;
     st = nmsg_rotate2D(st, rad);
 
-    if (animation == NMSG_ANIM_ROTATE)
+    if (animationI == NMSG_ANIM_ROTATE)
     {
-        st = nmsg_rotate2D(st, time * NMSG_TAU * floor((float)speed));
+        st = nmsg_rotate2D(st, time * NMSG_TAU * speedStep);
     }
 
     float scaleFactor = 21.0 - scale;
-    if (animation == NMSG_ANIM_PULSE)
+    if (animationI == NMSG_ANIM_PULSE)
     {
-        scaleFactor = scaleFactor * (1.0 + pulseDepth * sin(time * NMSG_TAU * floor((float)speed)));
+        scaleFactor = scaleFactor * (1.0 + pulseDepth * sin(time * NMSG_TAU * speedStep));
     }
 
     float2 p = st * scaleFactor;
 
     float m = 0.0;
-    if (geometry == NMSG_GEOM_FLOWER)
+    if (geometryI == NMSG_GEOM_FLOWER)
     {
-        m = nmsg_flowerMask(p, rings, 0.45);
+        m = nmsg_flowerMask(p, ringsI, 0.45);
     }
-    else if (geometry == NMSG_GEOM_SEED)
+    else if (geometryI == NMSG_GEOM_SEED)
     {
         m = nmsg_flowerMask(p, 1, 0.23);
     }
-    else if (geometry == NMSG_GEOM_FRUIT)
+    else if (geometryI == NMSG_GEOM_FRUIT)
     {
         m = nmsg_fruitMask(p, false);
     }
-    else if (geometry == NMSG_GEOM_METATRON)
+    else if (geometryI == NMSG_GEOM_METATRON)
     {
         m = nmsg_fruitMask(p, true);
     }
-    else if (geometry == NMSG_GEOM_VESICA)
+    else if (geometryI == NMSG_GEOM_VESICA)
     {
         m = nmsg_vesicaMask(p);
     }
-    else if (geometry == NMSG_GEOM_BORROMEAN)
+    else if (geometryI == NMSG_GEOM_BORROMEAN)
     {
         m = nmsg_borromeanMask(p);
     }
-    else if (geometry == NMSG_GEOM_TRIQUETRA)
+    else if (geometryI == NMSG_GEOM_TRIQUETRA)
     {
         m = nmsg_triquetraMask(p);
     }
-    else if (geometry == NMSG_GEOM_STARPOLYGON)
+    else if (geometryI == NMSG_GEOM_STARPOLYGON)
     {
-        m = nmsg_starPolygonMask(p, starPoints);
+        m = nmsg_starPolygonMask(p, starPointsI);
     }
 
     m = clamp(m, 0.0, 1.0);
