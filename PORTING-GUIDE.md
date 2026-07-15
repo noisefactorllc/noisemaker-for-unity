@@ -1,4 +1,4 @@
-# Noisemaker → HLSL Shader Porting Guide
+# Noisemaker for Unity — HLSL Shader Porting Guide
 
 The authoritative rulebook for porting a Noisemaker effect shader to Unity HLSL
 **pixel-identically**. Derived from reference specs `reference/07` and `reference/08`.

@@ -1,4 +1,4 @@
-# Noisemaker HLSL (com.noisemaker.hlsl)
+# Noisemaker for Unity (com.noisemaker.hlsl)
 
 Live procedural textures from the Noisemaker Polymorphic DSL, rendered in Unity via
 HLSL — pixel-identical to the JS/WebGPU reference engine. Use it as a standalone
@@ -38,9 +38,9 @@ as Custom Function nodes.
 Add the package by either route (the package lives in a subfolder, not the repo root):
 
 - **From disk:** *Package Manager ▸ Add package from disk…* →
-  `…/noisemaker-hlsl/unity/com.noisemaker.hlsl/package.json`.
+  `…/noisemaker-unity/unity/com.noisemaker.hlsl/package.json`.
 - **From git:** *Add package from git URL…* →
-  `https://github.com/noisefactorllc/noisemaker-hlsl.git?path=unity/com.noisemaker.hlsl#<tag>`.
+  `https://github.com/noisefactorllc/noisemaker-unity.git?path=unity/com.noisemaker.hlsl#<tag>`.
 
 ### Builds & platforms
 

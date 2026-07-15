@@ -1,4 +1,4 @@
-# noisemaker-hlsl — Architecture
+# Noisemaker for Unity — Architecture
 
 A parallel port of the Noisemaker shader engine (`../shaders`) to Unity / HLSL.
 Goal: **live procedural texture from the Polymorphic DSL, pixel-identical to the
@@ -18,7 +18,7 @@ graph = { passes[], programs{}, textures(Map), renderSurface, ... }
 
 Everything downstream of the graph (texture pooling, double-buffering, pass
 execution, presentation) is backend work. Everything upstream is pure data logic.
-noisemaker-hlsl mirrors this split and gives the graph **two producers**:
+Noisemaker for Unity mirrors this split and gives the graph **two producers**:
 
 ```
                           ┌─────────────────────────────────────────┐
@@ -52,7 +52,7 @@ needs `CommandBuffer.Blit`/`DrawProcedural`) — **verified on Built-in (Unity 6
 are expected to work but are not yet verified.** It renders to its own offscreen
 RenderTexture (not an SRP camera/feature); presenting it full-screen is the host's job.
 
-| Reference | noisemaker-hlsl |
+| Reference | Noisemaker for Unity |
 |---|---|
 | `resources.js` liveness + linear-scan pool | `Graph/TexturePool.cs` — ported 1:1 (deterministic, insertion-ordered). `phys_N` numbering matches. |
 | `pipeline.js` surfaces (`o0..o7`, geo, vol, mesh) | `Pipeline/SurfaceManager.cs` — double-buffered `RenderTexture` pairs, ARGBHalf linear. |

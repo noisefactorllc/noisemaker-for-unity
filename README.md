@@ -1,4 +1,4 @@
-# noisemaker-hlsl
+# Noisemaker for Unity
 
 A parallel port of the Noisemaker shader engine — a separate reference engine, not bundled
 with this package — to **Unity / HLSL**.
@@ -17,7 +17,7 @@ standalone renderer and as **Shader Graph (material) nodes**.
 ## Layout
 
 ```
-noisemaker-hlsl/
+noisemaker-unity/
 ├─ README.md                 ← you are here
 ├─ ARCHITECTURE.md           ← system design; how each reference subsystem maps to C#/HLSL
 ├─ PORTING-GUIDE.md          ← the GLSL/WGSL → HLSL rulebook (read before porting a shader)
@@ -37,7 +37,7 @@ noisemaker-hlsl/
 ## The core idea: a shared Render Graph
 
 The reference compiles DSL into a **Render Graph** (`passes / programs / textures /
-renderSurface`). That is the seam. noisemaker-hlsl produces the same graph two ways:
+renderSurface`). That is the seam. Noisemaker for Unity produces the same graph two ways:
 
 - **Golden / offline** — `tools/export-graph.mjs` runs the *unchanged reference*
   `compileGraph` and serialises the graph to JSON (zero graph-construction parity risk).
@@ -62,9 +62,9 @@ on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
 > and build guide — the defaults will not "just work" in a build.
 
 1. Add the package: *Package Manager → Add package from disk →*
-   `noisemaker-hlsl/unity/com.noisemaker.hlsl/package.json`.
+   `noisemaker-unity/unity/com.noisemaker.hlsl/package.json`.
 2. **Fastest first render (no reference-engine or Node dependency):** in *Package Manager →
-   Noisemaker HLSL → Samples* tab, **Import "Quick Start"**. Then, per the sample's README:
+   Noisemaker for Unity → Samples* tab, **Import "Quick Start"**. Then, per the sample's README:
    set *Color Space = Linear*, create a *Quad* with an *Unlit/Texture* material, add the
    `NMQuickStartExample` component, and assign **Graph Json** = `NoiseGraph.json` and
    **Target** = the Quad's `Renderer`; press **Play**. This renders the bundled
@@ -141,6 +141,6 @@ Issues and pull requests are welcome. Please review the [Code of Conduct](CODE_O
 
 ## License
 
-noisemaker-hlsl is released under the [MIT License](LICENSE). Use of the Noisemaker and Noise Factor names in derivative products is subject to the [Trademark Policy](TRADEMARK.md).
+Noisemaker for Unity is released under the [MIT License](LICENSE). Use of the Noisemaker and Noise Factor names in derivative products is subject to the [Trademark Policy](TRADEMARK.md).
 
 Copyright © 2026 Noise Factor LLC

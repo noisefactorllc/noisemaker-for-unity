@@ -2,7 +2,7 @@
 #define NM_CORE_INCLUDED
 
 // =============================================================================
-// NMCore.hlsl — bit-exact shared primitives for the Noisemaker HLSL engine.
+// NMCore.hlsl — bit-exact shared primitives for the Noisemaker for Unity engine.
 //
 // These are the ONLY math primitives that are genuinely invariant across all
 // reference effects and may be shared. Reference spec 08 (math-primitives)

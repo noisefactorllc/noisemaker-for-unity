@@ -32,7 +32,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // Reference engine lives in the sibling `noisemaker` repo (this repo was split
-// out of noisemaker/noisemaker-hlsl/). Override with NM_REFERENCE_ROOT.
+// out of noisemaker/noisemaker-unity/). Override with NM_REFERENCE_ROOT.
 const REFERENCE_ROOT = process.env.NM_REFERENCE_ROOT
   ? resolve(process.env.NM_REFERENCE_ROOT)
   : resolve(__dirname, '..', '..', 'noisemaker')

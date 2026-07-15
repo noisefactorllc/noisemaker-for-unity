@@ -1,4 +1,4 @@
-// NMQuickStartExample.cs — minimal end-to-end Noisemaker HLSL sample.
+// NMQuickStartExample.cs — minimal end-to-end Noisemaker for Unity sample.
 //
 // Renders a bundled precompiled graph (NoiseGraph.json) to a RenderTexture and shows it
 // on a Renderer's material. This is the recommended (verified) input path: a `GraphJson`

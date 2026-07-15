@@ -1,4 +1,4 @@
-# noisemaker-hlsl — Parity Harness
+# Noisemaker for Unity — Parity Harness
 
 End-to-end pixel-parity verification: render the same DSL program with the **JS
 reference engine** (golden) and the **Unity/HLSL port** (candidate), then diff.
