@@ -16,10 +16,12 @@ from PIL import Image
 
 
 def load_rgba(path):
-    return np.asarray(Image.open(path).convert("RGBA"), dtype=np.float32) / 255.0
+    return np.asarray(Image.open(path).convert("RGBA"), dtype=np.uint8)
 
 
 def global_ssim(a, b):
+    a = a.astype(np.float32) / 255.0
+    b = b.astype(np.float32) / 255.0
     ya = a[..., :3].mean(axis=2)
     yb = b[..., :3].mean(axis=2)
     mu_a, mu_b = ya.mean(), yb.mean()
@@ -57,8 +59,9 @@ def main():
                        max_abs_diff=None, ssim=None)
             results.append(rec)
             continue
-        mad = float(np.max(np.abs(a - b)) * 255.0)
-        mean = float(np.mean(np.abs(a - b)) * 255.0)
+        byte_diff = np.abs(a.astype(np.int16) - b.astype(np.int16))
+        mad = float(np.max(byte_diff))
+        mean = float(np.mean(byte_diff))
         ssim = global_ssim(a, b)
         if mad <= args.tolerance and ssim >= args.ssim_min:
             cls = "PASS"

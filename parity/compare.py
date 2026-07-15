@@ -28,19 +28,19 @@ from PIL import Image
 
 
 def load_rgba(path: Path) -> np.ndarray:
-    """Load a PNG as a float32 HxWx4 array in [0,1]."""
+    """Load a PNG as an exact uint8 HxWx4 array."""
     img = Image.open(path).convert("RGBA")
-    return np.asarray(img, dtype=np.float32) / 255.0
+    return np.asarray(img, dtype=np.uint8)
 
 
 def max_abs_diff(a: np.ndarray, b: np.ndarray) -> float:
     """Max absolute per-channel difference in 8-bit units (0..255)."""
-    return float(np.max(np.abs(a - b)) * 255.0)
+    return float(np.max(np.abs(a.astype(np.int16) - b.astype(np.int16))))
 
 
 def mean_abs_diff(a: np.ndarray, b: np.ndarray) -> float:
     """Mean absolute per-channel difference in 8-bit units (0..255)."""
-    return float(np.mean(np.abs(a - b)) * 255.0)
+    return float(np.mean(np.abs(a.astype(np.int16) - b.astype(np.int16))))
 
 
 def global_ssim(a: np.ndarray, b: np.ndarray) -> float:
@@ -50,6 +50,11 @@ def global_ssim(a: np.ndarray, b: np.ndarray) -> float:
     max-abs gate); kept dependency-free (no skimage) to match the repo's minimal
     Python toolchain.
     """
+    # SSIM constants assume normalized samples; byte-delta gates above remain
+    # integer-exact so a one-byte difference cannot round to 1.0000075.
+    a = a.astype(np.float32) / 255.0
+    b = b.astype(np.float32) / 255.0
+
     # Rec. 601 luma, matching the harness's luma weighting.
     def luma(x):
         return 0.299 * x[..., 0] + 0.587 * x[..., 1] + 0.114 * x[..., 2]
