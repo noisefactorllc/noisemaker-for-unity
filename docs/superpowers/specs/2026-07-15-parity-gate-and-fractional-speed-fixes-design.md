@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 
-**Status:** Awaiting user review
+**Status:** Approved
 
 **Scope:** Close the two important findings from the final v1.0.104 sync review before integrating the detached commit into local `main`.
 
