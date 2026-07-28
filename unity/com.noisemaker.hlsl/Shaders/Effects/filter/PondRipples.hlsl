@@ -8,6 +8,7 @@ int STYLE;
 int WRAP;
 float amount;
 float ridges;
+float speed;
 float antialias;
 
 static const float NM_POND_RIPPLES_PI = 3.14159265359;
@@ -27,7 +28,9 @@ float4 nm_pond_ripples(Texture2D tex, SamplerState ss, float2 pos)
     uv = uv - 0.5;
     uv.x = uv.x * aspect;
     float r = length(uv);
-    float phase = r * (float)(int)ridges * 2.0 * NM_POND_RIPPLES_PI;
+    // Integer speed shifts the phase by whole wave cycles per normalized
+    // time loop (>0 travels outward, <0 inward, 0 is static and loop-seamless).
+    float phase = r * (float)(int)ridges * 2.0 * NM_POND_RIPPLES_PI - time * 2.0 * NM_POND_RIPPLES_PI * (float)(int)speed;
     float damping = max(0.0, 1.0 - r);
     float w;
     if (amount <= 30.0)

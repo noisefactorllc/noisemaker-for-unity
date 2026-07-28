@@ -25,6 +25,11 @@ development (pre-1.0); APIs may change.
 - In-package `LICENSE.md`.
 - **Quick Start sample** (`Samples~/QuickStart`, registered in `package.json` `samples`):
   an example MonoBehaviour + a bundled precompiled graph that renders to a material.
+- `filter/pondRipples` **speed control** — a new `speed` uniform (int, −5..5) that animates
+  the ripple phase over normalized time (positive travels outward, negative inward); ports
+  upstream v1.0.109. At the default `speed=0` the output is unchanged and loop-seamless. The
+  Shader Graph `pondRipples` node gains matching `Speed` and `Time` inputs (`Time` drives the
+  animation; leave it 0 for a static ripple).
 
 ### Changed
 - Renamed `render/renderCubemap3D` → `renderCubemap3d` (lowercase `3d` for func/program/shader;
