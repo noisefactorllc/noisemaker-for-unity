@@ -1,0 +1,9 @@
+filter3dFlow3d	parity/programs/filter3dFlow3d.dsl
+palette3d	parity/programs/palette3d.dsl
+synth3dCell3d	parity/programs/synth3dCell3d.dsl
+synth3dCellularAutomata3d	parity/programs/synth3dCellularAutomata3d.dsl
+synth3dFlythrough3d	parity/programs/synth3dFlythrough3d.dsl
+synth3dFractal3d	parity/programs/synth3dFractal3d.dsl
+synth3dNoise3d	parity/programs/synth3dNoise3d.dsl
+synth3dReactionDiffusion3d	parity/programs/synth3dReactionDiffusion3d.dsl
+synth3dShape3d	parity/programs/synth3dShape3d.dsl

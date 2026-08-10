@@ -19,13 +19,18 @@ import numpy as np
 from PIL import Image
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_EXCEPTION_FIELDS = {
     "max_abs_diff",
     "ssim_min",
     "max_exceeded_pixels",
     "max_exceeded_channels",
 }
-OPTIONAL_EXCEPTION_FIELDS = {"allowed_exceeded_pixels"}
+OPTIONAL_EXCEPTION_FIELDS = {
+    "allowed_exceeded_pixels",
+    "max_mean_abs_diff",
+    "mechanism",
+}
 
 
 def load_rgba(path):
@@ -44,6 +49,61 @@ def global_ssim(a, b):
     c2 = (0.03) ** 2
     return float(((2 * mu_a * mu_b + c1) * (2 * cov + c2)) /
                  ((mu_a ** 2 + mu_b ** 2 + c1) * (va + vb + c2)))
+
+
+def load_manifest(path):
+    """Return ordered fixture names; reject malformed or duplicate entries."""
+
+    def invalid(message):
+        raise ValueError(f"invalid fixture manifest: {message}")
+
+    try:
+        lines = path.read_text().splitlines()
+    except (OSError, UnicodeError) as exc:
+        invalid(str(exc))
+
+    names = []
+    paths = set()
+    for line_number, raw in enumerate(lines, start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 2:
+            invalid(f"line {line_number} must be <name><TAB><dslPath>")
+        name, dsl_path = (part.strip() for part in parts)
+        if not name or not dsl_path:
+            invalid(f"line {line_number} must contain a name and DSL path")
+        if name in names:
+            invalid(f"duplicate fixture name: {name}")
+        if dsl_path in paths:
+            invalid(f"duplicate fixture path: {dsl_path}")
+        resolved_dsl = Path(dsl_path)
+        if not resolved_dsl.is_absolute():
+            resolved_dsl = REPO_ROOT / resolved_dsl
+        if not resolved_dsl.is_file():
+            invalid(f"fixture DSL does not exist: {dsl_path}")
+        names.append(name)
+        paths.add(dsl_path)
+
+    if not names:
+        invalid("must contain at least one fixture")
+    return names
+
+
+def validate_fixture_set(expected_names, gold_names, cand_names):
+    """Reject any difference between a manifest and either image directory."""
+    expected = set(expected_names)
+    problems = []
+    for label, actual in (("golden", gold_names), ("candidate", cand_names)):
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        if missing:
+            problems.append(f"missing {label} fixtures: {', '.join(missing)}")
+        if extra:
+            problems.append(f"unexpected {label} fixtures: {', '.join(extra)}")
+    if problems:
+        raise ValueError("fixture set does not match manifest: " + "; ".join(problems))
 
 
 def load_exceptions(path, compared_names, global_ssim_min):
@@ -84,7 +144,10 @@ def load_exceptions(path, compared_names, global_ssim_min):
         if unknown:
             invalid(f"case {name!r} has unknown fields: {', '.join(sorted(unknown))}")
 
-        for field in ("max_abs_diff", "ssim_min"):
+        numeric_fields = ["max_abs_diff", "ssim_min"]
+        if "max_mean_abs_diff" in bounds:
+            numeric_fields.append("max_mean_abs_diff")
+        for field in numeric_fields:
             value = bounds[field]
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 invalid(f"case {name!r} field {field} must be a finite number")
@@ -97,6 +160,8 @@ def load_exceptions(path, compared_names, global_ssim_min):
 
         if not 0 <= bounds["max_abs_diff"] <= 255:
             invalid(f"case {name!r} max_abs_diff must be between 0 and 255")
+        if "max_mean_abs_diff" in bounds and not 0 <= bounds["max_mean_abs_diff"] <= 255:
+            invalid(f"case {name!r} max_mean_abs_diff must be between 0 and 255")
         if not 0 <= bounds["ssim_min"] <= 1:
             invalid(f"case {name!r} ssim_min must be between 0 and 1")
         if bounds["ssim_min"] < global_ssim_min:
@@ -106,6 +171,11 @@ def load_exceptions(path, compared_names, global_ssim_min):
             value = bounds[field]
             if type(value) is not int or value < 0:
                 invalid(f"case {name!r} field {field} must be a nonnegative integer")
+
+        if "mechanism" in bounds:
+            mechanism = bounds["mechanism"]
+            if not isinstance(mechanism, str) or not mechanism.strip():
+                invalid(f"case {name!r} mechanism must be a nonempty string")
 
         if "allowed_exceeded_pixels" in bounds:
             coordinates = bounds["allowed_exceeded_pixels"]
@@ -140,6 +210,9 @@ def exception_matches(metrics, exception):
     """Return whether every numeric bound and optional coordinate set passes."""
     if metrics["max_abs_diff"] > exception["max_abs_diff"]:
         return False
+    if ("max_mean_abs_diff" in exception and
+            metrics["mean_abs_diff"] > exception["max_mean_abs_diff"]):
+        return False
     if metrics["ssim"] < exception["ssim_min"]:
         return False
     if metrics["exceeded_pixels"] > exception["max_exceeded_pixels"]:
@@ -166,12 +239,20 @@ def main():
     ap.add_argument("--tolerance", type=float, default=2.0)
     ap.add_argument("--ssim-min", type=float, default=0.98)
     ap.add_argument("--exceptions", type=Path, default=None)
+    ap.add_argument("--manifest", type=Path, default=None)
     args = ap.parse_args()
 
     goldens = sorted(args.goldDir.glob("*.golden.png"))
     cand_names = {p.name[:-len(".png")] for p in args.candDir.glob("*.png")}
     gold_names = {g.name[:-len(".golden.png")] for g in goldens}
     compared_names = gold_names | cand_names
+    manifest_names = None
+    if args.manifest:
+        try:
+            manifest_names = load_manifest(args.manifest)
+            validate_fixture_set(manifest_names, gold_names, cand_names)
+        except ValueError as exc:
+            ap.error(str(exc))
     exceptions = {}
     if args.exceptions:
         try:
@@ -271,7 +352,9 @@ def main():
         args.out.write_text(json.dumps(report, indent=2) + "\n")
         print(f"wrote {args.out}")
     accepted = {"PASS", "ALLOWED_NEAR"}
-    return 0 if results and all(r["cls"] in accepted for r in results) else 1
+    accepted_results = results and all(r["cls"] in accepted for r in results)
+    no_unused_manifest_exceptions = not (manifest_names and unused_exceptions)
+    return 0 if accepted_results and no_unused_manifest_exceptions else 1
 
 
 if __name__ == "__main__":

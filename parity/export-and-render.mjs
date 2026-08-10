@@ -188,8 +188,16 @@ async function main () {
         throw new Error('DSL compile failed: ' + document.getElementById('status')?.textContent)
       }
       const p = window.__noisemakerRenderingPipeline
-      return !!(p && p.graph && p.graph.id !== base)
-    }, { timeout: STATUS_TIMEOUT }, baselineId)
+      if (!(p && p.graph && p.graph.id !== base && p.isCompiling === false)) return false
+      if (!s.includes('compiled')) return false
+      if (window.__nmStableId === p.graph.id) {
+        window.__nmStableCount = (window.__nmStableCount || 0) + 1
+      } else {
+        window.__nmStableId = p.graph.id
+        window.__nmStableCount = 0
+      }
+      return window.__nmStableCount >= 1
+    }, baselineId, { timeout: STATUS_TIMEOUT })
 
     // PAUSE FIRST so the demo's requestAnimationFrame loop stops re-syncing the
     // canvas to its (small, letterboxed) layout size — that auto-resize is what
@@ -209,11 +217,56 @@ async function main () {
       if (p && typeof p.resize === 'function') p.resize(size, size)
     }, opts.size)
 
-    // Pin the normalized frame time, then render deterministic frames by driving the
+    // DETERMINISTIC DISCRETE PROTOCOL RESET. The demo's CanvasRenderer owns an
+    // always-on requestAnimationFrame loop (shaders/src/renderer/canvas.js
+    // _renderLoop/start/stop). It remains live through the DSL swap: pipeline.render
+    // merely no-ops while isCompiling is true, then starts advancing the newly
+    // compiled graph again as soon as that flag clears. The pause above crosses the
+    // Playwright/CDP boundary, so an indeterminate number of real renders can land
+    // between compilation settling and renderer.stop(). Those hidden pre-frames
+    // corrupt agent/state surfaces and feedback-through-display graphs before this
+    // harness's official eight-frame protocol begins. resize() is not a reset:
+    // createSurfaces() reuses same-sized buffers and preserves their contents.
+    //
+    // Restore a freshly initialized pipeline state: zero every backend texture,
+    // including iterative graph textures absent from p.surfaces, normalize every
+    // double-buffered surface, and reset the frame clock.
+    await page.evaluate((time) => {
+      if (window.__noisemakerSetPausedTime) window.__noisemakerSetPausedTime(time)
+    }, opts.time)
+
+    const reset = await page.evaluate(() => {
+      const p = window.__noisemakerRenderingPipeline
+      const backend = p?.backend
+      if (!p) return { error: 'no pipeline' }
+      if (!backend?.textures || typeof backend.clearTexture !== 'function') {
+        return { error: 'backend cannot clear textures' }
+      }
+      const textureIds = [...backend.textures.keys()]
+      for (const texId of backend.textures.keys()) backend.clearTexture(texId)
+      const normalizedSurfaces = []
+      if (p.surfaces) {
+        for (const [name, surface] of p.surfaces.entries()) {
+          const readId = `global_${name}_read`
+          const writeId = `global_${name}_write`
+          if (backend.textures.get(readId) && backend.textures.get(writeId)) {
+            surface.read = readId
+            surface.write = writeId
+            normalizedSurfaces.push(name)
+          }
+        }
+      }
+      p.frameIndex = 0
+      p.lastTime = 0
+      return { textureCount: textureIds.length, normalizedSurfaces }
+    })
+    if (reset.error) throw new Error(`state reset failed: ${reset.error}`)
+    process.stderr.write(`[parity] reset ${reset.textureCount} textures and ${reset.normalizedSurfaces.length} ping-pong surfaces before the 8-frame protocol\n`)
+
+    // Render deterministic frames at the pinned time by driving the
     // PIPELINE directly (the CanvasRenderer re-syncs canvas size per frame and can
     // revert the resize; pipeline.render does the GPU work the readback reads).
     await page.evaluate(({ time, frames, size }) => {
-      if (window.__noisemakerSetPausedTime) window.__noisemakerSetPausedTime(time)
       const p = window.__noisemakerRenderingPipeline
       const r = window.__noisemakerCanvasRenderer
       for (let i = 0; i < frames; i++) {

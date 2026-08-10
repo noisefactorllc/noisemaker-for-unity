@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "synth3dCell3d": {
+      "max_abs_diff": 91,
+      "max_mean_abs_diff": 0.000847,
+      "ssim_min": 0.999989,
+      "max_exceeded_pixels": 1,
+      "max_exceeded_channels": 3,
+      "allowed_exceeded_pixels": [
+        [204, 108]
+      ],
+      "mechanism": "Sparse float32 nearest-cell boundary tie in the 3D cellular density field at one shared-surface pixel."
+    },
+    "synth3dFlythrough3d": {
+      "max_abs_diff": 189,
+      "max_mean_abs_diff": 0.581727,
+      "ssim_min": 0.993903,
+      "max_exceeded_pixels": 4695,
+      "max_exceeded_channels": 9851,
+      "mechanism": "Collision-avoidance camera-origin amplification of float32 transcendental and distance-estimator gradient drift; only 62 foreground-mask pixels flip."
+    },
+    "synth3dFractal3d": {
+      "max_abs_diff": 147,
+      "max_mean_abs_diff": 0.021836,
+      "ssim_min": 0.999845,
+      "max_exceeded_pixels": 136,
+      "max_exceeded_channels": 408,
+      "mechanism": "Sparse float32 raymarch and iteration boundary ties in the transcendental fractal distance estimator."
+    }
+  }
+}
