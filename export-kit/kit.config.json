@@ -1,0 +1,35 @@
+{
+  "configVersion": 1,
+  "id": "unity",
+  "series": "0.1",
+  "shaderSource": "kit",
+  "engineSource": "kit",
+  "pageTemplate": false,
+  "subtrees": [
+    { "from": "unity/com.noisemaker.hlsl", "to": "engine/com.noisemaker.hlsl" }
+  ],
+  "licenses": [
+    { "from": "LICENSE", "to": "LICENSES/noisemaker-for-unity-LICENSE.txt" }
+  ],
+  "shaderCorpus": {
+    "effectsDir": "unity/com.noisemaker.hlsl/Shaders/Effects",
+    "includeDir": "unity/com.noisemaker.hlsl/Shaders/Include",
+    "skipExtensions": [".meta"]
+  },
+  "shaderLayout": {
+    "root": "shaders",
+    "effectsPrefix": "Effects/",
+    "includeDir": "Include"
+  },
+  "inject": {
+    "type": "unity-graph",
+    "target": "graph.json"
+  },
+  "compat": {
+    "mode": "list",
+    "fromDefs": "unity/com.noisemaker.hlsl/Effects",
+    "excludeNames": ["media", "scope", "spectrum"],
+    "excludeIds": []
+  },
+  "engineBytesFrom": ["engine/"]
+}
