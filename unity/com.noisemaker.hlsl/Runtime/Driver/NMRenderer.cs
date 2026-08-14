@@ -11,6 +11,8 @@
 //   void SetUniform(string,object) — set a global uniform (number/bool/int)
 //   void Resize(int,int)           — change render resolution
 //   void Rebuild()                 — re-obtain the graph + pipeline (after source swap)
+//   Action AddSink(INMOutputSink)  — register an output consumer
+//   NMFrameExportQueue CreateFrameExportQueue(...) — bounded async RGBA8 readback
 //
 // Time model: reference time is NORMALIZED 0..1 and wraps per animation loop
 // (reference/04 §10). We normalize wall time by AnimationDuration seconds.
@@ -166,10 +168,11 @@ namespace Noisemaker.Hlsl
         }
 
         // Render a single explicit normalized-time frame (host-driven time).
-        public void RenderFrame(float normalizedTime)
+        public void RenderFrame(float normalizedTime,
+            double? presentationTimestampMilliseconds = null)
         {
             if (_pipeline == null) return;
-            _pipeline.Render(normalizedTime);
+            _pipeline.Render(normalizedTime, presentationTimestampMilliseconds);
             Output = _pipeline.GetOutput();
         }
 
@@ -198,6 +201,23 @@ namespace Noisemaker.Hlsl
                 return;
             }
             _pipeline.SetUniform(name, d);
+        }
+
+        public System.Action AddSink(INMOutputSink sink)
+        {
+            if (_pipeline == null)
+                throw new System.InvalidOperationException(
+                    "NMRenderer has no active pipeline; rebuild before adding a sink");
+            return _pipeline.AddSink(sink);
+        }
+
+        public NMFrameExportQueue CreateFrameExportQueue(int slots = 3,
+            System.Action<System.Exception> onError = null, Shader resolveShader = null)
+        {
+            if (_pipeline == null)
+                throw new System.InvalidOperationException(
+                    "NMRenderer has no active pipeline; rebuild before creating a frame export queue");
+            return _pipeline.CreateFrameExportQueue(slots, onError, resolveShader);
         }
 
         // ---- mesh loading (reference loadOBJ + uploadMeshData) -------------

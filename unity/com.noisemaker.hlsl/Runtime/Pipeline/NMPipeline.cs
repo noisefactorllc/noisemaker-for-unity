@@ -34,6 +34,7 @@ namespace Noisemaker.Hlsl
         private readonly UniformBinder _binder;
         private readonly NMRenderBackend _backend;
         private readonly NMMeshData _meshData; // uploadMeshData path (mesh surfaces)
+        private readonly NMSinkManager _sinkManager;
 
         private int _width, _height;
         public int Width { get { return _width; } }
@@ -57,6 +58,7 @@ namespace Noisemaker.Hlsl
 
         // Cached uniform-lookup delegate (avoids a per-frame method-group allocation).
         private readonly System.Func<string, double?> _uniformLookup;
+        private bool _disposed;
 
         public NMPipeline(RenderGraph graph)
         {
@@ -67,8 +69,21 @@ namespace Noisemaker.Hlsl
             _binder = new UniformBinder();
             _backend = new NMRenderBackend(_registry, this, _binder);
             _meshData = new NMMeshData(_store, _surfaces);
+            _sinkManager = new NMSinkManager();
             _cmd = new CommandBuffer { name = "Noisemaker" };
             _uniformLookup = UniformLookup;
+        }
+
+        public System.Action AddSink(INMOutputSink sink)
+        {
+            return _sinkManager.Add(sink);
+        }
+
+        public NMFrameExportQueue CreateFrameExportQueue(int slots = 3,
+            System.Action<System.Exception> onError = null, Shader resolveShader = null)
+        {
+            return new NMFrameExportQueue(new NMUnityFrameExportAdapter(resolveShader),
+                slots, onError);
         }
 
         // ---- init / resize -------------------------------------------------
@@ -128,6 +143,8 @@ namespace Noisemaker.Hlsl
         {
             _width = Mathf.Max(1, width);
             _height = Mathf.Max(1, height);
+            _sinkManager.Configure(new NMOutputDescriptor(_width, _height,
+                NMOutputAlphaMode.Premultiplied));
             _store.SetScreenSize(_width, _height);
             _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup);
             _store.AllocatePooled(Graph, UniformLookup);
@@ -207,7 +224,7 @@ namespace Noisemaker.Hlsl
         }
 
         // ---- per-frame render (reference/04 §10) --------------------------
-        public void Render(float time)
+        public void Render(float time, double? presentationTimestampMilliseconds = null)
         {
             // 2. deltaTime + wrap.
             float deltaTime = _lastTime > 0f ? time - _lastTime : 0f;
@@ -267,6 +284,16 @@ namespace Noisemaker.Hlsl
 
             // execute the queued GPU work.
             Graphics.ExecuteCommandBuffer(_cmd);
+
+            RenderTexture output = GetOutput();
+            if (output != null)
+            {
+                double timestampMilliseconds = presentationTimestampMilliseconds.HasValue
+                    ? presentationTimestampMilliseconds.Value
+                    : (double)System.Diagnostics.Stopwatch.GetTimestamp() * 1000.0 /
+                        System.Diagnostics.Stopwatch.Frequency;
+                _sinkManager.Submit(output, timestampMilliseconds);
+            }
 
             // 9. end-of-frame swap.
             _surfaces.SwapBuffers(FrameIndex);
@@ -638,15 +665,27 @@ namespace Noisemaker.Hlsl
         public void SyncTime(float t) { _lastTime = t; }
 
         // ---- teardown ------------------------------------------------------
-        public void Dispose()
+        public void Dispose(bool backendLost = false)
         {
-            _meshData.Dispose();
-            _surfaces.DestroyAll();
-            _store.DestroyAll();
-            _backend.Dispose();
-            _registry.Dispose();
-            if (_cmd != null) _cmd.Release();
+            if (_disposed) return;
+            _disposed = true;
+            System.Exception firstError = null;
+            System.Action<System.Action> cleanup = action =>
+            {
+                try { action(); }
+                catch (System.Exception error) { if (firstError == null) firstError = error; }
+            };
+
+            cleanup(() => _sinkManager.Close(backendLost
+                ? new NMOutputCloseOptions(true) : null));
+            cleanup(() => _meshData.Dispose());
+            cleanup(() => _surfaces.DestroyAll());
+            cleanup(() => _store.DestroyAll());
+            cleanup(() => _backend.Dispose());
+            cleanup(() => _registry.Dispose());
+            cleanup(() => { if (_cmd != null) _cmd.Release(); });
             _globalUniforms.Clear();
+            if (firstError != null) throw firstError;
         }
     }
 }
