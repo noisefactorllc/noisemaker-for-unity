@@ -47,7 +47,7 @@ namespace Noisemaker.Hlsl.Compiler
             "s1","s2","b1","b2","a1","a2","deltaTime"
         };
         private static readonly HashSet<string> AllowedStringParams =
-            new HashSet<string> { "text.text", "text.font", "text.justify" };
+            new HashSet<string> { "text.text", "text.font", "text.justify", "text.style" };
         private static readonly HashSet<string> SurfacePassthroughCalls =
             new HashSet<string> { "read" };
 
