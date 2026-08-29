@@ -58,6 +58,8 @@ namespace Noisemaker.Hlsl
 
         // Cached uniform-lookup delegate (avoids a per-frame method-group allocation).
         private readonly System.Func<string, double?> _uniformLookup;
+        private readonly HashSet<string> _warnedVolumeClamps = new HashSet<string>();
+        private int _maxTextureSize;
         private bool _disposed;
 
         public NMPipeline(RenderGraph graph)
@@ -89,9 +91,120 @@ namespace Noisemaker.Hlsl
         // ---- init / resize -------------------------------------------------
         public void Init(int width, int height)
         {
+            ApplyDeviceLimits(SystemInfo.maxTextureSize, DetectMrtFormatBudget());
             ValidatePrograms();
             SeedScopedUniforms();
             Resize(width, height);
+        }
+
+        private static int DetectMrtFormatBudget()
+        {
+            // Apple2/Apple3 mobile GPUs permit only 32 bytes per sample across
+            // color attachments. Unity does not expose the Metal GPU family, so
+            // use the supported-family floor on iOS/tvOS and leave other APIs
+            // untouched rather than reducing precision without a device limit.
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal &&
+                (Application.platform == RuntimePlatform.IPhonePlayer ||
+                 Application.platform == RuntimePlatform.tvOS))
+                return 32;
+            return 0;
+        }
+
+        private void ApplyDeviceLimits(int maxTextureSize, int maxColorBytesPerSample)
+        {
+            _maxTextureSize = maxTextureSize;
+            ClampGraphVolumeSizes();
+            ApplyMrtFormatBudget(maxColorBytesPerSample);
+        }
+
+        private static bool IsVolumeSizeUniform(string name)
+        {
+            return name == "volumeSize" ||
+                name.StartsWith("volumeSize_chain_", System.StringComparison.Ordinal) ||
+                name.StartsWith("volumeSize_node_", System.StringComparison.Ordinal);
+        }
+
+        private double ClampVolumeSize(double value)
+        {
+            if (_maxTextureSize <= 0 || value * value <= _maxTextureSize)
+                return value;
+
+            int clamped = 16;
+            while ((clamped * 2) * (clamped * 2) <= _maxTextureSize &&
+                clamped * 2 < value)
+                clamped *= 2;
+
+            string warningKey = value + "->" + clamped;
+            if (_warnedVolumeClamps.Add(warningKey))
+            {
+                Debug.LogWarning("[Noisemaker] Capping volumeSize from " + value +
+                    " to " + clamped + ": the " + value + "x" + (value * value) +
+                    " volume atlas exceeds this device's max texture size (" +
+                    _maxTextureSize + ").");
+            }
+            return clamped;
+        }
+
+        private void ClampGraphVolumeSizes()
+        {
+            foreach (Pass pass in Graph.Passes)
+            {
+                int count = pass.Uniforms.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    var kv = pass.Uniforms.EntryAt(i);
+                    if (!IsVolumeSizeUniform(kv.Key) ||
+                        kv.Value.Kind != UniformValueKind.Number)
+                        continue;
+                    double clamped = ClampVolumeSize(kv.Value.Number);
+                    if (clamped != kv.Value.Number)
+                        pass.Uniforms[kv.Key] = UniformValue.Of(clamped);
+                }
+            }
+        }
+
+        private static int MrtFormatBytes(string format)
+        {
+            if (format == "rgba32f" || format == "rgba32float") return 16;
+            if (format == "rgba8" || format == "rgba8unorm") return 4;
+            return 8;
+        }
+
+        private void ApplyMrtFormatBudget(int budget)
+        {
+            if (budget <= 0) return;
+            foreach (Pass pass in Graph.Passes)
+            {
+                int count = pass.Outputs.Count;
+                if (count <= 1) continue;
+
+                var specs = new TextureSpec[count];
+                var texIds = new string[count];
+                int total = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    string texId = pass.Outputs.EntryAt(i).Value;
+                    TextureSpec spec;
+                    Graph.Textures.TryGetValue(texId, out spec);
+                    texIds[i] = texId;
+                    specs[i] = spec;
+                    total += MrtFormatBytes(spec != null ? spec.Format : null);
+                }
+                if (total <= budget) continue;
+
+                for (int i = count - 1; i >= 0 && total > budget; i--)
+                {
+                    TextureSpec spec = specs[i];
+                    if (spec == null ||
+                        (spec.Format != "rgba32f" && spec.Format != "rgba32float"))
+                        continue;
+                    Debug.LogWarning("[Noisemaker] Demoting MRT attachment " + texIds[i] +
+                        " from " + spec.Format + " to rgba16f: pass " + pass.Id +
+                        " needs " + total + " bytes/sample, device allows " + budget + ".");
+                    spec.Format = "rgba16f";
+                    total -= 8;
+                }
+            }
         }
 
         // Reference §13 setUniform fans scoped (_node_/_chain_) uniform variants into
@@ -164,10 +277,34 @@ namespace Noisemaker.Hlsl
                     value = 2048.0;
                 }
             }
+            if (IsVolumeSizeUniform(name))
+                value = ClampVolumeSize(value);
             _globalUniforms[name] = value;
 
+            bool affectsDimensions = DimensionReferencesParam(name);
+            if (IsVolumeSizeUniform(name))
+            {
+                bool scoped = name.IndexOf("_node_", System.StringComparison.Ordinal) >= 0 ||
+                    name.IndexOf("_chain_", System.StringComparison.Ordinal) >= 0;
+                foreach (Pass pass in Graph.Passes)
+                {
+                    int count = pass.Uniforms.Count;
+                    for (int i = 0; i < count; i++)
+                    {
+                        var kv = pass.Uniforms.EntryAt(i);
+                        bool target = kv.Key == name || (!scoped &&
+                            (kv.Key.StartsWith(name + "_node_", System.StringComparison.Ordinal) ||
+                             kv.Key.StartsWith(name + "_chain_", System.StringComparison.Ordinal)));
+                        if (!target || kv.Value.Kind == UniformValueKind.Object) continue;
+                        pass.Uniforms[kv.Key] = UniformValue.Of(value);
+                        _globalUniforms[kv.Key] = value;
+                        affectsDimensions |= DimensionReferencesParam(kv.Key);
+                    }
+                }
+            }
+
             // If any texture spec references this param, surfaces/pool must resize.
-            if (DimensionReferencesParam(name))
+            if (affectsDimensions)
             {
                 _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup);
                 _store.AllocatePooled(Graph, UniformLookup);

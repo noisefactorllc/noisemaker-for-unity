@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Noisemaker.Hlsl.Compiler.Graph;
 using UnityEditor;
 using UnityEngine;
@@ -117,6 +118,7 @@ namespace Noisemaker.Hlsl.Editor
             {
                 TestSinkManager();
                 TestFrameExportQueue();
+                TestDeviceLimitPolicy();
                 TestPipelineSinkIntegration();
                 StartGpuExportTest();
             }
@@ -238,6 +240,101 @@ namespace Noisemaker.Hlsl.Editor
             Check(adapter.DestroyCalls == 1, "partial slot allocation was not rolled back");
             Check(!queue.Available, "failed configuration left queue available");
             queue.Close();
+        }
+
+        private static void TestDeviceLimitPolicy()
+        {
+            RenderGraph graph = CreateDeviceLimitGraph();
+            var pipeline = new NMPipeline(graph);
+            try
+            {
+                ApplyDeviceLimits(pipeline, 8192, 32);
+
+                Pass pass = graph.Passes[0];
+                Check(pass.Uniforms["volumeSize"].Number == 64.0,
+                    "unscoped volumeSize was not clamped to the texture limit");
+                Check(pass.Uniforms["volumeSize_chain_0"].Number == 64.0,
+                    "chain-scoped volumeSize was not clamped to the texture limit");
+                Check(pass.Uniforms["volumeSize_node_0"].Number == 64.0,
+                    "node-scoped volumeSize was not clamped to the texture limit");
+                Check(pass.Uniforms["volumeSizeExtra"].Number == 128.0,
+                    "an unrelated uniform was modified by volumeSize clamping");
+
+                Check(graph.Textures["xyz"].Format == "rgba32f",
+                    "the leading high-precision MRT attachment was demoted");
+                Check(graph.Textures["vel"].Format == "rgba16f",
+                    "the trailing high-precision MRT attachment was not demoted");
+                Check(graph.Textures["rgba"].Format == "rgba8",
+                    "the low-precision MRT attachment was modified");
+
+                pipeline.SetUniform("volumeSize", 128.0);
+                Check(pass.Uniforms["volumeSize"].Number == 64.0 &&
+                    pass.Uniforms["volumeSize_chain_0"].Number == 64.0 &&
+                    pass.Uniforms["volumeSize_node_0"].Number == 64.0,
+                    "runtime volumeSize update bypassed the device clamp or scoped fan-out");
+            }
+            finally
+            {
+                pipeline.Dispose();
+            }
+
+            graph = CreateDeviceLimitGraph();
+            pipeline = new NMPipeline(graph);
+            try
+            {
+                ApplyDeviceLimits(pipeline, 16384, 64);
+                Check(graph.Passes[0].Uniforms["volumeSize"].Number == 128.0,
+                    "an admissible volumeSize was clamped");
+                Check(graph.Textures["xyz"].Format == "rgba32f" &&
+                    graph.Textures["vel"].Format == "rgba32f",
+                    "an admissible MRT group was demoted");
+            }
+            finally
+            {
+                pipeline.Dispose();
+            }
+
+            graph = CreateDeviceLimitGraph();
+            pipeline = new NMPipeline(graph);
+            try
+            {
+                ApplyDeviceLimits(pipeline, 2048, 0);
+                Check(graph.Passes[0].Uniforms["volumeSize"].Number == 32.0,
+                    "volumeSize did not snap down again for a smaller texture limit");
+                Check(graph.Textures["vel"].Format == "rgba32f",
+                    "a missing MRT budget modified attachment formats");
+            }
+            finally
+            {
+                pipeline.Dispose();
+            }
+        }
+
+        private static RenderGraph CreateDeviceLimitGraph()
+        {
+            var graph = new RenderGraph();
+            var pass = new Pass { Id = "device-limits" };
+            pass.Uniforms.Add("volumeSize", UniformValue.Of(128.0));
+            pass.Uniforms.Add("volumeSize_chain_0", UniformValue.Of(128.0));
+            pass.Uniforms.Add("volumeSize_node_0", UniformValue.Of(128.0));
+            pass.Uniforms.Add("volumeSizeExtra", UniformValue.Of(128.0));
+            pass.Outputs.Add("color", "xyz");
+            pass.Outputs.Add("color1", "vel");
+            pass.Outputs.Add("color2", "rgba");
+            graph.Passes.Add(pass);
+            graph.Textures.Add("xyz", new TextureSpec { Format = "rgba32f" });
+            graph.Textures.Add("vel", new TextureSpec { Format = "rgba32f" });
+            graph.Textures.Add("rgba", new TextureSpec { Format = "rgba8" });
+            return graph;
+        }
+
+        private static void ApplyDeviceLimits(NMPipeline pipeline, int maxTextureSize,
+            int maxColorBytesPerSample)
+        {
+            MethodInfo apply = typeof(NMPipeline).GetMethod("ApplyDeviceLimits",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(apply != null, "NMPipeline device-limit policy is missing");
+            apply.Invoke(pipeline, new object[] { maxTextureSize, maxColorBytesPerSample });
         }
 
         private static void TestPipelineSinkIntegration()
