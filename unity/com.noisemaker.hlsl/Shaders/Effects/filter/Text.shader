@@ -32,15 +32,16 @@ Shader "Noisemaker/filter/text"
             float4 frag(NMVaryings i) : SV_Target
             {
                 // WGSL: let size = max(textureDimensions(inputTex, 0), vec2<u32>(1,1));
-                //        let uv  = position.xy / vec2<f32>(size);
-                // Divide by the INPUT TEXTURE's own dimensions, not fullResolution.
+                //        let uv = position.xy / vec2<f32>(size);
+                //        let globalUV = (position.xy + tileOffset) / fullResolution;
                 uint tw, th;
                 inputTex.GetDimensions(tw, th);
                 float2 texSize = float2(max(tw, 1u), max(th, 1u));
                 float2 uv = NM_FragCoord(i) / texSize;
+                float2 globalUV = (NM_FragCoord(i) + tileOffset) / fullResolution;
 
                 float4 inputColor = inputTex.Sample(sampler_inputTex, uv);
-                float4 text       = textTex.Sample(sampler_textTex,   uv);
+                float4 text       = textTex.Sample(sampler_textTex, globalUV);
 
                 return nm_text(inputColor, text, matteColor, matteOpacity);
             }

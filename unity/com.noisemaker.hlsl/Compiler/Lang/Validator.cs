@@ -12,9 +12,9 @@
 //     `prev` resolves to the parent write target (§5.3).
 //   - Tier-1 effects, literal + enum + array + color/vec args, palette.
 // Staged (NotImplementedException + TODO(scope)), FAIL LOUDLY (never silently wrong):
-//   subchain, if/elif, loop-control (break/continue/return), midi/audio automation args,
-//   Func, state-value args.
-// Implemented: read3d/write3d/3D lane (graph-verified), agents/points, oscillator, loopBegin/End.
+//   subchain, if/elif, loop-control (break/continue/return), Func, state-value args.
+// Implemented: read3d/write3d/3D lane (graph-verified), agents/points, recursive
+// oscillator/MIDI/audio automation, loopBegin/End.
 //
 // PARITY-CRITICAL behaviors replicated:
 //  - GLOBAL monotonic tempIndex across all plans; exact `tempIndex++` ORDER defines
@@ -33,6 +33,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Noisemaker.Hlsl.Compiler.Graph;
 
 namespace Noisemaker.Hlsl.Compiler
@@ -47,15 +48,21 @@ namespace Noisemaker.Hlsl.Compiler
             "s1","s2","b1","b2","a1","a2","deltaTime"
         };
         private static readonly HashSet<string> AllowedStringParams =
-            new HashSet<string> { "text.text", "text.font", "text.justify", "text.style" };
+            new HashSet<string>
+            {
+                "text.text", "text.font", "text.justify", "text.style",
+                "midi.name", "midi.id", "audio.name", "audio.id"
+            };
         private static readonly HashSet<string> SurfacePassthroughCalls =
             new HashSet<string> { "read" };
 
         private readonly EffectRegistry _reg;
         private readonly List<Diagnostic> _diagnostics = new List<Diagnostic>();
         private readonly Dictionary<string, Node> _symbols = new Dictionary<string, Node>();
+        private readonly HashSet<string> _reportedAutomationCycles = new HashSet<string>();
         private List<string> _searchOrder;
         private int _tempIndex;
+        private const int MaxAutomationDepth = 8;
 
         private Validator(EffectRegistry reg) { _reg = reg; }
 
@@ -135,7 +142,7 @@ namespace Noisemaker.Hlsl.Compiler
             if (vars == null) return;
             foreach (VarAssignNode v in vars)
             {
-                Node expr = Substitute(Clone(v.Expr));
+                Node expr = Substitute(Clone(v.Expr), new List<string> { v.Name });
                 if (expr != null && IsStarterChain(expr))
                 {
                     Node head = FirstChainCall(expr);
@@ -211,57 +218,66 @@ namespace Noisemaker.Hlsl.Compiler
         // through substitution in the first-cut scope are cloned structurally.
         private static Node Clone(Node node)
         {
+            Node copy;
             switch (node)
             {
                 case null: return null;
-                case NumberNode n: return new NumberNode { Value = n.Value, VarRef = n.VarRef };
-                case StringNode s: return new StringNode { Value = s.Value };
-                case BooleanNode b: return new BooleanNode { Value = b.Value };
-                case ColorNode c: return new ColorNode { Value = (double[])c.Value.Clone() };
-                case IdentNode i: return new IdentNode { Name = i.Name, VarRef = i.VarRef };
-                case MemberNode m: return new MemberNode { Path = new List<string>(m.Path), VarRef = m.VarRef };
-                case OutputRefNode o: return new OutputRefNode { Name = o.Name };
-                case SurfaceRefNode sr: return new SurfaceRefNode(sr.Kind) { Name = sr.Name };
+                case NumberNode n: copy = new NumberNode { Value = n.Value, VarRef = n.VarRef }; break;
+                case StringNode s: copy = new StringNode { Value = s.Value }; break;
+                case BooleanNode b: copy = new BooleanNode { Value = b.Value }; break;
+                case ColorNode c: copy = new ColorNode { Value = (double[])c.Value.Clone() }; break;
+                case IdentNode i: copy = new IdentNode { Name = i.Name, VarRef = i.VarRef }; break;
+                case MemberNode m: copy = new MemberNode { Path = new List<string>(m.Path), VarRef = m.VarRef }; break;
+                case OutputRefNode o: copy = new OutputRefNode { Name = o.Name }; break;
+                case SurfaceRefNode sr: copy = new SurfaceRefNode(sr.Kind) { Name = sr.Name }; break;
                 case ArrayLiteralNode a:
                 {
                     var els = new List<Node>();
                     foreach (Node e in a.Elements) els.Add(Clone(e));
-                    return new ArrayLiteralNode { Elements = els, LocLine = a.LocLine, LocCol = a.LocCol };
+                    copy = new ArrayLiteralNode { Elements = els };
+                    break;
                 }
-                case FuncNode f: return new FuncNode { Src = f.Src };
-                case ReadNode r: return new ReadNode { Surface = Clone(r.Surface), Skip = r.Skip, LocLine = r.LocLine, LocCol = r.LocCol };
-                case Read3DNode r3: return new Read3DNode { Tex3d = Clone(r3.Tex3d), Geo = Clone(r3.Geo), Skip = r3.Skip, LocLine = r3.LocLine, LocCol = r3.LocCol };
-                case CallNode call: return CloneCall(call);
+                case FuncNode f: copy = new FuncNode { Src = f.Src }; break;
+                case ReadNode r: copy = new ReadNode { Surface = Clone(r.Surface), Skip = r.Skip }; break;
+                case Read3DNode r3: copy = new Read3DNode { Tex3d = Clone(r3.Tex3d), Geo = Clone(r3.Geo), Skip = r3.Skip }; break;
+                case CallNode call: copy = CloneCall(call); break;
                 case ChainNode chain:
                 {
                     var c = new ChainNode();
                     foreach (Node e in chain.Chain) c.Chain.Add(Clone(e));
-                    return c;
+                    copy = c;
+                    break;
                 }
                 case OscillatorNode osc:
-                    return new OscillatorNode
+                    copy = new OscillatorNode
                     {
                         OscType = Clone(osc.OscType), Min = Clone(osc.Min), Max = Clone(osc.Max),
                         Speed = Clone(osc.Speed), Offset = Clone(osc.Offset), Seed = Clone(osc.Seed),
-                        LocLine = osc.LocLine, LocCol = osc.LocCol
+                        VarRef = osc.VarRef
                     };
+                    break;
                 case MidiNode mi:
-                    return new MidiNode
+                    copy = new MidiNode
                     {
                         Channel = Clone(mi.Channel), Mode = Clone(mi.Mode), Min = Clone(mi.Min),
                         Max = Clone(mi.Max), Sensitivity = Clone(mi.Sensitivity),
                         Name = Clone(mi.Name), Id = Clone(mi.Id),
-                        LocLine = mi.LocLine, LocCol = mi.LocCol
+                        VarRef = mi.VarRef
                     };
+                    break;
                 case AudioNode au:
-                    return new AudioNode
+                    copy = new AudioNode
                     {
                         Band = Clone(au.Band), Min = Clone(au.Min), Max = Clone(au.Max),
                         Channel = Clone(au.Channel), Name = Clone(au.Name), Id = Clone(au.Id),
-                        LocLine = au.LocLine, LocCol = au.LocCol
+                        VarRef = au.VarRef
                     };
-                default: return node;
+                    break;
+                default: copy = node; break;
             }
+            copy.LocLine = node.LocLine;
+            copy.LocCol = node.LocCol;
+            return copy;
         }
 
         private static CallNode CloneCall(CallNode call)
@@ -277,14 +293,62 @@ namespace Noisemaker.Hlsl.Compiler
         }
 
         // recursive variable inlining (reference/02 §2.10).
-        private Node Substitute(Node node)
+        private Node Substitute(Node node, List<string> resolving = null)
         {
             if (node == null) return null;
+            if (resolving == null) resolving = new List<string>();
+            if (node is IdentNode cycleIdent && resolving.Contains(cycleIdent.Name))
+            {
+                int cycleStart = resolving.IndexOf(cycleIdent.Name);
+                var cycle = resolving.GetRange(cycleStart, resolving.Count - cycleStart);
+                cycle.Add(cycleIdent.Name);
+                string cycleKey = string.Join(" -> ", cycle);
+                if (_reportedAutomationCycles.Add(cycleKey))
+                    PushDiag("S001", cycleIdent, "Automation cycle detected: " + cycleKey);
+                return new NumberNode
+                {
+                    Value = 0,
+                    LocLine = cycleIdent.LocLine,
+                    LocCol = cycleIdent.LocCol
+                };
+            }
             if (node is IdentNode id && _symbols.ContainsKey(id.Name))
             {
-                Node result = Substitute(Clone(_symbols[id.Name]));
+                var nested = new List<string>(resolving) { id.Name };
+                Node result = Substitute(Clone(_symbols[id.Name]), nested);
                 if (result != null) SetVarRef(result, id.Name);
                 return result;
+            }
+            if (node is OscillatorNode osc)
+            {
+                osc.OscType = Substitute(osc.OscType, resolving);
+                osc.Min = Substitute(osc.Min, resolving);
+                osc.Max = Substitute(osc.Max, resolving);
+                osc.Speed = Substitute(osc.Speed, resolving);
+                osc.Offset = Substitute(osc.Offset, resolving);
+                osc.Seed = Substitute(osc.Seed, resolving);
+                return osc;
+            }
+            if (node is MidiNode midi)
+            {
+                midi.Channel = Substitute(midi.Channel, resolving);
+                midi.Mode = Substitute(midi.Mode, resolving);
+                midi.Min = Substitute(midi.Min, resolving);
+                midi.Max = Substitute(midi.Max, resolving);
+                midi.Sensitivity = Substitute(midi.Sensitivity, resolving);
+                midi.Name = Substitute(midi.Name, resolving);
+                midi.Id = Substitute(midi.Id, resolving);
+                return midi;
+            }
+            if (node is AudioNode audio)
+            {
+                audio.Band = Substitute(audio.Band, resolving);
+                audio.Min = Substitute(audio.Min, resolving);
+                audio.Max = Substitute(audio.Max, resolving);
+                audio.Channel = Substitute(audio.Channel, resolving);
+                audio.Name = Substitute(audio.Name, resolving);
+                audio.Id = Substitute(audio.Id, resolving);
+                return audio;
             }
             if (node is ChainNode chain)
             {
@@ -294,11 +358,11 @@ namespace Noisemaker.Hlsl.Compiler
                     if (e is CallNode call)
                     {
                         var mapped = new CallNode { Name = call.Name };
-                        foreach (Node a in call.Args) mapped.Args.Add(Substitute(a));
+                        foreach (Node a in call.Args) mapped.Args.Add(Substitute(a, resolving));
                         if (call.Kwargs != null)
                         {
                             mapped.Kwargs = new OrderedKwargs();
-                            foreach (string k in call.Kwargs.Keys) mapped.Kwargs.Set(k, Substitute(call.Kwargs.Get(k)));
+                            foreach (string k in call.Kwargs.Keys) mapped.Kwargs.Set(k, Substitute(call.Kwargs.Get(k), resolving));
                         }
                         c.Chain.Add(ResolveCall(mapped));
                     }
@@ -309,11 +373,11 @@ namespace Noisemaker.Hlsl.Compiler
             if (node is CallNode cn)
             {
                 var mapped = new CallNode { Name = cn.Name, Namespace = cn.Namespace };
-                foreach (Node a in cn.Args) mapped.Args.Add(Substitute(a));
+                foreach (Node a in cn.Args) mapped.Args.Add(Substitute(a, resolving));
                 if (cn.Kwargs != null)
                 {
                     mapped.Kwargs = new OrderedKwargs();
-                    foreach (string k in cn.Kwargs.Keys) mapped.Kwargs.Set(k, Substitute(cn.Kwargs.Get(k)));
+                    foreach (string k in cn.Kwargs.Keys) mapped.Kwargs.Set(k, Substitute(cn.Kwargs.Get(k), resolving));
                 }
                 return ResolveCall(mapped);
             }
@@ -950,7 +1014,8 @@ namespace Noisemaker.Hlsl.Compiler
             args.Set(argKey, DefaultArg(def));
         }
 
-        // 6.10 numeric (float/int/unknown). Func / Oscillator / Midi / Audio / state-value staged.
+        // 6.10 numeric (float/int/unknown). Automation descriptors are compiled
+        // recursively into graph data; Func and state-value args remain staged.
         private void ResolveNumericArg(ParamDef def, Node node, CallNode call, StepArgs args, string argKey)
         {
             if (node is StringNode)
@@ -971,15 +1036,11 @@ namespace Noisemaker.Hlsl.Compiler
             }
             if (node is FuncNode)
                 throw new NotImplementedException("Func numeric params ((state)=>...) are not implemented in the first-cut DSL frontend (reference/02 §6.10; cannot eval JS in C#).");
-            if (node is OscillatorNode osc)
+            if (node is OscillatorNode || node is MidiNode || node is AudioNode)
             {
-                args.Set(argKey, ArgValue.OfWrapped(ResolveOscillator(osc)));
+                args.Set(argKey, ArgValue.OfWrapped(CompileAutomationDescriptor(node)));
                 return;
             }
-            if (node is MidiNode)
-                throw new NotImplementedException("midi() automation args are not implemented in the first-cut DSL frontend (reference/02 §6.12).");
-            if (node is AudioNode)
-                throw new NotImplementedException("audio() automation args are not implemented in the first-cut DSL frontend (reference/02 §6.13).");
             if (node is MemberNode mn)
             {
                 double? cur = ResolveEnumNumber(mn.Path);
@@ -1018,46 +1079,363 @@ namespace Noisemaker.Hlsl.Compiler
                 args.Set(argKey, DefaultArg(def));
         }
 
-        // 6.11 osc() value oscillator -> resolved config object (reference/02 §6.11).
-        // Carried verbatim through the graph as a JsonValue (UniformValue.Object) and
-        // evaluated per-frame by the runtime (reference/04 §10.4/§11). Bit-for-bit with
-        // shaders/src/lang/validator.js: oscType via Member-path resolveEnum or Ident as
-        // oscKind.{name}; resolveOscParam maps Number/Boolean/Member; min/max clamp01;
-        // speed/offset/seed unclamped; DEFAULT SEED = 1.
-        private JsonValue ResolveOscillator(OscillatorNode node)
+        // 6.11-6.13 automation descriptors. Numeric descriptor fields may themselves
+        // contain oscillator/MIDI/audio sources, up to eight nested field edges.
+        private JsonValue CompileAutomationDescriptor(Node node, int depth = 0)
         {
-            double oscType = 0;
-            if (node.OscType is MemberNode mn)
+            if (depth > MaxAutomationDepth)
             {
-                double? r = ResolveEnumNumber(mn.Path);
-                if (r.HasValue) oscType = r.Value;
-            }
-            else if (node.OscType is IdentNode idn)
-            {
-                double? r = ResolveEnumNumber(new List<string> { "oscKind", idn.Name });
-                if (r.HasValue) oscType = r.Value;
+                PushDiag("S001", node,
+                    "Automation nesting exceeds the maximum depth of " + MaxAutomationDepth);
+                return JsonValue.Of(0.0);
             }
 
+            if (node is OscillatorNode osc)
+            {
+                var map = new OrderedMap<string, JsonValue>();
+                map.Add("type", JsonValue.Of("Oscillator"));
+                map.Add("oscType", JsonValue.Of(ResolveAutomationEnum(
+                    osc.OscType, "oscKind", 0, 0, 5, "osc", "type")));
+                map.Add("min", ResolveAutomationNumber(
+                    osc.Min, "osc", "min", 0, true, true, true, depth));
+                map.Add("max", ResolveAutomationNumber(
+                    osc.Max, "osc", "max", 1, true, true, true, depth));
+                map.Add("speed", ResolveAutomationNumber(
+                    osc.Speed, "osc", "speed", 1, true, true, false, depth));
+                map.Add("offset", ResolveAutomationNumber(
+                    osc.Offset, "osc", "offset", 0, true, true, false, depth));
+                map.Add("seed", ResolveAutomationNumber(
+                    osc.Seed, "osc", "seed", 1, true, true, false, depth));
+                map.Add("_ast", NodeToJson(osc));
+                if (!string.IsNullOrEmpty(osc.VarRef)) map.Add("_varRef", JsonValue.Of(osc.VarRef));
+                return JsonValue.Of(map);
+            }
+
+            if (node is MidiNode midi)
+            {
+                var map = new OrderedMap<string, JsonValue>();
+                map.Add("type", JsonValue.Of("Midi"));
+                map.Add("channel", ResolveAutomationNumber(
+                    midi.Channel, "midi", "channel", 1, true, false, false, depth));
+                map.Add("mode", JsonValue.Of(ResolveAutomationEnum(
+                    midi.Mode, "midiMode", 4, 0, 4, "midi", "mode")));
+                map.Add("min", ResolveAutomationNumber(
+                    midi.Min, "midi", "min", 0, true, true, true, depth));
+                map.Add("max", ResolveAutomationNumber(
+                    midi.Max, "midi", "max", 1, true, true, true, depth));
+                map.Add("sensitivity", ResolveAutomationNumber(
+                    midi.Sensitivity, "midi", "sensitivity", 1, true, true, false, depth));
+                AddOptionalString(map, "name", ResolveAutomationString(midi.Name, "midi", "name"));
+                AddOptionalString(map, "id", ResolveAutomationString(midi.Id, "midi", "id"));
+                map.Add("_ast", NodeToJson(midi));
+                if (!string.IsNullOrEmpty(midi.VarRef)) map.Add("_varRef", JsonValue.Of(midi.VarRef));
+                return JsonValue.Of(map);
+            }
+
+            if (node is AudioNode audio)
+            {
+                double? band = ResolveAutomationEnumNullable(
+                    audio.Band, "audioBand", 0, 4, "audio", "band");
+                bool validMin = true;
+                bool validMax = true;
+                JsonValue min = ResolveAutomationNumber(
+                    audio.Min, "audio", "min", 0, false, true, true, depth,
+                    () => validMin = false, false);
+                JsonValue max = ResolveAutomationNumber(
+                    audio.Max, "audio", "max", 1, false, true, true, depth,
+                    () => validMax = false, false);
+
+                bool validChannel = true;
+                double? channel = null;
+                if (audio.Channel != null)
+                {
+                    if (audio.Channel is NumberNode channelNumber &&
+                        channelNumber.Value == Math.Floor(channelNumber.Value) &&
+                        channelNumber.Value >= 1)
+                        channel = channelNumber.Value;
+                    else
+                    {
+                        validChannel = false;
+                        if (audio.Channel is StringNode)
+                            PushDiag("S001", audio.Channel,
+                                "String literal not allowed for audio() channel");
+                        else
+                            PushDiag("S002", audio.Channel,
+                                "audio() channel must be a positive integer (got " +
+                                AutomationNodeDisplay(audio.Channel) + ")");
+                    }
+                }
+
+                string name = ResolveAutomationString(audio.Name, "audio", "name");
+                string id = ResolveAutomationString(audio.Id, "audio", "id");
+                bool validName = audio.Name == null || name != null;
+                bool validId = audio.Id == null || id != null;
+
+                var map = new OrderedMap<string, JsonValue>();
+                map.Add("type", JsonValue.Of("Audio"));
+                if (band.HasValue) map.Add("band", JsonValue.Of(band.Value));
+                map.Add("min", min);
+                map.Add("max", max);
+                if (channel.HasValue) map.Add("channel", JsonValue.Of(channel.Value));
+                AddOptionalString(map, "name", name);
+                AddOptionalString(map, "id", id);
+                map.Add("_invalid", JsonValue.Of(!band.HasValue || !validMin || !validMax ||
+                    !validName || !validId || !validChannel));
+                map.Add("_ast", NodeToJson(audio));
+                if (!string.IsNullOrEmpty(audio.VarRef)) map.Add("_varRef", JsonValue.Of(audio.VarRef));
+                return JsonValue.Of(map);
+            }
+
+            return JsonValue.Of(0.0);
+        }
+
+        private double ResolveAutomationEnum(Node node, string enumName, double fallback,
+            int min, int max, string descriptorName, string fieldName)
+        {
+            double? resolved = ResolveAutomationEnumNullable(
+                node, enumName, min, max, descriptorName, fieldName);
+            return resolved ?? fallback;
+        }
+
+        private double? ResolveAutomationEnumNullable(Node node, string enumName,
+            int min, int max, string descriptorName, string fieldName)
+        {
+            double? resolved = null;
+            if (node is NumberNode number) resolved = number.Value;
+            else if (node is MemberNode member) resolved = ResolveEnumNumber(member.Path);
+            else if (node is IdentNode ident)
+                resolved = ResolveEnumNumber(new List<string> { enumName, ident.Name });
+
+            if (resolved.HasValue && resolved.Value >= min && resolved.Value <= max &&
+                resolved.Value == Math.Floor(resolved.Value))
+                return resolved.Value;
+
+            if (node is StringNode)
+                PushDiag("S001", node,
+                    "String literal not allowed for " + descriptorName + "() " + fieldName);
+            else
+                PushDiag("S002", node,
+                    descriptorName == "audio" && fieldName == "band"
+                        ? "audio() band must resolve to an integer from 0 to 4 (got " +
+                            (resolved.HasValue ? resolved.Value.ToString() : "") + ")"
+                        : descriptorName + "() " + fieldName +
+                            " must resolve to a supported enum value");
+            return null;
+        }
+
+        private JsonValue ResolveAutomationNumber(Node node, string descriptorName,
+            string fieldName, double fallback, bool allowBoolean, bool allowAutomation,
+            bool clamp01, int depth, Action onInvalid = null, bool allowMember = true)
+        {
+            if (node == null) return JsonValue.Of(fallback);
+            if (node is OscillatorNode || node is MidiNode || node is AudioNode)
+            {
+                if (allowAutomation)
+                {
+                    JsonValue compiled = CompileAutomationDescriptor(node, depth + 1);
+                    JsonValue invalid = compiled.Get("_invalid");
+                    if (invalid != null && invalid.Kind == JsonKind.Bool && invalid.AsBool)
+                        onInvalid?.Invoke();
+                    return compiled;
+                }
+                return RejectAutomationNumber(node, descriptorName, fieldName, fallback,
+                    onInvalid, allowAutomation);
+            }
+
+            double? value = null;
+            if (node is NumberNode number) value = number.Value;
+            else if (allowBoolean && node is BooleanNode boolean) value = boolean.Value ? 1 : 0;
+            else if (allowMember && node is MemberNode member) value = ResolveEnumNumber(member.Path);
+            else
+                return RejectAutomationNumber(node, descriptorName, fieldName, fallback,
+                    onInvalid, allowAutomation);
+
+            if (!value.HasValue || double.IsNaN(value.Value) || double.IsInfinity(value.Value))
+            {
+                onInvalid?.Invoke();
+                PushDiag("S002", node, descriptorName + "() " + fieldName +
+                    " must resolve to a finite number");
+                return JsonValue.Of(fallback);
+            }
+            return JsonValue.Of(clamp01 ? Clamp01(value.Value) : value.Value);
+        }
+
+        private JsonValue RejectAutomationNumber(Node node, string descriptorName,
+            string fieldName, double fallback, Action onInvalid, bool allowAutomation)
+        {
+            onInvalid?.Invoke();
+            if (node is StringNode)
+                PushDiag("S001", node,
+                    "String literal not allowed for " + descriptorName + "() " + fieldName);
+            else if (node is IdentNode ident)
+                PushDiag("S003", node, "Undefined automation source '" + ident.Name +
+                    "' for " + descriptorName + "() " + fieldName);
+            else
+                PushDiag("S002", node, descriptorName + "() " + fieldName +
+                    " must be a number" + (allowAutomation ? " or automation source" : ""));
+            return JsonValue.Of(fallback);
+        }
+
+        private string ResolveAutomationString(Node node, string descriptorName,
+            string fieldName)
+        {
+            if (node == null) return null;
+            string allowlistKey = descriptorName + "." + fieldName;
+            if (!AllowedStringParams.Contains(allowlistKey))
+            {
+                PushDiag("S001", node, "String parameter '" + allowlistKey +
+                    "' is not allowlisted");
+                return null;
+            }
+            if (!(node is StringNode text))
+            {
+                PushDiag("S001", node, descriptorName + "() " + fieldName +
+                    " requires a quoted string");
+                return null;
+            }
+            if (text.Value.Length == 0)
+            {
+                PushDiag("S001", node, descriptorName + "() " + fieldName +
+                    " must not be empty");
+                return null;
+            }
+            return DecodeJsonStringLiteralContent(text.Value);
+        }
+
+        private static string DecodeJsonStringLiteralContent(string raw)
+        {
+            try
+            {
+                JsonValue parsed = JsonValue.Parse("\"" + raw + "\"");
+                return parsed.AsString;
+            }
+            catch (FormatException)
+            {
+                var decoded = new StringBuilder();
+                for (int i = 0; i < raw.Length; i++)
+                {
+                    if (raw[i] != '\\' || i + 1 >= raw.Length)
+                    {
+                        decoded.Append(raw[i]);
+                        continue;
+                    }
+                    char next = raw[++i];
+                    switch (next)
+                    {
+                        case '\'': decoded.Append('\''); break;
+                        case '"': decoded.Append('"'); break;
+                        case '\\': decoded.Append('\\'); break;
+                        case 'n': decoded.Append('\n'); break;
+                        case 'r': decoded.Append('\r'); break;
+                        case 't': decoded.Append('\t'); break;
+                        case 'b': decoded.Append('\b'); break;
+                        case 'f': decoded.Append('\f'); break;
+                        case 'v': decoded.Append('\v'); break;
+                        case '0': decoded.Append('\0'); break;
+                        default: decoded.Append('\\').Append(next); break;
+                    }
+                }
+                return decoded.ToString();
+            }
+        }
+
+        private static void AddOptionalString(OrderedMap<string, JsonValue> map,
+            string key, string value)
+        {
+            if (value != null) map.Add(key, JsonValue.Of(value));
+        }
+
+        private static string AutomationNodeDisplay(Node node)
+        {
+            if (node is NumberNode number) return number.Value.ToString();
+            if (node is IdentNode ident) return ident.Name;
+            return node != null ? node.Kind.ToString() : "undefined";
+        }
+
+        private static JsonValue NodeToJson(Node node)
+        {
+            if (node == null) return JsonValue.Null;
             var map = new OrderedMap<string, JsonValue>();
-            map.Add("type", JsonValue.Of("Oscillator"));
-            map.Add("oscType", JsonValue.Of(oscType));
-            map.Add("min", JsonValue.Of(Clamp01(ResolveOscParam(node.Min) ?? 0)));
-            map.Add("max", JsonValue.Of(Clamp01(ResolveOscParam(node.Max) ?? 1)));
-            map.Add("speed", JsonValue.Of(ResolveOscParam(node.Speed) ?? 1));
-            map.Add("offset", JsonValue.Of(ResolveOscParam(node.Offset) ?? 0));
-            map.Add("seed", JsonValue.Of(ResolveOscParam(node.Seed) ?? 1));
+            if (node is NumberNode number)
+            {
+                map.Add("type", JsonValue.Of("Number"));
+                map.Add("value", JsonValue.Of(number.Value));
+                AddNodeMetadata(map, node, number.VarRef);
+            }
+            else if (node is BooleanNode boolean)
+            {
+                map.Add("type", JsonValue.Of("Boolean"));
+                map.Add("value", JsonValue.Of(boolean.Value));
+                AddNodeMetadata(map, node, null);
+            }
+            else if (node is StringNode text)
+            {
+                map.Add("type", JsonValue.Of("String"));
+                map.Add("value", JsonValue.Of(text.Value));
+                AddNodeMetadata(map, node, null);
+            }
+            else if (node is IdentNode ident)
+            {
+                map.Add("type", JsonValue.Of("Ident"));
+                map.Add("name", JsonValue.Of(ident.Name));
+                AddNodeMetadata(map, node, ident.VarRef);
+            }
+            else if (node is MemberNode member)
+            {
+                map.Add("type", JsonValue.Of("Member"));
+                var path = new List<JsonValue>();
+                foreach (string item in member.Path) path.Add(JsonValue.Of(item));
+                map.Add("path", JsonValue.Of(path));
+                AddNodeMetadata(map, node, member.VarRef);
+            }
+            else if (node is OscillatorNode osc)
+            {
+                map.Add("type", JsonValue.Of("Oscillator"));
+                map.Add("oscType", NodeToJson(osc.OscType));
+                map.Add("min", NodeToJson(osc.Min));
+                map.Add("max", NodeToJson(osc.Max));
+                map.Add("speed", NodeToJson(osc.Speed));
+                map.Add("offset", NodeToJson(osc.Offset));
+                map.Add("seed", NodeToJson(osc.Seed));
+                AddNodeMetadata(map, node, osc.VarRef);
+            }
+            else if (node is MidiNode midi)
+            {
+                map.Add("type", JsonValue.Of("Midi"));
+                map.Add("channel", NodeToJson(midi.Channel));
+                map.Add("mode", NodeToJson(midi.Mode));
+                map.Add("min", NodeToJson(midi.Min));
+                map.Add("max", NodeToJson(midi.Max));
+                map.Add("sensitivity", NodeToJson(midi.Sensitivity));
+                if (midi.Name != null) map.Add("name", NodeToJson(midi.Name));
+                if (midi.Id != null) map.Add("id", NodeToJson(midi.Id));
+                AddNodeMetadata(map, node, midi.VarRef);
+            }
+            else if (node is AudioNode audio)
+            {
+                map.Add("type", JsonValue.Of("Audio"));
+                map.Add("band", NodeToJson(audio.Band));
+                map.Add("min", NodeToJson(audio.Min));
+                map.Add("max", NodeToJson(audio.Max));
+                if (audio.Channel != null) map.Add("channel", NodeToJson(audio.Channel));
+                if (audio.Name != null) map.Add("name", NodeToJson(audio.Name));
+                if (audio.Id != null) map.Add("id", NodeToJson(audio.Id));
+                AddNodeMetadata(map, node, audio.VarRef);
+            }
             return JsonValue.Of(map);
         }
 
-        // resolveOscParam (reference/02 §6.11): Number->value; Boolean->1/0;
-        // Member->resolveEnum; else undefined (null).
-        private double? ResolveOscParam(Node param)
+        private static void AddNodeMetadata(OrderedMap<string, JsonValue> map,
+            Node node, string varRef)
         {
-            if (param == null) return null;
-            if (param is NumberNode nn) return nn.Value;
-            if (param is BooleanNode bn) return bn.Value ? 1 : 0;
-            if (param is MemberNode mn) return ResolveEnumNumber(mn.Path);
-            return null;
+            if (node.LocLine.HasValue)
+            {
+                var loc = new OrderedMap<string, JsonValue>();
+                loc.Add("line", JsonValue.Of(node.LocLine.Value));
+                loc.Add("col", JsonValue.Of(node.LocCol ?? 0));
+                map.Add("loc", JsonValue.Of(loc));
+            }
+            if (!string.IsNullOrEmpty(varRef)) map.Add("_varRef", JsonValue.Of(varRef));
         }
 
         private static double Clamp01(double x)

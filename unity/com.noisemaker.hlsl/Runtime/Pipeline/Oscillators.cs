@@ -36,19 +36,23 @@ namespace Noisemaker.Hlsl
 
             double t = normalizedTime * speed + offset;
 
-            double value;
-            switch ((int)oscType)
-            {
-                case 0: value = OscSine(t); break;
-                case 1: value = OscTri(t); break;
-                case 2: value = OscSaw(t); break;
-                case 3: value = OscSawInv(t); break;
-                case 4: value = OscSquare(t); break;
-                case 5: value = OscNoise(t, seed); break;
-                default: value = 0; break;
-            }
+            double value = EvaluateWave((int)oscType, t, seed);
 
             return min + value * (max - min);
+        }
+
+        internal static double EvaluateWave(int oscType, double t, double seed)
+        {
+            switch (oscType)
+            {
+                case 0: return OscSine(t);
+                case 1: return OscTri(t);
+                case 2: return OscSaw(t);
+                case 3: return OscSawInv(t);
+                case 4: return OscSquare(t);
+                case 5: return OscNoise(t, seed);
+                default: return 0;
+            }
         }
 
         // 0 sine: (1 - cos(t*TAU)) * 0.5

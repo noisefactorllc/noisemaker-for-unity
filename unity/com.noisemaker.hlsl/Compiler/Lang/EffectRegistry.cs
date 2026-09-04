@@ -108,6 +108,8 @@ namespace Noisemaker.Hlsl.Compiler
         // Param aliases (reference/01 §8.5): opName -> { oldParam: newParam } (ordered).
         private readonly Dictionary<string, OrderedMap<string, string>> _paramAliases =
             new Dictionary<string, OrderedMap<string, string>>();
+        private static readonly HashSet<string> BundledAudioEffectKeys =
+            new HashSet<string> { "synth.scope", "synth.spectrum" };
 
         public IReadOnlyCollection<string> Namespaces { get { return _namespaces; } }
 
@@ -125,6 +127,24 @@ namespace Noisemaker.Hlsl.Compiler
         {
             EffectDefinition d;
             return _effects.TryGetValue(name, out d) ? d : null;
+        }
+
+        public bool EffectHasTag(string name, string tag)
+        {
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(tag)) return false;
+            EffectDefinition effect = GetEffect(name);
+            JsonValue tags = effect != null && effect.Raw != null
+                ? effect.Raw.Get("tags") : null;
+            if (tags == null || tags.Kind != JsonKind.Array) return false;
+            foreach (JsonValue value in tags.AsArray)
+                if (value.Kind == JsonKind.String && value.AsString == tag) return true;
+            return false;
+        }
+
+        internal static bool BundledEffectHasTag(string name, string tag)
+        {
+            return tag == "audio" && !string.IsNullOrEmpty(name) &&
+                BundledAudioEffectKeys.Contains(name);
         }
 
         // reference/02 §9 isStarterOp.

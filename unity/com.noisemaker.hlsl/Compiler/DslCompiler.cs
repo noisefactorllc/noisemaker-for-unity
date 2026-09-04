@@ -361,7 +361,50 @@ namespace Noisemaker.Hlsl.Compiler
                     for (int i = 0; i < u.NumberArray.Count; i++) { if (i > 0) sb.Append(','); sb.Append(JsNum(u.NumberArray[i])); }
                     sb.Append(']');
                     break;
-                default: sb.Append("null"); break; // Object/automation: out of first-cut scope
+                case UniformValueKind.Object: WriteJsonValue(sb, u.Object); break;
+                default: sb.Append("null"); break;
+            }
+        }
+
+        private static void WriteJsonValue(StringBuilder sb, JsonValue value)
+        {
+            if (value == null || value.Kind == JsonKind.Null)
+            {
+                sb.Append("null");
+                return;
+            }
+            switch (value.Kind)
+            {
+                case JsonKind.Bool:
+                    sb.Append(value.AsBool ? "true" : "false");
+                    break;
+                case JsonKind.Number:
+                    sb.Append(JsNum(value.AsNumber));
+                    break;
+                case JsonKind.String:
+                    WriteJsonString(sb, value.AsString);
+                    break;
+                case JsonKind.Array:
+                    sb.Append('[');
+                    for (int i = 0; i < value.AsArray.Count; i++)
+                    {
+                        if (i > 0) sb.Append(',');
+                        WriteJsonValue(sb, value.AsArray[i]);
+                    }
+                    sb.Append(']');
+                    break;
+                case JsonKind.Object:
+                    sb.Append('{');
+                    bool first = true;
+                    foreach (var kv in value.AsObject)
+                    {
+                        if (!first) sb.Append(',');
+                        first = false;
+                        WriteKey(sb, kv.Key);
+                        WriteJsonValue(sb, kv.Value);
+                    }
+                    sb.Append('}');
+                    break;
             }
         }
 

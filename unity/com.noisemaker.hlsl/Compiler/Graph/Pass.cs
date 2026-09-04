@@ -131,6 +131,9 @@ namespace Noisemaker.Hlsl.Compiler.Graph
 
         // --- metadata ---
         public string EffectKey { get; set; }
+        // Runtime-only effect metadata; intentionally omitted from normalized graph JSON.
+        // Precompiled-graph callers can instead supply an EffectRegistry to NMPipeline.
+        public bool RequiresLegacyAudio { get; set; }
         public string NodeId { get; set; }
         public int? StepIndex { get; set; }       // step.temp; null on final_blit
         public bool InheritsVolumeSize { get; set; }

@@ -631,6 +631,7 @@ namespace Noisemaker.Hlsl.Compiler
                     DrawMode = StrOf(passDef, "drawMode"),
                     CountUniform = StrOf(passDef, "countUniform"),
                     EffectKey = step.Op,
+                    RequiresLegacyAudio = _reg.EffectHasTag(step.Op, "audio"),
                     Func = effectDef.Func ?? step.Op,
                     Namespace = effectDef.Namespace,
                     NodeId = nodeId,
@@ -1065,11 +1066,11 @@ namespace Noisemaker.Hlsl.Compiler
                 case ArgKind.NumberArray: return UniformValue.Of(new List<double>(arg.NumberArray));
                 case ArgKind.Wrapped:
                     // Automation config (Oscillator/Midi/Audio). The validator resolves
-                    // osc() to a JsonValue config (reference/02 §6.11); carry it verbatim
-                    // as an Object uniform so the runtime UniformBinder evaluates it
-                    // per-frame (reference/04 §10.4). Midi/Audio remain out of scope.
+                    // each descriptor to a JsonValue config; carry it verbatim as an
+                    // Object uniform so the runtime UniformBinder evaluates it recursively
+                    // per-frame (reference/04 §10.4).
                     if (arg.Wrapped is JsonValue jv) return UniformValue.OfObject(jv);
-                    throw new NotImplementedException("non-oscillator automation uniform values are not implemented (reference/03 §1.1).");
+                    throw new NotImplementedException("non-JSON wrapped uniform values are not implemented (reference/03 §1.1).");
                 default: return null;
             }
         }

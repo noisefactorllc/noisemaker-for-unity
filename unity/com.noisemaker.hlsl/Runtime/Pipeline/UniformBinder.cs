@@ -21,6 +21,10 @@ namespace Noisemaker.Hlsl
 {
     public sealed class UniformBinder
     {
+        public MidiState MidiState { get; set; }
+        public AudioState AudioState { get; set; }
+        public double WallTimeMilliseconds { get; set; }
+
         // METAL RESERVED-WORD remap. Unity's HLSL->Metal cross-compiler does NOT mangle
         // a uniform whose name is a Metal Shading Language keyword: e.g. a reference
         // uniform `kernel` (filter/edge) becomes `FGlobals.kernel` in the generated
@@ -120,9 +124,8 @@ namespace Noisemaker.Hlsl
                         // names to numeric uniforms (reference/03 enum resolution).
                         break;
                     case UniformValueKind.Object:
-                        // Automation config (Oscillator/Midi/Audio). Oscillators are
-                        // evaluated per-frame (reference/04 §10.4 resolveUniformValue +
-                        // §11). Midi/Audio fall back to the static value/min (out of scope).
+                        // Automation configs (Oscillator/Midi/Audio) are evaluated
+                        // recursively against the current frame/input snapshot.
                         BindAutomation(mpb, kv.Key, name, v.Object, pass, normalizedTime);
                         break;
                     case UniformValueKind.Null:
@@ -162,36 +165,20 @@ namespace Noisemaker.Hlsl
             mpb.SetMatrix(name, m);
         }
 
-        // Automation binding (reference/04 §10.4 resolveUniformValue). For an Oscillator
-        // config: pct = evaluateOscillator(cfg, normalizedTime); if a consumer paramSpec
-        // exists, scale pct into [spec.min, spec.max], else bind pct directly. Midi/Audio
-        // are out of scope and fall back to the static value/min. canonicalName is the
-        // graph uniform key (used to look up pass.UniformSpecs); safeName is the Metal-
-        // safe shader property name actually bound.
-        private static void BindAutomation(MaterialPropertyBlock mpb,
+        // Automation binding (reference/04 §10.4 resolveUniformValue). The recursive
+        // evaluator resolves oscillator/MIDI/audio values and applies the consumer
+        // parameter range. canonicalName is the graph key; safeName is the shader key.
+        private void BindAutomation(MaterialPropertyBlock mpb,
             string canonicalName, string safeName, JsonValue cfg, Pass pass,
             float normalizedTime)
         {
             if (cfg == null || cfg.Kind != JsonKind.Object) return;
-            JsonValue type = cfg.Get("type");
-            if (type != null && type.Kind == JsonKind.String && type.AsString == "Oscillator")
-            {
-                double pct = Oscillators.Evaluate(cfg, normalizedTime);
-                UniformSpec spec;
-                if (pass.UniformSpecs != null &&
-                    pass.UniformSpecs.TryGetValue(canonicalName, out spec))
-                    pct = spec.Min + pct * (spec.Max - spec.Min);
-                mpb.SetFloat(safeName, (float)pct);
-                return;
-            }
-            // Non-oscillator automation (Midi/Audio): static fallback so a paused render
-            // works — prefer an explicit numeric "value", else "min", else skip.
-            JsonValue val = cfg.Get("value");
-            if (val != null && val.Kind == JsonKind.Number)
-            { mpb.SetFloat(safeName, (float)val.AsNumber); return; }
-            JsonValue min = cfg.Get("min");
-            if (min != null && min.Kind == JsonKind.Number)
-            { mpb.SetFloat(safeName, (float)min.AsNumber); return; }
+            UniformSpec spec = null;
+            if (pass.UniformSpecs != null)
+                pass.UniformSpecs.TryGetValue(canonicalName, out spec);
+            double value = Automation.Evaluate(cfg, normalizedTime, spec,
+                MidiState, AudioState, WallTimeMilliseconds);
+            mpb.SetFloat(safeName, (float)value);
         }
     }
 }

@@ -8,8 +8,8 @@
 // ArgValue is a discriminated union mirroring the reference ArgValue (reference/03 §1.1):
 //   - Number / Bool / String / NumberArray : literal uniform values
 //   - Surface : { kind, name } or { kind:'temp', index } texture/surface refs
-//   - Wrapped : an automation object ({type:'Oscillator'|'Midi'|'Audio', ...}) or a
-//               {_varRef, value} wrapper — staged in this first cut (see DslCompiler).
+//   - Wrapped : an automation object ({type:'Oscillator'|'Midi'|'Audio', ...}), including
+//               nested descriptors and optional source-level _varRef/_ast metadata.
 //   - Skip    : the _skip sentinel (true) lives on args as ArgValue.Bool(true) under key "_skip".
 //
 // Pure C#, no UnityEngine.

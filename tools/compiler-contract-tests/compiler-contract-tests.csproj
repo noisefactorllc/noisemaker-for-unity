@@ -8,5 +8,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../unity/com.noisemaker.hlsl/Compiler/**/*.cs" />
+    <Compile Include="../../unity/com.noisemaker.hlsl/Runtime/Pipeline/Automation.cs" />
+    <Compile Include="../../unity/com.noisemaker.hlsl/Runtime/Pipeline/ExternalInput.cs" />
+    <Compile Include="../../unity/com.noisemaker.hlsl/Runtime/Pipeline/Oscillators.cs" />
   </ItemGroup>
 </Project>

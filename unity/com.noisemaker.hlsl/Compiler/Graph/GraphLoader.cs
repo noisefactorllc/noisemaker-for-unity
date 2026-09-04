@@ -90,6 +90,14 @@ namespace Noisemaker.Hlsl.Compiler.Graph
                 EffectKey = GetString(p, "effectKey"),
                 NodeId = GetString(p, "nodeId")
             };
+            string qualifiedEffect = !string.IsNullOrEmpty(pass.Namespace) &&
+                !string.IsNullOrEmpty(pass.Func)
+                ? pass.Namespace + "." + pass.Func : null;
+            pass.RequiresLegacyAudio =
+                Noisemaker.Hlsl.Compiler.EffectRegistry.BundledEffectHasTag(
+                    pass.EffectKey, "audio") ||
+                Noisemaker.Hlsl.Compiler.EffectRegistry.BundledEffectHasTag(
+                    qualifiedEffect, "audio");
 
             // defines: MACRO_NAME -> int
             JsonValue defines = p.Get("defines");

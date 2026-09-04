@@ -56,6 +56,8 @@ namespace Noisemaker.Hlsl
         private NMPipeline _pipeline;
         private RenderGraph _graph;
         private EffectRegistry _registry;   // cached effect definitions for the live DSL path
+        private MidiState _midiState;
+        private AudioState _audioState;
 
         // The most recent output RT (renderSurface's freshest written content).
         public RenderTexture Output { get; private set; }
@@ -85,7 +87,9 @@ namespace Noisemaker.Hlsl
                 return;
             }
 
-            _pipeline = new NMPipeline(_graph);
+            _pipeline = new NMPipeline(_graph, ResolveRegistry());
+            _pipeline.SetMidiState(_midiState);
+            _pipeline.SetAudioState(_audioState);
             _pipeline.Init(RenderWidth, RenderHeight);
         }
 
@@ -201,6 +205,25 @@ namespace Noisemaker.Hlsl
                 return;
             }
             _pipeline.SetUniform(name, d);
+        }
+
+        public void SetMidiState(MidiState state)
+        {
+            _midiState = state;
+            if (_pipeline != null) _pipeline.SetMidiState(state);
+        }
+
+        public void SetAudioState(AudioState state)
+        {
+            _audioState = state;
+            if (_pipeline != null) _pipeline.SetAudioState(state);
+        }
+
+        public AudioInputRequirements GetAudioInputRequirements()
+        {
+            return _pipeline != null
+                ? _pipeline.GetAudioInputRequirements()
+                : Automation.GetAudioInputRequirements(_graph != null ? _graph.Passes : null);
         }
 
         public System.Action AddSink(INMOutputSink sink)

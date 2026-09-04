@@ -17,6 +17,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Noisemaker.Hlsl.Compiler;
 using Noisemaker.Hlsl.Compiler.Graph;
 
 namespace Noisemaker.Hlsl
@@ -35,6 +36,7 @@ namespace Noisemaker.Hlsl
         private readonly NMRenderBackend _backend;
         private readonly NMMeshData _meshData; // uploadMeshData path (mesh surfaces)
         private readonly NMSinkManager _sinkManager;
+        private readonly EffectRegistry _effectRegistry;
 
         private int _width, _height;
         public int Width { get { return _width; } }
@@ -62,9 +64,10 @@ namespace Noisemaker.Hlsl
         private int _maxTextureSize;
         private bool _disposed;
 
-        public NMPipeline(RenderGraph graph)
+        public NMPipeline(RenderGraph graph, EffectRegistry effectRegistry = null)
         {
             Graph = graph;
+            _effectRegistry = effectRegistry;
             _store = new TextureStore();
             _surfaces = new SurfaceManager(_store);
             _registry = new NMShaderRegistry();
@@ -79,6 +82,33 @@ namespace Noisemaker.Hlsl
         public System.Action AddSink(INMOutputSink sink)
         {
             return _sinkManager.Add(sink);
+        }
+
+        public void SetMidiState(MidiState state)
+        {
+            _binder.MidiState = state;
+        }
+
+        public void SetAudioState(AudioState state)
+        {
+            _binder.AudioState = state;
+        }
+
+        public AudioInputRequirements GetAudioInputRequirements()
+        {
+            return Automation.GetAudioInputRequirements(Graph.Passes,
+                EffectNeedsLegacyAudio);
+        }
+
+        private bool EffectNeedsLegacyAudio(Pass pass)
+        {
+            if (_effectRegistry == null || pass == null) return false;
+            if (_effectRegistry.EffectHasTag(pass.EffectKey, "audio")) return true;
+            string qualified = !string.IsNullOrEmpty(pass.Namespace) &&
+                !string.IsNullOrEmpty(pass.Func)
+                ? pass.Namespace + "." + pass.Func : null;
+            return _effectRegistry.EffectHasTag(qualified, "audio") ||
+                _effectRegistry.EffectHasTag(pass.Func, "audio");
         }
 
         public NMFrameExportQueue CreateFrameExportQueue(int slots = 3,
@@ -363,6 +393,13 @@ namespace Noisemaker.Hlsl
         // ---- per-frame render (reference/04 §10) --------------------------
         public void Render(float time, double? presentationTimestampMilliseconds = null)
         {
+            double wallTimeMilliseconds =
+                (double)System.Diagnostics.Stopwatch.GetTimestamp() * 1000.0 /
+                System.Diagnostics.Stopwatch.Frequency;
+            double frameTimestampMilliseconds = presentationTimestampMilliseconds ??
+                wallTimeMilliseconds;
+            _binder.WallTimeMilliseconds = wallTimeMilliseconds;
+
             // 2. deltaTime + wrap.
             float deltaTime = _lastTime > 0f ? time - _lastTime : 0f;
             if (deltaTime < 0f) deltaTime = WrapDelta; // time wrapped
@@ -400,13 +437,13 @@ namespace Noisemaker.Hlsl
                 // the bracket), so scan forward for the run end and iterate the block.
                 if (pass.LoopGroupId != 0)
                 {
-                    i = ExecuteLoopBracket(i);
+                    i = ExecuteLoopBracket(i, time);
                     continue;
                 }
 
                 if (ShouldSkipPass(pass)) continue;
 
-                int repeatCount = ResolveRepeatCount(pass);
+                int repeatCount = ResolveRepeatCount(pass, time);
                 for (int iter = 0; iter < repeatCount; iter++)
                 {
                     _backend.ExecutePass(_cmd, pass, _uniformLookup);
@@ -425,11 +462,7 @@ namespace Noisemaker.Hlsl
             RenderTexture output = GetOutput();
             if (output != null)
             {
-                double timestampMilliseconds = presentationTimestampMilliseconds.HasValue
-                    ? presentationTimestampMilliseconds.Value
-                    : (double)System.Diagnostics.Stopwatch.GetTimestamp() * 1000.0 /
-                        System.Diagnostics.Stopwatch.Frequency;
-                _sinkManager.Submit(output, timestampMilliseconds);
+                _sinkManager.Submit(output, frameTimestampMilliseconds);
             }
 
             // 9. end-of-frame swap.
@@ -449,7 +482,7 @@ namespace Noisemaker.Hlsl
         // reference loops via loopBegin/loopEnd accumulator effects, not a bracket), so
         // the exact buffer holding the presented result after N iterations must be
         // validated against captured frames once a Unity runtime is available.
-        private int ExecuteLoopBracket(int start)
+        private int ExecuteLoopBracket(int start, float normalizedTime)
         {
             int groupId = Graph.Passes[start].LoopGroupId;
             int end = start;
@@ -463,7 +496,7 @@ namespace Noisemaker.Hlsl
                 {
                     Pass lp = Graph.Passes[p];
                     if (ShouldSkipPass(lp)) continue;
-                    int rc = ResolveRepeatCount(lp);
+                    int rc = ResolveRepeatCount(lp, normalizedTime);
                     for (int r = 0; r < rc; r++)
                     {
                         _backend.ExecutePass(_cmd, lp, _uniformLookup);
@@ -544,19 +577,10 @@ namespace Noisemaker.Hlsl
         }
 
         // resolveRepeatCount — reference §10.5.
-        private int ResolveRepeatCount(Pass pass)
+        private int ResolveRepeatCount(Pass pass, float normalizedTime)
         {
-            Repeat r = pass.Repeat;
-            if (r == null) return 1;
-            if (r.IsCount) return Mathf.Max(1, r.Count);
-            // uniform-name: globalUniforms[name] ?? pass.uniforms[name]; floor; >=1.
-            double? gu = UniformLookup(r.UniformName);
-            if (gu.HasValue) return Mathf.Max(1, (int)System.Math.Floor(gu.Value));
-            UniformValue uv;
-            if (pass.Uniforms.TryGetValue(r.UniformName, out uv) &&
-                uv.Kind == UniformValueKind.Number)
-                return Mathf.Max(1, (int)System.Math.Floor(uv.Number));
-            return 1;
+            return Automation.ResolveRepeatCount(pass, normalizedTime, UniformLookup,
+                _binder.MidiState, _binder.AudioState, _binder.WallTimeMilliseconds);
         }
 
         // ---- ITextureResolver ---------------------------------------------

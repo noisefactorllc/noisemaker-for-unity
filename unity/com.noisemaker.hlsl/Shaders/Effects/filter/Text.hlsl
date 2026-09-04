@@ -12,7 +12,8 @@
 //   let size = max(textureDimensions(inputTex, 0), vec2<u32>(1, 1));
 //   let uv = position.xy / vec2<f32>(size);
 //   let inputColor = textureSample(inputTex, texSampler, uv);
-//   let text       = textureSample(textTex,  texSampler, uv);
+//   let globalUV   = (position.xy + tileOffset) / fullResolution;
+//   let text       = textureSample(textTex, texSampler, globalUV);
 //   let textPresence = text.a;
 //   let matteAlpha   = matteOpacity;
 //   let rgb = text.rgb * textPresence
@@ -23,8 +24,8 @@
 //
 // PORTING-GUIDE notes:
 //  * Two input textures: inputTex (the scene) and textTex (CPU-rendered text).
-//  * uv = fragCoord / inputTex dimensions (WGSL divides by textureDimensions of
-//    inputTex, NOT fullResolution). textTex is sampled at the same uv.
+//  * The scene uses tile-local uv. textTex represents the full output canvas and
+//    is sampled at (fragCoord + tileOffset) / fullResolution.
 //  * matteColor is vec3<f32> uniform; matteOpacity is f32 uniform.
 //  * No PRNG / no per-effect math helpers. mix -> lerp.
 //  * Linear, clamp-to-edge, non-sRGB sampler for both textures.
