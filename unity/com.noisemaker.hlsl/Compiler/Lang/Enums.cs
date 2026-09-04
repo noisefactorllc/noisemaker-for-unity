@@ -169,6 +169,7 @@ namespace Noisemaker.Hlsl.Compiler
             audioBand.Children.Set("mid", EnumNode.Leaf(1));
             audioBand.Children.Set("high", EnumNode.Leaf(2));
             audioBand.Children.Set("vol", EnumNode.Leaf(3));
+            audioBand.Children.Set("raw", EnumNode.Leaf(4));
             root.Set("audioBand", audioBand);
 
             var palette = EnumNode.Tree();

@@ -250,12 +250,14 @@ namespace Noisemaker.Hlsl.Compiler
                     {
                         Channel = Clone(mi.Channel), Mode = Clone(mi.Mode), Min = Clone(mi.Min),
                         Max = Clone(mi.Max), Sensitivity = Clone(mi.Sensitivity),
+                        Name = Clone(mi.Name), Id = Clone(mi.Id),
                         LocLine = mi.LocLine, LocCol = mi.LocCol
                     };
                 case AudioNode au:
                     return new AudioNode
                     {
                         Band = Clone(au.Band), Min = Clone(au.Min), Max = Clone(au.Max),
+                        Channel = Clone(au.Channel), Name = Clone(au.Name), Id = Clone(au.Id),
                         LocLine = au.LocLine, LocCol = au.LocCol
                     };
                 default: return node;

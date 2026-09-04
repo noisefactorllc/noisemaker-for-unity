@@ -34,3 +34,7 @@ parity/out/
 # tools/graphdump — the one intentional (non-Unity-generated) csproj in the repo
 !tools/graphdump/graphdump.csproj
 tools/graphdump/bin/
+
+# pure-C# compiler regression harness
+!tools/compiler-contract-tests/compiler-contract-tests.csproj
+tools/compiler-contract-tests/bin/

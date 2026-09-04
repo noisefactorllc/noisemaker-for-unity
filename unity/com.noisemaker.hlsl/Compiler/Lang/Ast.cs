@@ -340,6 +340,8 @@ namespace Noisemaker.Hlsl.Compiler
         public Node Min { get; set; }
         public Node Max { get; set; }
         public Node Sensitivity { get; set; }
+        public Node Name { get; set; }
+        public Node Id { get; set; }
         public string VarRef { get; set; }
     }
 
@@ -349,6 +351,9 @@ namespace Noisemaker.Hlsl.Compiler
         public Node Band { get; set; }
         public Node Min { get; set; }
         public Node Max { get; set; }
+        public Node Channel { get; set; }
+        public Node Name { get; set; }
+        public Node Id { get; set; }
         public string VarRef { get; set; }
     }
 }

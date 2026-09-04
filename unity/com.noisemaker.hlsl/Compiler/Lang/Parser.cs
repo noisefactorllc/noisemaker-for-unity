@@ -496,39 +496,36 @@ namespace Noisemaker.Hlsl.Compiler
             var args = new List<Node>();
             OrderedKwargs kwargs = null;
             bool keyword = false;
+            bool positional = false;
+            bool allowMixed = nameToken.Lexeme == "midi" || nameToken.Lexeme == "audio";
             if (Peek().Type != TokenType.RPAREN)
             {
-                if (Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON)
+                while (true)
                 {
-                    keyword = true;
-                    kwargs = new OrderedKwargs();
-                    ParseKwarg(kwargs);
-                    while (Peek().Type == TokenType.COMMA)
+                    if (Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON)
                     {
-                        Advance();
-                        if (Peek().Type == TokenType.RPAREN) break;
-                        if (!(Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON))
+                        if (positional && !allowMixed)
                         {
                             Token t = Peek();
                             throw DslSyntaxError.At("Cannot mix positional and keyword arguments", t.Line, t.Col);
                         }
+                        keyword = true;
+                        if (kwargs == null) kwargs = new OrderedKwargs();
                         ParseKwarg(kwargs);
                     }
-                }
-                else
-                {
-                    args.Add(ParseArg());
-                    while (Peek().Type == TokenType.COMMA)
+                    else
                     {
-                        Advance();
-                        if (Peek().Type == TokenType.RPAREN) break;
-                        if (Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON)
+                        if (keyword && !allowMixed)
                         {
                             Token t = Peek();
                             throw DslSyntaxError.At("Cannot mix positional and keyword arguments", t.Line, t.Col);
                         }
+                        positional = true;
                         args.Add(ParseArg());
                     }
+                    if (Peek().Type != TokenType.COMMA) break;
+                    Advance();
+                    if (Peek().Type == TokenType.RPAREN) break;
                 }
             }
             Expect(TokenType.RPAREN, "Expect ')'");
@@ -665,17 +662,60 @@ namespace Noisemaker.Hlsl.Compiler
         private Node TransformMidi(CallNode call, Token nameToken)
         {
             string[] order = { "channel", "mode", "min", "max", "sensitivity" };
-            Node Resolve(int i, Node dflt) { return ResolveParam(call, order[i], i, dflt); }
-            Node channel = Resolve(0, null);
+            string[] keywordOnly = { "name", "id" };
+            string[] valid = { "channel", "mode", "min", "max", "sensitivity", "name", "id" };
+            if (call.Args.Count > order.Length)
+                throw DslSyntaxError.At("midi() name and id are keyword-only", nameToken.Line, nameToken.Col);
+            if (call.Kwargs != null)
+                foreach (string key in call.Kwargs.Keys)
+                {
+                    bool known = false;
+                    foreach (string candidate in valid)
+                        if (candidate == key) { known = true; break; }
+                    if (!known)
+                        throw new DslSyntaxError(
+                            "midi() unknown parameter '" + key + "' at line " + nameToken.Line +
+                            " col " + nameToken.Col + ". Valid: " + string.Join(", ", valid));
+                }
+
+            int posCursor = 0;
+            Node Resolve(string name, Node dflt)
+            {
+                if (call.Kwargs != null && call.Kwargs.Has(name)) return call.Kwargs.Get(name);
+                if (posCursor < call.Args.Count) return call.Args[posCursor++];
+                return dflt;
+            }
+            Node channel = Resolve(order[0], null);
+            Node mode = Resolve(order[1], MemberOf("midiMode", "velocity"));
+            Node min = Resolve(order[2], Num(0));
+            Node max = Resolve(order[3], Num(1));
+            Node sensitivity = Resolve(order[4], Num(1));
+            if (posCursor < call.Args.Count)
+                throw DslSyntaxError.At("midi() has an excess positional argument", nameToken.Line, nameToken.Col);
             if (channel == null)
                 throw DslSyntaxError.At("midi() requires 'channel' argument", nameToken.Line, nameToken.Col);
+            if (call.Kwargs != null && call.Kwargs.Has("id") && !call.Kwargs.Has("name"))
+                throw DslSyntaxError.At("midi() 'id' requires readable 'name'", nameToken.Line, nameToken.Col);
+            if (call.Kwargs != null)
+                foreach (string paramName in keywordOnly)
+                {
+                    if (!call.Kwargs.Has(paramName)) continue;
+                    if (!(call.Kwargs.Get(paramName) is StringNode value))
+                        throw DslSyntaxError.At("midi() '" + paramName + "' requires a quoted string",
+                            nameToken.Line, nameToken.Col);
+                    if (value.Value == null || value.Value.Length == 0)
+                        throw DslSyntaxError.At("midi() '" + paramName + "' must not be empty",
+                            nameToken.Line, nameToken.Col);
+                }
             return new MidiNode
             {
                 Channel = channel,
-                Mode = Resolve(1, MemberOf("midiMode", "velocity")),
-                Min = Resolve(2, Num(0)),
-                Max = Resolve(3, Num(1)),
-                Sensitivity = Resolve(4, Num(1)),
+                Mode = mode,
+                Min = min,
+                Max = max,
+                Sensitivity = sensitivity,
+                Name = call.Kwargs?.Get("name"),
+                Id = call.Kwargs?.Get("id"),
                 LocLine = nameToken.Line, LocCol = nameToken.Col
             };
         }
@@ -683,15 +723,59 @@ namespace Noisemaker.Hlsl.Compiler
         private Node TransformAudio(CallNode call, Token nameToken)
         {
             string[] order = { "band", "min", "max" };
-            Node Resolve(int i, Node dflt) { return ResolveParam(call, order[i], i, dflt); }
-            Node band = Resolve(0, null);
+            string[] valid = { "band", "min", "max", "channel", "name", "id" };
+            if (call.Args.Count > order.Length)
+                throw DslSyntaxError.At("audio() channel, name and id are keyword-only", nameToken.Line, nameToken.Col);
+            if (call.Kwargs != null)
+                foreach (string key in call.Kwargs.Keys)
+                {
+                    bool known = false;
+                    foreach (string candidate in valid)
+                        if (candidate == key) { known = true; break; }
+                    if (!known)
+                        throw new DslSyntaxError(
+                            "audio() unknown parameter '" + key + "' at line " + nameToken.Line +
+                            " col " + nameToken.Col + ". Valid: " + string.Join(", ", valid));
+                }
+
+            int posCursor = 0;
+            Node Resolve(string name, Node dflt)
+            {
+                if (call.Kwargs != null && call.Kwargs.Has(name)) return call.Kwargs.Get(name);
+                if (posCursor < call.Args.Count) return call.Args[posCursor++];
+                return dflt;
+            }
+            Node band = Resolve(order[0], null);
+            Node min = Resolve(order[1], Num(0));
+            Node max = Resolve(order[2], Num(1));
+            if (posCursor < call.Args.Count)
+                throw DslSyntaxError.At("audio() has an excess positional argument", nameToken.Line, nameToken.Col);
             if (band == null)
                 throw DslSyntaxError.At("audio() requires 'band' argument", nameToken.Line, nameToken.Col);
+            if (call.Kwargs != null && call.Kwargs.Has("id") && !call.Kwargs.Has("name"))
+                throw DslSyntaxError.At("audio() 'id' requires readable 'name'", nameToken.Line, nameToken.Col);
+            if (call.Kwargs != null && call.Kwargs.Has("channel") != call.Kwargs.Has("name"))
+                throw DslSyntaxError.At("audio() selected device requires both 'name' and 'channel'",
+                    nameToken.Line, nameToken.Col);
+            if (call.Kwargs != null)
+                foreach (string paramName in new[] { "name", "id" })
+                {
+                    if (!call.Kwargs.Has(paramName)) continue;
+                    if (!(call.Kwargs.Get(paramName) is StringNode value))
+                        throw DslSyntaxError.At("audio() '" + paramName + "' requires a quoted string",
+                            nameToken.Line, nameToken.Col);
+                    if (value.Value == null || value.Value.Length == 0)
+                        throw DslSyntaxError.At("audio() '" + paramName + "' must not be empty",
+                            nameToken.Line, nameToken.Col);
+                }
             return new AudioNode
             {
                 Band = band,
-                Min = Resolve(1, Num(0)),
-                Max = Resolve(2, Num(1)),
+                Min = min,
+                Max = max,
+                Channel = call.Kwargs?.Get("channel"),
+                Name = call.Kwargs?.Get("name"),
+                Id = call.Kwargs?.Get("id"),
                 LocLine = nameToken.Line, LocCol = nameToken.Col
             };
         }
