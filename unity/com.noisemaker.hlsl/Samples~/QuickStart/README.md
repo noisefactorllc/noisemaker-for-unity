@@ -8,7 +8,7 @@ display it on a material.
 - `NMQuickStartExample.cs` — a small MonoBehaviour that drives an `NMRenderer` from a
   `GraphJson` TextAsset and assigns the output to a `Renderer`'s material.
 - `NoiseGraph.json` — a precompiled graph (`noise → blur`) exported with the repo's
-  `tools/export-graph.mjs`; the recommended/verified input path.
+  `tools/export-graph.mjs`. This is the recommended/verified input path.
 
 ## Run it
 
@@ -25,10 +25,11 @@ display it on a material.
 
 - **Builds:** the package's `NMShaderInclusionBuildStep` automatically includes the
   `Noisemaker/*` shaders in player builds, so this works in a build with no extra setup.
-- **Your own content:** export any DSL program with `tools/export-graph.mjs`, import the
-  resulting `.json` as a TextAsset, and assign it to **Graph Json**. To compile DSL at
-  runtime instead, set `NMRenderer.Dsl` and assign `EffectDefinitions` (the package's
-  `Effects/**/*.json` TextAssets) — note the live compiler is early/unverified; prefer
-  `GraphJson` for anything you ship.
+- **Your own content:** export any DSL program with `tools/export-graph.mjs`. Import the
+  resulting `.json` as a TextAsset. Assign it to **Graph Json**.
+  To compile DSL at runtime instead, set `NMRenderer.Dsl`.
+  Assign `EffectDefinitions` (the package's `Effects/**/*.json` TextAssets).
+  The repo records structural graph-parity results for the live compiler. Rendered pixels and
+  runtime/platform combinations need separate verification. Prefer `GraphJson` for anything you ship.
 - See the package README for the full Host API, performance, lifecycle, and troubleshooting
   guidance.

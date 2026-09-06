@@ -3,9 +3,8 @@
 End-to-end pixel-parity verification: render the same DSL program with the **JS
 reference engine** (golden) and the **Unity/HLSL port** (candidate), then diff.
 
-This is how every ported piece gets validated — the package is built
-correct-by-construction and is not pixel-verified until this harness runs (see
-`../ARCHITECTURE.md` → "Validation").
+This harness validates every ported piece. The package is built correct-by-construction,
+but is not pixel-verified until this harness runs (see `../ARCHITECTURE.md` → "Validation").
 
 ```
   DSL ─┬─► tools/export-graph.mjs ───────────► graph.json ─┐
@@ -22,7 +21,7 @@ correct-by-construction and is not pixel-verified until this harness runs (see
   `../../noisemaker/demo`) as plain ESM and the PNG encoder uses Node's built-in `zlib`.
 - **Playwright + a system Chrome.** `export-and-render.mjs` launches Chromium via
   the vendored `shade-mcp` harness (`../../vendor/shade-mcp/harness`). On macOS it
-  uses ANGLE/Metal; headless by default (`SHADE_HEADLESS=1`).
+  uses ANGLE/Metal. It is headless by default (`SHADE_HEADLESS=1`).
 - **Python 3** with `numpy` + `pillow` (for `compare.py`) — same deps as
   `../../scripts/image_regression.py`.
 - **A Unity project** (2021.3+, **Linear color space**) that includes the package
@@ -63,7 +62,7 @@ each with a fixed `seed: 1` so output is deterministic:
 
 `programs/v104/` adds 70 deterministic programs for the v1.0.104 artistic-effects
 sync. Run them at the parity size of 127x127. Filter cases use `synth/testPattern`
-inputs; the Mandala and Sacred Geometry cases feed those generators into Parallax
+inputs. The Mandala and Sacred Geometry cases feed those generators into Parallax
 over a `testPattern` surface. Every seed-bearing effect pins `seed: 1`.
 
 The corpus covers all 25 new filters and the changed Dither, Edge, Emboss, Invert,
@@ -75,7 +74,7 @@ each program exactly once as `<name><TAB><repo-relative-dsl-path>` and is accept
 directly by the batch golden renderer. Two focused generator cases preserve
 `speed: -1.5` through both graph compilers and cover Mandala/Sacred Geometry's
 negative-fractional animation-speed runtime behavior. Both are unexcepted
-tolerance-1 passes (Mandala max byte delta 1; Sacred Geometry byte-exact):
+tolerance-1 passes (Mandala max byte delta 1, Sacred Geometry byte-exact):
 
 ```bash
 NM_REFERENCE_ROOT=/path/to/noisemaker \
@@ -101,11 +100,11 @@ node parity/batch-golden.mjs parity/programs/v104/tiled-manifest.tsv /tmp/v104-t
 
 This corpus was the pre-port RED gate: new filters were initially unknown and
 changed definitions diverged on their new parameters and enum choices. The
-definitions are now synchronized and all 70 cases are structurally byte-clean;
-the complete shader/pixel result is recorded by the v1.0.104 verification run.
+definitions are now synchronized and all 70 cases are structurally byte-clean.
+The v1.0.104 verification run records the complete shader/pixel result.
 
 Pixel status: the 70-case v1.0.104 gate reports 66 `PASS` and 4 narrowly bounded
-`ALLOWED_NEAR`; the two negative-fractional speed cases are strict passes. The
+`ALLOWED_NEAR`. The two negative-fractional speed cases are strict passes. The
 original 20-case regression reports 18 `PASS` and the established `parallax` /
 `refract_mirror` exceptions. Every exception is checked against a per-case maximum
 delta, SSIM floor, exceeded-pixel/channel counts, and exact top-left-origin pixel
@@ -165,7 +164,7 @@ mismatched, and empty runs cannot be allowlisted.
 
 The pixel harness above validates the *shaders + executor* from a precompiled graph. A
 second, **GPU-free** harness validates the **C# live DSL compiler** (`Compiler/`) by
-diffing the graph it produces against the reference `export-graph.mjs` oracle, byte-for-byte:
+comparing the graph it produces with the reference `export-graph.mjs` oracle structurally:
 
 ```
   DSL ─┬─ tools/export-graph.mjs ─────────────────────► <name>.ref.graph.json ─┐
@@ -173,7 +172,7 @@ diffing the graph it produces against the reference `export-graph.mjs` oracle, b
                                                           <name>.cs.graph.json ─┘
 ```
 
-Run it (one Unity session for all programs; no rendering):
+Run it (one Unity session for all programs, no rendering):
 
 ```bash
 UNITY=/path/to/Unity UNITY_PROJECT=/path/to/proj ./parity/graph-verify.sh         # all programs
@@ -192,16 +191,16 @@ python3 parity/graph-diff.py <name>.ref.graph.json <name>.cs.graph.json
 ```
 
 `graph-diff.py` compares the normalized graphs structurally, ignoring the per-instance
-`id` hash and `source`; a clean run is `0 deltas`. **v1.0.104 status: 304/304 programs
-byte-clean** — the full 207-program `--selftest` corpus, all 90
+`id` hash and `source`. A clean run is `0 deltas`. **Recorded v1.0.104 status: 304/304 programs
+structurally identical** — the full 207-program `--selftest` corpus, all 90
 `parity/programs/**/*.dsl` cases (including 70 v1.0.104 cases), and 7 targeted
 variants (lighting/parallax heightMap explicit surface / mid-chain; remap default +
 wired zones; a pointsBillboardRender particle pipeline), all identical to the
 reference oracle via the console harness. The current demo generator also reports
 three expected selector skips for the hidden deprecated aliases `filter/bc`,
 `filter/colorspace`, and `filter/hs`; no defaults are fabricated for them. This is
-the "diffed against the golden path" validation the live-DSL path was always meant
-to have.
+the graph-level validation of the live-DSL path. It does not verify rendered pixels or every
+runtime/platform combination.
 
 ## Parity hazards (must match between golden and candidate)
 

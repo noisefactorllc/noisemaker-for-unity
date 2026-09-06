@@ -17,18 +17,18 @@ as Custom Function nodes.
 ## Requirements
 
 - **Unity 6 (verified on `6000.3.16f1`).** The manifest min is `2021.3`, but the package
-  is only verified on Unity 6; older versions are untested.
+  is only verified on Unity 6. Older versions are untested.
 - **Linear color space — mandatory.** Set *Project Settings ▸ Player ▸ Color Space =
   Linear*. All render targets are `ARGBHalf`, non-sRGB. In a **Gamma** project (the
-  Built-in/2D template default) every color is silently wrong (washed-out/dark); the
+  Built-in/2D template default), every color is silently wrong (washed-out/dark). The
   runtime does not warn.
 - **GPU: Shader Model 4.5+** (`#pragma target 4.5`). This excludes OpenGL ES 2/3.0,
   pre-DX11, and **WebGL**, and requires half/float render-target support.
 - **Render pipeline:** **verified on Built-in only.** The engine is pipeline-agnostic by
   design (it submits a `CommandBuffer` via `Graphics.ExecuteCommandBuffer` and uses no
   SRP-specific hooks), so URP/HDRP are *expected* to work but are **not yet verified**.
-  It renders to its own offscreen `RenderTexture`; it is **not** an SRP camera/feature,
-  and presenting that texture full-screen is your responsibility (and differs per pipeline).
+  It renders to its own offscreen `RenderTexture`. It is **not** an SRP camera/feature.
+  Presenting that texture full-screen is your responsibility and differs per pipeline.
 - **Shader Graph** (`com.unity.shadergraph`) is required only for integration path 2
   (Custom Function nodes). It is intentionally *not* a hard `package.json` dependency, so
   path-1 (renderer) users don't have to install it.
@@ -55,7 +55,7 @@ run *Noisemaker ▸ Builds ▸ Add shaders to Always Included* once, or ship the
 Also note for builds:
 - **Build-safe** source paths: `GraphJson` (TextAsset) and `EffectDefinitions` (TextAsset[]).
   **Editor-only:** `EffectsDirectory` and `LoadMeshFromFile` use `System.IO`.
-- Mesh effects need OBJ data supplied as `TextAsset`s via `LoadMesh(...)`; no meshes are
+- Mesh effects need OBJ data supplied as `TextAsset`s via `LoadMesh(...)`. No meshes are
   bundled, so mesh/3D-geometry effects render nothing until you provide them.
 - IL2CPP/AOT has not been validated.
 
@@ -65,8 +65,9 @@ Also note for builds:
 > a material) is importable from the Package Manager *Samples* tab.
 
 The most reliable input is a **precompiled graph** (`GraphJson`) — it needs no effect
-registry and is the path verified by the parity harness. Export one with the repo's
-`tools/export-graph.mjs`, import the resulting `.json` as a `TextAsset`, and:
+registry and is the path verified by the parity harness.
+Export one with the repo's `tools/export-graph.mjs`. Import the resulting `.json` as a `TextAsset`.
+Use it as follows:
 
 ```csharp
 using Noisemaker.Hlsl;
@@ -91,10 +92,12 @@ r.RenderFrame(0f);                    // render normalized time 0..1
 someMaterial.mainTexture = r.Output;  // valid immediately after RenderFrame
 ```
 
-### Live DSL (early / unverified)
+### Live DSL
 
-You can instead compile a DSL string at runtime — but the live C# compiler is **not yet
-validated against the golden export**, and it needs the effect definitions:
+You can instead compile a DSL string at runtime. The live C# compiler has a separate
+structural graph-parity harness. The repo's parity README records matching graphs for its
+version-bound corpus. This does not verify rendered pixels or every runtime/platform combination.
+The live path needs the effect definitions:
 
 ```csharp
 var r = gameObject.AddComponent<NMRenderer>();
@@ -117,7 +120,7 @@ you ship. `GraphJson` takes precedence over `Dsl` when both are set.
 | Member | Purpose |
 |---|---|
 | `TextAsset GraphJson` | Precompiled graph source (recommended; precedence over `Dsl`). |
-| `string Dsl` | DSL source compiled at runtime (early/unverified; needs `EffectDefinitions`). |
+| `string Dsl` | DSL source compiled at runtime (graph-parity-tested; needs `EffectDefinitions`). |
 | `TextAsset[] EffectDefinitions` | Effect JSONs for the live DSL path (build-safe). |
 | `string EffectsDirectory` | Filesystem dir of effect JSONs (Editor/dev only). |
 | `int RenderWidth/Height` | Render resolution (default 800×600). |
@@ -138,9 +141,9 @@ caller owns it and must `Release()` it.
 
 Most single-pass generators/filters ship a wrapper in `ShaderGraph/CustomFunctions/<Effect>.hlsl`
 exposing e.g. `void NM_Noise_float(float2 UV, float2 Resolution, /*params*/, out float4 Out)`.
-Add a **Custom Function** node (File mode), point it at the include, and set the function
-**name without the precision suffix** (`NM_Noise`, not `NM_Noise_float`) — Shader Graph picks
-`_float`/`_half` itself; including the suffix silently fails to bind. Wire the named inputs.
+Add a **Custom Function** node (File mode). Point it at the include.
+Set the function **name without the precision suffix** (`NM_Noise`, not `NM_Noise_float`).
+Shader Graph selects `_float`/`_half` itself. Including the suffix silently fails to bind. Wire the named inputs.
 (Some wrapper-file header comments still show the suffixed name, e.g. `NM_Noise_float`; that is
 stale and will be corrected — follow this README, not the comment, for the node **Name**.)
 
@@ -149,7 +152,7 @@ Not every effect has a node: multi-pass, agent, 3D, and a few single-pass effect
 
 ## Performance & cost
 
-Performance has not been optimized; some effects are very expensive. Cost knobs:
+Performance has not been optimized. Some effects are very expensive. Cost controls:
 
 - **`RenderWidth/Height`** — the dominant cost for raymarch/fluid/feedback effects. Start
   low (e.g. 256²) and scale up.
@@ -163,7 +166,7 @@ Performance has not been optimized; some effects are very expensive. Cost knobs:
 ## Lifecycle & memory
 
 - `Output` is a live internal `RenderTexture`, recreated on `Resize()`/`Rebuild()` and set
-  to null on disable — **re-fetch it; never cache across a resize/disable**. To keep a frame,
+  to null on disable. **Read it again. Never cache across a resize/disable**. To keep a frame,
   `Graphics.Blit` it into your own RT.
 - Resources are disposed on `OnDisable`. The `RenderTexture` returned by
   `NMPipeline.RenderCubemap` is owned by the caller — `Release()` it.

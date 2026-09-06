@@ -6,8 +6,8 @@ material, a UI image, or anything else that samples a texture. It fetches nothin
 
 ## Requirements
 
-- **Unity 6** (the port is verified on `6000.3.16f1`; the package manifest allows 2021.3, but
-  older editors are untested).
+- **Unity 6** (the port is verified on `6000.3.16f1`). The package manifest allows 2021.3, but
+  older editors are untested.
 - **Linear color space — mandatory.** *Project Settings ▸ Player ▸ Color Space = Linear*. Every
   render target is `ARGBHalf`, non-sRGB. In a **Gamma** project (the Built-in and 2D template
   default) the colors come out silently wrong — washed-out and dark — with no error and no
@@ -16,14 +16,14 @@ material, a UI image, or anything else that samples a texture. It fetches nothin
   and **WebGL**, and requires half/float render-target support.
 - **Render pipeline:** verified on **Built-in**. The renderer submits a `CommandBuffer` and uses no
   SRP-specific hooks, so URP and HDRP are expected to work but are not yet verified. It renders to
-  its own offscreen `RenderTexture`; presenting that full-screen is your job and differs per
+  its own offscreen `RenderTexture`. Presenting that full-screen is your job and differs per
   pipeline.
 - **IL2CPP / AOT has not been validated.** Mono builds are the tested path.
 
 ## Install the package
 
-Unzip this export somewhere outside your Unity project, then pick a route — the package lives in a
-subfolder, not at a repo root:
+Unzip this export somewhere outside your Unity project. Choose an installation route below.
+The package is in a subfolder, not at a repo root:
 
 - **From disk** (what this export is set up for): *Window ▸ Package Manager ▸ + ▸ Add package from
   disk…* → `engine/com.noisemaker.hlsl/package.json` in this folder. Unity references the package
@@ -46,8 +46,8 @@ subfolder, not at a repo root:
 > string the package's copy declares (`Shader "Noisemaker/synth/noise"`, and so on for every effect
 > you exported). Unity keys its shader table on that string, so importing these alongside the package
 > gives each a duplicate: Unity warns, and `Shader.Find("Noisemaker/…")` — which is how the runtime
-> resolves every effect — starts returning whichever copy won. Read them where they sit; they are
-> reference material, not project content.
+> resolves every effect — starts returning whichever copy won. Read them where they are.
+> They are reference material, not project content.
 >
 > `Assets/` is for your content. The package belongs in `Packages/` or outside the project entirely,
 > and the shader mirror stays in the unzipped export.
@@ -64,7 +64,7 @@ subfolder, not at a repo root:
    adds the package's `NMRenderer` alongside it automatically.
 5. Assign **Graph Json** → `graph.json`.
 6. Press **Play**. With no **Target** assigned the component creates an unlit Quad in front of the
-   main camera; assign a `Renderer` instead to draw onto geometry you already have.
+   main camera. Assign a `Renderer` instead to draw onto geometry you already have.
 
 `NMExportedGraph` is a small wrapper around the package's `NMRenderer`. To drive the renderer
 yourself:
@@ -82,11 +82,12 @@ r.Rebuild();                        // (re)build the pipeline after assigning a 
 someMaterial.mainTexture = r.Output;
 ```
 
-One note if you add `NMExportedGraph` from a script rather than in the Editor: `AddComponent` runs
-the required `NMRenderer`'s `OnEnable` before the wrapper's `Awake` can hand it a graph, so Unity
-logs one `no graph source (assign GraphJson or Dsl)` error, and the wrapper's `Start` builds the
-graph a moment later. The render is correct; the error is a false alarm from the ordering. Add the
-component in the Editor, or drive `NMRenderer` directly as above, and it does not appear.
+If you add `NMExportedGraph` from a script rather than in the Editor, `AddComponent` runs the required `NMRenderer`'s `OnEnable`
+before the wrapper's `Awake` can supply a graph. Unity logs one `no graph source (assign GraphJson or Dsl)` error.
+The wrapper's `Start` builds the graph a moment later. The render is correct.
+The error is a false alarm caused by this order.
+
+To avoid the error, add the component in the Editor or drive `NMRenderer` directly as above.
 
 ## What's inside
 
@@ -105,8 +106,9 @@ component in the Editor, or drive `NMRenderer` directly as above, and it does no
 `graph.json` is precompiled by Noisedeck with the same engine the app renders with, so it needs no
 effect registry and carries no compiler-parity risk. It is what this export is built around.
 
-The package can also compile `program.dsl` at runtime, but that path is early, is not yet validated
-against the precompiled one, and needs the package's `Effects/**/*.json` assigned as
+The package can also compile `program.dsl` at runtime. The port records structural graph-parity
+results for its live compiler. Rendered pixels and runtime/platform combinations need separate
+verification. The live path needs the package's `Effects/**/*.json` assigned as
 `EffectDefinitions` TextAssets. `NMExportedGraph.cs` carries the wiring for it, commented out.
 `GraphJson` wins whenever both are set.
 
@@ -128,11 +130,13 @@ Also worth knowing before you ship a build:
 
 ## Cost
 
-Nothing here is optimized yet, and some effects are expensive. The knobs, in order of effect:
-render width and height (dominant for raymarch, fluid, and feedback effects — start at 256² and
-work up); `stateSize` on particle and agent effects, which scales quadratically; and `Animate`,
-which re-renders the whole graph every `LateUpdate`. For static output set `Animate = false` and
-call `RenderFrame(t)` when you need a frame.
+Nothing here is optimized yet, and some effects are expensive. The controls, in order of effect, are:
+
+- Render width and height dominate raymarch, fluid, and feedback costs. Start at 256² and increase as needed.
+- `stateSize` on particle and agent effects scales quadratically.
+- `Animate` re-renders the whole graph every `LateUpdate`.
+
+For static output, set `Animate = false`. Call `RenderFrame(t)` when you need a frame.
 
 ## Effects used by this program
 
@@ -140,14 +144,14 @@ call `RenderFrame(t)` when you need a frame.
 
 ## The engine
 
-Left **include engine code** checked? The package is here, at `engine/com.noisemaker.hlsl/`.
+If you kept **include engine code** checked, the package is at `engine/com.noisemaker.hlsl/`.
 Install it by one of the routes above.
 
-Already have the package installed? Then you only need `graph.json` and `NMExportedGraph.cs`, plus
+If the package is already installed, you only need `graph.json` and `NMExportedGraph.cs`, plus
 `program.dsl` if you want your source alongside and `shaders/` if you kept **include shader code**
 checked.
 
-Do not have it at all? Install from git: *Package Manager ▸ + ▸ Add package from git URL…* →
+If you do not have the package, install from git: *Package Manager ▸ + ▸ Add package from git URL…* →
 `https://github.com/noisefactorllc/noisemaker-for-unity.git?path=unity/com.noisemaker.hlsl`
 
 This export targets Noisemaker `{{NM_ENGINE_VERSION}}`. Pinning is deliberate: the graph keeps
@@ -164,5 +168,5 @@ rendering the same way after the engine moves on.
 
 ## License
 
-The Noisemaker engine and its Unity port are MIT licensed; see `LICENSES/`. Your program and the
+The Noisemaker engine and its Unity port are MIT licensed. See `LICENSES/`. Your program and the
 imagery it renders are yours.

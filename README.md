@@ -48,16 +48,17 @@ renderSurface`). That is the seam. Noisemaker for Unity produces the same graph 
   `compileGraph` and serialises the graph to JSON (zero graph-construction parity risk).
   Producing your own `graph.json` this way (and regenerating effect JSON with
   `tools/convert-definitions.mjs`) requires a checkout of the separate Noisemaker reference
-  engine — point `NM_REFERENCE_ROOT` at its root; it is **not** included in this package. To
-  render immediately with no external dependency, import the bundled **Quick Start** sample
-  (it ships a ready `graph.json`) — see *Quick start* below.
-- **Live / in-Unity** — the C# `Compiler/` port compiles DSL at runtime. It is validated
-  by diffing its graph JSON against the golden path: 148/148 programs byte-clean (the 12
-  parity programs + the full `--selftest` corpus) via `tools/graphdump` — see
-  `parity/README.md` § Graph parity.
+  engine. Point `NM_REFERENCE_ROOT` at its root. The reference engine is **not** included in this package.
+  To render immediately with no external dependency, import the bundled **Quick Start** sample.
+  It ships a ready `graph.json` — see *Quick start* below.
+- **Live / in-Unity** — the C# `Compiler/` port compiles DSL at runtime. The recorded
+  v1.0.104 comparison matched 304/304 programs against the golden path via `tools/graphdump`,
+  including the `--selftest` corpus. This is structural graph parity, with per-instance metadata
+  excluded. It does not verify rendered pixels or every runtime/platform combination. See
+  `parity/README.md` § Graph parity for the corpus and comparison rules.
 
-Both feed the same `NMPipeline` executor + HLSL shaders, so visual parity depends only
-on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
+Both feed the same `NMPipeline` executor + HLSL shaders. When their graphs match, visual parity
+depends on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Quick start (once opened in Unity)
 
@@ -69,15 +70,15 @@ on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
 1. Add the package: *Package Manager → Add package from disk →*
    `noisemaker-for-unity/unity/com.noisemaker.hlsl/package.json`.
 2. **Fastest first render (no reference-engine or Node dependency):** in *Package Manager →
-   Noisemaker for Unity → Samples* tab, **Import "Quick Start"**. Then, per the sample's README:
-   set *Color Space = Linear*, create a *Quad* with an *Unlit/Texture* material, add the
-   `NMQuickStartExample` component, and assign **Graph Json** = `NoiseGraph.json` and
-   **Target** = the Quad's `Renderer`; press **Play**. This renders the bundled
+   Noisemaker for Unity → Samples* tab, **Import "Quick Start"**. Then follow the sample's README:
+   set *Color Space = Linear*. Create a *Quad* with an *Unlit/Texture* material.
+   Add the `NMQuickStartExample` component. Assign **Graph Json** = `NoiseGraph.json`.
+   Assign **Target** = the Quad's `Renderer`. Press **Play**. This renders the bundled
    `noise → blur` graph.
 3. **Your own content:** add an `NMRenderer` component and assign a source — a `GraphJson`
    TextAsset (recommended/verified; produce one with `tools/export-graph.mjs`, which needs the
    separate reference engine — see *The core idea* above) **or** a `Dsl` string plus the
-   `EffectDefinitions` TextAssets (live compiler; early/unverified). Then call `Rebuild()`.
+   `EffectDefinitions` TextAssets (live compiler; graph-parity-tested as described above). Then call `Rebuild()`.
 4. Read `NMRenderer.Output` (an `ARGBHalf` `RenderTexture`, valid after the first frame)
    into any material, or drop a Noisemaker **Custom Function node** into a Shader Graph.
 
@@ -121,12 +122,12 @@ promotion. See `parity/README.md` for the runbook.
 **Effect coverage: 185 effect definitions** — every namespace complete:
 `synth` 29 · `filter` 91 · `mixer` 15 · `classicNoisedeck` 20 · `points` 10 · `synth3d` 7 ·
 `filter3d` 2 · `render` 11 (the `render` count includes the `loopBegin`/`loopEnd`/`meshLoader`
-control passes). 184 ship a renderable shader; `synth/media` is a definition-only stub (no
+control passes). 184 ship a renderable shader. `synth/media` is a definition-only stub (no
 shader — external image/video input is out of scope).
 
-Each ported effect ships an `.hlsl` core, a `.shader`, and a runtime `Effects/*.json`;
-single-pass effects also ship a Shader Graph Custom Function node. Every port is faithful to
-the reference **WGSL**; PRNG-heavy, multi-pass, agent, and 3D ports were additionally
+Each ported effect ships an `.hlsl` core, a `.shader`, and a runtime `Effects/*.json`.
+Single-pass effects also ship a Shader Graph Custom Function node. Every port is faithful to
+the reference **WGSL**. PRNG-heavy, multi-pass, agent, and 3D ports were additionally
 hardened by adversarial line-by-line review against the WGSL.
 
 The runtime was hardened in stages to execute the harder patterns: **feedback/state**
@@ -137,8 +138,8 @@ multi-statement programs, `read(oN)` / mid-chain `.write()`, `let` bindings, mul
 (mixer) chains, `loopBegin`/`loopEnd`, and the 3D lane (`read3d`/`write3d`/`textures3d`,
 graph-verified against the reference); `subchain` and `if`/`elif` remain staged.
 
-`tools/convert-definitions.mjs` regenerates all effect-definition JSONs automatically; the
-per-effect port path is documented in [PORTING-GUIDE.md](PORTING-GUIDE.md).
+`tools/convert-definitions.mjs` regenerates all effect-definition JSONs automatically.
+The per-effect port path is documented in [PORTING-GUIDE.md](PORTING-GUIDE.md).
 
 ## Contributing
 
