@@ -162,7 +162,17 @@ namespace Noisemaker.Hlsl.Compiler
             midiMode.Children.Set("gateVelocity", EnumNode.Leaf(2));
             midiMode.Children.Set("triggerNote", EnumNode.Leaf(3));
             midiMode.Children.Set("velocity", EnumNode.Leaf(4));
+            midiMode.Children.Set("cc", EnumNode.Leaf(5));
+            midiMode.Children.Set("cc14", EnumNode.Leaf(6));
+            midiMode.Children.Set("nrpn", EnumNode.Leaf(7));
+            midiMode.Children.Set("pitchBend", EnumNode.Leaf(8));
+            midiMode.Children.Set("pressure", EnumNode.Leaf(9));
+            midiMode.Children.Set("polyPressure", EnumNode.Leaf(10));
             root.Set("midiMode", midiMode);
+            var midiZone = EnumNode.Tree();
+            midiZone.Children.Set("lower", EnumNode.Leaf(0));
+            midiZone.Children.Set("upper", EnumNode.Leaf(1));
+            root.Set("midiZone", midiZone);
 
             var audioBand = EnumNode.Tree();
             audioBand.Children.Set("low", EnumNode.Leaf(0));

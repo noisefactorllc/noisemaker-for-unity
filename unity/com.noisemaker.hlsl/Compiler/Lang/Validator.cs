@@ -129,6 +129,9 @@ namespace Noisemaker.Hlsl.Compiler
                 case IdentNode i: return i.Name;
                 case MemberNode m: return string.Join(".", m.Path);
                 case CallNode c: return c.Name;
+                case NumberNode n when n.Value != 0: return FormatAutomationNumber(n.Value);
+                case BooleanNode b when b.Value: return "true";
+                case StringNode text when !string.IsNullOrEmpty(text.Value): return text.Value;
                 case FuncNode f when f.Src != null:
                     return "{" + f.Src.Substring(0, Math.Min(30, f.Src.Length)) + (f.Src.Length > 30 ? "..." : "") + "}";
             }
@@ -262,6 +265,7 @@ namespace Noisemaker.Hlsl.Compiler
                         Channel = Clone(mi.Channel), Mode = Clone(mi.Mode), Min = Clone(mi.Min),
                         Max = Clone(mi.Max), Sensitivity = Clone(mi.Sensitivity),
                         Name = Clone(mi.Name), Id = Clone(mi.Id),
+                        Cc = Clone(mi.Cc), Nrpn = Clone(mi.Nrpn), Zone = Clone(mi.Zone), Members = Clone(mi.Members),
                         VarRef = mi.VarRef
                     };
                     break;
@@ -338,6 +342,11 @@ namespace Noisemaker.Hlsl.Compiler
                 midi.Sensitivity = Substitute(midi.Sensitivity, resolving);
                 midi.Name = Substitute(midi.Name, resolving);
                 midi.Id = Substitute(midi.Id, resolving);
+                midi.Cc = Substitute(midi.Cc, resolving);
+                midi.Nrpn = Substitute(midi.Nrpn, resolving);
+                midi.Zone = Substitute(midi.Zone, resolving);
+                midi.Members = Substitute(midi.Members, resolving);
+
                 return midi;
             }
             if (node is AudioNode audio)
@@ -1113,12 +1122,47 @@ namespace Noisemaker.Hlsl.Compiler
 
             if (node is MidiNode midi)
             {
+                double mode = ResolveAutomationEnum(midi.Mode, "midiMode", 4, 0, 10, "midi", "mode");
+                bool hasZone = midi.Zone != null;
+                double? zone = hasZone ? ResolveAutomationEnumNullable(midi.Zone, "midiZone", 0, 1, "midi", "zone") : null;
+                bool validSelection = !hasZone || zone.HasValue;
+                JsonValue members = null;
+                if (midi.Members != null)
+                {
+                    members = ResolveAutomationNumber(midi.Members, "midi", "members", null, false, false, false, depth,
+                        () => validSelection = false, false, true, 1, 15);
+                    if (!hasZone) validSelection = false;
+                }
+                if (hasZone && midi.Channel != null) validSelection = false;
+                bool validChannel = true;
+                JsonValue channel = hasZone ? null : ResolveAutomationNumber(midi.Channel, "midi", "channel", 1,
+                    mode < 5, false, false, depth, () => validChannel = false, mode < 5, mode >= 5,
+                    mode >= 5 ? (double?)1 : null, mode >= 5 ? (double?)16 : null);
+                bool validCc = true;
+                JsonValue cc = null;
+                if (midi.Cc != null || mode == 5 || mode == 6)
+                    cc = ResolveAutomationNumber(midi.Cc, "midi", "cc", 1, false, false, false, depth,
+                        () => validCc = false, false, true, 0, mode == 6 ? 31 : 127);
+                JsonValue nrpn = null;
+                if (midi.Nrpn != null || mode == 7)
+                {
+                    if (midi.Nrpn == null)
+                    {
+                        PushDiag("S002", midi, "midi() nrpn mode requires a parameter number");
+                        validSelection = false;
+                    }
+                    nrpn = ResolveAutomationNumber(midi.Nrpn, "midi", "nrpn", null, false, false, false, depth,
+                        () => validSelection = false, false, true, 0, 16382);
+                }
                 var map = new OrderedMap<string, JsonValue>();
                 map.Add("type", JsonValue.Of("Midi"));
-                map.Add("channel", ResolveAutomationNumber(
-                    midi.Channel, "midi", "channel", 1, true, false, false, depth));
-                map.Add("mode", JsonValue.Of(ResolveAutomationEnum(
-                    midi.Mode, "midiMode", 4, 0, 4, "midi", "mode")));
+                if (channel != null) map.Add("channel", channel);
+                map.Add("mode", JsonValue.Of(mode));
+                if (cc != null) map.Add("cc", cc);
+                if (nrpn != null) map.Add("nrpn", nrpn);
+                if (zone.HasValue) map.Add("zone", JsonValue.Of(zone.Value));
+                if (members != null) map.Add("members", members);
+                if (!validSelection || !validChannel || !validCc) map.Add("_invalid", JsonValue.Of(true));
                 map.Add("min", ResolveAutomationNumber(
                     midi.Min, "midi", "min", 0, true, true, true, depth));
                 map.Add("max", ResolveAutomationNumber(
@@ -1151,7 +1195,7 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     if (audio.Channel is NumberNode channelNumber &&
                         channelNumber.Value == Math.Floor(channelNumber.Value) &&
-                        channelNumber.Value >= 1)
+                        channelNumber.Value >= 1 && channelNumber.Value <= 32)
                         channel = channelNumber.Value;
                     else
                     {
@@ -1161,7 +1205,7 @@ namespace Noisemaker.Hlsl.Compiler
                                 "String literal not allowed for audio() channel");
                         else
                             PushDiag("S002", audio.Channel,
-                                "audio() channel must be a positive integer (got " +
+                                "audio() channel must be a positive integer from 1 to 32 (got " +
                                 AutomationNodeDisplay(audio.Channel) + ")");
                     }
                 }
@@ -1224,10 +1268,11 @@ namespace Noisemaker.Hlsl.Compiler
         }
 
         private JsonValue ResolveAutomationNumber(Node node, string descriptorName,
-            string fieldName, double fallback, bool allowBoolean, bool allowAutomation,
-            bool clamp01, int depth, Action onInvalid = null, bool allowMember = true)
+            string fieldName, double? fallback, bool allowBoolean, bool allowAutomation,
+            bool clamp01, int depth, Action onInvalid = null, bool allowMember = true,
+            bool integer = false, double? minimum = null, double? maximum = null)
         {
-            if (node == null) return JsonValue.Of(fallback);
+            if (node == null) return (fallback.HasValue ? JsonValue.Of(fallback.Value) : null);
             if (node is OscillatorNode || node is MidiNode || node is AudioNode)
             {
                 if (allowAutomation)
@@ -1255,13 +1300,26 @@ namespace Noisemaker.Hlsl.Compiler
                 onInvalid?.Invoke();
                 PushDiag("S002", node, descriptorName + "() " + fieldName +
                     " must resolve to a finite number");
-                return JsonValue.Of(fallback);
+                return (fallback.HasValue ? JsonValue.Of(fallback.Value) : null);
+            }
+            string message = null;
+            if (integer && value.Value != Math.Floor(value.Value))
+                message = descriptorName + "() " + fieldName + " must be an integer";
+            else if (minimum.HasValue && value.Value < minimum.Value)
+                message = descriptorName + "() " + fieldName + " must be at least " + FormatAutomationNumber(minimum.Value) + " (got " + FormatAutomationNumber(value.Value) + ")";
+            else if (maximum.HasValue && value.Value > maximum.Value)
+                message = descriptorName + "() " + fieldName + " must be at most " + FormatAutomationNumber(maximum.Value) + " (got " + FormatAutomationNumber(value.Value) + ")";
+            if (message != null)
+            {
+                onInvalid?.Invoke();
+                PushDiag("S002", node, message);
+                return fallback.HasValue ? JsonValue.Of(fallback.Value) : null;
             }
             return JsonValue.Of(clamp01 ? Clamp01(value.Value) : value.Value);
         }
 
         private JsonValue RejectAutomationNumber(Node node, string descriptorName,
-            string fieldName, double fallback, Action onInvalid, bool allowAutomation)
+            string fieldName, double? fallback, Action onInvalid, bool allowAutomation)
         {
             onInvalid?.Invoke();
             if (node is StringNode)
@@ -1273,7 +1331,7 @@ namespace Noisemaker.Hlsl.Compiler
             else
                 PushDiag("S002", node, descriptorName + "() " + fieldName +
                     " must be a number" + (allowAutomation ? " or automation source" : ""));
-            return JsonValue.Of(fallback);
+            return (fallback.HasValue ? JsonValue.Of(fallback.Value) : null);
         }
 
         private string ResolveAutomationString(Node node, string descriptorName,
@@ -1345,9 +1403,34 @@ namespace Noisemaker.Hlsl.Compiler
             if (value != null) map.Add(key, JsonValue.Of(value));
         }
 
+        private static string FormatAutomationNumber(double value)
+        {
+            if (value == 0) return "0";
+            string text = value.ToString("R", System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant();
+            int exponentIndex = text.IndexOf('e');
+            if (exponentIndex < 0) return text;
+            int exponent = int.Parse(text.Substring(exponentIndex + 1), System.Globalization.CultureInfo.InvariantCulture);
+            double magnitude = Math.Abs(value);
+            if (magnitude >= 0.000001 && magnitude < 1e21)
+            {
+                string mantissa = text.Substring(0, exponentIndex), sign = "";
+                if (mantissa.StartsWith("-")) { sign = "-"; mantissa = mantissa.Substring(1); }
+                int point = mantissa.IndexOf('.');
+                if (point < 0) point = mantissa.Length;
+                string digits = mantissa.Replace(".", "");
+                int position = point + exponent;
+                if (position <= 0) return sign + "0." + new string('0', -position) + digits;
+                if (position >= digits.Length) return sign + digits + new string('0', position - digits.Length);
+                return sign + digits.Insert(position, ".");
+            }
+            return text.Substring(0, exponentIndex) + "e" + (exponent >= 0 ? "+" : "")
+                + exponent.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         private static string AutomationNodeDisplay(Node node)
         {
-            if (node is NumberNode number) return number.Value.ToString();
+            if (node is NumberNode number) return FormatAutomationNumber(number.Value);
+            if (node is BooleanNode boolean) return boolean.Value ? "true" : "false";
             if (node is IdentNode ident) return ident.Name;
             return node != null ? node.Kind.ToString() : "undefined";
         }
@@ -1402,13 +1485,18 @@ namespace Noisemaker.Hlsl.Compiler
             else if (node is MidiNode midi)
             {
                 map.Add("type", JsonValue.Of("Midi"));
-                map.Add("channel", NodeToJson(midi.Channel));
+                if (midi.Channel != null) map.Add("channel", NodeToJson(midi.Channel));
                 map.Add("mode", NodeToJson(midi.Mode));
                 map.Add("min", NodeToJson(midi.Min));
                 map.Add("max", NodeToJson(midi.Max));
                 map.Add("sensitivity", NodeToJson(midi.Sensitivity));
                 if (midi.Name != null) map.Add("name", NodeToJson(midi.Name));
                 if (midi.Id != null) map.Add("id", NodeToJson(midi.Id));
+                if (midi.Cc != null) map.Add("cc", NodeToJson(midi.Cc));
+                if (midi.Nrpn != null) map.Add("nrpn", NodeToJson(midi.Nrpn));
+                if (midi.Zone != null) map.Add("zone", NodeToJson(midi.Zone));
+                if (midi.Members != null) map.Add("members", NodeToJson(midi.Members));
+
                 AddNodeMetadata(map, node, midi.VarRef);
             }
             else if (node is AudioNode audio)

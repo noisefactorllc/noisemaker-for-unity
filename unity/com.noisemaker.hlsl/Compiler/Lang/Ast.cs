@@ -342,6 +342,10 @@ namespace Noisemaker.Hlsl.Compiler
         public Node Sensitivity { get; set; }
         public Node Name { get; set; }
         public Node Id { get; set; }
+        public Node Cc { get; set; }
+        public Node Nrpn { get; set; }
+        public Node Zone { get; set; }
+        public Node Members { get; set; }
         public string VarRef { get; set; }
     }
 

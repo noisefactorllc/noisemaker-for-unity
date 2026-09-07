@@ -290,48 +290,91 @@ namespace Noisemaker.Hlsl
             }
         }
 
+        private static bool IntegerIn(double? value, int min, int max)
+        {
+            return value.HasValue && value.Value >= min && value.Value <= max && value.Value == Math.Floor(value.Value);
+        }
+
         private static double EvaluateMidi(JsonValue config, MidiState state,
             double wallTimeMilliseconds, double min, double max, double sensitivity)
         {
-            if (state == null) return min;
-            int channelNumber = (int)(NumberField(config, "channel") ?? 1);
-            MidiChannelState channel = state.GetChannel(channelNumber);
-            int mode = (int)(NumberField(config, "mode") ?? 4);
-            double raw = 0;
+            if (BoolField(config, "_invalid") || state == null) return min;
+            double modeValue = NumberField(config, "mode") ?? 4;
+            int mode = modeValue == Math.Floor(modeValue) ? (int)modeValue : -1;
+            bool hasZone = config.Has("zone");
+            double? zone = NumberField(config, "zone"), members = NumberField(config, "members"), channelNumber = NumberField(config, "channel");
+            if (hasZone && (config.Has("channel") || !IntegerIn(zone, 0, 1))) return min;
+            if (config.Has("members") && (!hasZone || !IntegerIn(members, 1, 15))) return min;
+            if (!hasZone && modeValue >= 5 && !IntegerIn(channelNumber, 1, 16)) return min;
+            MidiNote voice = hasZone ? state.GetZoneVoice((int)zone.Value, members.HasValue ? (int?)members.Value : null) : null;
+            if (hasZone && voice == null) return min;
+            MidiChannelState channel = voice?.Channel ?? state.GetChannel(IntegerIn(channelNumber, 1, 16) ? (int)channelNumber.Value : 1);
+            int key = voice?.Key ?? channel.Key, velocity = voice?.Velocity ?? channel.Velocity;
+            int gate = voice != null ? 1 : channel.Gate;
+            double timestamp = voice?.TimeMilliseconds ?? channel.TimeMilliseconds;
+            double raw = 0, divisor = 127.0;
             switch (mode)
             {
-                case 0: raw = channel.Key; break;
-                case 1: if (channel.Gate == 1) raw = channel.Key; break;
-                case 2: if (channel.Gate == 1) raw = channel.Velocity; break;
-                case 3:
-                    if (channel.Gate == 1)
-                    {
-                        raw = channel.Key;
-                        double decay = Math.Min(1,
-                            (wallTimeMilliseconds - channel.TimeMilliseconds) * sensitivity * 0.001);
-                        raw *= 1 - decay;
-                    }
+                case 0: raw = key; break;
+                case 1: if (gate == 1) raw = key; break;
+                case 2: if (gate == 1) raw = velocity; break;
+                case 5:
+                case 6:
+                    double? cc = config.Get("cc") == null || config.Get("cc").IsNull ? 1 : NumberField(config, "cc");
+                    if (!IntegerIn(cc, 0, mode == 6 ? 31 : 127)) return min;
+                    raw = mode == 6 ? channel.Cc14[(int)cc.Value] : channel.Cc[(int)cc.Value];
+                    divisor = mode == 6 ? 16383.0 : 127.0;
                     break;
+                case 7:
+                    double? nrpn = NumberField(config, "nrpn");
+                    if (!IntegerIn(nrpn, 0, 16382)) return min;
+                    channel.Nrpn.TryGetValue((int)nrpn.Value, out int parameter);
+                    raw = parameter; divisor = 16383.0; break;
+                case 8: raw = channel.PitchBend; divisor = 16383.0; break;
+                case 9: raw = channel.Pressure; break;
+                case 10: raw = key >= 0 && key <= 127 ? channel.PolyPressure[key] : 0; break;
+                case 3:
+                case 4:
                 default:
-                    if (channel.Gate == 1)
+                    if (gate == 1)
                     {
-                        raw = channel.Velocity;
-                        double decay = Math.Min(1,
-                            (wallTimeMilliseconds - channel.TimeMilliseconds) * sensitivity * 0.001);
+                        raw = mode == 3 ? key : velocity;
+                        double decay = Math.Min(1, (wallTimeMilliseconds - timestamp) * sensitivity * 0.001);
                         raw *= 1 - decay;
                     }
                     break;
             }
-            return min + (raw / 127.0) * (max - min);
+            return min + (raw / divisor) * (max - min);
+        }
+
+        internal static bool HasAudioSelector(JsonValue value)
+        {
+            JsonValue source = value?.Get("_ast");
+            if (StringField(source, "type") != "Audio") source = value;
+            foreach (string field in new[] { "name", "id", "channel" })
+                if ((value?.Has(field) ?? false) || (source?.Has(field) ?? false)) return true;
+            return false;
+        }
+
+        internal static bool ValidAudioSelector(JsonValue value)
+        {
+            if (value == null) return false;
+            JsonValue source = value.Get("_ast");
+            if (StringField(source, "type") != "Audio") source = value;
+            foreach (string field in new[] { "name", "id", "channel" })
+                if ((source?.Has(field) ?? false) && !value.Has(field)) return false;
+            foreach (string field in new[] { "name", "id" })
+                if (value.Has(field) && string.IsNullOrEmpty(StringField(value, field))) return false;
+            if (value.Has("id") && !value.Has("name")) return false;
+            return IntegerIn(NumberField(value, "channel"), 1, 32);
         }
 
         private static double EvaluateAudio(JsonValue config, AudioState state,
             double min, double max)
         {
             if (BoolField(config, "_invalid") || state == null) return min;
-            bool selected = !string.IsNullOrEmpty(StringField(config, "name")) ||
-                !string.IsNullOrEmpty(StringField(config, "id")) ||
-                NumberField(config, "channel").HasValue;
+            bool selected = HasAudioSelector(config);
+            if (selected && !ValidAudioSelector(config)) return min;
             AudioState source = selected ? state.GetDeviceChannelState(config) : state;
             if (source == null) return min;
             int band = (int)(NumberField(config, "band") ?? -1);
@@ -410,10 +453,7 @@ namespace Noisemaker.Hlsl
             if (value == null || value.Kind != JsonKind.Object || !visited.Add(value)) return;
             if (AutomationType(value) == "Audio")
             {
-                JsonValue ast = value.Get("_ast");
-                bool hasSelectorIntent = value.Has("name") || value.Has("id") ||
-                    value.Has("channel") || (ast != null &&
-                    (ast.Has("name") || ast.Has("id") || ast.Has("channel")));
+                bool hasSelectorIntent = HasAudioSelector(value);
                 double? band = NumberField(value, "band");
                 if (BoolField(value, "_invalid") || !band.HasValue ||
                     band.Value < 0 || band.Value > 4 || band.Value != Math.Floor(band.Value))
@@ -425,8 +465,7 @@ namespace Noisemaker.Hlsl
                 string name = StringField(value, "name");
                 string id = StringField(value, "id");
                 double? channel = NumberField(value, "channel");
-                if (!string.IsNullOrEmpty(name) && channel.HasValue && channel.Value >= 1 &&
-                    channel.Value == Math.Floor(channel.Value))
+                if (ValidAudioSelector(value))
                 {
                     string key = (id ?? "") + "\u001f" + name + "\u001f" + channel.Value;
                     AudioInputRequirement requirement;

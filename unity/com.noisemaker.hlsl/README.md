@@ -137,6 +137,35 @@ The lower-level `NMPipeline` (via `r.Pipeline`) additionally exposes `GetOutput(
 cube-dimension `RenderTexture` (`RenderTextureFormat.ARGBHalf`, `TextureDimension.Cube`); the
 caller owns it and must `Release()` it.
 
+## MIDI and audio automation
+
+The host captures input and supplies `MidiState` and `AudioState` through
+`r.Pipeline.SetMidiState(midi)` and `SetAudioState(audio)` after rebuilding the pipeline.
+Feed MIDI bytes with `midi.HandleMessage(bytes, portId, portName)`; omit the identity
+for an unscoped source. Each source retains its own CC pairs, NRPN/RPN selection and
+MPE zone configuration. Call `DisconnectPort(id)` when a source disappears.
+Existing `GetChannel(channel).NoteOn(...)` / `NoteOff(...)` calls also remain available.
+
+The DSL supports `midiMode.cc`, `cc14`, `nrpn`, `pitchBend`, `pressure` and
+`polyPressure`. Channels are 1–16; `cc:` is 0–127 (0–31 for CC14), and NRPN mode
+requires `nrpn: 0–16382`. Select MPE with `zone: midiZone.lower` or `midiZone.upper`
+and optional `members: 1–15`, using the newest held note within each source's zone.
+RPN 6 messages configure zones when `members` is omitted.
+
+For default-device audio, call `audio.RegisterDefaultChannels(count)` and update
+`audio.GetDefaultChannelState(channel)` with band values or `SetRaw(sample)`.
+`audio(audioBand.raw, channel: 2)` selects that channel; adding `name:` and optional
+`id:` selects a registered named device. Channels are 1–32. `SetRawUnavailable()`
+and `DisconnectDefaultInput()` mark missing samples unavailable, while a ready raw
+sample of zero maps to the midpoint. `ResetAggregate()` preserves selected channels;
+`Reset()` clears all samples. `GetAudioInputRequirements()` reports selected captures
+with a null name and ID for the default device.
+
+Supply full discovery through `SetPortInventory(...)` and `SetDeviceInventory(...)`
+when only some discovered devices can be opened. This keeps duplicate names
+ambiguous; an explicit ID remains authoritative. Capture and device discovery are
+owned by the host application.
+
 ## Shader Graph Custom Function nodes (single-pass effects)
 
 Most single-pass generators/filters ship a wrapper in `ShaderGraph/CustomFunctions/<Effect>.hlsl`

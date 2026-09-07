@@ -18,6 +18,9 @@ namespace CompilerContractTests
             TestOrdinaryCallStillRejectsMixedArguments();
             TestUnknownKeywordOrder();
             TestRawEnum();
+            TestMidiExpressionCompiler();
+            TestMidiExpressionRuntime();
+            TestDefaultAudioChannels();
             TestClonePreservesSelectors();
             TestNestedAutomationCompiler();
             TestAutomationCycleAndDepthGuards();
@@ -38,6 +41,110 @@ namespace CompilerContractTests
                 Lexer.Lex("search synth\nlet input = " + expression + "\n"),
                 new EffectRegistry());
             return program.Vars[0].Expr;
+        }
+
+        private static void TestMidiExpressionCompiler()
+        {
+            try
+            {
+                string[] modes = { "cc", "cc14", "nrpn", "pitchBend", "pressure", "polyPressure" };
+                for (int i = 0; i < modes.Length; i++)
+                {
+                    JsonValue value = CompileProbe("automationProbe(amount: midi(2, midiMode." + modes[i] + ", nrpn: 42)).write(o0)")
+                        .Passes[0].Uniforms["amount"].Object;
+                    Check(value.Get("mode").AsNumber == i + 5, "expression MIDI enum " + modes[i]);
+                }
+                JsonValue zone = CompileProbe("let members = 3\nlet voice = midi(zone: midiZone.upper, members: members, mode: midiMode.pressure)\nautomationProbe(amount: voice).write(o0)")
+                    .Passes[0].Uniforms["amount"].Object;
+                Check(zone.Get("zone").AsNumber == 1 && zone.Get("members").AsNumber == 3 && !zone.Has("channel"),
+                    "MPE selectors survive variables, cloning and graph serialization");
+                foreach (string expression in new[] { "midi(17, midiMode.cc)", "midi(2, midiMode.cc14, cc: 32)", "midi(2, midiMode.nrpn)", "midi(zone: midiZone.lower, members: 0)" })
+                {
+                    JsonValue invalid = CompileProbe("automationProbe(amount: " + expression + ").write(o0)").Passes[0].Uniforms["amount"].Object;
+                    Check(invalid.Get("_invalid").AsBool, "invalid MIDI selector fails closed");
+                }
+                JsonValue audio = CompileProbe("automationProbe(amount: audio(audioBand.raw, channel:32)).write(o0)").Passes[0].Uniforms["amount"].Object;
+                Check(audio.Get("channel").AsNumber == 32 && !audio.Get("_invalid").AsBool, "default audio channel32 compiles");
+                audio = CompileProbe("automationProbe(amount: audio(audioBand.raw, channel:33)).write(o0)").Passes[0].Uniforms["amount"].Object;
+                Check(audio.Get("_invalid").AsBool, "audio channels above32 fail closed");
+            }
+            catch (Exception e) { Check(false, "expression MIDI/audio compiler: " + e.Message); }
+        }
+
+        private static void TestMidiExpressionRuntime()
+        {
+            var midi = new MidiState();
+            midi.HandleMessage(new byte[] { 0xb1, 1, 64 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xb1, 33, 1 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xb1, 99, 0 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xb1, 98, 42 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xb1, 6, 93 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xb1, 38, 96 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xe1, 0, 32 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xd1, 90 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0x91, 60, 100 }, "a", "Controller", 1000);
+            midi.HandleMessage(new byte[] { 0xa1, 60, 80 }, "a", "Controller");
+            string[] modes = { "cc", "cc14", "nrpn", "pitchBend", "pressure", "polyPressure" };
+            double[] expected = { 64.0/127, 8193.0/16383, 12000.0/16383, 4096.0/16383, 90.0/127, 80.0/127 };
+            for (int i = 0; i < modes.Length; i++)
+            {
+                JsonValue value = CompileProbe("automationProbe(amount: midi(2, midiMode." + modes[i] + ", nrpn:42)).write(o0)")
+                    .Passes[0].Uniforms["amount"].Object;
+                CheckApprox(Automation.Evaluate(value,0,null,midi,null,1000), expected[i], 1e-12, "MIDI expression " + modes[i]);
+                value = CompileProbe("automationProbe(amount: midi(zone:midiZone.lower, mode:midiMode." + modes[i] + ", nrpn:42)).write(o0)")
+                    .Passes[0].Uniforms["amount"].Object;
+                CheckApprox(Automation.Evaluate(value,0,null,midi,null,1000), expected[i], 1e-12, "MPE expression " + modes[i]);
+            }
+            foreach (int mode in new[] { 5, 6 })
+            {
+                var value = JsonValue.Parse("{\"type\":\"Midi\",\"mode\":" + mode + ",\"channel\":2,\"min\":0.2,\"max\":0.8,\"cc\":null}");
+                CheckApprox(Automation.Evaluate(value,0,null,midi,null,1000), 0.2 + 0.6 * expected[mode - 5], 1e-12,
+                    "null CC selects controller1 for mode " + mode);
+                value.AsObject["cc"] = JsonValue.Of(true);
+                Check(Automation.Evaluate(value,0,null,midi,null,1000) == 0.2, "boolean CC remains invalid");
+                value.AsObject["cc"] = JsonValue.Of("1");
+                Check(Automation.Evaluate(value,0,null,midi,null,1000) == 0.2, "string CC remains invalid");
+            }
+            midi.HandleMessage(new byte[] { 0xb1, 33, 127 }, "b", "Other");
+            Check(midi.GetChannel(2).Cc14[1] == 127, "CC14 never pairs bytes from different ports");
+            midi.DisconnectPort("b");
+            Check(midi.GetChannel(2).Cc14[1] == 0 && midi.GetChannel(2).Cc[1] == 64,
+                "disconnect clears only source-owned controller values");
+            midi.HandleMessage(new byte[] { 0x91, 64, 127 }, "a", "Controller", 1001);
+            midi.HandleMessage(new byte[] { 0x81, 64, 0 }, "a", "Controller");
+            Check(midi.GetZoneVoice(0).Key == 60, "MPE falls back to older physically held note");
+            midi.HandleMessage(new byte[] { 0xb0, 101, 0 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xb0, 100, 6 }, "a", "Controller");
+            midi.HandleMessage(new byte[] { 0xb0, 6, 3 }, "a", "Controller");
+            MidiState port = midi.RegisterPort("a", "Controller");
+            Check(port.LowerZoneMembers == 3 && port.UpperZoneMembers == 0 && midi.GetZoneVoice(0) == null,
+                "MCM sets member count and clears reassigned notes");
+            midi.HandleMessage(new byte[] { 0xb0, 6, 1 }, "a", "Controller");
+            Check(port.LowerZoneMembers == 1, "MCM retains the active RPN6 transaction");
+            midi.SetPortInventory(new[] { new MidiPortInfo { Id="a", Name="Controller" }, new MidiPortInfo { Id="unopened", Name="Controller" } });
+            JsonValue selected = CompileProbe("automationProbe(amount:midi(2,midiMode.pressure,name:\"Controller\")).write(o0)").Passes[0].Uniforms["amount"].Object;
+            Check(Automation.Evaluate(selected,0,null,midi,null,1000) == 0, "unopened duplicate MIDI name is ambiguous");
+            var direct = new MidiState(); direct.GetChannel(2).NoteOn(72,100,1000);
+            Check(direct.GetZoneVoice(0)?.Key == 72, "direct host NoteOn is visible to MPE");
+            direct.GetChannel(2).NoteOff();
+            Check(direct.GetZoneVoice(0) == null, "keyless NoteOff clears held notes");
+        }
+
+        private static void TestDefaultAudioChannels()
+        {
+            var audio = new AudioState();
+            audio.RegisterDefaultChannels(32);
+            audio.GetDefaultChannelState(32).SetRaw(-0.5);
+            JsonValue value = CompileProbe("automationProbe(amount:audio(audioBand.raw,channel:32)).write(o0)").Passes[0].Uniforms["amount"].Object;
+            Check(Automation.Evaluate(value,0,null,null,audio,1000) == 0.25, "default audio channel32 supplies raw sample");
+            audio.SetRaw(1); audio.ResetAggregate();
+            Check(Automation.Evaluate(value,0,null,null,audio,1000) == 0.25, "aggregate reset preserves selected audio");
+            audio.DisconnectDefaultInput();
+            Check(Automation.Evaluate(value,0,null,null,audio,1000) == 0, "disconnected default raw is unavailable");
+            audio.RegisterDefaultChannels(32); audio.GetDefaultChannelState(32).SetRaw(0);
+            Check(Automation.Evaluate(value,0,null,null,audio,1000) == 0.5, "ready zero differs from unavailable raw");
+            AudioState removed = audio.GetDefaultChannelState(32); audio.RegisterDefaultChannels(2);
+            Check(!removed.RawReady && audio.GetDefaultChannelState(32) == null, "shrunk default channels reset before removal");
         }
 
         private static void TestMidiSelector()
@@ -78,7 +185,6 @@ namespace CompilerContractTests
                 "midi(1, name: Controller)",
                 "midi(1, name: \"\")",
                 "audio(audioBand.low, name: \"Interface\")",
-                "audio(audioBand.low, channel: 1)",
                 "audio(audioBand.low, id: \"device-b\")",
                 "audio(audioBand.low, 0, 1, 2)",
                 "audio(audioBand.low, bogus: 1)",
@@ -99,7 +205,7 @@ namespace CompilerContractTests
         {
             CheckError(
                 "midi(1, zzz: 1, aaa: 2)",
-                "midi() unknown parameter 'zzz' at line 2 col 13. Valid: channel, mode, min, max, sensitivity, name, id");
+                "midi() unknown parameter 'zzz' at line 2 col 13. Valid: channel, mode, min, max, sensitivity, name, id, cc, nrpn, zone, members");
             CheckError(
                 "audio(audioBand.low, zzz: 1, aaa: 2)",
                 "audio() unknown parameter 'zzz' at line 2 col 13. Valid: band, min, max, channel, name, id");

@@ -663,9 +663,9 @@ namespace Noisemaker.Hlsl.Compiler
         {
             string[] order = { "channel", "mode", "min", "max", "sensitivity" };
             string[] keywordOnly = { "name", "id" };
-            string[] valid = { "channel", "mode", "min", "max", "sensitivity", "name", "id" };
+            string[] valid = { "channel", "mode", "min", "max", "sensitivity", "name", "id", "cc", "nrpn", "zone", "members" };
             if (call.Args.Count > order.Length)
-                throw DslSyntaxError.At("midi() name and id are keyword-only", nameToken.Line, nameToken.Col);
+                throw DslSyntaxError.At("midi() name, id, cc, nrpn, zone and members are keyword-only", nameToken.Line, nameToken.Col);
             if (call.Kwargs != null)
                 foreach (string key in call.Kwargs.Keys)
                 {
@@ -692,8 +692,12 @@ namespace Noisemaker.Hlsl.Compiler
             Node sensitivity = Resolve(order[4], Num(1));
             if (posCursor < call.Args.Count)
                 throw DslSyntaxError.At("midi() has an excess positional argument", nameToken.Line, nameToken.Col);
-            if (channel == null)
-                throw DslSyntaxError.At("midi() requires 'channel' argument", nameToken.Line, nameToken.Col);
+            if (channel == null && !(call.Kwargs?.Has("zone") ?? false))
+                throw DslSyntaxError.At("midi() requires 'channel' or 'zone' argument", nameToken.Line, nameToken.Col);
+            if (channel != null && (call.Kwargs?.Has("zone") ?? false))
+                throw DslSyntaxError.At("midi() 'channel' and 'zone' are mutually exclusive", nameToken.Line, nameToken.Col);
+            if ((call.Kwargs?.Has("members") ?? false) && !call.Kwargs.Has("zone"))
+                throw DslSyntaxError.At("midi() 'members' requires 'zone'", nameToken.Line, nameToken.Col);
             if (call.Kwargs != null && call.Kwargs.Has("id") && !call.Kwargs.Has("name"))
                 throw DslSyntaxError.At("midi() 'id' requires readable 'name'", nameToken.Line, nameToken.Col);
             if (call.Kwargs != null)
@@ -716,6 +720,11 @@ namespace Noisemaker.Hlsl.Compiler
                 Sensitivity = sensitivity,
                 Name = call.Kwargs?.Get("name"),
                 Id = call.Kwargs?.Get("id"),
+                Cc = call.Kwargs?.Get("cc"),
+                Nrpn = call.Kwargs?.Get("nrpn"),
+                Zone = call.Kwargs?.Get("zone"),
+                Members = call.Kwargs?.Get("members"),
+
                 LocLine = nameToken.Line, LocCol = nameToken.Col
             };
         }
@@ -754,7 +763,7 @@ namespace Noisemaker.Hlsl.Compiler
                 throw DslSyntaxError.At("audio() requires 'band' argument", nameToken.Line, nameToken.Col);
             if (call.Kwargs != null && call.Kwargs.Has("id") && !call.Kwargs.Has("name"))
                 throw DslSyntaxError.At("audio() 'id' requires readable 'name'", nameToken.Line, nameToken.Col);
-            if (call.Kwargs != null && call.Kwargs.Has("channel") != call.Kwargs.Has("name"))
+            if (call.Kwargs != null && call.Kwargs.Has("name") && !call.Kwargs.Has("channel"))
                 throw DslSyntaxError.At("audio() selected device requires both 'name' and 'channel'",
                     nameToken.Line, nameToken.Col);
             if (call.Kwargs != null)
