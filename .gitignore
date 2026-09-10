@@ -38,3 +38,7 @@ tools/graphdump/bin/
 # pure-C# compiler regression harness
 !tools/compiler-contract-tests/compiler-contract-tests.csproj
 tools/compiler-contract-tests/bin/
+
+# Python
+__pycache__/
+*.pyc

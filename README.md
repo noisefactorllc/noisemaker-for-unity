@@ -5,6 +5,10 @@
 
 # Noisemaker for Unity
 
+> This package supports the "Export Shader Pipeline" feature in Noisedeck.app. The
+> feature runs shader compositions on other platforms. Noise Factor derives this package
+> from the upstream Noisemaker Engine project and tests it for pixel-level parity.
+
 A parallel port of the Noisemaker shader engine — a separate reference engine, not bundled
 with this package — to **Unity / HLSL**.
 It renders **live procedural textures from the Polymorphic DSL**, aiming to be
