@@ -39,6 +39,14 @@ float zone5_count;  float zone5_active;  float zone5_alpha;
 float zone6_count;  float zone6_active;  float zone6_alpha;
 float zone7_count;  float zone7_active;  float zone7_alpha;
 
+// Per-zone bounds (reference 0ed489ec, NEW): host-supplied bounding box
+// [minX, minY, maxX, maxY], normalized. Default [0,0,1,1] never rejects a
+// pixel. Used to skip a zone's polygon walk entirely when the pixel cannot be
+// inside it (dilated by the feather width so the reject box never erodes the
+// visible, feathered edge).
+float4 zone0_bounds; float4 zone1_bounds; float4 zone2_bounds; float4 zone3_bounds;
+float4 zone4_bounds; float4 zone5_bounds; float4 zone6_bounds; float4 zone7_bounds;
+
 // Per-zone vertex pair uniforms (32 pairs per zone = 64 verts, packed xy+zw).
 // Upstream ba7e789f raised the per-zone vertex cap 16 -> 64 (uniformLayout
 // slots 10..265); we keep the GLSL-style individual named uniforms.
@@ -304,6 +312,24 @@ float4 nm_remap_getZoneMeta(uint z)
 }
 
 // =============================================================================
+// nm_remap_getZoneBounds: returns [minX,minY,maxX,maxY] for zone z (NEW,
+// reference 0ed489ec). Mirrors WGSL uniforms.data[ZONE_BOUNDS_SLOT + z].
+// =============================================================================
+float4 nm_remap_getZoneBounds(uint z)
+{
+    [branch] switch (z) {
+        case 0u: return zone0_bounds;
+        case 1u: return zone1_bounds;
+        case 2u: return zone2_bounds;
+        case 3u: return zone3_bounds;
+        case 4u: return zone4_bounds;
+        case 5u: return zone5_bounds;
+        case 6u: return zone6_bounds;
+        default: return zone7_bounds;
+    }
+}
+
+// =============================================================================
 // nm_remap_sampleZone: sample zone z at tile-local UV with explicit LOD 0.
 // Mirrors WGSL sampleZone(z, uv) using textureSampleLevel(…, 0.0).
 // SampleLevel avoids implicit-derivative requirement in non-uniform control flow.
@@ -321,98 +347,126 @@ float4 nm_remap_sampleZone(uint z, float2 uv)
 }
 
 // =============================================================================
-// nm_remap_pointInZone: ray-casting point-in-polygon test.
-// Mirrors WGSL pointInZone(p, zoneIdx) verbatim.
+// Reference 0ed489ec: full rewrite of the compositing algorithm. Per zone, ONE
+// walk over the polygon vertices evaluates the even-odd inside test AND the
+// squared pixel distance to the boundary together (testEdge/walkZone), instead
+// of two separate passes (the old nm_remap_pointInZone/distToZoneEdge, removed).
+// Ported verbatim from wgsl/remap.wgsl's ZoneTest/testEdge/walkZone.
 // =============================================================================
-bool nm_remap_pointInZone(float2 p, uint zoneIdx)
+struct NM_RemapZoneTest
 {
-    float4 zoneMeta = nm_remap_getZoneMeta(zoneIdx);
-    int n = (int)zoneMeta.x;
-    if (n < 3) { return false; }
-    bool inside = false;
-    float2 prev = nm_remap_getVert(zoneIdx, (uint)n - 1u);
-    [loop]
-    for (uint i = 0u; i < 64u; i = i + 1u)
+    bool  inside; // even-odd crossing parity
+    float d2;     // squared pixel distance to the nearest boundary point
+};
+
+// Folds the edge between vertex `a` and its predecessor `b` into `t`. All
+// positions are GLOBAL PIXEL coordinates (top-left origin).
+NM_RemapZoneTest nm_remap_testEdge(NM_RemapZoneTest t, float2 a, float2 b, float2 q, bool needDist)
+{
+    float2 e = b - a;
+    float2 w = q - a;
+    // Even-odd crossing count along the +x ray from q, branch-free. The
+    // half-open scanline rule keeps an edge shared by two zones unambiguous.
+    bool3 c = bool3((q.y >= a.y), (q.y < b.y), (e.x * w.y > e.y * w.x));
+    if (all(c) || !any(c)) { t.inside = !t.inside; }
+    if (needDist)
     {
-        if ((int)i >= n) { break; }
-        float2 cur = nm_remap_getVert(zoneIdx, i);
-        bool crosses = (cur.y > p.y) != (prev.y > p.y);
-        if (crosses) {
-            float dy = prev.y - cur.y;
-            float denom = (abs(dy) < 1e-9) ? 1e-9 : dy;  // select(dy, 1e-9, abs(dy)<1e-9)
-            float xCross = (prev.x - cur.x) * (p.y - cur.y) / denom + cur.x;
-            if (p.x < xCross) { inside = !inside; }
-        }
-        prev = cur;
+        float s = clamp(dot(w, e) / max(dot(e, e), 1e-6), 0.0, 1.0);
+        float2 r = w - e * s;
+        t.d2 = min(t.d2, dot(r, r));
     }
-    return inside;
+    return t;
 }
 
-// =============================================================================
-// nm_remap_distToZoneEdge: minimum distance from p to any polygon edge.
-// Mirrors WGSL distToZoneEdge(p, zoneIdx) verbatim.
-// =============================================================================
-float nm_remap_distToZoneEdge(float2 p, uint zoneIdx)
+// Walks one zone's vertices (global pixel space, un-normalized here from the
+// per-effect [0,1]-packed uniforms) and returns the inside parity plus the
+// squared pixel distance to the boundary. `needDist` is a per-frame constant
+// (derived from smoothEdge), so the smoothEdge-0 walk carries no distance math.
+NM_RemapZoneTest nm_remap_walkZone(uint zoneIdx, int n, float2 q, bool needDist)
 {
-    float4 zoneMeta = nm_remap_getZoneMeta(zoneIdx);
-    int n = (int)zoneMeta.x;
-    if (n < 3) { return 1e9; }
-    float d = 1e9;
-    float2 prev = nm_remap_getVert(zoneIdx, (uint)n - 1u);
+    NM_RemapZoneTest t;
+    t.inside = false;
+    t.d2 = 1e30;
+    float2 prev = nm_remap_getVert(zoneIdx, (uint)(n - 1)) * fullResolution;
     [loop]
     for (uint i = 0u; i < 64u; i = i + 1u)
     {
         if ((int)i >= n) { break; }
-        float2 cur = nm_remap_getVert(zoneIdx, i);
-        float2 ab = cur - prev;
-        float len2 = max(dot(ab, ab), 1e-9);
-        float t = clamp(dot(p - prev, ab) / len2, 0.0, 1.0);
-        float2 closest = prev + t * ab;
-        d = min(d, length(p - closest));
+        float2 cur = nm_remap_getVert(zoneIdx, i) * fullResolution;
+        t = nm_remap_testEdge(t, cur, prev, q, needDist);
         prev = cur;
     }
-    return d;
+    return t;
 }
 
 // =============================================================================
 // nm_remap — main per-pixel function.
 // fragCoord: NM_FragCoord(i) = pixel-centered tile-local coord (top-left, +0.5)
-// Mirrors WGSL fragmentMain() exactly.
+// Mirrors WGSL fragmentMain() exactly (reference 0ed489ec full rewrite):
+// zones are composited TOP-DOWN (last active/highest index wins), zone
+// coverage is 1 everywhere inside its polygon and feathers OUTWARD (never
+// erodes the interior), a host-supplied bounding box skips zones the pixel
+// cannot touch, and sources are premultiplied and stacked with the
+// premultiplied "under" operator.
 // =============================================================================
 float4 nm_remap(float2 fragCoord)
 {
-    // sampleUv: tile-local UV for texture sampling (Y-down, matches WGSL).
+    // Polygon tests use the GLOBAL pixel position so zones land in the same
+    // image position regardless of which tile is rendering. This Y flip is
+    // NOT a WGSL/HLSL top-left-origin reconciliation (golden rule #1 does not
+    // apply here) — it is baked into the reference algorithm itself, required
+    // on every backend to match the pinned byte-identical golden. Reproduced
+    // verbatim: globalPx = fragCoord + tileOffset; q = (globalPx.x,
+    // fullResolution.y - globalPx.y); p = q / fullResolution.
+    float2 globalPx = fragCoord + tileOffset;
+    float2 q = float2(globalPx.x, fullResolution.y - globalPx.y);
+    float2 p = q / fullResolution;
+    // Texture sampling stays TILE-LOCAL: each zoneN_tex is the current tile's
+    // slice of its source surface, so sample at the tile-local pixel position.
     float2 sampleUv = fragCoord / resolution;
 
-    // globalYup: normalized [0,1] position in the full output, Y-up for polygon test.
-    // WGSL: posFromBottom = fragCoord.xy (no flip in WGSL — top-left == tile origin)
-    //       globalYup = (posFromBottom + tileOffset) / fullResolution
-    //       p = float2(globalYup.x, 1.0 - globalYup.y)
-    float2 posFromBottom = fragCoord;
-    float2 globalYup = (posFromBottom + tileOffset) / fullResolution;
-    float2 p = float2(globalYup.x, 1.0 - globalYup.y);
-
-    float4 result = float4(bgColor, bgAlpha);
+    float4 header = float4(bgColor, bgAlpha);
     int activeCount = min(zoneCount, 8);
+    // Feather width in pixels, proportional to the shorter canvas side, so it
+    // is the same width on both axes whatever the aspect ratio. smoothEdge is
+    // clamped at 0: an automated negative value would otherwise make the
+    // bounds dilation negative and SHRINK every zone's reject box.
+    float featherPx = max(smoothEdge, 0.0) * 0.05 * min(fullResolution.x, fullResolution.y);
+    bool needDist = featherPx > 0.0;
+    float2 dilate = (float2)featherPx / fullResolution; // feather in normalized units per axis
 
+    float4 result = float4(0.0, 0.0, 0.0, 0.0);
     [loop]
-    for (uint z = 0u; z < 8u; z = z + 1u)
+    for (int k = 0; k < 8; k = k + 1)
     {
-        if ((int)z >= activeCount) { break; }
-        float4 zoneMeta = nm_remap_getZoneMeta(z);
-        if (zoneMeta.y < 0.5) { continue; }         // zoneN_tex not wired
-        if (!nm_remap_pointInZone(p, z)) { continue; }
-        float4 src = nm_remap_sampleZone(z, sampleUv);
-        float zAlpha = zoneMeta.w;
-        // smoothEdge 0..1 -> edgeWidth in p-space (max 0.05 to avoid washout)
-        float edgeWidth = smoothEdge * 0.05;
-        float edge = 1.0;
-        if (edgeWidth > 0.0) {
-            edge = smoothstep(0.0, edgeWidth, nm_remap_distToZoneEdge(p, z));
+        int z = activeCount - 1 - k; // top-down: highest index first
+        if (z < 0) { break; }
+        float4 zoneMeta = nm_remap_getZoneMeta((uint)z);
+        // Clamped: a host-supplied count above the per-zone capacity would
+        // otherwise walk past this zone's slots into the next zone's.
+        int n = min((int)zoneMeta.x, 64);
+        if (n < 3 || zoneMeta.y < 0.5) { continue; } // degenerate, or source not wired
+        // Host-supplied bounding box, dilated by the feather. Default
+        // [0,0,1,1] never rejects a canvas pixel.
+        float4 bounds = nm_remap_getZoneBounds((uint)z);
+        if (any(p < bounds.xy - dilate) || any(p > bounds.zw + dilate)) { continue; }
+
+        NM_RemapZoneTest t = nm_remap_walkZone((uint)z, n, q, needDist);
+
+        float coverage = 1.0;
+        if (!t.inside)
+        {
+            if (!needDist) { continue; }
+            coverage = 1.0 - smoothstep(0.0, featherPx, sqrt(t.d2));
+            if (coverage <= 0.0) { continue; }
         }
-        float a = zAlpha * edge;
-        result = float4(lerp(result.rgb, src.rgb, a), max(result.a, src.a * a));
+        // Premultiplied "under": this zone is above everything still to come.
+        float4 src = nm_remap_sampleZone((uint)z, sampleUv) * (coverage * zoneMeta.w);
+        result = result + src * (1.0 - result.a);
+        if (result.a >= 0.999) { break; }
     }
+    // Background goes under whatever the zones left uncovered.
+    result = result + float4(header.rgb * header.a, header.a) * (1.0 - result.a);
 
     return result;
 }
