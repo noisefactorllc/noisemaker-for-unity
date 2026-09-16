@@ -28,6 +28,10 @@ Shader "Noisemaker/mixer/alphaMask"
             SamplerState sampler_inputTex;
             Texture2D    tex;
             SamplerState sampler_tex;
+            // New binding (reference 0ed489ec): the luminance mask-mode branch composites
+            // over this surface instead of just scaling color1's own alpha.
+            Texture2D    baseTex;
+            SamplerState sampler_baseTex;
 
             float4 frag(NMVaryings i) : SV_Target
             {
@@ -46,8 +50,9 @@ Shader "Noisemaker/mixer/alphaMask"
 
                 float4 color1 = inputTex.Sample(sampler_inputTex, st);
                 float4 color2 = tex.Sample(sampler_tex, st);
+                float4 background = baseTex.Sample(sampler_baseTex, st);
 
-                return nm_alphaMask(color1, color2);
+                return nm_alphaMask(color1, color2, background);
             }
             ENDHLSL
         }

@@ -234,7 +234,12 @@ float4 frag_primary(NMVaryings i) : SV_Target
     float2 uv = NM_FragCoord(i) / texSize;
     float4 color = inputTex.Sample(sampler_inputTex, uv);
 
-    float3 rgb = primary_srgbToLinear(color.rgb);
+    // The public input is premultiplied (reference 0ed489ec). Private grade
+    // stages carry straight sRGB until the final vignette pass restores
+    // premultiplied coverage.
+    float3 straight = float3(0.0, 0.0, 0.0);
+    if (color.a > 0.0) { straight = color.rgb / color.a; }
+    float3 rgb = primary_srgbToLinear(straight);
 
     rgb = primary_applyWhiteBalance(rgb, temperature, tint);
     rgb = rgb * pow(2.0, exposure);
@@ -1071,7 +1076,10 @@ float4 frag_vignette(NMVaryings i) : SV_Target
 
     if (abs(vignetteAmount) < 0.001)
     {
-        return color;
+        // Re-premultiply on the early-out: upstream grade stages (primary/
+        // creative/wheels/hslSecondary/lut) carry straight RGB between passes,
+        // so this pass's own input arrives straight (reference 0ed489ec).
+        return float4(color.rgb * color.a, color.a);
     }
 
     float3 rgb = vignette_srgbToLinear(color.rgb);
@@ -1093,7 +1101,9 @@ float4 frag_vignette(NMVaryings i) : SV_Target
 
     rgb = vignette_linearToSrgb(max(rgb, float3(0.0, 0.0, 0.0)));
 
-    return float4(rgb, color.a);
+    // Re-premultiply on write (reference 0ed489ec) — the final grade stage
+    // restores premultiplied coverage for the public output.
+    return float4(rgb * color.a, color.a);
 }
 
 #endif // NM_EFFECT_GRADE_INCLUDED

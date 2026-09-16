@@ -35,6 +35,11 @@ void NM_AlphaMask_float(
     int               MaskMode,
     UnityTexture2D    BaseTex,
     UnityTexture2D    LayerTex,
+    // New (reference 0ed489ec): the luminance mask-mode branch composites over
+    // this surface (the effect's new `baseTex` binding) instead of just scaling
+    // BaseTex's own alpha. Named distinctly from BaseTex/color1 above, which is
+    // this wrapper's pre-existing "base surface" input, not the new binding.
+    UnityTexture2D    MaskBackgroundTex,
     UnitySamplerState SS,
     float2            UV,
     out float4        Out)
@@ -45,7 +50,8 @@ void NM_AlphaMask_float(
 
     float4 color1 = BaseTex.Sample(SS, UV);
     float4 color2 = LayerTex.Sample(SS, UV);
-    Out = nm_alphaMask(color1, color2);
+    float4 background = MaskBackgroundTex.Sample(SS, UV);
+    Out = nm_alphaMask(color1, color2, background);
 }
 
 #endif // NM_ALPHAMASK_SG_INCLUDED

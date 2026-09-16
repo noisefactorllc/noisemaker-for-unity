@@ -42,12 +42,16 @@ float mode; // 0=full (default), 1=solarize; logical i32 carried via SetFloat
 // -----------------------------------------------------------------------------
 float4 nm_invert(float4 color)
 {
+    // Invert the underlying color and retain premultiplied coverage (reference
+    // 0ed489ec): `1.0 - color.rgb` assumed straight alpha; the input is
+    // premultiplied, so the identity-preserving inverse of a premultiplied
+    // channel is `color.a - color.rgb`, not `1.0 - color.rgb`.
     [branch]
     if ((int)mode == 1)
     {
-        return float4(min(color.rgb, 1.0 - color.rgb), color.a);
+        return float4(min(color.rgb, color.a - color.rgb), color.a);
     }
-    return float4(1.0 - color.rgb, color.a);
+    return float4(color.a - color.rgb, color.a);
 }
 
 #endif // NM_INVERT_INCLUDED

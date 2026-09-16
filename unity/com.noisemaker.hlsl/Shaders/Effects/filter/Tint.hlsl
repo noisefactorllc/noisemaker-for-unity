@@ -123,7 +123,11 @@ float3 hsv_to_rgb(float3 hsv)
 // -----------------------------------------------------------------------------
 float4 nm_tint(float4 base)
 {
-    float3 base_rgb = clamp(base.rgb, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));
+    // Un-premultiply before straight-RGB math (reference 0ed489ec): the input is
+    // premultiplied, so clamping base.rgb directly (assuming straight alpha)
+    // biased dark, low-coverage pixels toward black.
+    float3 base_rgb = float3(0.0, 0.0, 0.0);
+    if (base.a > 0.0) base_rgb = clamp(base.rgb / base.a, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));
 
     int m = (int)mode;   // WGSL: i32(mode) — truncate toward zero.
     float3 tinted;
@@ -142,7 +146,8 @@ float4 nm_tint(float4 base)
     }
 
     float3 rgb = lerp(base_rgb, tinted, float3(alpha, alpha, alpha));
-    return float4(rgb, base.a);
+    // Re-premultiply on write (reference 0ed489ec).
+    return float4(rgb * base.a, base.a);
 }
 
 #endif // NM_TINT_INCLUDED

@@ -126,10 +126,14 @@ namespace Noisemaker.Hlsl.Compiler.Graph
                 foreach (var kv in specs.AsObject)
                 {
                     JsonValue s = kv.Value;
+                    bool hasRange = s.Get("min") != null && s.Get("min").Kind == JsonKind.Number
+                                 && s.Get("max") != null && s.Get("max").Kind == JsonKind.Number;
                     pass.UniformSpecs.Add(kv.Key, new UniformSpec
                     {
-                        Min = GetNumber(s, "min", 0),
-                        Max = GetNumber(s, "max", 100)
+                        Type = GetString(s, "type"),
+                        HasRange = hasRange,
+                        Min = hasRange ? s.Get("min").AsNumber : 0,
+                        Max = hasRange ? s.Get("max").AsNumber : 100
                     });
                 }
             }
@@ -156,12 +160,11 @@ namespace Noisemaker.Hlsl.Compiler.Graph
             // Capture an explicit two-factor array ["src","dst"] (e.g. ["ONE",
             // "ONE_MINUS_SRC_ALPHA"] for the alpha deposit; ["one","one"] is additive).
             pass.BlendFactors = ParseBlendFactors(blendVal);
-            // conditions (runIf/skipIf): NOT parsed. The reference expander.js never copies
-            // pass.conditions into the compiled graph (its pass object is an explicit field
-            // list that omits `conditions`), so the normalized graph the runtime consumes
-            // carries no conditions and Pipeline.shouldSkipPass always returns false — BOTH
-            // pointsBillboardRender deposit passes always run (the blendMode switch lives in
-            // the blend-pass shader). Leaving pass.Conditions null here mirrors that exactly.
+            // conditions (runIf/skipIf, reference 0ed489ec): the round's `.flatMap()`
+            // per-viewMode-clone pattern (pointsRender/pointsBillboardRender) is the first
+            // use of pass.conditions in a compiled graph — parse it so a loaded golden
+            // graph.json gates correctly at runtime (NMPipeline.ShouldSkipPass).
+            pass.Conditions = ParseConditions(p.Get("conditions"));
             pass.Repeat = ParseRepeat(p.Get("repeat"));
             JsonValue clear = p.Get("clear");
             pass.Clear = (clear != null && clear.Kind != JsonKind.Null) ? clear : null;
@@ -385,6 +388,31 @@ namespace Noisemaker.Hlsl.Compiler.Graph
             JsonValue v = obj.Get(key);
             if (v == null || v.Kind == JsonKind.Null) return null;
             return v.AsString;
+        }
+
+        // conditions (runIf/skipIf, reference 0ed489ec §4.9): { runIf: [{uniform, equals}],
+        // skipIf: [...] } -> PassConditions. Null when the pass declares neither list.
+        private static PassConditions ParseConditions(JsonValue conditions)
+        {
+            if (conditions == null || conditions.Kind != JsonKind.Object) return null;
+            var runIf = ParseConditionList(conditions.Get("runIf"));
+            var skipIf = ParseConditionList(conditions.Get("skipIf"));
+            if (runIf == null && skipIf == null) return null;
+            return new PassConditions { RunIf = runIf, SkipIf = skipIf };
+        }
+
+        private static System.Collections.Generic.List<PassCondition> ParseConditionList(JsonValue arr)
+        {
+            if (arr == null || arr.Kind != JsonKind.Array) return null;
+            var list = new System.Collections.Generic.List<PassCondition>();
+            foreach (JsonValue entry in arr.AsArray)
+            {
+                string uniform = GetString(entry, "uniform");
+                JsonValue eq = entry.Get("equals");
+                if (uniform == null || eq == null || eq.Kind != JsonKind.Number) continue;
+                list.Add(new PassCondition { Uniform = uniform, EqualsValue = eq.AsNumber });
+            }
+            return list;
         }
 
         private static double GetNumber(JsonValue obj, string key, double fallback)

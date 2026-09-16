@@ -10,5 +10,15 @@ namespace Noisemaker.Hlsl.Compiler.Graph
     {
         public double Min { get; set; }
         public double Max { get; set; }
+        // False only for a conditionalUniforms entry (reference 0ed489ec) whose global
+        // declares no min/max (e.g. blendMode: choices but no explicit range) — the
+        // reference emits `{type:"int"}` alone then (`Number.isFinite(def.min) &&
+        // Number.isFinite(def.max)` guards the min/max assignment). True everywhere else;
+        // Min/Max are meaningless when false and must not be serialized.
+        public bool HasRange { get; set; } = true;
+        // "int" for a compile-time-selector uniform automation must round to (reference
+        // 0ed489ec conditionalUniforms — a `choices`-bearing int global referenced by a
+        // pass's conditions.runIf/skipIf, e.g. viewMode). Null for the ordinary case.
+        public string Type { get; set; }
     }
 }

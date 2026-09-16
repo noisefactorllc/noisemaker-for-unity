@@ -172,33 +172,32 @@ float4 applyBlendMode(float4 color1, float4 color2, int m)
 // RGBA. Pure function so the Shader Graph wrapper and the render pass share
 // identical math. Ported VERBATIM from blendMode.wgsl main() lines 119-143.
 // -----------------------------------------------------------------------------
+// Reference 0ed489ec: full compositing rewrite. The normal mixer axis is
+// source opacity; other modes reach the full blend at the midpoint, then
+// transition to normal source-over at +100. mode==8 is "mix" (the plain
+// opacity/source-over case), special-cased below.
 float4 nm_blendMode(float4 color1, float4 color2)
 {
-    float4 middle = applyBlendMode(color1, color2, mode);
-
     float amt = map_range(mixAmt, -100.0, 100.0, 0.0, 1.0);
-    float4 color;
-    if (amt < 0.5) {
-        float factor = amt * 2.0;
-        color = lerp(color1, middle, factor);
-    } else {
-        float factor = (amt - 0.5) * 2.0;
-        color = lerp(middle, color2, factor);
+
+    float opacity = (mode == 8) ? amt : min(amt * 2.0, 1.0);
+    float sourceAlpha = color2.a * opacity;
+    float3 source = color2.rgb * opacity;
+    if (mode != 8)
+    {
+        // Surfaces are premultiplied. Blend functions operate on straight RGB
+        // only where both inputs cover the pixel; uncovered source stays intact.
+        float4 baseColor = float4(0.0, 0.0, 0.0, 1.0);
+        float4 sourceColor = float4(0.0, 0.0, 0.0, 1.0);
+        if (color1.a > 0.0) { baseColor = float4(color1.rgb / color1.a, 1.0); }
+        if (color2.a > 0.0) { sourceColor = float4(color2.rgb / color2.a, 1.0); }
+        float3 blended = applyBlendMode(baseColor, sourceColor, mode).rgb;
+        blended = lerp(blended, sourceColor.rgb, max(amt * 2.0 - 1.0, 0.0));
+        source = source * (1.0 - color1.a) + blended * sourceAlpha * color1.a;
     }
 
-    // Porter-Duff "over" alpha compositing:
-    // blend at full strength where top is opaque, preserve base where top is
-    // transparent. amt is already applied above in the mixer branch that selected
-    // `color` on the color1 <-> middle <-> color2 axis, so it must NOT be folded
-    // into the PD factor for RGB here — doing so applies amt a second time and
-    // halves the blend at the midpoint. The alpha output still scales with amt so
-    // fading out the layer fades out the composite alpha.
-    float alphaFactor = color2.a * amt;
-    color = float4(
-        lerp(color1.rgb, color.rgb, color2.a),
-        alphaFactor + color1.a * (1.0 - alphaFactor)
-    );
-    return color;
+    return float4(source + color1.rgb * (1.0 - sourceAlpha),
+        sourceAlpha + color1.a * (1.0 - sourceAlpha));
 }
 
 #endif // NM_BLENDMODE_INCLUDED

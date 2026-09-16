@@ -52,25 +52,32 @@ float map_range(float value, float inMin, float inMax, float outMin, float outMa
 // RGBA. Pure function so the Shader Graph wrapper and the render pass share
 // identical math. Ported VERBATIM from alphaMask.wgsl main() lines 20-38.
 // -----------------------------------------------------------------------------
-float4 nm_alphaMask(float4 color1, float4 color2)
+// background = baseTex sample at the same st (reference 0ed489ec, new binding 5) —
+// used only by the luminance mask-mode branch.
+float4 nm_alphaMask(float4 color1, float4 color2, float4 background)
 {
-    // luminance mask mode
+    // Inputs use premultiplied RGBA: masking must scale color and coverage
+    // (reference 0ed489ec).
     if (maskMode != 0) {
         float maskVal = dot(color2.rgb, float3(0.299, 0.587, 0.114));
-        return float4(color1.rgb, color1.a * maskVal);
+        return lerp(background, color1, maskVal);
     }
 
-    // alpha blend — slider direction selects which input is on top
+    // Premultiplied source-over (reference 0ed489ec). Slider direction selects
+    // which input is on top, so either slot can serve as the alpha source —
+    // slide negative for A-on-top, positive for B-on-top. Each half reaches a
+    // full Porter-Duff source-over at the midpoint. color1/color2 are already
+    // premultiplied, so the "over" term adds the top layer as-is (no second
+    // multiply by its own alpha).
     float4 color;
     if (mixAmt < 0.0) {
-        float4 AoverB = color2 * (1.0 - color1.a) + color1 * color1.a;
+        float4 AoverB = color2 * (1.0 - color1.a) + color1;
         color = lerp(color1, AoverB, map_range(mixAmt, -100.0, 0.0, 0.0, 1.0));
     } else {
-        float4 BoverA = color1 * (1.0 - color2.a) + color2 * color2.a;
+        float4 BoverA = color1 * (1.0 - color2.a) + color2;
         color = lerp(BoverA, color2, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
 
-    color.a = max(color1.a, color2.a);
     return color;
 }
 

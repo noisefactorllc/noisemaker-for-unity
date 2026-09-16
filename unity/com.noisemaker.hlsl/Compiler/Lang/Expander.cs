@@ -156,6 +156,13 @@ namespace Noisemaker.Hlsl.Compiler
                     if (tex3d != null && tex3d.Kind == ArgKind.Surface && tex3d.Surface.Name != "none" && _currentInput3d != null)
                     {
                         string targetVol = "global_" + tex3d.Surface.Name;
+                        // reference 0ed489ec: an exported global_<vol> surface never got a
+                        // TextureSpec registered here before — copy the source volume's spec so
+                        // the target actually allocates (was previously left for some OTHER path
+                        // to register it, which doesn't happen for every chain, e.g.
+                        // reactionDiffusion3d -> write3d(vol0)).
+                        if (_result.TextureSpecs.ContainsKey(_currentInput3d))
+                            _result.TextureSpecs.Add(targetVol, _result.TextureSpecs[_currentInput3d]);
                         if (_currentInput3d != targetVol)
                         {
                             var blit = NewBlit(nodeIdW3 + "_write3d_vol_blit", _currentInput3d, targetVol, nodeIdW3, step.Temp);
@@ -166,6 +173,8 @@ namespace Noisemaker.Hlsl.Compiler
                     if (geo != null && geo.Kind == ArgKind.Surface && geo.Surface.Name != "none" && _currentInputGeo != null)
                     {
                         string targetGeo = "global_" + geo.Surface.Name;
+                        if (_result.TextureSpecs.ContainsKey(_currentInputGeo))
+                            _result.TextureSpecs.Add(targetGeo, _result.TextureSpecs[_currentInputGeo]);
                         if (_currentInputGeo != targetGeo)
                         {
                             var blit = NewBlit(nodeIdW3 + "_write3d_geo_blit", _currentInputGeo, targetGeo, nodeIdW3, step.Temp);
@@ -495,8 +504,8 @@ namespace Noisemaker.Hlsl.Compiler
                 string scopeSuffix = particleScoped ? _currentParticlePipelineId : chainScopeId;
                 if (shouldScopeParams)
                 {
-                    spec.Width = ScopeDimSpec(spec.Width, scopeSuffix, scopedParamMap);
-                    spec.Height = ScopeDimSpec(spec.Height, scopeSuffix, scopedParamMap);
+                    spec.Width = ScopeDimSpec(spec.Width, scopeSuffix, scopedParamMap, texName);
+                    spec.Height = ScopeDimSpec(spec.Height, scopeSuffix, scopedParamMap, texName);
                 }
                 _result.TextureSpecs.Add(virtualTexId, spec);
             }
@@ -616,6 +625,27 @@ namespace Noisemaker.Hlsl.Compiler
                     string un = StrOf(gk.Value, "uniform");
                     if (un != null) defineKeys.Add(un);
                 }
+            // conditionalUniforms (reference 0ed489ec §4.9): every uniform name referenced
+            // by ANY pass's conditions.runIf/skipIf, scanned once per effect. A conditional
+            // selector (e.g. viewMode) must use the same integer in every shader pass AND in
+            // CPU-side pass selection, so it needs a uniformSpec even though it has `choices`
+            // (ordinarily excluded below — see the `!hasChoices` check).
+            var conditionalUniforms = new System.Collections.Generic.HashSet<string>();
+            for (int ci = 0; ci < passDefs.Count; ci++)
+            {
+                JsonValue cond = passDefs[ci].Get("conditions");
+                if (cond == null || cond.Kind != JsonKind.Object) continue;
+                foreach (string condKey in new[] { "runIf", "skipIf" })
+                {
+                    JsonValue list = cond.Get(condKey);
+                    if (list == null || list.Kind != JsonKind.Array) continue;
+                    foreach (JsonValue entry in list.AsArray)
+                    {
+                        string u = StrOf(entry, "uniform");
+                        if (u != null) conditionalUniforms.Add(u);
+                    }
+                }
+            }
             for (int i = 0; i < passDefs.Count; i++)
             {
                 JsonValue passDef = passDefs[i];
@@ -668,13 +698,14 @@ namespace Noisemaker.Hlsl.Compiler
                 pass.BlendSpecified = passDef.Has("blend");
                 pass.Blend = GraphLoader.IsTruthyBlend(blend);
                 pass.BlendFactors = GraphLoader.ParseBlendFactors(blend);
-                // conditions (runIf/skipIf): the reference expander.js builds each graph
-                // pass from an EXPLICIT field list that does NOT include `conditions`, so
-                // pass.conditions is undefined at runtime and Pipeline.shouldSkipPass always
-                // returns false — BOTH pointsBillboardRender deposit passes (additive +
-                // premultiplied-alpha) always run, and the blendMode switch is effected
-                // solely by the blend-pass shader branch. Mirror that here: do NOT copy
-                // conditions onto the pass (NMPipeline.ShouldSkipPass therefore never gates).
+                // conditions (runIf/skipIf, reference 0ed489ec): the round's `.flatMap()`
+                // per-viewMode-clone pattern (pointsRender/pointsBillboardRender) is the
+                // first reference use of pass.conditions — expander.js now carries
+                // `conditions: passDef.conditions` straight through onto the compiled pass,
+                // and Pipeline.shouldSkipPass actually gates on it. Mirror both: copy the
+                // JSON conditions onto pass.Conditions here so NMPipeline.ShouldSkipPass
+                // (already implemented, previously dormant) can gate.
+                pass.Conditions = ParseConditions(passDef.Get("conditions"));
                 JsonValue repeat = passDef.Get("repeat");
                 if (repeat != null && repeat.Kind == JsonKind.Number) pass.Repeat = Repeat.FromCount((int)repeat.AsNumber);
                 else if (repeat != null && repeat.Kind == JsonKind.String) pass.Repeat = Repeat.FromUniform(repeat.AsString);
@@ -697,9 +728,45 @@ namespace Noisemaker.Hlsl.Compiler
                     passDef.Has("storageBuffers") || passDef.Has("storageTextures"))
                     throw new NotImplementedException("compute/MRT pass fields (entryPoint/workgroups/storage*) are not implemented in the first-cut Expander (reference/03 §2.1).");
 
-                // compile-time defines for this pass (reference/03 §4.5).
+                // compile-time defines for this pass (reference/03 §4.5), plus this round's
+                // (0ed489ec) pass-level `defines` on top: the .flatMap() per-viewMode-clone
+                // pattern gives each clone its OWN defines (VIEW_MODE/BLEND_MODE/BLUR_LAYER),
+                // distinct from this effect's global define-tagged uniforms. Reference:
+                // `programs[programName] = {...baseProgram, defines: {...compileTimeDefines,
+                // ...passDef.defines}}` — pass-level entries are added on top (and would win
+                // on a key collision, though in practice the key sets are disjoint). This
+                // port uploads defines as runtime SetInt uniforms (PORTING-GUIDE.md), not
+                // compile-time shader permutations, so a per-pass-varying value just works
+                // once bound here — no separate program/variant registration is needed.
                 pass.Defines = new OrderedMap<string, int>();
                 if (defines != null) foreach (var d in defines) pass.Defines.Add(d.Key, d.Value);
+                JsonValue passDefines = passDef.Get("defines");
+                if (passDefines != null && passDefines.Kind == JsonKind.Object)
+                {
+                    foreach (var kv in passDefines.AsObject)
+                    {
+                        JsonValue dv = kv.Value;
+                        int iv;
+                        if (dv.Kind == JsonKind.Number) iv = (int)dv.AsNumber;
+                        else if (dv.Kind == JsonKind.Bool) iv = dv.AsBool ? 1 : 0;
+                        else continue;
+                        pass.Defines.Add(kv.Key, iv); // OrderedMap.Add() overwrites an existing key
+                    }
+                    // Graph-parity only (reference expander.js): pass.Program gets the SAME
+                    // `__KEY_val` suffix (sorted by key) the reference appends to its per-clone
+                    // programName. This port never looks up a shader variant by this string (it
+                    // resolves the Unity Shader by progName/blend, see NMShaderRegistry), but the
+                    // exported graph JSON must match byte-for-byte for parity/graph-diff.py.
+                    var sortedKeys = new List<string>();
+                    foreach (var kv in passDefines.AsObject) sortedKeys.Add(kv.Key);
+                    sortedKeys.Sort(StringComparer.Ordinal);
+                    foreach (string k in sortedKeys)
+                    {
+                        JsonValue dv = passDefines.Get(k);
+                        string valStr = dv.Kind == JsonKind.Bool ? (dv.AsBool ? "true" : "false") : JsNumberString(dv.AsNumber);
+                        pass.Program += "__" + k + "_" + valStr;
+                    }
+                }
 
                 // pass.uniforms = { ...pipelineUniforms }, minus THIS effect's define-globals
                 foreach (var u in pipe) if (!defineKeys.Contains(u.Key)) pass.Uniforms.Add(u.Key, u.Value);
@@ -733,6 +800,18 @@ namespace Noisemaker.Hlsl.Compiler
                                 Min = NumOr(def, "min", 0),
                                 Max = NumOr(def, "max", 100)
                             });
+                        else if (type == "int" && hasChoices && conditionalUniforms.Contains(uniform))
+                        {
+                            bool hasRange = def.Get("min") != null && def.Get("min").Kind == JsonKind.Number
+                                         && def.Get("max") != null && def.Get("max").Kind == JsonKind.Number;
+                            pass.UniformSpecs.Add(uniform, new UniformSpec
+                            {
+                                Type = "int",
+                                HasRange = hasRange,
+                                Min = hasRange ? def.Get("min").AsNumber : 0,
+                                Max = hasRange ? def.Get("max").AsNumber : 0
+                            });
+                        }
                     }
 
                 // args -> uniforms (reference/03 §4.9 step 7)
@@ -760,6 +839,16 @@ namespace Noisemaker.Hlsl.Compiler
                     foreach (var kv in passUniforms.AsObject)
                     {
                         string uniformName = kv.Key;
+                        // A NUMBER value (reference 0ed489ec, e.g. depthMerge's per-clone
+                        // `runLength`) is a literal pass-level uniform override, not a global
+                        // reference — bind it directly and skip the global-lookup fallbacks
+                        // below (mirrors expander.js: `if (typeof globalRef === 'number') {
+                        // pass.uniforms[uniformName] = globalRef; continue }`).
+                        if (kv.Value.Kind == JsonKind.Number)
+                        {
+                            pass.Uniforms.Add(uniformName, UniformValue.Of(kv.Value.AsNumber));
+                            continue;
+                        }
                         string globalRef = kv.Value.Kind == JsonKind.String ? kv.Value.AsString : null;
                         if (pipe.ContainsKey(uniformName)) pass.Uniforms.Add(uniformName, pipe[uniformName]);
                         else if (globalRef != null && pipe.ContainsKey(globalRef)) pass.Uniforms.Add(uniformName, pipe[globalRef]);
@@ -1168,12 +1257,24 @@ namespace Noisemaker.Hlsl.Compiler
         }
 
         // Rewrite a {param}/{screenDivide} dim to a chain-scoped param name and record it.
-        private static Dim ScopeDimSpec(Dim d, string scopeSuffix, OrderedMap<string, string> scopedParamMap)
+        // texName (reference 0ed489ec): a `stateSize` dim on a NON-global texture prefers the
+        // originating particle-pipeline id over the ordinary scope suffix when one is active —
+        // e.g. pointsBillboardRender's depthOrderA/depthOrderB sort buffers aren't themselves
+        // particle-state textures (IsParticleTex is false, so CollectTextures's own
+        // particleScoped/scopeSuffix computation falls back to the chain scope), but their
+        // `{stateSize}` dim still needs to resolve to the SAME stateSize the upstream
+        // pointsEmit established, not a same-named-but-different chain-scoped default. Pass
+        // null (viewport dims) to skip this override; it never applies to volumeSize dims
+        // (scoped separately by the caller before this function sees them).
+        private Dim ScopeDimSpec(Dim d, string scopeSuffix, OrderedMap<string, string> scopedParamMap, string texName = null)
         {
             if (d == null) return null;
             if (d.Kind == DimKind.Param && d.Param != null)
             {
-                string scoped = d.Param + "_" + scopeSuffix;
+                string dimensionScope = (d.Param == "stateSize" && _currentParticlePipelineId != null &&
+                                          texName != null && !texName.StartsWith("global_"))
+                    ? _currentParticlePipelineId : scopeSuffix;
+                string scoped = d.Param + "_" + dimensionScope;
                 scopedParamMap.Add(d.Param, scoped);
                 return Dim.FromParam(scoped, d.ParamDefault, d.Multiply, d.Power, d.DefaultValue);
             }
@@ -1218,6 +1319,33 @@ namespace Noisemaker.Hlsl.Compiler
             if (spec.Width == null) spec.Width = Dim.FromScreen();
             if (spec.Height == null) spec.Height = Dim.FromScreen();
             return spec;
+        }
+
+        // conditions (runIf/skipIf, reference 0ed489ec §4.9): { runIf: [{uniform, equals}],
+        // skipIf: [...] } -> PassConditions. Returns null when the pass declares neither
+        // list (matches the reference's `pass.conditions = passDef.conditions`, which is
+        // undefined for a pass with no `conditions` key).
+        private static PassConditions ParseConditions(JsonValue conditions)
+        {
+            if (conditions == null || conditions.Kind != JsonKind.Object) return null;
+            List<PassCondition> runIf = ParseConditionList(conditions.Get("runIf"));
+            List<PassCondition> skipIf = ParseConditionList(conditions.Get("skipIf"));
+            if (runIf == null && skipIf == null) return null;
+            return new PassConditions { RunIf = runIf, SkipIf = skipIf };
+        }
+
+        private static List<PassCondition> ParseConditionList(JsonValue arr)
+        {
+            if (arr == null || arr.Kind != JsonKind.Array) return null;
+            var list = new List<PassCondition>();
+            foreach (JsonValue entry in arr.AsArray)
+            {
+                string uniform = StrOf(entry, "uniform");
+                JsonValue eq = entry.Get("equals");
+                if (uniform == null || eq == null || eq.Kind != JsonKind.Number) continue;
+                list.Add(new PassCondition { Uniform = uniform, EqualsValue = eq.AsNumber });
+            }
+            return list;
         }
 
         private static string StrOf(JsonValue obj, string key)

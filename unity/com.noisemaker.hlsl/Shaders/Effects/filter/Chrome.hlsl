@@ -50,8 +50,13 @@ float4 NMFrag_chMap(NMVaryings i) : SV_Target
     float hR = nm_chrome_lum(blurTex.Sample(sampler_inputTex, uv + float2(texel.x, 0.0)).rgb);
     float hB = nm_chrome_lum(blurTex.Sample(sampler_inputTex, uv - float2(0.0, texel.y)).rgb);
     float hT = nm_chrome_lum(blurTex.Sample(sampler_inputTex, uv + float2(0.0, texel.y)).rgb);
-    float2 grad = float2(hR - hL, hT - hB);
-    float2 uv2 = uv + grad * (distortion / 100.0) * 0.5;
+    // Per-UV luminance gradient (reference 0ed489ec): normalize each finite
+    // difference by its own sampling distance so the two components live on
+    // the same scale.
+    float2 grad = float2((hR - hL) / (2.0 * texel.x), (hT - hB) / (2.0 * texel.y));
+    // Convert per-UV gradient back to a UV offset via texel — aspect-symmetric
+    // pixel-space displacement. Reduces to `grad_raw * 0.5 * d` on square textures.
+    float2 uv2 = uv + grad * texel * (distortion / 100.0);
     float h2 = nm_chrome_lum(blurTex.Sample(sampler_inputTex, uv2).rgb);
     float cycles = lerp(1.0, 7.0, detail / 100.0);
     float v = 0.5 + 0.5 * sin(h2 * cycles * 6.28318530718 + h2 * 3.0);

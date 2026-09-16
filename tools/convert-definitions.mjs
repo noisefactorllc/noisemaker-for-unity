@@ -115,6 +115,10 @@ function projectPass (pass) {
   if (pass.clear !== undefined) out.clear = pass.clear
   if (pass.type !== undefined) out.type = pass.type
   if (pass.entryPoint !== undefined) out.entryPoint = pass.entryPoint
+  // Reference 0ed489ec's `.flatMap()` per-viewMode-clone pattern (pointsRender/
+  // pointsBillboardRender) is the first use of pass-level conditions/defines.
+  if (pass.conditions !== undefined) out.conditions = pass.conditions
+  if (pass.defines !== undefined) out.defines = pass.defines
   return out
 }
 

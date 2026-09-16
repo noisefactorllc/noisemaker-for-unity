@@ -84,13 +84,18 @@ Texture2D inputTex;     SamplerState sampler_inputTex;
 float density;          // globals.density        default 50
 float intensity;        // globals.intensity      default 75  (trail persistence)
 float inputIntensity;   // globals.inputIntensity default 10.15
-int   viewMode;         // globals.viewMode       default 0   (0=flat, 1=ortho)
+// VIEW_MODE (reference 0ed489ec): moved from a packed runtime uniform to a
+// compile-time-selector define (0=flat, 1=ortho, 2=perspective — NEW this round).
+// Bound as SetInt via pass.Defines (PORTING-GUIDE: uppercase = define carrier).
+int   VIEW_MODE;
 float rotateX;          // globals.rotateX        default 0.3
 float rotateY;          // globals.rotateY        default 0
 float rotateZ;          // globals.rotateZ        default 0
 float viewScale;        // globals.viewScale      default 0.8
 float posX;             // globals.posX           default 0
 float posY;             // globals.posY           default 0
+float posZ;              // globals.posZ           default 0   (NEW, perspective camera)
+float fieldOfView;       // globals.fieldOfView    default 60  (NEW, perspective camera)
 float matteOpacity;     // globals.matteOpacity   default 1.0
 
 // =============================================================================
@@ -192,18 +197,20 @@ PRDepositVaryings vert_deposit(uint vertexID : SV_VertexID)
 
     float2 clipPos;
 
-    if (viewMode == 0)
+    if (VIEW_MODE == 0)
     {
         // 2D mode: positions are normalized 0..1.
         clipPos = pos.xy * 2.0 - 1.0;
     }
     else
     {
-        // 3D mode: apply rotation and orthographic projection.
+        // 3D mode: rotate world coordinates before camera projection.
         float3 p = pos.xyz;
 
         // Detect 2D system (coords in 0-1, Z near 0) vs 3D attractor (coords ±40).
-        bool is2DSystem = abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
+        // VIEW_MODE == 1 gated (reference 0ed489ec): perspective (2) is never a
+        // recentered 2D system — it uses the raw world position directly.
+        bool is2DSystem = VIEW_MODE == 1 && abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
 
         if (is2DSystem)
         {
@@ -230,8 +237,22 @@ PRDepositVaryings vert_deposit(uint vertexID : SV_VertexID)
         p.x = p.x + posX;
         p.y = p.y + posY;
 
-        // Orthographic projection with scale.
-        if (is2DSystem)
+        // Perspective (VIEW_MODE == 2, NEW reference 0ed489ec): shares the
+        // pointsBillboardRender camera model — a Z=80 camera looking down -Z.
+        if (VIEW_MODE == 2)
+        {
+            float cameraDepth = 80.0 - (p.z + posZ);
+            if (cameraDepth <= 0.1)
+            {
+                o.positionCS = float4(2.0, 2.0, 0.0, 1.0);
+                o.color = float4(0.0, 0.0, 0.0, 0.0);
+                return o;
+            }
+            float focalLength = 1.0 / tan(clamp(fieldOfView, 10.0, 150.0) * 0.00872664626);
+            clipPos = p.xy * focalLength * viewScale / cameraDepth;
+            clipPos.x = clipPos.x * resolution.y / resolution.x;
+        }
+        else if (is2DSystem)
         {
             // 2D systems: coords are ±0.5, scale to fill viewport (3.5x close-up).
             clipPos = p.xy * 3.5 * viewScale;

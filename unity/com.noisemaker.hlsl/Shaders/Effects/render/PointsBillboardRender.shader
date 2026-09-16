@@ -118,6 +118,81 @@ Shader "Noisemaker/render/pointsBillboardRender"
             #include "PointsBillboardRender.hlsl"
             ENDHLSL
         }
+
+        // NEW this round (reference 0ed489ec) — depth-sorted alpha-blend path +
+        // aperture defocus precompute. All five are simple fullscreen passes;
+        // VIEW_MODE/BLEND_MODE/BLUR_LAYER select behavior via SetInt-bound
+        // defines (PORTING-GUIDE), not separate compiled shader variants.
+
+        // progName "depthKeys" — 2 JSON pass clones (VIEW_MODE 1/2), same shader.
+        Pass
+        {
+            Name "depthKeys"
+            Blend Off
+            HLSLPROGRAM
+            #pragma vertex NMVertFullscreen
+            #pragma fragment frag_depthKeys
+            #pragma target 4.5
+            #pragma exclude_renderers gles
+            #include "PointsBillboardRender.hlsl"
+            ENDHLSL
+        }
+
+        // progName "depthMerge" — 22 JSON pass clones (runLength doubling), same shader.
+        Pass
+        {
+            Name "depthMerge"
+            Blend Off
+            HLSLPROGRAM
+            #pragma vertex NMVertFullscreen
+            #pragma fragment frag_depthMerge
+            #pragma target 4.5
+            #pragma exclude_renderers gles
+            #include "PointsBillboardRender.hlsl"
+            ENDHLSL
+        }
+
+        // progName "spriteMeanTiles"
+        Pass
+        {
+            Name "spriteMeanTiles"
+            Blend Off
+            HLSLPROGRAM
+            #pragma vertex NMVertFullscreen
+            #pragma fragment frag_spriteMeanTiles
+            #pragma target 4.5
+            #pragma exclude_renderers gles
+            #include "PointsBillboardRender.hlsl"
+            ENDHLSL
+        }
+
+        // progName "spriteMean"
+        Pass
+        {
+            Name "spriteMean"
+            Blend Off
+            HLSLPROGRAM
+            #pragma vertex NMVertFullscreen
+            #pragma fragment frag_spriteMean
+            #pragma target 4.5
+            #pragma exclude_renderers gles
+            #include "PointsBillboardRender.hlsl"
+            ENDHLSL
+        }
+
+        // progName "clearDefocus"
+        Pass
+        {
+            Name "clearDefocus"
+            Blend Off
+            HLSLPROGRAM
+            #pragma vertex NMVertFullscreen
+            #pragma fragment frag_clearDefocus
+            #pragma target 4.5
+            #pragma exclude_renderers gles
+            #include "PointsBillboardRender.hlsl"
+            ENDHLSL
+        }
     }
     Fallback Off
 }

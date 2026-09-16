@@ -156,6 +156,11 @@ float3 nm_adj_linearToSrgb(float3 lin)
 // =============================================================================
 float4 nm_adjust(float4 color)
 {
+    // Color operations use straight RGB; retain coverage at the boundary
+    // (reference 0ed489ec).
+    if (color.a > 0.0) { color = float4(color.rgb / color.a, color.a); }
+    else { color = float4(0.0, 0.0, 0.0, 0.0); }
+
     // --- Colorspace reinterpretation ---
     if (mode == 1)
     {
@@ -196,7 +201,8 @@ float4 nm_adjust(float4 color)
     float contrastFactor = contrast * 2.0;
     color = float4((color.rgb - 0.5) * contrastFactor + 0.5, color.a);
 
-    return color;
+    // Re-premultiply on write (reference 0ed489ec).
+    return float4(color.rgb * color.a, color.a);
 }
 
 #endif // NM_EFFECT_ADJUST_INCLUDED

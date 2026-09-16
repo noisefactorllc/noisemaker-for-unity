@@ -59,6 +59,16 @@
       "min": 0,
       "max": 1
     },
+    "zone0_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone0_bounds"
+    },
     "zone0_v0": {
       "type": "vec4",
       "default": [
@@ -397,6 +407,16 @@
       "uniform": "zone1_alpha",
       "min": 0,
       "max": 1
+    },
+    "zone1_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone1_bounds"
     },
     "zone1_v0": {
       "type": "vec4",
@@ -737,6 +757,16 @@
       "min": 0,
       "max": 1
     },
+    "zone2_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone2_bounds"
+    },
     "zone2_v0": {
       "type": "vec4",
       "default": [
@@ -1075,6 +1105,16 @@
       "uniform": "zone3_alpha",
       "min": 0,
       "max": 1
+    },
+    "zone3_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone3_bounds"
     },
     "zone3_v0": {
       "type": "vec4",
@@ -1415,6 +1455,16 @@
       "min": 0,
       "max": 1
     },
+    "zone4_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone4_bounds"
+    },
     "zone4_v0": {
       "type": "vec4",
       "default": [
@@ -1753,6 +1803,16 @@
       "uniform": "zone5_alpha",
       "min": 0,
       "max": 1
+    },
+    "zone5_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone5_bounds"
     },
     "zone5_v0": {
       "type": "vec4",
@@ -2093,6 +2153,16 @@
       "min": 0,
       "max": 1
     },
+    "zone6_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone6_bounds"
+    },
     "zone6_v0": {
       "type": "vec4",
       "default": [
@@ -2431,6 +2501,16 @@
       "uniform": "zone7_alpha",
       "min": 0,
       "max": 1
+    },
+    "zone7_bounds": {
+      "type": "vec4",
+      "default": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "uniform": "zone7_bounds"
     },
     "zone7_v0": {
       "type": "vec4",

@@ -213,8 +213,18 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 if (!f) sb.Append(','); f = false;
                 WriteKey(sb, kv.Key); sb.Append('{');
-                WriteKey(sb, "min"); sb.Append(JsNum(kv.Value.Min)); sb.Append(',');
-                WriteKey(sb, "max"); sb.Append(JsNum(kv.Value.Max));
+                bool firstSpecField = true;
+                if (kv.Value.Type != null)
+                {
+                    WriteKey(sb, "type"); WriteJsonString(sb, kv.Value.Type);
+                    firstSpecField = false;
+                }
+                if (kv.Value.HasRange)
+                {
+                    if (!firstSpecField) sb.Append(',');
+                    WriteKey(sb, "min"); sb.Append(JsNum(kv.Value.Min)); sb.Append(',');
+                    WriteKey(sb, "max"); sb.Append(JsNum(kv.Value.Max));
+                }
                 sb.Append('}');
             }
             sb.Append('}');
@@ -244,12 +254,27 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 sb.Append(','); WriteKey(sb, "blend"); sb.Append(p.Blend ? "true" : "false");
             }
-            // conditions (runIf/skipIf): NOT emitted. The reference compiled graph never
-            // carries pass.conditions (expander.js omits the field), so the normalized graph
-            // must not either — both pointsBillboardRender deposit passes always run and the
-            // blendMode switch lives in the blend-pass shader. Emitting conditions here would
-            // diverge the C# live graph from the reference oracle (and would re-enable the
-            // dead gating). Pass.Conditions is therefore never set on this path.
+            // conditions (runIf/skipIf, reference 0ed489ec): the round's `.flatMap()`
+            // per-viewMode-clone pattern is the first use of pass.conditions — expander.js
+            // now sets `conditions: passDef.conditions` on the compiled pass, and
+            // export-graph.mjs's normalizePass() carries it through unconditionally. Match
+            // that here so the live C# graph stays byte-identical to the oracle.
+            if (p.Conditions != null)
+            {
+                sb.Append(','); WriteKey(sb, "conditions"); sb.Append('{');
+                bool firstField = true;
+                if (p.Conditions.RunIf != null)
+                {
+                    if (!firstField) sb.Append(','); firstField = false;
+                    WriteKey(sb, "runIf"); WriteConditionList(sb, p.Conditions.RunIf);
+                }
+                if (p.Conditions.SkipIf != null)
+                {
+                    if (!firstField) sb.Append(','); firstField = false;
+                    WriteKey(sb, "skipIf"); WriteConditionList(sb, p.Conditions.SkipIf);
+                }
+                sb.Append('}');
+            }
             if (p.Repeat != null)
             {
                 sb.Append(','); WriteKey(sb, "repeat");
@@ -423,6 +448,21 @@ namespace Noisemaker.Hlsl.Compiler
         private static void WriteString(StringBuilder sb, string key, string value)
         {
             WriteKey(sb, key); WriteJsonString(sb, value);
+        }
+        // conditions.runIf / conditions.skipIf: [{uniform, equals}].
+        private static void WriteConditionList(StringBuilder sb, System.Collections.Generic.List<Graph.PassCondition> list)
+        {
+            sb.Append('[');
+            bool f = true;
+            foreach (var c in list)
+            {
+                if (!f) sb.Append(','); f = false;
+                sb.Append('{');
+                WriteKey(sb, "uniform"); WriteJsonString(sb, c.Uniform); sb.Append(',');
+                WriteKey(sb, "equals"); sb.Append(JsNum(c.EqualsValue));
+                sb.Append('}');
+            }
+            sb.Append(']');
         }
         private static void WriteKey(StringBuilder sb, string key)
         {

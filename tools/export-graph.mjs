@@ -202,12 +202,37 @@ function deriveProgName (pass) {
 
 // Compile-time defines for a pass come from its resolved program entry, which
 // carries `defines` (NOISE_TYPE, LOOP_OFFSET, ...). They are int-valued.
+//
+// `programs` (graph.programs) is populated by the reference's own browser runtime
+// fetching shader source over HTTP at registration time (canvas.js
+// loadEffectShaders()) — this offline `compileGraph()` invocation never does that,
+// so `programs` is empty here and the lookup above always misses for a PASS-LEVEL
+// define (reference 0ed489ec's `.flatMap()` per-viewMode-clone pattern:
+// pointsRender/pointsBillboardRender's deposit passes). Recover the value from the
+// `__KEY_val` suffix `deriveProgName()` already strips off `pass.program` — the
+// only place it survives in this export path. Effect-level compileTimeDefines
+// (NOISE_TYPE, LOOP_OFFSET) are unaffected: those are promoted separately below via
+// defineMap, from `pass.uniforms`, not from `programs`.
 function definesForPass (pass, programs) {
   const prog = programs && programs[pass.program]
   const d = prog && prog.defines
-  if (!d) return {}
   const out = {}
-  for (const [k, v] of Object.entries(d)) out[k] = v
+  if (d) for (const [k, v] of Object.entries(d)) out[k] = v
+  const raw = pass.program || ''
+  let s = raw
+  const nodePrefix = pass.nodeId ? `${pass.nodeId}_` : null
+  if (nodePrefix && s.startsWith(nodePrefix)) s = s.slice(nodePrefix.length)
+  const suffixIdx = s.indexOf('__')
+  if (suffixIdx >= 0) {
+    for (const seg of s.slice(suffixIdx).split('__')) {
+      if (!seg) continue
+      const idx = seg.lastIndexOf('_')
+      if (idx < 0) continue
+      const key = seg.slice(0, idx)
+      const val = seg.slice(idx + 1)
+      out[key] = /^-?\d+$/.test(val) ? Number(val) : val
+    }
+  }
   return out
 }
 
@@ -251,13 +276,12 @@ function normalizePass (pass, programs, defineMap) {
   if (pass.blend !== undefined) out.blend = pass.blend
   if (pass.repeat !== undefined) out.repeat = pass.repeat
   if (pass.clear !== undefined) out.clear = pass.clear
-  // Pass run/skip gating (reference Pipeline.shouldSkipPass) is NOT emitted. The
-  // reference expander.js builds each compiled pass from an explicit field list that
-  // omits `conditions`, so compileGraph() never carries pass.conditions and
-  // shouldSkipPass always returns false — both pointsBillboardRender deposit passes
-  // (additive + premultiplied-alpha) always run, with the blendMode switch handled by
-  // the blend-pass shader branch. This exporter is the GOLDEN oracle, so it must mirror
-  // the reference exactly: do NOT re-attach conditions from the authored definition.
+  // Pass run/skip gating (reference Pipeline.shouldSkipPass). Reference 0ed489ec's
+  // `.flatMap()` per-viewMode-clone pattern is the first use of pass.conditions:
+  // expander.js now sets `conditions: passDef.conditions` directly on the compiled
+  // pass object, and shouldSkipPass actually gates on it. This exporter is the
+  // GOLDEN oracle, so it must carry the reference's own conditions through exactly.
+  if (!isBlit && pass.conditions !== undefined) out.conditions = pass.conditions
 
   // Metadata.
   out.effectKey = pass.effectKey ?? null
