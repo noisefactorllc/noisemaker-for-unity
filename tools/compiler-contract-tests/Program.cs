@@ -30,8 +30,10 @@ namespace CompilerContractTests
             TestNestedAudioRequirements();
             TestInvalidAudioDoesNotCaptureNestedInput();
             TestAudioTaggedEffectRequirements();
+            TestChainedVariableAlias();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
+
             return _failures == 0 ? 0 : 1;
         }
 
@@ -498,7 +500,42 @@ namespace CompilerContractTests
                 "precompiled bundled audio effect retains capture metadata without a registry");
         }
 
+        private static void TestChainedVariableAlias()
+        {
+            try
+            {
+                var reg = new EffectRegistry();
+                reg.Register(JsonValue.Parse(
+                    "{\"name\":\"Noise\",\"namespace\":\"synth\"," +
+                    "\"func\":\"noise\",\"starter\":true,\"globals\":{}," +
+                    "\"passes\":[{\"name\":\"render\",\"program\":\"noise\"," +
+                    "\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+                reg.Register(JsonValue.Parse(
+                    "{\"name\":\"Rotate\",\"namespace\":\"filter\"," +
+                    "\"func\":\"rotate\",\"starter\":false,\"globals\":{" +
+                    "\"angle\":{\"type\":\"float\",\"default\":0,\"uniform\":\"angle\"}," +
+                    "\"speed\":{\"type\":\"float\",\"default\":0,\"uniform\":\"speed\"}}," +
+                    "\"passes\":[{\"name\":\"render\",\"program\":\"rotate\"," +
+                    "\"inputs\":{\"tex\":\"inputTex\"},\"outputs\":{\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+                string source = "search synth, filter\nlet gen = noise()\nlet eff = rotate(1, 0.1)\ngen().eff().write(o0)\nrender(o0)\n";
+                RenderGraph graph = DslCompiler.Compile(source, reg);
+                Check(graph.Passes.Count == 3, "chained variable alias emits 3 passes");
+                Check(graph.Passes[0].Id == "node_0_pass_0", "pass 0 is node_0_pass_0");
+                Check(graph.Passes[1].Id == "node_1_pass_0", "pass 1 is node_1_pass_0");
+                Check(graph.Passes[2].Id == "node_2_write_blit", "terminal pass is node_2_write_blit");
+                Check(graph.Passes[2].Program == "blit", "terminal program is blit");
+                Check(graph.Passes[2].PassType == PassType.Blit, "terminal passType is blit");
+                Check(graph.Passes[2].Inputs.TryGetValue("src", out string src) && src == "node_1_out", "terminal read is node_1_out");
+                Check(graph.Passes[2].Outputs.TryGetValue("color", out string color) && color == "global_o0", "terminal write is global_o0");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "chained variable alias: " + ex.Message);
+            }
+        }
+
         private static RenderGraph CompileProbe(string body)
+
         {
             string source = "search synth\n" + body + "\nrender(o0)\n";
             return DslCompiler.Compile(source, ProbeRegistry());
