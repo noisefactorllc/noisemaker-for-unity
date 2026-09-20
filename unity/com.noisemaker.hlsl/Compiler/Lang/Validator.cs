@@ -1136,8 +1136,7 @@ namespace Noisemaker.Hlsl.Compiler
                 if (hasZone && midi.Channel != null) validSelection = false;
                 bool validChannel = true;
                 JsonValue channel = hasZone ? null : ResolveAutomationNumber(midi.Channel, "midi", "channel", 1,
-                    mode < 5, false, false, depth, () => validChannel = false, mode < 5, mode >= 5,
-                    mode >= 5 ? (double?)1 : null, mode >= 5 ? (double?)16 : null);
+                    false, false, false, depth, () => validChannel = false, false, true, 1, 16);
                 bool validCc = true;
                 JsonValue cc = null;
                 if (midi.Cc != null || mode == 5 || mode == 6)

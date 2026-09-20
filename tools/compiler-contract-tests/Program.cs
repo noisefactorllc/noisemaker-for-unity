@@ -65,6 +65,30 @@ namespace CompilerContractTests
                     JsonValue invalid = CompileProbe("automationProbe(amount: " + expression + ").write(o0)").Passes[0].Uniforms["amount"].Object;
                     Check(invalid.Get("_invalid").AsBool, "invalid MIDI selector fails closed");
                 }
+                string[] noteModes = { "noteChange", "gateNote", "gateVelocity", "triggerNote", "velocity" };
+                foreach (string m in noteModes)
+                {
+                    foreach (int ch in new[] { 1, 16 })
+                    {
+                        JsonValue valid = CompileProbe("automationProbe(amount: midi(channel: " + ch + ", mode: midiMode." + m + ")).write(o0)").Passes[0].Uniforms["amount"].Object;
+                        Check(valid.Get("channel").AsNumber == ch && valid.Get("_invalid") == null,
+                            "legacy note mode " + m + " accepts static channel " + ch);
+                    }
+                    foreach (string badCh in new[] { "0", "17", "1.5", "true", "\"1\"", "osc()" })
+                    {
+                        bool failedClosed = false;
+                        try
+                        {
+                            JsonValue invalid = CompileProbe("automationProbe(amount: midi(channel: " + badCh + ", mode: midiMode." + m + ")).write(o0)").Passes[0].Uniforms["amount"].Object;
+                            failedClosed = invalid.Get("_invalid") != null && invalid.Get("_invalid").AsBool;
+                        }
+                        catch (Exception ex) when (ex.Message.Contains("ERR_COMPILATION_FAILED"))
+                        {
+                            failedClosed = true;
+                        }
+                        Check(failedClosed, "legacy note mode " + m + " rejects invalid channel " + badCh);
+                    }
+                }
                 JsonValue audio = CompileProbe("automationProbe(amount: audio(audioBand.raw, channel:32)).write(o0)").Passes[0].Uniforms["amount"].Object;
                 Check(audio.Get("channel").AsNumber == 32 && !audio.Get("_invalid").AsBool, "default audio channel32 compiles");
                 audio = CompileProbe("automationProbe(amount: audio(audioBand.raw, channel:33)).write(o0)").Passes[0].Uniforms["amount"].Object;
