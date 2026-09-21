@@ -111,8 +111,17 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     int j = i + 1;
                     while (j < n && IsDigit(src[j])) j++;
+                    string lexeme = src.Substring(i, j - i);
                     TokenType t = ch == 'o' ? TokenType.OUTPUT_REF : TokenType.SOURCE_REF;
-                    tokens.Add(new Token(t, src.Substring(i, j - i), startLine, startCol));
+                    bool isMemberSegment = tokens.Count > 0 && tokens[tokens.Count - 1].Type == TokenType.DOT;
+                    if (t == TokenType.OUTPUT_REF && !isMemberSegment
+                        && !(lexeme.Length == 2 && lexeme[1] >= '0' && lexeme[1] <= '7'))
+                    {
+                        throw DslSyntaxError.At(
+                            $"Output surface reference '{lexeme}' is out of range; expected o0-o7",
+                            startLine, startCol);
+                    }
+                    tokens.Add(new Token(t, lexeme, startLine, startCol));
                     col += j - i;
                     i = j;
                     continue;

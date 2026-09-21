@@ -33,6 +33,7 @@ namespace CompilerContractTests
             TestAudioTaggedEffectRequirements();
             TestChainedVariableAlias();
             TestFilterAdjustAndExpiredEffects();
+            TestOutputSurfaceRangeEnforcement();
             TestHlslIncludeDirectivesResolve();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
@@ -602,6 +603,66 @@ namespace CompilerContractTests
             catch (Exception ex)
             {
                 Check(false, "TestFilterAdjustAndExpiredEffects: " + ex.Message);
+            }
+        }
+
+        private static void TestOutputSurfaceRangeEnforcement()
+        {
+            try
+            {
+                // valid boundaries
+                var toks = Lexer.Lex("o0 o7 s3 output0");
+                Check(toks.Count == 5, "token count for boundary test");
+                Check(toks[0].Type == TokenType.OUTPUT_REF && toks[0].Lexeme == "o0", "o0 is OUTPUT_REF");
+                Check(toks[1].Type == TokenType.OUTPUT_REF && toks[1].Lexeme == "o7", "o7 is OUTPUT_REF");
+                Check(toks[2].Type == TokenType.SOURCE_REF && toks[2].Lexeme == "s3", "s3 is SOURCE_REF");
+
+                // out-of-range references throw DslSyntaxError
+                var cases = new (string src, string expected)[]
+                {
+                    ("render(o8)", "Output surface reference 'o8' is out of range; expected o0-o7 at line 1 col 8"),
+                    ("read(o99).write(o0)", "Output surface reference 'o99' is out of range; expected o0-o7 at line 1 col 6"),
+                    ("read(o0).write(o10)", "Output surface reference 'o10' is out of range; expected o0-o7 at line 1 col 16"),
+                };
+                foreach (var (src, expected) in cases)
+                {
+                    bool threw = false;
+                    try
+                    {
+                        Lexer.Lex(src);
+                    }
+                    catch (DslSyntaxError ex)
+                    {
+                        threw = true;
+                        Check(ex.Message == expected, "error message for " + src + " matches: " + ex.Message);
+                    }
+                    Check(threw, "syntax error thrown for " + src);
+                }
+
+                // member segments foo.o8 and foo.o99 are allowed
+                var memberToks = Lexer.Lex("foo.o0 foo.o7 foo.o8 foo.o99");
+                var outputRefs = new System.Collections.Generic.List<string>();
+                foreach (var t in memberToks)
+                {
+                    if (t.Type == TokenType.OUTPUT_REF) outputRefs.Add(t.Lexeme);
+                }
+                Check(outputRefs.Count == 4 && outputRefs[0] == "o0" && outputRefs[1] == "o7" && outputRefs[2] == "o8" && outputRefs[3] == "o99",
+                    "member segments allow o8/o99");
+
+                // other surface reference families preserve multi-digit numbers
+                var otherToks = Lexer.Lex("s99 vol99 geo99 xyz99 vel99 rgba99 mesh99");
+                Check(otherToks.Count == 8, "7 ref tokens + EOF");
+                Check(otherToks[0].Type == TokenType.SOURCE_REF && otherToks[0].Lexeme == "s99", "s99");
+                Check(otherToks[1].Type == TokenType.VOL_REF && otherToks[1].Lexeme == "vol99", "vol99");
+                Check(otherToks[2].Type == TokenType.GEO_REF && otherToks[2].Lexeme == "geo99", "geo99");
+                Check(otherToks[3].Type == TokenType.XYZ_REF && otherToks[3].Lexeme == "xyz99", "xyz99");
+                Check(otherToks[4].Type == TokenType.VEL_REF && otherToks[4].Lexeme == "vel99", "vel99");
+                Check(otherToks[5].Type == TokenType.RGBA_REF && otherToks[5].Lexeme == "rgba99", "rgba99");
+                Check(otherToks[6].Type == TokenType.MESH_REF && otherToks[6].Lexeme == "mesh99", "mesh99");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestOutputSurfaceRangeEnforcement: " + ex.Message);
             }
         }
 
