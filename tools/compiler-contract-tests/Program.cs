@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using Noisemaker.Hlsl;
 using Noisemaker.Hlsl.Compiler;
@@ -31,8 +32,11 @@ namespace CompilerContractTests
             TestInvalidAudioDoesNotCaptureNestedInput();
             TestAudioTaggedEffectRequirements();
             TestChainedVariableAlias();
+            TestFilterAdjustAndExpiredEffects();
+            TestHlslIncludeDirectivesResolve();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
+
 
             return _failures == 0 ? 0 : 1;
         }
@@ -558,7 +562,96 @@ namespace CompilerContractTests
             }
         }
 
+        private static void TestFilterAdjustAndExpiredEffects()
+        {
+            try
+            {
+                string effectsDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects");
+                if (!Directory.Exists(effectsDir))
+                {
+                    effectsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl", "Effects"));
+                }
+                var reg = EffectRegistry.LoadFromDirectory(effectsDir);
+
+                // filter.adjust should be present and compile
+                string source = "search synth, filter\nnoise().adjust(rotation: 45).write(o0)\nrender(o0)\n";
+                RenderGraph graph = DslCompiler.Compile(source, reg);
+                bool hasAdjust = false;
+                foreach (var p in graph.Passes)
+                {
+                    if (p.EffectKey == "filter.adjust") hasAdjust = true;
+                }
+                Check(hasAdjust, "filter.adjust resolves in compiled graph");
+
+                // expired effects: bc, colorspace, hs should produce Unknown effect error (diagnostic S001)
+                string[] expired = { "bc", "colorspace", "hs" };
+                foreach (string exp in expired)
+                {
+                    string badSource = "search synth, filter\nnoise()." + exp + "().write(o0)\nrender(o0)\n";
+                    var tokens = Lexer.Lex(badSource);
+                    var program = Parser.Parse(tokens, reg);
+                    var result = Validator.Validate(program, reg);
+                    bool hasUnknownDiagnostic = false;
+                    foreach (var diag in result.Diagnostics)
+                    {
+                        if (diag.Code == "S001") hasUnknownDiagnostic = true;
+                    }
+                    Check(hasUnknownDiagnostic, "expired effect " + exp + " produces diagnostic S001");
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestFilterAdjustAndExpiredEffects: " + ex.Message);
+            }
+        }
+
+        private static void TestHlslIncludeDirectivesResolve()
+        {
+            try
+            {
+                string packageDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl");
+                if (!Directory.Exists(packageDir))
+                {
+                    packageDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl"));
+                }
+                string[] hlslFiles = Directory.GetFiles(packageDir, "*.hlsl", SearchOption.AllDirectories);
+                string[] shaderFiles = Directory.GetFiles(packageDir, "*.shader", SearchOption.AllDirectories);
+                var allFiles = new System.Collections.Generic.List<string>(hlslFiles);
+                allFiles.AddRange(shaderFiles);
+
+                int checkedIncludes = 0;
+                foreach (string file in allFiles)
+                {
+                    string fileDir = Path.GetDirectoryName(file);
+                    string[] lines = File.ReadAllLines(file);
+                    foreach (string rawLine in lines)
+                    {
+                        string line = rawLine.Trim();
+                        if (!line.StartsWith("#include")) continue;
+                        int firstQuote = line.IndexOf('"');
+                        int lastQuote = line.LastIndexOf('"');
+                        if (firstQuote >= 0 && lastQuote > firstQuote)
+                        {
+                            string relPath = line.Substring(firstQuote + 1, lastQuote - firstQuote - 1);
+                            if (relPath.StartsWith("Packages/") || relPath.StartsWith("Unity") || !relPath.Contains("/"))
+                                continue;
+                            string fullTarget = Path.GetFullPath(Path.Combine(fileDir, relPath));
+                            Check(File.Exists(fullTarget), "include in " + Path.GetFileName(file) + " resolves to: " + relPath);
+                            checkedIncludes++;
+                        }
+                    }
+                }
+                Check(checkedIncludes > 0, "verified " + checkedIncludes + " relative HLSL include directives");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestHlslIncludeDirectivesResolve: " + ex.Message);
+            }
+        }
+
         private static RenderGraph CompileProbe(string body)
+
+
 
         {
             string source = "search synth\n" + body + "\nrender(o0)\n";
