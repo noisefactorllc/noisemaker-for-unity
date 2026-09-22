@@ -13,12 +13,17 @@ namespace Noisemaker.Hlsl.Compiler
 {
     public sealed class DslSyntaxError : Exception
     {
-        public DslSyntaxError(string message) : base(message) { }
+        public Diagnostic Diagnostic { get; }
+
+        public DslSyntaxError(string message, Diagnostic diagnostic = null) : base(message)
+        {
+            Diagnostic = diagnostic;
+        }
 
         // Convenience matching the JS `throw new SyntaxError(`${msg} at line L col C`)`.
-        public static DslSyntaxError At(string message, int line, int col)
+        public static DslSyntaxError At(string message, int line, int col, Diagnostic diagnostic = null)
         {
-            return new DslSyntaxError(message + " at line " + line + " col " + col);
+            return new DslSyntaxError(message + " at line " + line + " col " + col, diagnostic);
         }
     }
 }

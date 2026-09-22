@@ -109,6 +109,7 @@ namespace Noisemaker.Hlsl.Compiler
             var diag = new Diagnostic
             {
                 Code = code,
+                Stage = DiagnosticTable.Stage(code),
                 Message = enriched,
                 Severity = DiagnosticTable.Severity(code),
                 Identifier = identName

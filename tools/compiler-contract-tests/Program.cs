@@ -36,6 +36,7 @@ namespace CompilerContractTests
             TestOutputSurfaceRangeEnforcement();
             TestHlslIncludeDirectivesResolve();
             TestDiagnosticSourceColumnsAndLocations();
+            TestStructuredLexerDiagnostics();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -765,6 +766,157 @@ namespace CompilerContractTests
             catch (Exception ex)
             {
                 Check(false, "TestDiagnosticSourceColumnsAndLocations: " + ex.Message);
+            }
+        }
+
+        private static void TestStructuredLexerDiagnostics()
+        {
+            try
+            {
+                var cases = new (string name, string source, string code, string message, int line, int column, int start, int end)[]
+                {
+                    (
+                        "unexpected character after CRLF, tab, and UTF-16 text",
+                        "// 😀\r\n\t@",
+                        "L001",
+                        "Unexpected character '@' at line 2 col 2",
+                        2, 2, 8, 9
+                    ),
+                    (
+                        "unterminated double-quoted string at EOF",
+                        "\"abc",
+                        "L002",
+                        "Unterminated string literal at line 1 col 1",
+                        1, 1, 0, 4
+                    ),
+                    (
+                        "unterminated single-quoted string at LF",
+                        " 'abc\nnext",
+                        "L002",
+                        "Unterminated string literal at line 1 col 2",
+                        1, 2, 1, 5
+                    ),
+                    (
+                        "unterminated triple-quoted string across lines",
+                        "\n  \"\"\"a\nb",
+                        "L002",
+                        "Unterminated triple-quoted string at line 2 col 3",
+                        2, 3, 3, 9
+                    ),
+                    (
+                        "unterminated block comment across lines",
+                        "\n /* a\nb",
+                        "L003",
+                        "Unterminated comment at line 2 col 2",
+                        2, 2, 2, 8
+                    ),
+                    (
+                        "out-of-range output reference",
+                        "search synth\nrender(o99)",
+                        "L004",
+                        "Output surface reference 'o99' is out of range; expected o0-o7 at line 2 col 8",
+                        2, 8, 20, 23
+                    ),
+                    (
+                        "UTF-16 columns after a string",
+                        "\"😀\" @",
+                        "L001",
+                        "Unexpected character '@' at line 1 col 6",
+                        1, 6, 5, 6
+                    ),
+                    (
+                        "source coordinates after a multiline function token",
+                        "() => (1\n + 2), @",
+                        "L001",
+                        "Unexpected character '@' at line 1 col 17",
+                        2, 8, 16, 17
+                    ),
+                    (
+                        "source coordinates after an escaped LF in a string",
+                        "\"a\\\nb\" @",
+                        "L001",
+                        "Unexpected character '@' at line 1 col 8",
+                        2, 4, 7, 8
+                    )
+                };
+
+                foreach (var tc in cases)
+                {
+                    // Test direct Lexer.Lex
+                    try
+                    {
+                        Lexer.Lex(tc.source);
+                        Check(false, $"{tc.name}: expected DslSyntaxError from Lexer.Lex");
+                    }
+                    catch (DslSyntaxError ex)
+                    {
+                        Check(ex.Message == tc.message, $"{tc.name}: message matches (expected '{tc.message}', got '{ex.Message}')");
+                        Check(ex.Diagnostic != null, $"{tc.name}: diagnostic payload present");
+                        if (ex.Diagnostic != null)
+                        {
+                            var d = ex.Diagnostic;
+                            Check(d.Code == tc.code, $"{tc.name}: code {tc.code} (got {d.Code})");
+                            Check(d.Stage == "lexer", $"{tc.name}: stage lexer (got {d.Stage})");
+                            Check(d.Severity == DiagnosticSeverity.Error, $"{tc.name}: severity Error");
+                            Check(d.SeverityString == "error", $"{tc.name}: severityString error");
+                            Check(d.Message == tc.message, $"{tc.name}: diag message matches");
+                            Check(d.Location != null, $"{tc.name}: location present");
+                            if (d.Location != null)
+                            {
+                                Check(d.Location.Line == tc.line && d.Location.Column == tc.column,
+                                    $"{tc.name}: location ({tc.line}:{tc.column}) (got ({d.Location.Line}:{d.Location.Column}))");
+                            }
+                            Check(d.Span != null, $"{tc.name}: span present");
+                            if (d.Span != null)
+                            {
+                                Check(d.Span.Start == tc.start && d.Span.End == tc.end,
+                                    $"{tc.name}: span ({tc.start}:{tc.end}) (got ({d.Span.Start}:{d.Span.End}))");
+                                Check(d.Span.ToString() == $"({tc.start}:{tc.end})",
+                                    $"{tc.name}: span ToString ({tc.start}:{tc.end})");
+                            }
+                        }
+                    }
+
+                    // Test via DslCompiler.Compile (should propagate DslSyntaxError)
+                    try
+                    {
+                        DslCompiler.Compile(tc.source, new EffectRegistry());
+                        Check(false, $"{tc.name}: expected DslSyntaxError from DslCompiler.Compile");
+                    }
+                    catch (DslSyntaxError ex)
+                    {
+                        Check(ex.Diagnostic != null && ex.Diagnostic.Code == tc.code,
+                            $"{tc.name}: compiler propagated DslSyntaxError with code {tc.code}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Check(false, $"{tc.name}: unexpected exception type {ex.GetType().Name}");
+                    }
+                }
+
+                // Successful token stream unchanged
+                var tokens = Lexer.Lex("/*x*/\nfoo.o99 \"😀\"");
+                Check(tokens.Count == 6, "tokens count is 6");
+                Check(tokens[0].Type == TokenType.COMMENT && tokens[0].Lexeme == "/*x*/" && tokens[0].Line == 1 && tokens[0].Col == 1, "tok 0 COMMENT");
+                Check(tokens[1].Type == TokenType.IDENT && tokens[1].Lexeme == "foo" && tokens[1].Line == 2 && tokens[1].Col == 1, "tok 1 IDENT");
+                Check(tokens[2].Type == TokenType.DOT && tokens[2].Lexeme == "." && tokens[2].Line == 2 && tokens[2].Col == 4, "tok 2 DOT");
+                Check(tokens[3].Type == TokenType.OUTPUT_REF && tokens[3].Lexeme == "o99" && tokens[3].Line == 2 && tokens[3].Col == 5, "tok 3 OUTPUT_REF");
+                Check(tokens[4].Type == TokenType.STRING && tokens[4].Lexeme == "😀" && tokens[4].Line == 2 && tokens[4].Col == 9, "tok 4 STRING");
+                Check(tokens[5].Type == TokenType.EOF && tokens[5].Lexeme == "" && tokens[5].Line == 2 && tokens[5].Col == 13, "tok 5 EOF");
+
+                // Diagnostic table metadata lookups
+                Check(DiagnosticTable.Stage("L001") == "lexer", "diag stage L001");
+                Check(DiagnosticTable.Stage("P001") == "parser", "diag stage P001");
+                Check(DiagnosticTable.Stage("S001") == "semantic", "diag stage S001");
+                Check(DiagnosticTable.Stage("R001") == "runtime", "diag stage R001");
+                Check(DiagnosticTable.Severity("L001") == DiagnosticSeverity.Error, "diag severity L001 error");
+                Check(DiagnosticTable.Severity("S002") == DiagnosticSeverity.Warning, "diag severity S002 warning");
+                Check(DiagnosticTable.DefaultMessage("L003") == "Unterminated comment", "diag default message L003");
+                Check(DiagnosticTable.DefaultMessage("L004") == "Output surface reference out of range", "diag default message L004");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestStructuredLexerDiagnostics: " + ex.Message);
             }
         }
 

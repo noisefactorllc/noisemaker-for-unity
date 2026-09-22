@@ -63,6 +63,37 @@ namespace Noisemaker.Hlsl.Compiler
             // sentinel that never matches any real test).
             char At(int k) { return (k >= 0 && k < n) ? src[k] : '\0'; }
 
+            DslSyntaxError Fail(string code, string message, int start, int end)
+            {
+                int errorLine = 1;
+                int column = 1;
+                for (int k = 0; k < start && k < n; k++)
+                {
+                    if (src[k] == '\n')
+                    {
+                        errorLine++;
+                        column = 1;
+                    }
+                    else
+                    {
+                        column++;
+                    }
+                }
+
+                var diag = new Diagnostic
+                {
+                    Code = code,
+                    Stage = DiagnosticTable.Stage(code),
+                    Severity = DiagnosticTable.Severity(code),
+                    Message = message,
+                    Location = new DiagnosticLocation { Line = errorLine, Column = column },
+                    Span = new DiagnosticSpan { Start = start, End = end },
+                    Line = errorLine,
+                    Column = column,
+                };
+                return new DslSyntaxError(message, diag);
+            }
+
             while (i < n)
             {
                 char ch = src[i];
@@ -97,7 +128,7 @@ namespace Noisemaker.Hlsl.Compiler
                         j++;
                     }
                     if (j >= n)
-                        throw DslSyntaxError.At("Unterminated comment", startLine, startCol);
+                        throw Fail("L003", $"Unterminated comment at line {startLine} col {startCol}", i, n);
                     j += 2;
                     tokens.Add(new Token(TokenType.COMMENT, src.Substring(i, j - i), startLine, startCol));
                     line = endLine;
@@ -117,9 +148,9 @@ namespace Noisemaker.Hlsl.Compiler
                     if (t == TokenType.OUTPUT_REF && !isMemberSegment
                         && !(lexeme.Length == 2 && lexeme[1] >= '0' && lexeme[1] <= '7'))
                     {
-                        throw DslSyntaxError.At(
-                            $"Output surface reference '{lexeme}' is out of range; expected o0-o7",
-                            startLine, startCol);
+                        throw Fail("L004",
+                            $"Output surface reference '{lexeme}' is out of range; expected o0-o7 at line {startLine} col {startCol}",
+                            i, j);
                     }
                     tokens.Add(new Token(t, lexeme, startLine, startCol));
                     col += j - i;
@@ -275,7 +306,7 @@ namespace Noisemaker.Hlsl.Compiler
                         j++;
                     }
                     if (j >= n - 2 || !(At(j) == '"' && At(j + 1) == '"' && At(j + 2) == '"'))
-                        throw DslSyntaxError.At("Unterminated triple-quoted string", startLine, startCol);
+                        throw Fail("L002", $"Unterminated triple-quoted string at line {startLine} col {startCol}", i, n);
                     string content = src.Substring(i + 3, j - (i + 3));
                     tokens.Add(new Token(TokenType.STRING, content, startLine, startCol));
                     // multi-line col fixup (reference/01 §1.4 rule 15)
@@ -299,7 +330,7 @@ namespace Noisemaker.Hlsl.Compiler
                         else j++;
                     }
                     if (j >= n || src[j] == '\n')
-                        throw DslSyntaxError.At("Unterminated string literal", line, col);
+                        throw Fail("L002", $"Unterminated string literal at line {line} col {col}", i, j);
                     string content = src.Substring(i + 1, j - (i + 1));
                     tokens.Add(new Token(TokenType.STRING, content, startLine, startCol));
                     col += j - i + 1;
@@ -340,7 +371,7 @@ namespace Noisemaker.Hlsl.Compiler
                 }
 
                 // 19. anything else
-                throw DslSyntaxError.At("Unexpected character '" + ch + "'", line, col);
+                throw Fail("L001", $"Unexpected character '{ch}' at line {line} col {col}", i, i + 1);
             }
 
             tokens.Add(new Token(TokenType.EOF, "", line, col));
