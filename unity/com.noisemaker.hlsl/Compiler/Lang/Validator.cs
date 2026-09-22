@@ -115,8 +115,14 @@ namespace Noisemaker.Hlsl.Compiler
             };
             if (node != null && node.LocLine.HasValue)
             {
-                diag.Line = node.LocLine;
-                diag.Column = node.LocCol;
+                int line = node.LocLine.Value;
+                int? col = node.LocColumn.HasValue ? node.LocColumn : node.LocCol;
+                diag.Line = line;
+                diag.Column = col;
+                if (col.HasValue)
+                {
+                    diag.Location = new DiagnosticLocation { Line = line, Column = col.Value };
+                }
             }
             _diagnostics.Add(diag);
         }
@@ -281,6 +287,7 @@ namespace Noisemaker.Hlsl.Compiler
             }
             copy.LocLine = node.LocLine;
             copy.LocCol = node.LocCol;
+            copy.LocColumn = node.LocColumn;
             return copy;
         }
 
@@ -313,7 +320,8 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     Value = 0,
                     LocLine = cycleIdent.LocLine,
-                    LocCol = cycleIdent.LocCol
+                    LocCol = cycleIdent.LocCol,
+                    LocColumn = cycleIdent.LocColumn
                 };
             }
             if (node is IdentNode id && _symbols.ContainsKey(id.Name))
@@ -1519,7 +1527,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 var loc = new OrderedMap<string, JsonValue>();
                 loc.Add("line", JsonValue.Of(node.LocLine.Value));
-                loc.Add("col", JsonValue.Of(node.LocCol ?? 0));
+                loc.Add("col", JsonValue.Of((node.LocColumn ?? node.LocCol) ?? 0));
                 map.Add("loc", JsonValue.Of(loc));
             }
             if (!string.IsNullOrEmpty(varRef)) map.Add("_varRef", JsonValue.Of(varRef));

@@ -19,6 +19,17 @@ namespace Noisemaker.Hlsl.Compiler
 {
     public enum DiagnosticSeverity { Error, Warning }
 
+    public sealed class DiagnosticLocation
+    {
+        public int Line { get; set; }
+        public int Column { get; set; }
+
+        public override string ToString()
+        {
+            return $"({Line}:{Column})";
+        }
+    }
+
     public sealed class Diagnostic
     {
         public string Code { get; set; }
@@ -26,6 +37,7 @@ namespace Noisemaker.Hlsl.Compiler
         public DiagnosticSeverity Severity { get; set; }
         public int? Line { get; set; }       // from node.loc when available
         public int? Column { get; set; }
+        public DiagnosticLocation Location { get; set; }
         public string Identifier { get; set; } // extractIdentifierName result, when present
     }
 

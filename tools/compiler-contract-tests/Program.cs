@@ -35,6 +35,7 @@ namespace CompilerContractTests
             TestFilterAdjustAndExpiredEffects();
             TestOutputSurfaceRangeEnforcement();
             TestHlslIncludeDirectivesResolve();
+            TestDiagnosticSourceColumnsAndLocations();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -707,6 +708,63 @@ namespace CompilerContractTests
             catch (Exception ex)
             {
                 Check(false, "TestHlslIncludeDirectivesResolve: " + ex.Message);
+            }
+        }
+
+        private static void TestDiagnosticSourceColumnsAndLocations()
+        {
+            try
+            {
+                string effectsDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects");
+                if (!Directory.Exists(effectsDir))
+                {
+                    effectsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl", "Effects"));
+                }
+                var reg = EffectRegistry.LoadFromDirectory(effectsDir);
+                string source = "search synth\n  read(123).write(o0)";
+                var program = Parser.Parse(Lexer.Lex(source), reg);
+                var result = Validator.Validate(program, reg);
+                Check(result.Diagnostics.Count >= 2, "has at least 2 diagnostics for read(123).write(o0)");
+                var readDiag = result.Diagnostics[0];
+                Check(readDiag.Code == "S001", "first diag is S001");
+                Check(readDiag.Location != null, "first diag has location");
+                Check(readDiag.Location.Line == 2 && readDiag.Location.Column == 3,
+                    $"read diag location line 2 col 3 (got {readDiag.Location?.Line}, {readDiag.Location?.Column})");
+                Check(readDiag.Location.ToString() == "(2:3)", "diagnostic location ToString formatting");
+                Check(readDiag.Line == 2 && readDiag.Column == 3, "read diag flat line/column match");
+
+                var writeDiag = result.Diagnostics[1];
+                Check(writeDiag.Code == "S005", "second diag is S005");
+                Check(writeDiag.Location != null, "second diag has location");
+                Check(writeDiag.Location.Line == 2 && writeDiag.Location.Column == 13,
+                    $"write diag location line 2 col 13 (got {writeDiag.Location?.Line}, {writeDiag.Location?.Column})");
+
+                // Test explicit LocColumn override on AST node
+                var chainStmt = (ChainStatementNode)program.Plans[0];
+                chainStmt.Chain[0].LocColumn = 9;
+                var result2 = Validator.Validate(program, reg);
+                Check(result2.Diagnostics[0].Column == 9, "diag column overridden to 9");
+                Check(result2.Diagnostics[0].Location != null && result2.Diagnostics[0].Location.Column == 9,
+                    "diag location column overridden to 9");
+
+                // Test unlocated node does not invent location
+                string missingSource = "search synth\n  missing().write(o0)";
+                var missingProg = Parser.Parse(Lexer.Lex(missingSource), reg);
+                var missingResult = Validator.Validate(missingProg, reg);
+                Diagnostic missingDiag = null;
+                foreach (var d in missingResult.Diagnostics)
+                {
+                    if (d.Identifier == "missing") { missingDiag = d; break; }
+                }
+                Check(missingDiag != null, "missing diagnostic found");
+                Check(missingDiag.Code == "S001", "missing diagnostic code S001");
+                Check(missingDiag.Location == null, "unlocated diagnostic has no Location");
+                Check(missingDiag.Line == null, "unlocated diagnostic has no Line");
+                Check(missingDiag.Column == null, "unlocated diagnostic has no Column");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestDiagnosticSourceColumnsAndLocations: " + ex.Message);
             }
         }
 

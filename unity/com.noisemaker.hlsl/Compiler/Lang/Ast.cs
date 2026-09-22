@@ -65,6 +65,7 @@ namespace Noisemaker.Hlsl.Compiler
         // Subchain, ArrayLiteral, Oscillator/Midi/Audio). null otherwise.
         public int? LocLine { get; set; }
         public int? LocCol { get; set; }
+        public int? LocColumn { get; set; }
     }
 
     // ---- Program root (reference/01 §6.1) ------------------------------------
