@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Noisemaker.Hlsl;
@@ -38,6 +39,8 @@ namespace CompilerContractTests
             TestDiagnosticSourceColumnsAndLocations();
             TestStructuredLexerDiagnostics();
             TestStructuredParserDiagnostics();
+            TestStructuredParserDiagnosticsP003Automation();
+            TestStructuredParserDiagnosticsP004Search();
             TestRenderLandscape3dFilteringDefines();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
@@ -1011,6 +1014,191 @@ namespace CompilerContractTests
                     if (ex.Diagnostic != null)
                     {
                         Check(ex.Diagnostic.Code == "P001", "unlocated diag code P001");
+                        Check(ex.Diagnostic.Location == null, "unlocated diag location null");
+                        Check(ex.Diagnostic.Span == null, "unlocated diag span null");
+                    }
+                }
+            }
+        }
+
+        private static void TestStructuredParserDiagnosticsP003Automation()
+        {
+            var cases = new (string name, string expr, string message)[]
+            {
+                ("osc unknown param", "osc(type: oscKind.sine, bogus: 1)", "osc() unknown parameter 'bogus' at line 2 col 1. Valid: type, min, max, speed, offset, seed"),
+                ("midi keyword-only", "midi(1, 2, 3, 4, 5, 6)", "midi() name, id, cc, nrpn, zone and members are keyword-only at line 2 col 1"),
+                ("midi unknown param", "midi(channel: 1, bogus: 2)", "midi() unknown parameter 'bogus' at line 2 col 1. Valid: channel, mode, min, max, sensitivity, name, id, cc, nrpn, zone, members"),
+                ("midi excess positional", "midi(1, 2, 3, 4, 5, channel: 6)", "midi() has an excess positional argument at line 2 col 1"),
+                ("midi requires channel or zone", "midi()", "midi() requires 'channel' or 'zone' argument at line 2 col 1"),
+                ("midi channel and zone mutually exclusive", "midi(channel: 1, zone: 2)", "midi() 'channel' and 'zone' are mutually exclusive at line 2 col 1"),
+                ("midi members requires zone", "midi(channel: 1, members: 2)", "midi() 'members' requires 'zone' at line 2 col 1"),
+                ("midi id requires name", "midi(channel: 1, id: \"pad\")", "midi() 'id' requires readable 'name' at line 2 col 1"),
+                ("midi name requires quoted string", "midi(channel: 1, name: 1)", "midi() 'name' requires a quoted string at line 2 col 1"),
+                ("midi name must not be empty", "midi(channel: 1, name: \"\")", "midi() 'name' must not be empty at line 2 col 1"),
+                ("midi id requires quoted string", "midi(channel: 1, name: \"pad\", id: 1)", "midi() 'id' requires a quoted string at line 2 col 1"),
+                ("midi id must not be empty", "midi(channel: 1, name: \"pad\", id: \"\")", "midi() 'id' must not be empty at line 2 col 1"),
+                ("audio keyword-only", "audio(1, 2, 3, 4)", "audio() channel, name and id are keyword-only at line 2 col 1"),
+                ("audio unknown param", "audio(band: 1, bogus: 2)", "audio() unknown parameter 'bogus' at line 2 col 1. Valid: band, min, max, channel, name, id"),
+                ("audio excess positional", "audio(1, 2, 3, band: 4)", "audio() has an excess positional argument at line 2 col 1"),
+                ("audio requires band", "audio()", "audio() requires 'band' argument at line 2 col 1"),
+                ("audio id requires name", "audio(band: 1, id: \"mic\")", "audio() 'id' requires readable 'name' at line 2 col 1"),
+                ("audio selected device requires channel", "audio(band: 1, name: \"mic\")", "audio() selected device requires both 'name' and 'channel' at line 2 col 1"),
+                ("audio name requires quoted string", "audio(band: 1, channel: 1, name: 1)", "audio() 'name' requires a quoted string at line 2 col 1"),
+                ("audio name must not be empty", "audio(band: 1, channel: 1, name: \"\")", "audio() 'name' must not be empty at line 2 col 1"),
+                ("audio id requires quoted string", "audio(band: 1, channel: 1, name: \"mic\", id: 1)", "audio() 'id' requires a quoted string at line 2 col 1"),
+                ("audio id must not be empty", "audio(band: 1, channel: 1, name: \"mic\", id: \"\")", "audio() 'id' must not be empty at line 2 col 1"),
+            };
+
+            foreach (var c in cases)
+            {
+                try
+                {
+                    string src = "search synth\n" + c.expr;
+                    Parser.Parse(Lexer.Lex(src), ProbeRegistry());
+                    Check(false, "TestStructuredParserDiagnosticsP003Automation: expected parse error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "P003 msg " + c.name + " (" + ex.Message + " == " + c.message + ")");
+                    Check(ex.Diagnostic != null, "P003 diag non-null " + c.name);
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P003", "P003 code " + c.name);
+                        Check(ex.Diagnostic.Stage == "parser", "P003 stage " + c.name);
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "P003 severity " + c.name);
+                        Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == 2 && ex.Diagnostic.Location.Column == 1, "P003 loc " + c.name);
+                        Check(ex.Diagnostic.Span == null, "P003 span null " + c.name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnosticsP003Automation: unexpected exception for " + c.name + ": " + ex);
+                }
+            }
+
+            // coordinates with CRLF, tab, and surrogate pairs
+            try
+            {
+                string utfSrc = "search synth\r\n\tlet x = \"😀\"; let y = midi()";
+                Parser.Parse(Lexer.Lex(utfSrc), ProbeRegistry());
+                Check(false, "expected parse error for midi in utfSrc");
+            }
+            catch (DslSyntaxError ex)
+            {
+                Check(ex.Diagnostic != null && ex.Diagnostic.Code == "P003", "P003 utf code");
+                Check(ex.Diagnostic != null && ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == 2 && ex.Diagnostic.Location.Column == 24, "P003 utf loc");
+            }
+        }
+
+        private static void TestStructuredParserDiagnosticsP004Search()
+        {
+            string missingMsg = "Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.";
+            var cases = new (string name, string source, string message, int line, int column)[]
+            {
+                ("empty program", "", missingMsg, 1, 1),
+                ("missing directive after statements", "let x = 1", missingMsg, 1, 10),
+                ("duplicate search directive", "search synth\nsearch filter", "Only one search directive is allowed per program at line 2 col 1", 2, 1),
+                ("misplaced search directive", "let x = 1\nsearch synth", "'search' directive must appear before other statements at line 2 col 1", 2, 1),
+                ("nested search directive", "search synth\nif (true) {\n  search filter\n}", "'search' directive is only allowed at the start of the program at line 3 col 3", 3, 3),
+                ("missing first namespace", "search", "Expected namespace identifier after search at line 1 col 7", 1, 7),
+                ("missing trailing namespace", "search synth,", "Expected namespace identifier after comma at line 1 col 14", 1, 14),
+                ("CRLF offset", "search synth\r\nsearch filter", "Only one search directive is allowed per program at line 2 col 1", 2, 1),
+                ("UTF-16 column offset", "search synth\nlet x = \"😀\"; search filter", "'search' directive must appear before other statements at line 2 col 15", 2, 15),
+            };
+
+            foreach (var c in cases)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(c.source), ProbeRegistry());
+                    Check(false, "TestStructuredParserDiagnosticsP004Search: expected parse error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "P004 msg " + c.name + " (" + ex.Message + " == " + c.message + ")");
+                    Check(ex.Diagnostic != null, "P004 diag non-null " + c.name);
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P004", "P004 code " + c.name);
+                        Check(ex.Diagnostic.Stage == "parser", "P004 stage " + c.name);
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "P004 severity " + c.name);
+                        Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == c.line && ex.Diagnostic.Location.Column == c.column, "P004 loc " + c.name);
+                        Check(ex.Diagnostic.Span == null, "P004 span null " + c.name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnosticsP004Search: unexpected exception for " + c.name + ": " + ex);
+                }
+            }
+
+            // Invalid namespace test
+            try
+            {
+                Parser.Parse(Lexer.Lex("search nonexistentNamespace\nrender(o0)\n"), ProbeRegistry());
+                Check(false, "TestStructuredParserDiagnosticsP004Search: expected invalid namespace error");
+            }
+            catch (DslSyntaxError ex)
+            {
+                Check(ex.Diagnostic != null && ex.Diagnostic.Code == "P004", "P004 invalid namespace code");
+                Check(ex.Diagnostic != null && ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == 1 && ex.Diagnostic.Location.Column == 8, "P004 invalid namespace location");
+                Check(ex.Message.StartsWith("Invalid namespace 'nonexistentNamespace' at line 1 col 8"), "P004 invalid namespace message start");
+            }
+
+            // Unavailable caller-token coordinates test for P003 and P004
+            var unlocatedCases = new (object line, object col, string lineStr, string colStr)[]
+            {
+                (null, null, "undefined", "undefined"),
+                (1, null, "1", "undefined"),
+                (0, 1, "0", "1"),
+                (1, double.NaN, "1", "NaN"),
+            };
+
+            foreach (var uc in unlocatedCases)
+            {
+                var tokens = new List<Token>
+                {
+                    new Token(TokenType.SEARCH, "search", 1, 1),
+                    new Token(TokenType.IDENT, "synth", 1, 8),
+                    new Token(TokenType.IDENT, "midi", uc.line, uc.col),
+                    new Token(TokenType.LPAREN, "(", 2, 5),
+                    new Token(TokenType.RPAREN, ")", 2, 6),
+                    new Token(TokenType.EOF, "", 2, 7)
+                };
+                try
+                {
+                    Parser.Parse(tokens, ProbeRegistry());
+                    Check(false, "expected parse error for unlocated midi coordinates");
+                }
+                catch (DslSyntaxError ex)
+                {
+                    string expectedMsg = $"midi() requires 'channel' or 'zone' argument at line {uc.lineStr} col {uc.colStr}";
+                    Check(ex.Message == expectedMsg, "unlocated P003 message: " + ex.Message + " == " + expectedMsg);
+                    Check(ex.Diagnostic != null, "unlocated P003 diagnostic non-null");
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P003", "unlocated diag code P003");
+                        Check(ex.Diagnostic.Location == null, "unlocated diag location null");
+                        Check(ex.Diagnostic.Span == null, "unlocated diag span null");
+                    }
+                }
+
+                var eofTokens = new List<Token>
+                {
+                    new Token(TokenType.EOF, "", uc.line, uc.col)
+                };
+                try
+                {
+                    Parser.Parse(eofTokens, ProbeRegistry());
+                    Check(false, "expected parse error for unlocated missing search");
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == missingMsg, "unlocated P004 missing search msg: " + ex.Message);
+                    Check(ex.Diagnostic != null, "unlocated P004 diagnostic non-null");
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P004", "unlocated diag code P004");
                         Check(ex.Diagnostic.Location == null, "unlocated diag location null");
                         Check(ex.Diagnostic.Span == null, "unlocated diag span null");
                     }

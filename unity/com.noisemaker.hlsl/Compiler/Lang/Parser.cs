@@ -73,31 +73,49 @@ namespace Noisemaker.Hlsl.Compiler
         private Token Peek() { return _tokens[_current]; }
         private Token TokenAt(int idx) { return (idx >= 0 && idx < _tokens.Count) ? _tokens[idx] : null; }
         private Token Advance() { return _tokens[_current++]; }
-        private Token Expect(TokenType type, string msg)
+        private DslSyntaxError ParserError(string code, string message, Token token = null, int? explicitLine = null, int? explicitCol = null)
         {
-            Token t = Peek();
-            if (t.Type == type) return Advance();
-            string code = type == TokenType.RPAREN ? "P002" : "P001";
-            object lineObj = t.RawLine;
-            object colObj = t.RawCol;
-            bool hasLocation = t.Line > 0 && t.Col > 0
+            object lineObj = token != null ? token.RawLine : (object)explicitLine;
+            object colObj = token != null ? token.RawCol : (object)explicitCol;
+            int line = token != null ? token.Line : (explicitLine ?? -1);
+            int col = token != null ? token.Col : (explicitCol ?? -1);
+
+            bool hasLocation = line > 0 && col > 0
                 && !(lineObj is double dl && double.IsNaN(dl))
-                && !(colObj is double dc && double.IsNaN(dc));
-            string lineStr = DslSyntaxError.CoordStr(lineObj);
-            string colStr = DslSyntaxError.CoordStr(colObj);
-            string message = $"{msg} at line {lineStr} col {colStr}";
+                && !(colObj is double dc && double.IsNaN(dc))
+                && !(lineObj is float fl && float.IsNaN(fl))
+                && !(colObj is float fc && float.IsNaN(fc));
+
             var diag = new Diagnostic
             {
                 Code = code,
                 Stage = DiagnosticTable.Stage(code),
                 Severity = DiagnosticTable.Severity(code),
                 Message = message,
-                Location = hasLocation ? new DiagnosticLocation { Line = t.Line, Column = t.Col } : null,
+                Location = hasLocation ? new DiagnosticLocation { Line = line, Column = col } : null,
                 Span = null,
-                Line = hasLocation ? (int?)t.Line : null,
-                Column = hasLocation ? (int?)t.Col : null,
+                Line = hasLocation ? (int?)line : null,
+                Column = hasLocation ? (int?)col : null,
             };
-            throw new DslSyntaxError(message, diag);
+            return new DslSyntaxError(message, diag);
+        }
+
+        private DslSyntaxError ParserErrorAt(string code, string core, Token token, string suffix = "")
+        {
+            object lineObj = token != null ? token.RawLine : null;
+            object colObj = token != null ? token.RawCol : null;
+            string lineStr = DslSyntaxError.CoordStr(lineObj);
+            string colStr = DslSyntaxError.CoordStr(colObj);
+            string message = $"{core} at line {lineStr} col {colStr}{suffix}";
+            return ParserError(code, message, token);
+        }
+
+        private Token Expect(TokenType type, string msg)
+        {
+            Token t = Peek();
+            if (t.Type == type) return Advance();
+            string code = type == TokenType.RPAREN ? "P002" : "P001";
+            throw ParserErrorAt(code, msg, t);
         }
 
         private List<string> CollectComments()
@@ -131,7 +149,7 @@ namespace Noisemaker.Hlsl.Compiler
                     if (plans.Count > 0 || vars.Count > 0 || render != null)
                     {
                         Token t = Peek();
-                        throw DslSyntaxError.At("'search' directive must appear before other statements", t.Line, t.Col);
+                        throw ParserErrorAt("P004", "'search' directive must appear before other statements", t);
                     }
                     ParseSearchDirective();
                     continue;
@@ -160,7 +178,10 @@ namespace Noisemaker.Hlsl.Compiler
 
             Expect(TokenType.EOF, "Expected end of input");
             if (_programSearchOrder == null || _programSearchOrder.Count == 0)
-                throw new DslSyntaxError("Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.");
+            {
+                Token last = _tokens.Count > 0 ? _tokens[_tokens.Count - 1] : null;
+                throw ParserError("P004", "Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.", last);
+            }
 
             var program = new ProgramNode
             {
@@ -190,14 +211,14 @@ namespace Noisemaker.Hlsl.Compiler
             if (_programSearchOrder != null)
             {
                 Token t = Peek();
-                throw DslSyntaxError.At("Only one search directive is allowed per program", t.Line, t.Col);
+                throw ParserErrorAt("P004", "Only one search directive is allowed per program", t);
             }
             Advance(); // consume 'search'
             var namespaces = new List<string>();
 
             Token first = Peek();
             if (!NamespaceTokens.Contains(first.Type))
-                throw DslSyntaxError.At("Expected namespace identifier after search", first.Line, first.Col);
+                throw ParserErrorAt("P004", "Expected namespace identifier after search", first);
             Advance();
             ValidateNamespace(first);
             namespaces.Add(first.Lexeme);
@@ -207,7 +228,7 @@ namespace Noisemaker.Hlsl.Compiler
                 Advance();
                 Token nsTok = Peek();
                 if (!NamespaceTokens.Contains(nsTok.Type))
-                    throw DslSyntaxError.At("Expected namespace identifier after comma", nsTok.Line, nsTok.Col);
+                    throw ParserErrorAt("P004", "Expected namespace identifier after comma", nsTok);
                 Advance();
                 ValidateNamespace(nsTok);
                 namespaces.Add(nsTok.Lexeme);
@@ -229,7 +250,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 string valid = "";
                 if (_registry != null) valid = string.Join(", ", _registry.Namespaces);
-                throw DslSyntaxError.At("Invalid namespace '" + ns + "'. Valid namespaces: " + valid, token.Line, token.Col);
+                throw ParserErrorAt("P004", "Invalid namespace '" + ns + "'", token, suffix: ". Valid namespaces: " + valid);
             }
         }
 
@@ -264,7 +285,7 @@ namespace Noisemaker.Hlsl.Compiler
             if (Peek().Type == TokenType.SEARCH)
             {
                 Token t = Peek();
-                throw DslSyntaxError.At("'search' directive is only allowed at the start of the program", t.Line, t.Col);
+                throw ParserErrorAt("P004", "'search' directive is only allowed at the start of the program", t);
             }
             if (Peek().Type == TokenType.LET)
             {
@@ -663,7 +684,7 @@ namespace Noisemaker.Hlsl.Compiler
             if (call.Kwargs != null)
                 foreach (string key in call.Kwargs.Keys)
                     if (!OscKwargKeys.Contains(key))
-                        throw DslSyntaxError.At("osc() unknown parameter '" + key + "'. Valid: type, min, max, speed, offset, seed", nameToken.Line, nameToken.Col);
+                        throw ParserErrorAt("P003", "osc() unknown parameter '" + key + "'", nameToken, suffix: ". Valid: type, min, max, speed, offset, seed");
 
             Node Resolve(int i, Node dflt) { return ResolveParam(call, order[i], i, dflt); }
             Node typeNode = Resolve(0, MemberOf("oscKind", "sine"));
@@ -685,7 +706,7 @@ namespace Noisemaker.Hlsl.Compiler
             string[] keywordOnly = { "name", "id" };
             string[] valid = { "channel", "mode", "min", "max", "sensitivity", "name", "id", "cc", "nrpn", "zone", "members" };
             if (call.Args.Count > order.Length)
-                throw DslSyntaxError.At("midi() name, id, cc, nrpn, zone and members are keyword-only", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "midi() name, id, cc, nrpn, zone and members are keyword-only", nameToken);
             if (call.Kwargs != null)
                 foreach (string key in call.Kwargs.Keys)
                 {
@@ -693,9 +714,7 @@ namespace Noisemaker.Hlsl.Compiler
                     foreach (string candidate in valid)
                         if (candidate == key) { known = true; break; }
                     if (!known)
-                        throw new DslSyntaxError(
-                            "midi() unknown parameter '" + key + "' at line " + nameToken.Line +
-                            " col " + nameToken.Col + ". Valid: " + string.Join(", ", valid));
+                        throw ParserErrorAt("P003", "midi() unknown parameter '" + key + "'", nameToken, suffix: ". Valid: " + string.Join(", ", valid));
                 }
 
             int posCursor = 0;
@@ -711,25 +730,23 @@ namespace Noisemaker.Hlsl.Compiler
             Node max = Resolve(order[3], Num(1));
             Node sensitivity = Resolve(order[4], Num(1));
             if (posCursor < call.Args.Count)
-                throw DslSyntaxError.At("midi() has an excess positional argument", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "midi() has an excess positional argument", nameToken);
             if (channel == null && !(call.Kwargs?.Has("zone") ?? false))
-                throw DslSyntaxError.At("midi() requires 'channel' or 'zone' argument", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "midi() requires 'channel' or 'zone' argument", nameToken);
             if (channel != null && (call.Kwargs?.Has("zone") ?? false))
-                throw DslSyntaxError.At("midi() 'channel' and 'zone' are mutually exclusive", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "midi() 'channel' and 'zone' are mutually exclusive", nameToken);
             if ((call.Kwargs?.Has("members") ?? false) && !call.Kwargs.Has("zone"))
-                throw DslSyntaxError.At("midi() 'members' requires 'zone'", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "midi() 'members' requires 'zone'", nameToken);
             if (call.Kwargs != null && call.Kwargs.Has("id") && !call.Kwargs.Has("name"))
-                throw DslSyntaxError.At("midi() 'id' requires readable 'name'", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "midi() 'id' requires readable 'name'", nameToken);
             if (call.Kwargs != null)
                 foreach (string paramName in keywordOnly)
                 {
                     if (!call.Kwargs.Has(paramName)) continue;
                     if (!(call.Kwargs.Get(paramName) is StringNode value))
-                        throw DslSyntaxError.At("midi() '" + paramName + "' requires a quoted string",
-                            nameToken.Line, nameToken.Col);
+                        throw ParserErrorAt("P003", "midi() '" + paramName + "' requires a quoted string", nameToken);
                     if (value.Value == null || value.Value.Length == 0)
-                        throw DslSyntaxError.At("midi() '" + paramName + "' must not be empty",
-                            nameToken.Line, nameToken.Col);
+                        throw ParserErrorAt("P003", "midi() '" + paramName + "' must not be empty", nameToken);
                 }
             return new MidiNode
             {
@@ -754,7 +771,7 @@ namespace Noisemaker.Hlsl.Compiler
             string[] order = { "band", "min", "max" };
             string[] valid = { "band", "min", "max", "channel", "name", "id" };
             if (call.Args.Count > order.Length)
-                throw DslSyntaxError.At("audio() channel, name and id are keyword-only", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "audio() channel, name and id are keyword-only", nameToken);
             if (call.Kwargs != null)
                 foreach (string key in call.Kwargs.Keys)
                 {
@@ -762,9 +779,7 @@ namespace Noisemaker.Hlsl.Compiler
                     foreach (string candidate in valid)
                         if (candidate == key) { known = true; break; }
                     if (!known)
-                        throw new DslSyntaxError(
-                            "audio() unknown parameter '" + key + "' at line " + nameToken.Line +
-                            " col " + nameToken.Col + ". Valid: " + string.Join(", ", valid));
+                        throw ParserErrorAt("P003", "audio() unknown parameter '" + key + "'", nameToken, suffix: ". Valid: " + string.Join(", ", valid));
                 }
 
             int posCursor = 0;
@@ -778,24 +793,21 @@ namespace Noisemaker.Hlsl.Compiler
             Node min = Resolve(order[1], Num(0));
             Node max = Resolve(order[2], Num(1));
             if (posCursor < call.Args.Count)
-                throw DslSyntaxError.At("audio() has an excess positional argument", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "audio() has an excess positional argument", nameToken);
             if (band == null)
-                throw DslSyntaxError.At("audio() requires 'band' argument", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "audio() requires 'band' argument", nameToken);
             if (call.Kwargs != null && call.Kwargs.Has("id") && !call.Kwargs.Has("name"))
-                throw DslSyntaxError.At("audio() 'id' requires readable 'name'", nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "audio() 'id' requires readable 'name'", nameToken);
             if (call.Kwargs != null && call.Kwargs.Has("name") && !call.Kwargs.Has("channel"))
-                throw DslSyntaxError.At("audio() selected device requires both 'name' and 'channel'",
-                    nameToken.Line, nameToken.Col);
+                throw ParserErrorAt("P003", "audio() selected device requires both 'name' and 'channel'", nameToken);
             if (call.Kwargs != null)
                 foreach (string paramName in new[] { "name", "id" })
                 {
                     if (!call.Kwargs.Has(paramName)) continue;
                     if (!(call.Kwargs.Get(paramName) is StringNode value))
-                        throw DslSyntaxError.At("audio() '" + paramName + "' requires a quoted string",
-                            nameToken.Line, nameToken.Col);
+                        throw ParserErrorAt("P003", "audio() '" + paramName + "' requires a quoted string", nameToken);
                     if (value.Value == null || value.Value.Length == 0)
-                        throw DslSyntaxError.At("audio() '" + paramName + "' must not be empty",
-                            nameToken.Line, nameToken.Col);
+                        throw ParserErrorAt("P003", "audio() '" + paramName + "' must not be empty", nameToken);
                 }
             return new AudioNode
             {

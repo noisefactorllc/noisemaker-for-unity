@@ -81,6 +81,8 @@ namespace Noisemaker.Hlsl.Compiler
                 { "L004", new Entry("Output surface reference out of range", DiagnosticSeverity.Error, "lexer") },
                 { "P001", new Entry("Unexpected token", DiagnosticSeverity.Error, "parser") },
                 { "P002", new Entry("Expected closing parenthesis", DiagnosticSeverity.Error, "parser") },
+                { "P003", new Entry("Invalid automation arguments", DiagnosticSeverity.Error, "parser") },
+                { "P004", new Entry("Invalid search directive", DiagnosticSeverity.Error, "parser") },
                 { "S001", new Entry("Unknown identifier", DiagnosticSeverity.Error, "semantic") },
                 { "S002", new Entry("Argument out of range", DiagnosticSeverity.Warning, "semantic") },
                 { "S003", new Entry("Variable used before assignment", DiagnosticSeverity.Error, "semantic") },
