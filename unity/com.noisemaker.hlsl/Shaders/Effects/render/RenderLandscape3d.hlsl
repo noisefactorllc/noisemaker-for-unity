@@ -45,6 +45,10 @@
 Texture2D volumeCache;   SamplerState sampler_volumeCache;
 Texture2D analyticalGeo; SamplerState sampler_analyticalGeo;
 
+#ifndef FILTERING
+#define FILTERING 1
+#endif
+
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 int    volumeSize;         // globals.volumeSize        default 64
 float  threshold;          // globals.threshold         default 0.5
@@ -70,6 +74,149 @@ float  fieldOfView;          // globals.fieldOfView       default 60
 int2 land_atlasTexel(int3 p)
 {
     return int2(p.x, p.y + p.z * volumeSize);
+}
+
+// The landscape lattice stores samples at voxel centers. Filter the 3D
+// coordinates explicitly so interpolation never crosses unrelated atlas rows.
+float4 land_sampleAtlasTexel(Texture2D atlas, int3 p, bool material)
+{
+    int2 coord = land_atlasTexel(p);
+    float4 value = atlas.Load(int3(coord, 0));
+    if (material)
+    {
+        // Geometry defines empty samples. Volume alpha can hold unrelated data.
+        float present = analyticalGeo.Load(int3(coord, 0)).a > 0.0 ? 1.0 : 0.0;
+        return float4(value.rgb * present, present);
+    }
+    return value;
+}
+
+// Preserve constant fields exactly so flat surfaces have zero tangential gradient.
+float4 land_interpolateAtlas(float4 a, float4 b, float weight)
+{
+    return a + (b - a) * weight;
+}
+
+struct Land_AtlasCoords
+{
+    int3 lo;
+    float3 fraction;
+};
+
+Land_AtlasCoords land_atlasCoords(float3 p)
+{
+    float3 texel = clamp(p - 0.5, float3(0.0, 0.0, 0.0), float3((float)(volumeSize - 1), (float)(volumeSize - 1), (float)(volumeSize - 1)));
+    Land_AtlasCoords c;
+    c.lo = (int3)floor(texel);
+    c.fraction = frac(texel);
+    return c;
+}
+
+float4 land_sampleAtlasCoords(Texture2D atlas, Land_AtlasCoords coords, bool material)
+{
+    int3 lo = coords.lo;
+    int3 hi = min(lo + int3(1, 1, 1), (int3)(volumeSize - 1));
+    float3 f = coords.fraction;
+    float4 c00 = land_interpolateAtlas(land_sampleAtlasTexel(atlas, int3(lo.x, lo.y, lo.z), material),
+                     land_sampleAtlasTexel(atlas, int3(hi.x, lo.y, lo.z), material), f.x);
+    float4 c10 = land_interpolateAtlas(land_sampleAtlasTexel(atlas, int3(lo.x, hi.y, lo.z), material),
+                     land_sampleAtlasTexel(atlas, int3(hi.x, hi.y, lo.z), material), f.x);
+    float4 c01 = land_interpolateAtlas(land_sampleAtlasTexel(atlas, int3(lo.x, lo.y, hi.z), material),
+                     land_sampleAtlasTexel(atlas, int3(hi.x, lo.y, hi.z), material), f.x);
+    float4 c11 = land_interpolateAtlas(land_sampleAtlasTexel(atlas, int3(lo.x, hi.y, hi.z), material),
+                     land_sampleAtlasTexel(atlas, int3(hi.x, hi.y, hi.z), material), f.x);
+    float4 value = land_interpolateAtlas(land_interpolateAtlas(c00, c10, f.y), land_interpolateAtlas(c01, c11, f.y), f.z);
+    if (material && value.a > 0.0) value.rgb /= value.a;
+    return value;
+}
+
+float4 land_sampleAtlas(Texture2D atlas, float3 p, bool material)
+{
+    return land_sampleAtlasCoords(atlas, land_atlasCoords(p), material);
+}
+
+bool land_isSolid(Land_AtlasCoords coords)
+{
+    float density = land_sampleAtlasCoords(analyticalGeo, coords, false).a;
+    return density > 0.0 && density >= threshold;
+}
+
+struct Land_IsoHit
+{
+    float distance;
+    float3 position;
+    Land_AtlasCoords coords;
+};
+
+Land_IsoHit land_traceIsosurface(float3 origin, float3 direction, float start, float leave)
+{
+    float3 position = origin + direction * start;
+    Land_AtlasCoords coords = land_atlasCoords(position);
+    if (land_isSolid(coords))
+    {
+        Land_IsoHit hit;
+        hit.distance = start;
+        hit.position = position;
+        hit.coords = coords;
+        return hit;
+    }
+    // Half-voxel steps cover the entire box, including long diagonal rays.
+    float stepSize = 0.5 / length(direction);
+    float previous = start;
+    [loop]
+    for (int step = 0; step < volumeSize * 4; step++)
+    {
+        float distance = min(previous + stepSize, leave);
+        position = origin + direction * distance;
+        coords = land_atlasCoords(position);
+        if (land_isSolid(coords))
+        {
+            float lo = previous;
+            float hi = distance;
+            [unroll]
+            for (int refine = 0; refine < 8; refine++)
+            {
+                float mid = (lo + hi) * 0.5;
+                float3 candidate = origin + direction * mid;
+                Land_AtlasCoords candidateCoords = land_atlasCoords(candidate);
+                if (land_isSolid(candidateCoords))
+                {
+                    hi = mid;
+                    position = candidate;
+                    coords = candidateCoords;
+                }
+                else
+                {
+                    lo = mid;
+                }
+            }
+            // Reuse the tested interpolation coordinates for material sampling.
+            // Recomputing them from position can round onto the empty boundary.
+            Land_IsoHit hit;
+            hit.distance = hi;
+            hit.position = position;
+            hit.coords = coords;
+            return hit;
+        }
+        if (distance >= leave) break;
+        previous = distance;
+    }
+    Land_IsoHit miss;
+    miss.distance = -1.0;
+    miss.position = float3(0.0, 0.0, 0.0);
+    miss.coords.lo = int3(0, 0, 0);
+    miss.coords.fraction = float3(0.0, 0.0, 0.0);
+    return miss;
+}
+
+float3 land_isosurfaceNormal(float3 p, float3 fallback)
+{
+    float3 gradient = float3(
+        land_sampleAtlas(analyticalGeo, p - float3(0.5, 0.0, 0.0), false).a - land_sampleAtlas(analyticalGeo, p + float3(0.5, 0.0, 0.0), false).a,
+        land_sampleAtlas(analyticalGeo, p - float3(0.0, 0.5, 0.0), false).a - land_sampleAtlas(analyticalGeo, p + float3(0.0, 0.5, 0.0), false).a,
+        land_sampleAtlas(analyticalGeo, p - float3(0.0, 0.0, 0.5), false).a - land_sampleAtlas(analyticalGeo, p + float3(0.0, 0.0, 0.5), false).a);
+    if (dot(gradient, gradient) > 1e-12) return normalize(gradient);
+    return fallback;
 }
 
 float3 land_lighting(float3 color, float3 normal, float3 viewDirection)
@@ -167,6 +314,18 @@ LandscapeOutput land_renderPerspective(float2 uv)
         else if (nearT.x >= nearT.z) { normal.x = -(float)stepDir.x; }
         else { normal.z = -(float)stepDir.z; }
     }
+    // FILTERING is injected as a constant when the runtime compiles a variant.
+    if (FILTERING == 0)
+    {
+        Land_IsoHit hit = land_traceIsosurface(origin, direction, distance, leave);
+        if (hit.distance < 0.0) return result;
+        float3 p = hit.position;
+        if (hit.distance > distance) normal = land_isosurfaceNormal(p, normal);
+        float3 worldNormal = land_forwardRotation(normal);
+        result.fragColor = float4(land_lighting(land_sampleAtlasCoords(volumeCache, hit.coords, true).rgb, worldNormal, viewDirection), 1.0);
+        result.geoOut = float4(worldNormal * 0.5 + 0.5, clamp(hit.distance / 320.0, 0.0, 1.0));
+        return result;
+    }
     [loop]
     for (int step = 0; step < volumeSize * 3; step++)
     {
@@ -238,6 +397,17 @@ Land_FragmentOutput frag_render(NMVaryings i)
     float3 normal = float3(0.0, 0.0, 1.0);
     if (nearT.y >= nearT.x && nearT.y >= nearT.z) { normal = float3(0.0, 1.0, 0.0); }
     else if (nearT.x >= nearT.z) { normal = float3(1.0, 0.0, 0.0); }
+
+    if (FILTERING == 0)
+    {
+        Land_IsoHit hit = land_traceIsosurface(origin, float3(-1.0, -1.0, -1.0), distance, leave);
+        if (hit.distance < 0.0) return o;
+        float3 p = hit.position;
+        if (hit.distance > distance) normal = land_isosurfaceNormal(p, normal);
+        o.color = float4(land_lighting(land_sampleAtlasCoords(volumeCache, hit.coords, true).rgb, normal, float3(0.5773502692, 0.5773502692, 0.5773502692)), 1.0);
+        o.geoOut = float4(normal * 0.5 + 0.5, clamp(hit.distance / (size * 4.0), 0.0, 1.0));
+        return o;
+    }
 
     [loop]
     for (int step = 0; step < volumeSize * 3; step++)

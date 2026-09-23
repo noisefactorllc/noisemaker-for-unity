@@ -63,9 +63,9 @@ namespace Noisemaker.Hlsl.Compiler
             _current = 0;
         }
 
-        public static ProgramNode Parse(List<Token> tokens, EffectRegistry registry)
+        public static ProgramNode Parse(List<Token> tokens, EffectRegistry registry = null)
         {
-            return new Parser(tokens, registry).ParseProgram();
+            return new Parser(tokens, registry ?? new EffectRegistry()).ParseProgram();
         }
 
         // --- cursor helpers -------------------------------------------------
@@ -77,7 +77,27 @@ namespace Noisemaker.Hlsl.Compiler
         {
             Token t = Peek();
             if (t.Type == type) return Advance();
-            throw DslSyntaxError.At(msg, t.Line, t.Col);
+            string code = type == TokenType.RPAREN ? "P002" : "P001";
+            object lineObj = t.RawLine;
+            object colObj = t.RawCol;
+            bool hasLocation = t.Line > 0 && t.Col > 0
+                && !(lineObj is double dl && double.IsNaN(dl))
+                && !(colObj is double dc && double.IsNaN(dc));
+            string lineStr = DslSyntaxError.CoordStr(lineObj);
+            string colStr = DslSyntaxError.CoordStr(colObj);
+            string message = $"{msg} at line {lineStr} col {colStr}";
+            var diag = new Diagnostic
+            {
+                Code = code,
+                Stage = DiagnosticTable.Stage(code),
+                Severity = DiagnosticTable.Severity(code),
+                Message = message,
+                Location = hasLocation ? new DiagnosticLocation { Line = t.Line, Column = t.Col } : null,
+                Span = null,
+                Line = hasLocation ? (int?)t.Line : null,
+                Column = hasLocation ? (int?)t.Col : null,
+            };
+            throw new DslSyntaxError(message, diag);
         }
 
         private List<string> CollectComments()

@@ -20,10 +20,18 @@ namespace Noisemaker.Hlsl.Compiler
             Diagnostic = diagnostic;
         }
 
-        // Convenience matching the JS `throw new SyntaxError(`${msg} at line L col C`)`.
-        public static DslSyntaxError At(string message, int line, int col, Diagnostic diagnostic = null)
+        public static string CoordStr(object val)
         {
-            return new DslSyntaxError(message + " at line " + line + " col " + col, diagnostic);
+            if (val == null) return "undefined";
+            if (val is double d && double.IsNaN(d)) return "NaN";
+            if (val is float f && float.IsNaN(f)) return "NaN";
+            return val.ToString();
+        }
+
+        // Convenience matching the JS `throw new SyntaxError(`${msg} at line L col C`)`.
+        public static DslSyntaxError At(string message, object line, object col, Diagnostic diagnostic = null)
+        {
+            return new DslSyntaxError(message + " at line " + CoordStr(line) + " col " + CoordStr(col), diagnostic);
         }
     }
 }

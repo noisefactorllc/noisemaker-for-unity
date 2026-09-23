@@ -75,6 +75,8 @@ namespace Noisemaker.Hlsl.Compiler
         public string Lexeme { get; }
         public int Line { get; }
         public int Col { get; }
+        public object RawLine { get; }
+        public object RawCol { get; }
 
         public Token(TokenType type, string lexeme, int line, int col)
         {
@@ -82,6 +84,22 @@ namespace Noisemaker.Hlsl.Compiler
             Lexeme = lexeme;
             Line = line;
             Col = col;
+            RawLine = line;
+            RawCol = col;
+        }
+
+        public Token(TokenType type, string lexeme, object rawLine, object rawCol)
+        {
+            Type = type;
+            Lexeme = lexeme;
+            RawLine = rawLine;
+            RawCol = rawCol;
+            Line = rawLine is int l ? l : (rawLine is double dl && !double.IsNaN(dl) ? (int)dl : 0);
+            Col = rawCol is int c ? c : (rawCol is double dc && !double.IsNaN(dc) ? (int)dc : 0);
+        }
+
+        public Token(TokenType type, string lexeme) : this(type, lexeme, null, null)
+        {
         }
 
         public override string ToString()

@@ -37,9 +37,10 @@ namespace CompilerContractTests
             TestHlslIncludeDirectivesResolve();
             TestDiagnosticSourceColumnsAndLocations();
             TestStructuredLexerDiagnostics();
+            TestStructuredParserDiagnostics();
+            TestRenderLandscape3dFilteringDefines();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
-
 
             return _failures == 0 ? 0 : 1;
         }
@@ -920,10 +921,155 @@ namespace CompilerContractTests
             }
         }
 
+        private static void TestStructuredParserDiagnostics()
+        {
+            var cases = new (string name, string source, string code, string message, int line, int column)[]
+            {
+                ("opening parenthesis", "search synth\nrender o0", "P001", "Expect '(' at line 2 col 8", 2, 8),
+                ("closing parenthesis at EOF", "search synth\nrender(o0", "P002", "Expect ')' at line 2 col 10", 2, 10),
+                ("identifier", "search synth\nlet = 1", "P001", "Expected identifier at line 2 col 5", 2, 5),
+                ("assignment sign", "search synth\nlet x 1", "P001", "Expect '=' at line 2 col 7", 2, 7),
+                ("block opening", "search synth\nif(true) return 1", "P001", "Expect '{' at line 2 col 10", 2, 10),
+                ("end of input", "search synth\nrender(o0) xyz", "P001", "Expected end of input at line 2 col 12", 2, 12),
+                ("call closing parenthesis", "search synth\nfoo(1", "P002", "Expect ')' at line 2 col 6", 2, 6),
+                ("write3d separator", "search synth\nfoo().write3d(tex3d0 geo0)", "P001", "Expect ',' between tex3d and geo in write3d() at line 2 col 22", 2, 22),
+                ("CRLF and tab", "// 😀\r\nsearch synth\r\n\trender(o0", "P002", "Expect ')' at line 3 col 11", 3, 11),
+                ("UTF-16 column", "search synth\nlet x = \"😀\"; render o0", "P001", "Expect '(' at line 2 col 22", 2, 22),
+            };
+
+            foreach (var c in cases)
+            {
+                // Test via Parser.Parse(Lexer.Lex(source))
+                try
+                {
+                    Parser.Parse(Lexer.Lex(c.source));
+                    Check(false, "TestStructuredParserDiagnostics: expected parse error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "parser diag message " + c.name + " (" + ex.Message + " == " + c.message + ")");
+                    Check(ex.Diagnostic != null, "parser diag non-null " + c.name);
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == c.code, "parser diag code " + c.name + " (" + ex.Diagnostic.Code + " == " + c.code + ")");
+                        Check(ex.Diagnostic.Stage == "parser", "parser diag stage " + c.name);
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "parser diag severity " + c.name);
+                        Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == c.line && ex.Diagnostic.Location.Column == c.column, "parser diag loc " + c.name);
+                        Check(ex.Diagnostic.Span == null, "parser diag span null " + c.name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnostics: unexpected exception for " + c.name + ": " + ex);
+                }
+
+                // Test via DslCompiler.Compile(source)
+                try
+                {
+                    DslCompiler.Compile(c.source, ProbeRegistry());
+                    Check(false, "TestStructuredParserDiagnostics compile: expected error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "compile parser diag message " + c.name);
+                    Check(ex.Diagnostic != null && ex.Diagnostic.Code == c.code, "compile parser diag code " + c.name);
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnostics compile: unexpected exception for " + c.name + ": " + ex);
+                }
+            }
+
+            // Test explicit unavailable caller-token coordinates
+            var unlocatedCases = new (object line, object col, string expectedMsg)[]
+            {
+                (null, null, "Expect '(' at line undefined col undefined"),
+                (1, null, "Expect '(' at line 1 col undefined"),
+                (0, 1, "Expect '(' at line 0 col 1"),
+                (1, double.NaN, "Expect '(' at line 1 col NaN"),
+            };
+
+            foreach (var uc in unlocatedCases)
+            {
+                var tokens = Lexer.Lex("search synth\nrender o0");
+                for (int i = 0; i < tokens.Count; i++)
+                {
+                    if (tokens[i].Type == TokenType.OUTPUT_REF)
+                    {
+                        tokens[i] = new Token(tokens[i].Type, tokens[i].Lexeme, uc.line, uc.col);
+                    }
+                }
+                try
+                {
+                    Parser.Parse(tokens);
+                    Check(false, "expected parse error for unlocated coordinates: " + uc.expectedMsg);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == uc.expectedMsg, "unlocated message: " + ex.Message + " == " + uc.expectedMsg);
+                    Check(ex.Diagnostic != null, "unlocated diagnostic non-null");
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P001", "unlocated diag code P001");
+                        Check(ex.Diagnostic.Location == null, "unlocated diag location null");
+                        Check(ex.Diagnostic.Span == null, "unlocated diag span null");
+                    }
+                }
+            }
+        }
+
+        private static void TestRenderLandscape3dFilteringDefines()
+        {
+            try
+            {
+                string effectsDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects");
+                if (!Directory.Exists(effectsDir))
+                {
+                    effectsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl", "Effects"));
+                }
+                var reg = EffectRegistry.LoadFromDirectory(effectsDir);
+                var effect = reg.GetOp("render.renderLandscape3d");
+                Check(effect != null, "render.renderLandscape3d op registered");
+                if (effect != null && effect.Effect != null)
+                {
+                    var globals = effect.Effect.Globals;
+                    Check(globals != null && globals.Has("filtering"), "renderLandscape3d has filtering global");
+                    var filtering = globals.Get("filtering");
+                    Check(filtering.Get("define").AsString == "FILTERING", "filtering define is FILTERING");
+                    Check(filtering.Get("default").AsNumber == 1.0, "filtering default is 1");
+                    var choices = filtering.Get("choices");
+                    Check(choices != null && choices.Get("isosurface").AsNumber == 0.0, "filtering isosurface is 0");
+                    Check(choices != null && choices.Get("voxel").AsNumber == 1.0, "filtering voxel is 1");
+                }
+
+                // Default filtering (1 -> voxel)
+                string dslDefault = "search synth3d, render\nshape3d().renderLandscape3d().write(o0)\nrender(o0)\n";
+                var graphDefault = DslCompiler.Compile(dslDefault, reg);
+                var passDefault = graphDefault.Passes.Find(p => p.EffectKey == "render.renderLandscape3d");
+                Check(passDefault != null, "passDefault exists");
+                Check(passDefault != null && passDefault.Defines["FILTERING"] == 1, "default filtering define is 1");
+
+                // Explicit isosurface (0)
+                string dslIso = "search synth3d, render\nshape3d().renderLandscape3d(filtering: isosurface).write(o0)\nrender(o0)\n";
+                var graphIso = DslCompiler.Compile(dslIso, reg);
+                var passIso = graphIso.Passes.Find(p => p.EffectKey == "render.renderLandscape3d");
+                Check(passIso != null, "passIso exists");
+                Check(passIso != null && passIso.Defines["FILTERING"] == 0, "isosurface filtering define is 0");
+
+                // Explicit voxel (1)
+                string dslVoxel = "search synth3d, render\nshape3d().renderLandscape3d(filtering: voxel).write(o0)\nrender(o0)\n";
+                var graphVoxel = DslCompiler.Compile(dslVoxel, reg);
+                var passVoxel = graphVoxel.Passes.Find(p => p.EffectKey == "render.renderLandscape3d");
+                Check(passVoxel != null, "passVoxel exists");
+                Check(passVoxel != null && passVoxel.Defines["FILTERING"] == 1, "voxel filtering define is 1");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestRenderLandscape3dFilteringDefines: " + ex.Message);
+            }
+        }
+
         private static RenderGraph CompileProbe(string body)
-
-
-
         {
             string source = "search synth\n" + body + "\nrender(o0)\n";
             return DslCompiler.Compile(source, ProbeRegistry());
