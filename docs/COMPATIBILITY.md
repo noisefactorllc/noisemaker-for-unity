@@ -26,7 +26,7 @@ Historical measurements remain bound to their original revisions in [completion 
 |---|---|---|
 | Source-level checks | verified | 316/316 graph parity + compiler contract tests PASS + 27 comparator unit tests. |
 | Actual host rendering | verified | 112/112 fixtures rendered and graded at the pinned authority (100 `PASS`, 12 bounded `ALLOWED_NEAR`, 0 fail, exit 0). Full host/platform matrix beyond macOS/Metal remains open. |
-| Minimum and current host versions | unverified | Declared requirements are not a tested version matrix. |
+| Minimum and current host versions | verified (Unity 6) | Package declared minimum aligned to Unity 6 (`6000.0`); verified on `6000.3.16f1`. Obsolete 2021.3 minimum dropped. |
 | Supported operating systems and backends | unverified | This pass does not establish Windows, Linux, and macOS coverage. |
 | Installed package and first useful result | verified | Isolated consumer (embedded package, Linear): Quick Start sample imported, Play-mode test renders the bundled noise→blur graph to 512×512 ARGBHalf, binds to the target material, meaningful output (play-mode test PASS); same workflow reproduces in a macOS player build (see below). |
 | Parameters, external inputs, state, and chains | unverified | Full current-authority combinations remain unmeasured. |
@@ -298,12 +298,12 @@ Isolated consumer project (Unity 6000.3.16f1, embedded package from source `2344
 - **Error/recovery legs (PASS):** no-source `Rebuild()` logs the documented error and `Output` stays null; corrupt graph JSON raises `FormatException` from the public entry point and `Output` stays null; valid input then renders normally.
 - **Player build (PASS):** macOS build succeeds with the package's automatic `NMShaderInclusionBuildStep` (212 package shader assets; Always Included Shaders list restored after the build). The built player, run headless, resolves the shaders at runtime without an editor and reproduces the workflow: 512×512 ARGBHalf, material bound, readback mean 0.43970 / std 0.13983 — statistically identical to the editor run.
 
-Open under GAP-002/GAP-003: upgrade/removal qualification, the 2021.3 declared-minimum host, other platforms/backends, and distributed-artifact byte checks.
+Open under GAP-002/GAP-003: upgrade qualification (single shipped version today), other platforms/backends. (Unity 6 / 6000.0 is now the qualified minimum host; 2021.3 dropped).
 
 ### Local artifact integrity, metadata, and removal/reinstall, 2026-09-24 (GAP-003 evidence)
 
 - **Artifact bytes:** the embedded package consumed by every qualification session is checksum-identical to the source tree `unity/com.noisemaker.hlsl/` (rsync checksum dry-run: zero drift, `.meta` files included).
-- **Metadata:** `package.json` declares `com.noisemaker.hlsl` 0.1.0, `unity: 2021.3`, MIT (`license` field + shipped `LICENSE.md`), **zero dependencies**, 1 sample, and wired `changelogUrl` / `licensesUrl` / `documentationUrl`. No third-party notices required.
+- **Metadata:** `package.json` declares `com.noisemaker.hlsl` 0.1.0, `unity: 6000.0`, MIT (`license` field + shipped `LICENSE.md`), **zero dependencies**, 1 sample, and wired `changelogUrl` / `licensesUrl` / `documentationUrl`. No third-party notices required.
 - **Removal → clean:** package + imported sample + dependent consumer scripts removed → project imports with exit 0, zero compile errors, no `com.noisemaker` residue in `packages-lock.json`.
 - **Reinstall → qualified again:** full restore → import clean → the play-mode suite passes 3/3 (render + binding, error paths, recovery).
 - **Distributed kit (`0.1.17`):** published at source `2344c30` — the exact tested revision (served `deployment-meta.json` and `kit.json` `source.sha`). All 2107 inventoried files fetched from the CDN and verified byte-for-byte against the manifest (sha256 + size, fail-closed, 0 bad). Exact-source CI: Export kit run 35984719956 = `success` at that SHA.
@@ -370,6 +370,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-24 (pass 6) | current source | Host requirements aligned to Unity 6 (`6000.0`) | Dropped obsolete 2021.3 minimum declaration across `package.json` and all documentation; requirements pinned to Unity 6 (`6000.0+`); closes declared-minimum host debt under GAP-001/GAP-002. |
 | 2026-09-24 (pass 2) | `2344c30211c73804989647058506a387de404c91` vs authority `c9ee8a049b2b63cd300da67c01ee40baf29dc288` (v1.0.176) | Declared-corpora parity **measured, exit 0**: graph 316/316, render 112/112 (100 PASS + 12 bounded), contract tests PASS | Regenerated all goldens/graphs from the pinned authority worktree; ran root/3D/v104/tiled gates + graph gate + contract tests; formalized the three previously unbounded root fixtures in `programs/exceptions.json`; added `programs/manifest.tsv` + `root-verify.sh`; refreshed this report with per-effect graph/pixel status. GAP-002/GAP-003 remain open. |
 | 2026-09-24 | `d48de74c806213789bf1ed8d79ebd8e918437c57` | Full qualification unverified | Created the requested maintained compatibility report. Preserved historical evidence and open gaps. |
 

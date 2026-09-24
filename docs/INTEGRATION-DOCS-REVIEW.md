@@ -31,7 +31,7 @@ Both failures are documented only in source comments. Beyond them, the docs omit
 - `GraphJson` input undocumented (the safest path, takes precedence, `NMRenderer.cs:28-29,92-93`).
 - Public host API undocumented: `Resize`/`Rebuild`/`RenderFrame`/`SetUniform` (numeric-only)/`LoadMesh*`, fields `RenderWidth/Height/Animate/AnimationDuration`, and `NMPipeline.PresentTo`/`GetOutput(name)`/`RenderCubemap`. Cubemap output has zero consumer-doc mention despite shipping.
 - Shader Graph (`com.unity.shadergraph`) is an undeclared prerequisite for the node path — state it as a path-2 requirement with min version (do **not** add a hard `dependencies` entry — that would force path-1 users to pull SG).
-- Unity version mismatch: `package.json` declares `2021.3`, only `6000.3.16f1` is verified.
+- Unity version requirement: `package.json` requires `6000.0` (Unity 6), matching verified `6000.3.16f1`. Older versions are unsupported.
 - No single "supported vs not-yet-supported" table (`skipIf`/`runIf` inert; `if`/loops throw; automation uniforms ignored; tiled export no-op; `write3d` lane staged).
 - Install routes incomplete — only "from disk" documented; add the git-URL route with the subfolder query (`…git?path=unity/com.noisemaker.hlsl#<tag>`).
 - `Output`/surface lifetime: live RT recreated on `Resize()`/`Rebuild()`, nulled on disable — re-fetch, don't cache.

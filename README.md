@@ -23,10 +23,10 @@ standalone renderer and as **Shader Graph (material) nodes**.
 > structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
 > and the declared fixture corpora (112 programs across root/3D/v104/tiled gates) render
 > with zero failures — 100 strict byte-level passes plus 12 measured, bounded exceptions.
-> The installed Quick Start workflow and macOS player builds are qualified end-to-end.
-> Still open: the 2021.3 declared-minimum host, Windows/Linux coverage, the live-display
-> color pipeline, and broader per-effect parameter/state sweeps. Treat remaining platform
-> claims as provisional until those close.
+> The installed Quick Start workflow and macOS player builds are qualified end-to-end on Unity 6.
+> Still open: Windows/Linux coverage, the live-display color pipeline, and broader per-effect
+> parameter/state sweeps (Unity 6 is required; older versions are not supported). Treat
+> remaining platform claims as provisional until those close.
 
 ## Layout
 

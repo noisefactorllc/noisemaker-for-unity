@@ -24,7 +24,7 @@ but is not pixel-verified until this harness runs (see `../ARCHITECTURE.md` → 
   uses ANGLE/Metal. It is headless by default (`SHADE_HEADLESS=1`).
 - **Python 3** with `numpy` + `pillow` (for `compare.py`) — same deps as
   `../../scripts/image_regression.py`.
-- **A Unity project** (2021.3+, **Linear color space**) that includes the package
+- **A Unity project** (Unity 6 / 6000.0+, **Linear color space**) that includes the package
   `com.noisemaker.hlsl`.
 
 All scripts honor `NM_REFERENCE_ROOT` to relocate the reference repo root

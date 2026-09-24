@@ -5,10 +5,12 @@ HLSL — pixel-identical to the JS/WebGPU reference engine. Use it as a standalo
 renderer that writes a `RenderTexture`, or drop single-pass effects into Shader Graph
 as Custom Function nodes.
 
-> **🚧 WIP — very early development.** Not recommended for general use until it has been
-> fully tested, performance has been addressed, and integration is proven beyond the
-> Built-in pipeline. Treat all current output as provisional. **Read "Requirements" and
-> "Builds & platforms" below before integrating — the defaults will not "just work."**
+> **🚧 WIP — stabilization toward a full-parity release.** All 210 declared effects are
+> structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
+> and the declared fixture corpora render with zero failures (100 strict passes plus 12 measured,
+> bounded exceptions). The installed Quick Start workflow and macOS player builds are qualified
+> end-to-end. Still open: Windows/Linux coverage, the live-display color pipeline, and broader
+> per-effect parameter/state sweeps.
 
 > This README is for **integrators** (using the package). Contributors porting shaders
 > should read `../../PORTING-GUIDE.md`, `../../ARCHITECTURE.md`, and `../../parity/` —
@@ -16,8 +18,8 @@ as Custom Function nodes.
 
 ## Requirements
 
-- **Unity 6 (verified on `6000.3.16f1`).** The manifest min is `2021.3`, but the package
-  is only verified on Unity 6. Older versions are untested.
+- **Unity 6 (verified on `6000.3.16f1`).** Requires Unity 6 (`6000.0+`).
+  Older Unity versions (2021.3 / 2022.3) are not supported.
 - **Linear color space — mandatory.** Set *Project Settings ▸ Player ▸ Color Space =
   Linear*. All render targets are `ARGBHalf`, non-sRGB. In a **Gamma** project (the
   Built-in/2D template default), every color is silently wrong (washed-out/dark). The

@@ -6,8 +6,8 @@ material, a UI image, or anything else that samples a texture. It fetches nothin
 
 ## Requirements
 
-- **Unity 6** (the port is verified on `6000.3.16f1`). The package manifest allows 2021.3, but
-  older editors are untested.
+- **Unity 6** (the port is verified on `6000.3.16f1`). The package requires Unity 6 (`6000.0+`).
+  Older editors (2021.3 / 2022.3) are not supported.
 - **Linear color space — mandatory.** *Project Settings ▸ Player ▸ Color Space = Linear*. Every
   render target is `ARGBHalf`, non-sRGB. In a **Gamma** project (the Built-in and 2D template
   default) the colors come out silently wrong — washed-out and dark — with no error and no
