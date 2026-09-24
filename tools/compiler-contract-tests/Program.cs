@@ -42,6 +42,7 @@ namespace CompilerContractTests
             TestStructuredParserDiagnosticsP003Automation();
             TestStructuredParserDiagnosticsP004Search();
             TestStructuredParserDiagnosticsP005Output();
+            TestStructuredParserDiagnosticsP006Subchain();
             TestRenderLandscape3dFilteringDefines();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
@@ -1343,6 +1344,155 @@ namespace CompilerContractTests
             }
         }
 
+        private static void TestStructuredParserDiagnosticsP006Subchain()
+        {
+            var cases = new (string name, string source, string message, int line, int column)[]
+            {
+                ("non-string argument", "search synth\nread(o0).subchain(name: 1) { .diagProbe() }", "Expected string value for subchain name at line 2 col 25", 2, 25),
+                ("argument at EOF", "search synth\nread(o0).subchain(name:", "Expected string value for subchain name at line 2 col 24", 2, 24),
+                ("missing body dot", "search synth\nread(o0).subchain() { diagProbe() }", "Expected '.' before chain element in subchain body at line 2 col 23", 2, 23),
+                ("body at EOF", "search synth\nread(o0).subchain() {", "Expected '.' before chain element in subchain body at line 2 col 22", 2, 22),
+                ("empty body", "search synth\nread(o0).subchain() {}", "Subchain body cannot be empty at line 2 col 10", 2, 10),
+                ("comment-only body", "search synth\nread(o0).subchain() { /* empty */ }", "Subchain body cannot be empty at line 2 col 10", 2, 10),
+                ("CRLF tab and UTF-16 argument", "// 😀\r\nsearch synth\r\n\tread(o0).subchain(name: \"😀\", id: 1) { .diagProbe() }", "Expected string value for subchain id at line 3 col 36", 3, 36),
+                ("missing dot after comment", "search synth\nread(o0).subchain() { /* 😀 */ missing() }", "Expected '.' before chain element in subchain body at line 2 col 32", 2, 32),
+                ("unclosed nonempty body", "search synth\nread(o0).subchain() { .diagProbe()", "Expected '.' before chain element in subchain body at line 2 col 35", 2, 35),
+            };
+
+            foreach (var c in cases)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(c.source), ProbeRegistry());
+                    Check(false, "TestStructuredParserDiagnosticsP006Subchain: expected parse error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "P006 msg " + c.name + " (" + ex.Message + " == " + c.message + ")");
+                    Check(ex.Diagnostic != null, "P006 diag non-null " + c.name);
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P006", "P006 code " + c.name + " (" + ex.Diagnostic.Code + " == P006)");
+                        Check(ex.Diagnostic.Stage == "parser", "P006 stage " + c.name);
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "P006 severity " + c.name);
+                        Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == c.line && ex.Diagnostic.Location.Column == c.column, "P006 loc " + c.name + $" ({ex.Diagnostic.Location?.Line},{ex.Diagnostic.Location?.Column} == {c.line},{c.column})");
+                        Check(ex.Diagnostic.Span == null, "P006 span null " + c.name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnosticsP006Subchain: unexpected exception for " + c.name + ": " + ex);
+                }
+            }
+
+            // Unavailable caller-token coordinates test for P006
+            var unlocatedCases = new (object line, object col, string lineStr, string colStr)[]
+            {
+                (null, null, "undefined", "undefined"),
+                (1, null, "1", "undefined"),
+                (0, 1, "0", "1"),
+                (1, double.NaN, "1", "NaN"),
+            };
+
+            foreach (var c in cases)
+            {
+                foreach (var uc in unlocatedCases)
+                {
+                    var tokens = new List<Token>();
+                    foreach (var t in Lexer.Lex(c.source))
+                    {
+                        tokens.Add(new Token(t.Type, t.Lexeme, uc.line, uc.col));
+                    }
+                    try
+                    {
+                        Parser.Parse(tokens, ProbeRegistry());
+                        Check(false, "expected parse error for unlocated " + c.name);
+                    }
+                    catch (DslSyntaxError ex)
+                    {
+                        Check(ex.Diagnostic != null, "unlocated P006 diag non-null " + c.name);
+                        if (ex.Diagnostic != null)
+                        {
+                            Check(ex.Diagnostic.Code == "P006", "unlocated diag code P006 for " + c.name);
+                            Check(ex.Diagnostic.Location == null, "unlocated diag location null for " + c.name);
+                            Check(ex.Diagnostic.Span == null, "unlocated diag span null for " + c.name);
+                        }
+                    }
+                }
+            }
+
+            // Shared expectation diagnostic precedence
+            var precedenceCases = new (string source, string code, string message)[]
+            {
+                ("search synth\nread(o0).subchain(1) {}", "P002", "Expect ')' after subchain arguments at line 2 col 19"),
+                ("search synth\nread(o0).subchain() { . }", "P001", "Expected identifier at line 2 col 25"),
+            };
+
+            foreach (var pc in precedenceCases)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(pc.source), ProbeRegistry());
+                    Check(false, "expected error for precedence " + pc.code);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == pc.message, "precedence msg " + pc.code + " (" + ex.Message + " == " + pc.message + ")");
+                    Check(ex.Diagnostic != null && ex.Diagnostic.Code == pc.code, "precedence code " + pc.code);
+                }
+            }
+
+            // Valid subchains AST and validator steps
+            var validCases = new (string args, string name, string id)[]
+            {
+                ("", null, null),
+                ("\"positional\"", "positional", null),
+                ("name: \"named\", id: \"s\"", "named", "s"),
+                ("foo: \"x\" name: \"a\" name: \"b\" id: \"s\"", "b", "s"),
+            };
+
+            var reg = ProbeRegistry();
+            foreach (var vc in validCases)
+            {
+                string source = $"search synth\nread(o0).subchain({vc.args}) {{ .diagFilter() }}.write(o1)";
+                var tokens = Lexer.Lex(source);
+                var ast = Parser.Parse(tokens, reg);
+                Check(ast != null && ast.Plans.Count > 0, "valid subchain ast not null for " + vc.args);
+                var chainStmt = ast.Plans[0] as ChainStatementNode;
+                Check(chainStmt != null && chainStmt.Chain.Count > 1, "valid subchain chain count for " + vc.args);
+                var subNode = chainStmt?.Chain[1] as SubchainNode;
+                Check(subNode != null, "subNode is SubchainNode for " + vc.args);
+                if (subNode != null)
+                {
+                    Check(subNode.Name == vc.name, $"subchain name '{subNode.Name}' == '{vc.name}'");
+                    Check(subNode.Id == vc.id, $"subchain id '{subNode.Id}' == '{vc.id}'");
+                    Check(subNode.Body.Count == 1, "subchain body count == 1");
+                    var call = subNode.Body[0] as CallNode;
+                    Check(call != null && call.Name == "diagFilter", "subchain body call is diagFilter");
+                    Check(subNode.LocLine == 2 && subNode.LocCol == 10, $"subchain loc ({subNode.LocLine},{subNode.LocCol}) == (2,10)");
+                }
+
+                var validated = Validator.Validate(ast, reg);
+                Check(validated.Diagnostics.Count == 0, "valid subchain no diagnostics for " + vc.args);
+                Check(validated.Plans.Count == 1, "valid subchain 1 plan for " + vc.args);
+                var steps = validated.Plans[0].Chain;
+                Check(steps.Count == 5, "valid subchain 5 steps for " + vc.args);
+                if (steps.Count == 5)
+                {
+                    Check(steps[0].Op == "_read" && steps[0].Builtin && steps[0].Temp == 0, "step 0 _read");
+                    Check(steps[1].Op == "_subchain_begin" && steps[1].Builtin && steps[1].Temp == 1 && steps[1].From == 0, "step 1 _subchain_begin");
+                    Check(steps[1].Args.Get("name")?.String == vc.name, $"step 1 name == {vc.name}");
+                    Check(steps[1].Args.Get("id")?.String == vc.id, $"step 1 id == {vc.id}");
+                    Check(steps[2].Op == "synth.diagFilter" && !steps[2].Builtin && steps[2].Temp == 2 && steps[2].From == 1, "step 2 synth.diagFilter");
+                    Check(steps[3].Op == "_subchain_end" && steps[3].Builtin && steps[3].Temp == 3 && steps[3].From == 2, "step 3 _subchain_end");
+                    Check(steps[3].Args.Get("name")?.String == vc.name, $"step 3 name == {vc.name}");
+                    Check(steps[3].Args.Get("id")?.String == vc.id, $"step 3 id == {vc.id}");
+                    Check(steps[4].Op == "_write" && steps[4].Builtin && steps[4].Temp == 4 && steps[4].From == 3, "step 4 _write");
+                }
+                Check(validated.Render == null, "valid subchain render null for " + vc.args);
+            }
+        }
+
         private static void TestRenderLandscape3dFilteringDefines()
         {
             try
@@ -1409,6 +1559,12 @@ namespace CompilerContractTests
                 "\"amount\":{\"type\":\"float\",\"default\":0,\"uniform\":\"amount\"," +
                 "\"min\":0,\"max\":100}},\"passes\":[{\"name\":\"render\"," +
                 "\"program\":\"automationProbe\",\"inputs\":{},\"outputs\":{" +
+                "\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Diag Filter\",\"namespace\":\"synth\"," +
+                "\"func\":\"diagFilter\",\"starter\":false,\"globals\":{}," +
+                "\"passes\":[{\"name\":\"render\"," +
+                "\"program\":\"diagFilter\",\"inputs\":{\"source\":\"inputTex\"},\"outputs\":{" +
                 "\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
             return reg;
         }

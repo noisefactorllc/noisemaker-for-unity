@@ -446,8 +446,9 @@ namespace Noisemaker.Hlsl.Compiler
 
         private Node ParseSubchainCall()
         {
-            int tokenLine = Peek().Line;
-            int tokenCol = Peek().Col;
+            Token subchainToken = Peek();
+            int tokenLine = subchainToken.Line;
+            int tokenCol = subchainToken.Col;
             Advance(); // consume 'subchain'
             Expect(TokenType.LPAREN, "Expect '(' after subchain");
 
@@ -472,7 +473,7 @@ namespace Noisemaker.Hlsl.Compiler
                         if (key == "iterations")
                         {
                             if (Peek().Type != TokenType.NUMBER)
-                                throw DslSyntaxError.At("Expected number value for subchain iterations", Peek().Line, Peek().Col);
+                                throw ParserErrorAt("P006", "Expected number value for subchain iterations", Peek());
                             double n = double.Parse(Advance().Lexeme, System.Globalization.CultureInfo.InvariantCulture);
                             iterationsVal = (int)System.Math.Floor(n);
                             if (iterationsVal < 1) iterationsVal = 1;
@@ -480,7 +481,7 @@ namespace Noisemaker.Hlsl.Compiler
                         else
                         {
                             if (Peek().Type != TokenType.STRING)
-                                throw DslSyntaxError.At("Expected string value for subchain " + key, Peek().Line, Peek().Col);
+                                throw ParserErrorAt("P006", "Expected string value for subchain " + key, Peek());
                             string val = Advance().Lexeme;
                             if (key == "name") nameVal = val;
                             else if (key == "id") idVal = val;
@@ -498,7 +499,7 @@ namespace Noisemaker.Hlsl.Compiler
                 List<string> leadingComments = CollectComments();
                 if (Peek().Type == TokenType.RBRACE) break;
                 if (Peek().Type != TokenType.DOT)
-                    throw DslSyntaxError.At("Expected '.' before chain element in subchain body", Peek().Line, Peek().Col);
+                    throw ParserErrorAt("P006", "Expected '.' before chain element in subchain body", Peek());
                 Advance(); // consume '.'
                 List<string> postDot = CollectComments();
                 var allComments = new List<string>(leadingComments);
@@ -509,7 +510,7 @@ namespace Noisemaker.Hlsl.Compiler
             }
             Expect(TokenType.RBRACE, "Expect '}' to end subchain body");
             if (body.Count == 0)
-                throw DslSyntaxError.At("Subchain body cannot be empty", tokenLine, tokenCol);
+                throw ParserErrorAt("P006", "Subchain body cannot be empty", subchainToken);
 
             return new SubchainNode { Name = nameVal, Id = idVal, Iterations = iterationsVal, Body = body, LocLine = tokenLine, LocCol = tokenCol };
         }
