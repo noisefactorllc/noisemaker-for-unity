@@ -29,6 +29,27 @@ THREE_D_EXCEPTIONS_NAMES = {
     "synth3dFlythrough3d",
     "synth3dFractal3d",
 }
+CLASSIC_MANIFEST = ROOT / "parity" / "programs" / "classic-manifest.tsv"
+CLASSIC_EXCEPTIONS = ROOT / "parity" / "programs" / "classic-exceptions.json"
+CLASSIC_FIXTURES = {
+    "classicNoisedeck__bitEffects",
+    "classicNoisedeck__caustic",
+    "classicNoisedeck__cellNoise",
+    "classicNoisedeck__coalesce",
+    "classicNoisedeck__colorLab",
+    "classicNoisedeck__composite",
+    "classicNoisedeck__effects",
+    "classicNoisedeck__fractal",
+    "classicNoisedeck__glitch",
+    "classicNoisedeck__kaleido",
+    "classicNoisedeck__lensDistortion",
+    "classicNoisedeck__moodscape",
+    "classicNoisedeck__noise3d",
+    "classicNoisedeck__shapeMixer",
+    "classicNoisedeck__shapes",
+    "classicNoisedeck__shapes3d",
+    "classicNoisedeck__splat",
+}
 
 
 def write_png(path, rgba, size=(16, 16), changed=None):
@@ -629,6 +650,87 @@ class Repository3dPolicyContractTests(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertEqual({"PASS": 6, "ALLOWED_NEAR": 3}, report["counts"])
+        self.assertEqual([], report["unused_exceptions"])
+
+
+class RepositoryClassicPolicyContractTests(unittest.TestCase):
+    def test_repository_exposes_an_executable_classic_gate(self):
+        gate = ROOT / "parity" / "classic-verify.sh"
+        self.assertTrue(gate.is_file())
+        source = gate.read_text()
+        for required in (
+            "classic-manifest.tsv",
+            "classic-exceptions.json",
+            "batch-golden.mjs",
+            "RenderDslBatchFromCommandLine",
+            "--manifest",
+            "--exceptions",
+        ):
+            self.assertIn(required, source)
+
+    def test_repository_classic_manifest_and_policy_are_exact(self):
+        manifest_lines = [
+            line.split("\t")
+            for line in CLASSIC_MANIFEST.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(len(manifest_lines), 17)
+        self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
+        self.assertEqual({parts[0] for parts in manifest_lines}, CLASSIC_FIXTURES)
+        self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
+
+        policy = json.loads(CLASSIC_EXCEPTIONS.read_text())
+        self.assertEqual(1, policy["schema_version"])
+        self.assertEqual(
+            {
+                "classicNoisedeck__fractal": {
+                    "max_abs_diff": 148,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 31,
+                    "max_exceeded_channels": 93,
+                    "mechanism": "Complex-plane escape boundary iteration threshold tie (transcendental float32 precision).",
+                },
+                "classicNoisedeck__kaleido": {
+                    "max_abs_diff": 16,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 80,
+                    "max_exceeded_channels": 192,
+                    "mechanism": "Bilinear sampling / wrap coordinate tie at mirror-fold symmetry seams (transcendental float32 precision).",
+                },
+            },
+            policy["cases"],
+        )
+
+    def test_repository_classic_policy_is_exercised_by_the_real_grader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            gold = root / "gold"
+            cand = root / "cand"
+            gold.mkdir()
+            cand.mkdir()
+            for name in CLASSIC_FIXTURES:
+                changed = None
+                if name == "classicNoisedeck__fractal":
+                    changed = [(0, 0, (130, 127, 127, 255))]
+                elif name == "classicNoisedeck__kaleido":
+                    changed = [(1, 1, (130, 127, 127, 255))]
+                write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
+                write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
+
+            completed, report = run_compare(
+                gold,
+                cand,
+                root / "report.json",
+                "--manifest",
+                str(CLASSIC_MANIFEST),
+                "--exceptions",
+                str(CLASSIC_EXCEPTIONS),
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIsNotNone(report)
+        assert report is not None
+        self.assertEqual({"PASS": 15, "ALLOWED_NEAR": 2}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

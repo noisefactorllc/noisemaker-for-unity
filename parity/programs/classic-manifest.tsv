@@ -1,0 +1,17 @@
+classicNoisedeck__bitEffects	--selftest/classicNoisedeck__bitEffects.dsl
+classicNoisedeck__caustic	--selftest/classicNoisedeck__caustic.dsl
+classicNoisedeck__cellNoise	--selftest/classicNoisedeck__cellNoise.dsl
+classicNoisedeck__coalesce	--selftest/classicNoisedeck__coalesce.dsl
+classicNoisedeck__colorLab	--selftest/classicNoisedeck__colorLab.dsl
+classicNoisedeck__composite	--selftest/classicNoisedeck__composite.dsl
+classicNoisedeck__effects	--selftest/classicNoisedeck__effects.dsl
+classicNoisedeck__fractal	--selftest/classicNoisedeck__fractal.dsl
+classicNoisedeck__glitch	--selftest/classicNoisedeck__glitch.dsl
+classicNoisedeck__kaleido	--selftest/classicNoisedeck__kaleido.dsl
+classicNoisedeck__lensDistortion	--selftest/classicNoisedeck__lensDistortion.dsl
+classicNoisedeck__moodscape	--selftest/classicNoisedeck__moodscape.dsl
+classicNoisedeck__noise3d	--selftest/classicNoisedeck__noise3d.dsl
+classicNoisedeck__shapeMixer	--selftest/classicNoisedeck__shapeMixer.dsl
+classicNoisedeck__shapes	--selftest/classicNoisedeck__shapes.dsl
+classicNoisedeck__shapes3d	--selftest/classicNoisedeck__shapes3d.dsl
+classicNoisedeck__splat	--selftest/classicNoisedeck__splat.dsl

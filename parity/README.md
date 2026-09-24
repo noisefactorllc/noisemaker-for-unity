@@ -115,10 +115,13 @@ Unity 6000.3.16f1 / Metal, Linear color space): the 70-case v1.0.104 gate report
 66 `PASS` and 4 narrowly bounded `ALLOWED_NEAR` (`craquelure`, `mandala_large_format`,
 `strokes_smudge`, `strokes_sumi_e`). The 30-case root gate reports 25 `PASS` and 5
 narrowly bounded `ALLOWED_NEAR` (`heightGrid_billboard`, `heightmap3d_landscape`,
-`nm_chrome_test`, plus the established `parallax` / `refract_mirror`). The 9-case 3D
-gate reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact
-(zero tolerance). Every exception is checked against a per-case maximum delta, SSIM
-floor, exceeded-pixel/channel counts, and exact top-left-origin pixel coordinates
+`nm_chrome_test`, plus the established `parallax` / `refract_mirror`). The 17-case
+classicNoisedeck gate reports 15 `PASS` and 2 bounded `ALLOWED_NEAR` (`classicNoisedeck__fractal`,
+`classicNoisedeck__kaleido`), bringing the entire `classicNoisedeck` namespace (20/20) to
+100% pixel-verified coverage. The 9-case 3D gate reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`;
+the 3-case tiled gate is exact (zero tolerance). Full suite: 129 fixtures, 115 PASS + 14
+bounded exceptions, exit 0. Every exception is checked against a per-case maximum delta,
+SSIM floor, exceeded-pixel/channel counts, and exact top-left-origin pixel coordinates
 where declared.
 
 ## Gates
@@ -128,6 +131,8 @@ where declared.
 UNITY=... UNITY_PROJECT=... bash parity/root-verify.sh
 # 3D corpus (9 fixtures, 256px, tol 2 / SSIM 0.98 + 3d-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/3d-verify.sh
+# classicNoisedeck corpus (17 fixtures, 256px, tol 1 / SSIM 0.9999 + classic-exceptions.json):
+UNITY=... UNITY_PROJECT=... bash parity/classic-verify.sh
 ```
 
 ## Runbook
@@ -246,9 +251,12 @@ runtime/platform combination.
 - `graph-diff.py` — structural graph diff (ignores the `id` hash + `source`).
 - `root-verify.sh` — self-contained root-corpus pixel gate (goldens → Unity batch → fail-closed compare).
 - `3d-verify.sh` — self-contained 3D-corpus pixel gate (same shape, 3D policy).
+- `classic-verify.sh` — self-contained classicNoisedeck pixel gate (17 fixtures, tol 1 / SSIM 0.9999).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
+- `programs/classic-manifest.tsv` — the 17 classicNoisedeck fixtures (`classic-verify.sh` input).
+- `programs/classic-exceptions.json` — measured tolerances for classicNoisedeck exceptions.
 - `../unity/com.noisemaker.hlsl/Editor/NMParityRunner.cs` — Unity candidate renderer + `CompileDslDumpBatchFromCommandLine` (graph dumper).
 - `../tools/export-graph.mjs` — golden graph producer (used by both harnesses).
 - `../tools/convert-definitions.mjs` — effect-definition regenerator (step 0).

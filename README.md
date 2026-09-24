@@ -21,10 +21,10 @@ standalone renderer and as **Shader Graph (material) nodes**.
 
 > **🚧 WIP — stabilization toward a full-parity release.** All 210 declared effects are
 > structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
-> and the declared fixture corpora (112 programs across root/3D/v104/tiled gates) render
-> with zero failures — 100 strict byte-level passes plus 12 measured, bounded exceptions.
+> and the declared fixture corpora (129 programs across root/3D/classic/v104/tiled gates) render
+> with zero failures — 115 strict byte-level passes plus 14 measured, bounded exceptions.
 > The installed Quick Start workflow and macOS player builds are qualified end-to-end on Unity 6.
-> Still open: Windows/Linux coverage, the live-display color pipeline, and broader per-effect
+> Still open: Windows/Linux coverage, the live-display color pipeline, and remaining per-effect
 > parameter/state sweeps (Unity 6 is required; older versions are not supported). Treat
 > remaining platform claims as provisional until those close.
 
@@ -102,12 +102,13 @@ blend, blur) were additionally hardened by adversarial line-by-line review vs th
 ↔ Unity candidate ↔ `batch-compare.py`), regenerated at pinned reference authority
 `noisemaker@c9ee8a04` (v1.0.176). Current measured state: **graph parity 316/316
 byte-clean** (the full 207-program `--selftest` corpus + all 109 fixture programs, C#
-live-DSL compiler vs the reference oracle) and **112/112 rendered fixtures graded with
-zero failures** — 100 strict `PASS` and 12 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
-3D corpus 3, v104 corpus 4), every one pinned by max delta, SSIM floor, exceeded
-pixel/channel counts, and exact pixel coordinates in the tracked exception files. The
+live-DSL compiler vs the reference oracle) and **129/129 rendered fixtures graded with
+zero failures** — 115 strict `PASS` and 14 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
+3D corpus 3, classicNoisedeck corpus 2, v104 corpus 4), every one pinned by max delta, SSIM floor,
+exceeded pixel/channel counts, and exact pixel coordinates in the tracked exception files. The
+entire `classicNoisedeck` namespace (20/20 effects) is pixel-parity qualified. The
 3-case tiled large-format gate is exact at zero tolerance. Per-corpus tolerances stay
-separate (root/3D/v104 each have their own policy); see `docs/COMPATIBILITY.md` §3 and
+separate (root/3D/classic/v104 each have their own policy); see `docs/COMPATIBILITY.md` §3 and
 `parity/README.md` for the gates.
 
 The Y-flip reconciliation the design anticipated is now solved properly: Unity flips Y once

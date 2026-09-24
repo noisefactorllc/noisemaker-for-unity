@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "classicNoisedeck__fractal": {
+      "max_abs_diff": 148,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 31,
+      "max_exceeded_channels": 93,
+      "mechanism": "Complex-plane escape boundary iteration threshold tie (transcendental float32 precision)."
+    },
+    "classicNoisedeck__kaleido": {
+      "max_abs_diff": 16,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 80,
+      "max_exceeded_channels": 192,
+      "mechanism": "Bilinear sampling / wrap coordinate tie at mirror-fold symmetry seams (transcendental float32 precision)."
+    }
+  }
+}
