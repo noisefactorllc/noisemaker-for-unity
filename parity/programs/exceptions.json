@@ -1,6 +1,51 @@
 {
   "schema_version": 1,
   "cases": {
+    "heightGrid_billboard": {
+      "max_abs_diff": 2,
+      "ssim_min": 0.9999998,
+      "max_exceeded_pixels": 2,
+      "max_exceeded_channels": 5,
+      "allowed_exceeded_pixels": [
+        [77, 85],
+        [248, 133]
+      ],
+      "mechanism": "Sparse float32 screen-space-derivative tie at two points-billboard sprite edge pixels; cross-GPU Metal-vs-ANGLE transcendental class."
+    },
+    "heightmap3d_landscape": {
+      "max_abs_diff": 3,
+      "ssim_min": 0.9999999,
+      "max_exceeded_pixels": 2,
+      "max_exceeded_channels": 3,
+      "allowed_exceeded_pixels": [
+        [53, 131],
+        [202, 131]
+      ],
+      "mechanism": "Sparse float32 landscape raymarch transcendental ULP flip at two heightfield surface pixels; cross-GPU Metal-vs-ANGLE class."
+    },
+    "nm_chrome_test": {
+      "max_abs_diff": 41,
+      "ssim_min": 0.999996,
+      "max_exceeded_pixels": 14,
+      "max_exceeded_channels": 37,
+      "allowed_exceeded_pixels": [
+        [58, 15],
+        [68, 35],
+        [43, 99],
+        [102, 117],
+        [37, 121],
+        [37, 122],
+        [0, 128],
+        [0, 129],
+        [121, 134],
+        [187, 155],
+        [116, 160],
+        [116, 161],
+        [117, 161],
+        [116, 162]
+      ],
+      "mechanism": "Sine tone-curve and pow specular amplification of ~1-ULP float32 transcendental differences at 14 sparse pixels; mechanism pinned for chrome in the sibling blender/godot ports' STATUS.md."
+    },
     "parallax": {
       "max_abs_diff": 26,
       "ssim_min": 0.999998,

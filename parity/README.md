@@ -32,8 +32,10 @@ All scripts honor `NM_REFERENCE_ROOT` to relocate the reference repo root
 
 ## Test programs
 
-`programs/*.dsl` — 20 programs (8 Tier-1 + 4 3D/mixer + 8 targeting the v1.0.98 sync),
-each with a fixed `seed: 1` so output is deterministic:
+`programs/*.dsl` — 39 programs: the original 20 (8 Tier-1 + 4 3D/mixer + 8 targeting
+the v1.0.98 sync), plus 19 fixtures for later syncs (3D corpus, heightGrid /
+pointsBillboard pipelines, the `nm_*` minimal effect tests, `heightmap3d_landscape`,
+`text_style`), each with a fixed `seed: 1` so output is deterministic:
 
 | file | effect | shape |
 |---|---|---|
@@ -57,6 +59,11 @@ each with a fixed `seed: 1` so output is deterministic:
 | `cellRefract_mirror.dsl` | `classicNoisedeck/cellRefract` | mirror wrap at amount 100 |
 | `simpleAberration.dsl` | `filter/simpleAberration` | RGB split (unflipped Y, post-cee90aaf) |
 | `remap_zones.dsl` | `synth/remap` | polygon zone router, wired zone (64-vert layout) |
+
+`programs/manifest.tsv` lists the 30 non-3D fixtures exactly once as
+`<name><TAB><repo-relative-dsl-path>` and drives `root-verify.sh` (below). The
+nine 3D fixtures are listed in `programs/3d-manifest.tsv` and graded by
+`3d-verify.sh` under the 3D tolerance/exception policy.
 
 ### v1.0.104 artistic corpus
 
@@ -103,12 +110,25 @@ changed definitions diverged on their new parameters and enum choices. The
 definitions are now synchronized and all 70 cases are structurally byte-clean.
 The v1.0.104 verification run records the complete shader/pixel result.
 
-Pixel status: the 70-case v1.0.104 gate reports 66 `PASS` and 4 narrowly bounded
-`ALLOWED_NEAR`. The two negative-fractional speed cases are strict passes. The
-original 20-case regression reports 18 `PASS` and the established `parallax` /
-`refract_mirror` exceptions. Every exception is checked against a per-case maximum
-delta, SSIM floor, exceeded-pixel/channel counts, and exact top-left-origin pixel
-coordinates where declared.
+Pixel status (measured 2026-09-24 against reference `noisemaker@c9ee8a04` = v1.0.176,
+Unity 6000.3.16f1 / Metal, Linear color space): the 70-case v1.0.104 gate reports
+66 `PASS` and 4 narrowly bounded `ALLOWED_NEAR` (`craquelure`, `mandala_large_format`,
+`strokes_smudge`, `strokes_sumi_e`). The 30-case root gate reports 25 `PASS` and 5
+narrowly bounded `ALLOWED_NEAR` (`heightGrid_billboard`, `heightmap3d_landscape`,
+`nm_chrome_test`, plus the established `parallax` / `refract_mirror`). The 9-case 3D
+gate reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact
+(zero tolerance). Every exception is checked against a per-case maximum delta, SSIM
+floor, exceeded-pixel/channel counts, and exact top-left-origin pixel coordinates
+where declared.
+
+## Gates
+
+```bash
+# Root corpus (30 non-3D fixtures, 256px, tol 1 / SSIM 0.9999):
+UNITY=... UNITY_PROJECT=... bash parity/root-verify.sh
+# 3D corpus (9 fixtures, 256px, tol 2 / SSIM 0.98 + 3d-exceptions.json):
+UNITY=... UNITY_PROJECT=... bash parity/3d-verify.sh
+```
 
 ## Runbook
 
@@ -224,7 +244,11 @@ runtime/platform combination.
 - `compare.py` — max-abs-diff + global SSIM gate, JSON report (pixel parity).
 - `graph-verify.sh` — graph-parity harness (all programs: C# live graph vs the oracle).
 - `graph-diff.py` — structural graph diff (ignores the `id` hash + `source`).
+- `root-verify.sh` — self-contained root-corpus pixel gate (goldens → Unity batch → fail-closed compare).
+- `3d-verify.sh` — self-contained 3D-corpus pixel gate (same shape, 3D policy).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
+- `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
+- `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
 - `../unity/com.noisemaker.hlsl/Editor/NMParityRunner.cs` — Unity candidate renderer + `CompileDslDumpBatchFromCommandLine` (graph dumper).
 - `../tools/export-graph.mjs` — golden graph producer (used by both harnesses).
 - `../tools/convert-definitions.mjs` — effect-definition regenerator (step 0).

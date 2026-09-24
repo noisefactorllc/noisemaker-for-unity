@@ -2,8 +2,9 @@
 
 ## 1. Source and authority revisions
 
-Report date: 2026-09-24. Source inspected: [`d48de74c806213789bf1ed8d79ebd8e918437c57`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/d48de74c806213789bf1ed8d79ebd8e918437c57).
-Full rendered parity at this SHA: **unverified**. This is not a release approval.
+Report date: 2026-09-24. Source inspected: [`2344c30211c73804989647058506a387de404c91`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/2344c30211c73804989647058506a387de404c91) (local `main`, clean, matched `origin/main`).
+Full rendered parity at this SHA: **verified for the declared corpora** (see §3). This is not yet a release approval: the installed-workflow (GAP-002) and distribution (GAP-003) qualifications remain open.
+Authority: immutable git worktree of [`noisemaker@c9ee8a049b2b63cd300da67c01ee40baf29dc288`](https://github.com/noisefactorllc/noisemaker/commit/c9ee8a049b2b63cd300da67c01ee40baf29dc288) — tag `v1.0.176`, the published authority revision. All goldens and reference graphs in this pass were regenerated from that pinned worktree (`NM_REFERENCE_ROOT`), not from retained historical files.
 A later documentation-only commit does not change this tested source identity.
 Any runtime, package, or authority update requires fresh evidence before this report can qualify it.
 
@@ -23,8 +24,8 @@ Historical measurements remain bound to their original revisions in [completion 
 
 | Dimension | Status | Measured scope or limit |
 |---|---|---|
-| Source-level checks | verified | 27 Python comparator tests passed. A later native batch rendered 19 graphs. Full current-authority parity and player workflows remain unverified. |
-| Actual host rendering | verified | Only the bounded native batch below. Full host qualification remains open. |
+| Source-level checks | verified | 316/316 graph parity + compiler contract tests PASS + 27 comparator unit tests. |
+| Actual host rendering | verified | 112/112 fixtures rendered and graded at the pinned authority (100 `PASS`, 12 bounded `ALLOWED_NEAR`, 0 fail, exit 0). Full host/platform matrix beyond macOS/Metal remains open. |
 | Minimum and current host versions | unverified | Declared requirements are not a tested version matrix. |
 | Supported operating systems and backends | unverified | This pass does not establish Windows, Linux, and macOS coverage. |
 | Installed package and first useful result | unverified | Complete isolated installation was not qualified for this source. |
@@ -43,7 +44,9 @@ Unknown values mean `not measured`, never zero.
 
 | Gate | Expected cases | Executed | Strict passes | Failures | Skips | Status |
 |---|---|---|---|---|---|---|
-| Current full render suite | not measured | not measured | not measured | not measured | not measured | unverified |
+| Current full render suite | 112 fixtures (30 root + 9 3D + 70 v104 + 3 tiled) | 112 | 100 `PASS` | 0 | 0 | **measured 2026-09-24: exit 0, every non-`PASS` is a measured, bounded `ALLOWED_NEAR`** (12: root 5, 3D 3, v104 4) |
+
+Structural graph parity (separate gate, GPU-free): 316/316 programs byte-clean — the full 207-program `--selftest` corpus plus all 109 `parity/programs/**/*.dsl` fixtures, C# live-DSL graphs vs the reference oracle at the pinned authority. Compiler contract tests: PASS (0 failures).
 
 Served compatibility inventory declares 207 effect IDs. Declaration does not establish execution or parity.
 IDs absent from the served declaration: `synth/media`, `synth/scope`, `synth/spectrum`.
@@ -51,220 +54,243 @@ Missing effects remain visible toward the full-parity goal. Contract exclusions 
 
 ### Effect inventory
 
+Status measured 2026-09-24 at source `2344c30` vs authority `noisemaker@c9ee8a04` (v1.0.176).
+`graph` = the effect appears in at least one of the 316 graph-parity fixtures (byte-clean, all 210 IDs covered).
+`graph+pixel` = additionally appears in at least one of the 112 rendered fixtures (74 IDs).
+Per-effect parameter/state/input breadth remains tracked by GAP-001.
+
 | Effect ID | Declared in served kit | Current full parity |
 |---|---|---|
-| `classicNoisedeck/bitEffects` | yes | unverified |
-| `classicNoisedeck/caustic` | yes | unverified |
-| `classicNoisedeck/cellNoise` | yes | unverified |
-| `classicNoisedeck/cellRefract` | yes | unverified |
-| `classicNoisedeck/coalesce` | yes | unverified |
-| `classicNoisedeck/colorLab` | yes | unverified |
-| `classicNoisedeck/composite` | yes | unverified |
-| `classicNoisedeck/effects` | yes | unverified |
-| `classicNoisedeck/fractal` | yes | unverified |
-| `classicNoisedeck/glitch` | yes | unverified |
-| `classicNoisedeck/kaleido` | yes | unverified |
-| `classicNoisedeck/lensDistortion` | yes | unverified |
-| `classicNoisedeck/moodscape` | yes | unverified |
-| `classicNoisedeck/noise` | yes | unverified |
-| `classicNoisedeck/noise3d` | yes | unverified |
-| `classicNoisedeck/refract` | yes | unverified |
-| `classicNoisedeck/shapeMixer` | yes | unverified |
-| `classicNoisedeck/shapes` | yes | unverified |
-| `classicNoisedeck/shapes3d` | yes | unverified |
-| `classicNoisedeck/splat` | yes | unverified |
-| `filter/adjust` | yes | unverified |
-| `filter/bloom` | yes | unverified |
-| `filter/blur` | yes | unverified |
-| `filter/bulge` | yes | unverified |
-| `filter/celShading` | yes | unverified |
-| `filter/channel` | yes | unverified |
-| `filter/chroma` | yes | unverified |
-| `filter/chromaticAberration` | yes | unverified |
-| `filter/chrome` | yes | unverified |
-| `filter/clouds` | yes | unverified |
-| `filter/colorReplace` | yes | unverified |
-| `filter/convolutionFeedback` | yes | unverified |
-| `filter/corrupt` | yes | unverified |
-| `filter/craquelure` | yes | unverified |
-| `filter/crt` | yes | unverified |
-| `filter/degauss` | yes | unverified |
-| `filter/deriv` | yes | unverified |
-| `filter/directionalBlur` | yes | unverified |
-| `filter/dither` | yes | unverified |
-| `filter/edge` | yes | unverified |
-| `filter/emboss` | yes | unverified |
-| `filter/extrude` | yes | unverified |
-| `filter/feedback` | yes | unverified |
-| `filter/fibers` | yes | unverified |
-| `filter/flipMirror` | yes | unverified |
-| `filter/fxaa` | yes | unverified |
-| `filter/glowingEdge` | yes | unverified |
-| `filter/glyphMap` | yes | unverified |
-| `filter/grade` | yes | unverified |
-| `filter/grain` | yes | unverified |
-| `filter/grime` | yes | unverified |
-| `filter/halftone` | yes | unverified |
-| `filter/hatch` | yes | unverified |
-| `filter/highPass` | yes | unverified |
-| `filter/historicPalette` | yes | unverified |
-| `filter/invert` | yes | unverified |
-| `filter/lens` | yes | unverified |
-| `filter/lensFlare` | yes | unverified |
-| `filter/lensWarp` | yes | unverified |
-| `filter/lightLeak` | yes | unverified |
-| `filter/lighting` | yes | unverified |
-| `filter/lowPoly` | yes | unverified |
-| `filter/median` | yes | unverified |
-| `filter/morphology` | yes | unverified |
-| `filter/mosaicTiles` | yes | unverified |
-| `filter/motionBlur` | yes | unverified |
-| `filter/normalMap` | yes | unverified |
-| `filter/normalize` | yes | unverified |
-| `filter/octaveWarp` | yes | unverified |
-| `filter/oilPaint` | yes | unverified |
-| `filter/osd` | yes | unverified |
-| `filter/outline` | yes | unverified |
-| `filter/palette` | yes | unverified |
-| `filter/parallax` | yes | unverified |
-| `filter/patchwork` | yes | unverified |
-| `filter/photocopy` | yes | unverified |
-| `filter/pinch` | yes | unverified |
-| `filter/pixelSort` | yes | unverified |
-| `filter/pixels` | yes | unverified |
-| `filter/plasticWrap` | yes | unverified |
-| `filter/polar` | yes | unverified |
-| `filter/pondRipples` | yes | unverified |
-| `filter/posterize` | yes | unverified |
-| `filter/prismaticAberration` | yes | unverified |
-| `filter/reindex` | yes | unverified |
-| `filter/relief` | yes | unverified |
-| `filter/repeat` | yes | unverified |
-| `filter/reverb` | yes | unverified |
-| `filter/ridge` | yes | unverified |
-| `filter/rotate` | yes | unverified |
-| `filter/scale` | yes | unverified |
-| `filter/scanlineError` | yes | unverified |
-| `filter/scatter` | yes | unverified |
-| `filter/scratches` | yes | unverified |
-| `filter/scroll` | yes | unverified |
-| `filter/seamless` | yes | unverified |
-| `filter/sharpen` | yes | unverified |
-| `filter/simpleAberration` | yes | unverified |
-| `filter/sine` | yes | unverified |
-| `filter/skew` | yes | unverified |
-| `filter/smooth` | yes | unverified |
-| `filter/smoothstep` | yes | unverified |
-| `filter/snow` | yes | unverified |
-| `filter/sobel` | yes | unverified |
-| `filter/spatter` | yes | unverified |
-| `filter/spinBlur` | yes | unverified |
-| `filter/spiral` | yes | unverified |
-| `filter/spookyTicker` | yes | unverified |
-| `filter/stamp` | yes | unverified |
-| `filter/step` | yes | unverified |
-| `filter/stipple` | yes | unverified |
-| `filter/strayHair` | yes | unverified |
-| `filter/strokes` | yes | unverified |
-| `filter/temporalAberration` | yes | unverified |
-| `filter/tetraColorArray` | yes | unverified |
-| `filter/tetraCosine` | yes | unverified |
-| `filter/text` | yes | unverified |
-| `filter/texture` | yes | unverified |
-| `filter/threshold` | yes | unverified |
-| `filter/tile` | yes | unverified |
-| `filter/tint` | yes | unverified |
-| `filter/translate` | yes | unverified |
-| `filter/tunnel` | yes | unverified |
-| `filter/unsharpMask` | yes | unverified |
-| `filter/vaseline` | yes | unverified |
-| `filter/vignette` | yes | unverified |
-| `filter/warp` | yes | unverified |
-| `filter/watercolor` | yes | unverified |
-| `filter/waves` | yes | unverified |
-| `filter/wind` | yes | unverified |
-| `filter/wobble` | yes | unverified |
-| `filter/wormhole` | yes | unverified |
-| `filter/zoomBlur` | yes | unverified |
-| `filter3d/flow3d` | yes | unverified |
-| `filter3d/palette3d` | yes | unverified |
-| `mixer/alphaMask` | yes | unverified |
-| `mixer/applyMode` | yes | unverified |
-| `mixer/blendMode` | yes | unverified |
-| `mixer/cellSplit` | yes | unverified |
-| `mixer/centerMask` | yes | unverified |
-| `mixer/channelCombine` | yes | unverified |
-| `mixer/distortion` | yes | unverified |
-| `mixer/focusBlur` | yes | unverified |
-| `mixer/mashup` | yes | unverified |
-| `mixer/patternMix` | yes | unverified |
-| `mixer/shadow` | yes | unverified |
-| `mixer/shapeMask` | yes | unverified |
-| `mixer/split` | yes | unverified |
-| `mixer/thresholdMix` | yes | unverified |
-| `mixer/uvRemap` | yes | unverified |
-| `points/attractor` | yes | unverified |
-| `points/buddhabrot` | yes | unverified |
-| `points/dla` | yes | unverified |
-| `points/flock` | yes | unverified |
-| `points/flow` | yes | unverified |
-| `points/heightGrid` | yes | unverified |
-| `points/hydraulic` | yes | unverified |
-| `points/lenia` | yes | unverified |
-| `points/life` | yes | unverified |
-| `points/physarum` | yes | unverified |
-| `points/physical` | yes | unverified |
-| `render/loopBegin` | yes | unverified |
-| `render/loopEnd` | yes | unverified |
-| `render/meshLoader` | yes | unverified |
-| `render/meshRender` | yes | unverified |
-| `render/pointsBillboardRender` | yes | unverified |
-| `render/pointsEmit` | yes | unverified |
-| `render/pointsRender` | yes | unverified |
-| `render/render3d` | yes | unverified |
-| `render/renderCubemap3d` | yes | unverified |
-| `render/renderCubemapSurface` | yes | unverified |
-| `render/renderLandscape3d` | yes | unverified |
-| `render/renderLit3d` | yes | unverified |
-| `synth/bitwise` | yes | unverified |
-| `synth/cell` | yes | unverified |
-| `synth/cellularAutomata` | yes | unverified |
-| `synth/curl` | yes | unverified |
-| `synth/gabor` | yes | unverified |
-| `synth/gradient` | yes | unverified |
-| `synth/julia` | yes | unverified |
-| `synth/mandala` | yes | unverified |
-| `synth/mandelbrot` | yes | unverified |
-| `synth/media` | no | unverified |
-| `synth/mnca` | yes | unverified |
-| `synth/modPattern` | yes | unverified |
-| `synth/navierStokes` | yes | unverified |
-| `synth/newton` | yes | unverified |
-| `synth/noise` | yes | unverified |
-| `synth/osc2d` | yes | unverified |
-| `synth/pattern` | yes | unverified |
-| `synth/perlin` | yes | unverified |
-| `synth/polygon` | yes | unverified |
-| `synth/reactionDiffusion` | yes | unverified |
-| `synth/remap` | yes | unverified |
-| `synth/roll` | yes | unverified |
-| `synth/sacredGeometry` | yes | unverified |
-| `synth/scope` | no | unverified |
-| `synth/shape` | yes | unverified |
-| `synth/solid` | yes | unverified |
-| `synth/spectrum` | no | unverified |
-| `synth/subdivide` | yes | unverified |
-| `synth/testPattern` | yes | unverified |
-| `synth3d/cell3d` | yes | unverified |
-| `synth3d/cellularAutomata3d` | yes | unverified |
-| `synth3d/flythrough3d` | yes | unverified |
-| `synth3d/fractal3d` | yes | unverified |
-| `synth3d/heightmap3d` | yes | unverified |
-| `synth3d/noise3d` | yes | unverified |
-| `synth3d/reactionDiffusion3d` | yes | unverified |
-| `synth3d/shape3d` | yes | unverified |
+| `classicNoisedeck/bitEffects` | yes | graph |
+| `classicNoisedeck/caustic` | yes | graph |
+| `classicNoisedeck/cellNoise` | yes | graph |
+| `classicNoisedeck/cellRefract` | yes | graph+pixel |
+| `classicNoisedeck/coalesce` | yes | graph |
+| `classicNoisedeck/colorLab` | yes | graph |
+| `classicNoisedeck/composite` | yes | graph |
+| `classicNoisedeck/effects` | yes | graph |
+| `classicNoisedeck/fractal` | yes | graph |
+| `classicNoisedeck/glitch` | yes | graph |
+| `classicNoisedeck/kaleido` | yes | graph |
+| `classicNoisedeck/lensDistortion` | yes | graph |
+| `classicNoisedeck/moodscape` | yes | graph |
+| `classicNoisedeck/noise` | yes | graph+pixel |
+| `classicNoisedeck/noise3d` | yes | graph |
+| `classicNoisedeck/refract` | yes | graph+pixel |
+| `classicNoisedeck/shapeMixer` | yes | graph |
+| `classicNoisedeck/shapes` | yes | graph |
+| `classicNoisedeck/shapes3d` | yes | graph |
+| `classicNoisedeck/splat` | yes | graph |
+| `filter/adjust` | yes | graph+pixel |
+| `filter/bloom` | yes | graph |
+| `filter/blur` | yes | graph+pixel |
+| `filter/bulge` | yes | graph |
+| `filter/celShading` | yes | graph |
+| `filter/channel` | yes | graph |
+| `filter/chroma` | yes | graph |
+| `filter/chromaticAberration` | yes | graph |
+| `filter/chrome` | yes | graph+pixel |
+| `filter/clouds` | yes | graph |
+| `filter/colorReplace` | yes | graph |
+| `filter/convolutionFeedback` | yes | graph |
+| `filter/corrupt` | yes | graph |
+| `filter/craquelure` | yes | graph+pixel |
+| `filter/crt` | yes | graph |
+| `filter/degauss` | yes | graph |
+| `filter/deriv` | yes | graph |
+| `filter/directionalBlur` | yes | graph+pixel |
+| `filter/dither` | yes | graph+pixel |
+| `filter/edge` | yes | graph+pixel |
+| `filter/emboss` | yes | graph+pixel |
+| `filter/extrude` | yes | graph+pixel |
+| `filter/feedback` | yes | graph |
+| `filter/fibers` | yes | graph |
+| `filter/flipMirror` | yes | graph |
+| `filter/fxaa` | yes | graph |
+| `filter/glowingEdge` | yes | graph |
+| `filter/glyphMap` | yes | graph |
+| `filter/grade` | yes | graph+pixel |
+| `filter/grain` | yes | graph |
+| `filter/grime` | yes | graph |
+| `filter/halftone` | yes | graph+pixel |
+| `filter/hatch` | yes | graph+pixel |
+| `filter/highPass` | yes | graph+pixel |
+| `filter/historicPalette` | yes | graph |
+| `filter/invert` | yes | graph+pixel |
+| `filter/lens` | yes | graph |
+| `filter/lensFlare` | yes | graph+pixel |
+| `filter/lensWarp` | yes | graph |
+| `filter/lightLeak` | yes | graph |
+| `filter/lighting` | yes | graph+pixel |
+| `filter/lowPoly` | yes | graph+pixel |
+| `filter/median` | yes | graph+pixel |
+| `filter/morphology` | yes | graph+pixel |
+| `filter/mosaicTiles` | yes | graph+pixel |
+| `filter/motionBlur` | yes | graph |
+| `filter/normalMap` | yes | graph |
+| `filter/normalize` | yes | graph |
+| `filter/octaveWarp` | yes | graph |
+| `filter/oilPaint` | yes | graph+pixel |
+| `filter/osd` | yes | graph |
+| `filter/outline` | yes | graph |
+| `filter/palette` | yes | graph |
+| `filter/parallax` | yes | graph+pixel |
+| `filter/patchwork` | yes | graph+pixel |
+| `filter/photocopy` | yes | graph+pixel |
+| `filter/pinch` | yes | graph |
+| `filter/pixelSort` | yes | graph |
+| `filter/pixels` | yes | graph |
+| `filter/plasticWrap` | yes | graph+pixel |
+| `filter/polar` | yes | graph |
+| `filter/pondRipples` | yes | graph+pixel |
+| `filter/posterize` | yes | graph |
+| `filter/prismaticAberration` | yes | graph |
+| `filter/reindex` | yes | graph |
+| `filter/relief` | yes | graph+pixel |
+| `filter/repeat` | yes | graph |
+| `filter/reverb` | yes | graph |
+| `filter/ridge` | yes | graph |
+| `filter/rotate` | yes | graph |
+| `filter/scale` | yes | graph |
+| `filter/scanlineError` | yes | graph |
+| `filter/scatter` | yes | graph+pixel |
+| `filter/scratches` | yes | graph |
+| `filter/scroll` | yes | graph |
+| `filter/seamless` | yes | graph |
+| `filter/sharpen` | yes | graph |
+| `filter/simpleAberration` | yes | graph+pixel |
+| `filter/sine` | yes | graph |
+| `filter/skew` | yes | graph |
+| `filter/smooth` | yes | graph |
+| `filter/smoothstep` | yes | graph |
+| `filter/snow` | yes | graph |
+| `filter/sobel` | yes | graph |
+| `filter/spatter` | yes | graph |
+| `filter/spinBlur` | yes | graph+pixel |
+| `filter/spiral` | yes | graph |
+| `filter/spookyTicker` | yes | graph |
+| `filter/stamp` | yes | graph+pixel |
+| `filter/step` | yes | graph |
+| `filter/stipple` | yes | graph+pixel |
+| `filter/strayHair` | yes | graph |
+| `filter/strokes` | yes | graph+pixel |
+| `filter/temporalAberration` | yes | graph |
+| `filter/tetraColorArray` | yes | graph |
+| `filter/tetraCosine` | yes | graph |
+| `filter/text` | yes | graph+pixel |
+| `filter/texture` | yes | graph+pixel |
+| `filter/threshold` | yes | graph |
+| `filter/tile` | yes | graph |
+| `filter/tint` | yes | graph+pixel |
+| `filter/translate` | yes | graph |
+| `filter/tunnel` | yes | graph |
+| `filter/unsharpMask` | yes | graph+pixel |
+| `filter/vaseline` | yes | graph |
+| `filter/vignette` | yes | graph |
+| `filter/warp` | yes | graph |
+| `filter/watercolor` | yes | graph+pixel |
+| `filter/waves` | yes | graph |
+| `filter/wind` | yes | graph+pixel |
+| `filter/wobble` | yes | graph |
+| `filter/wormhole` | yes | graph |
+| `filter/zoomBlur` | yes | graph |
+| `filter3d/flow3d` | yes | graph+pixel |
+| `filter3d/palette3d` | yes | graph+pixel |
+| `mixer/alphaMask` | yes | graph+pixel |
+| `mixer/applyMode` | yes | graph |
+| `mixer/blendMode` | yes | graph+pixel |
+| `mixer/cellSplit` | yes | graph |
+| `mixer/centerMask` | yes | graph |
+| `mixer/channelCombine` | yes | graph |
+| `mixer/distortion` | yes | graph |
+| `mixer/focusBlur` | yes | graph |
+| `mixer/mashup` | yes | graph+pixel |
+| `mixer/patternMix` | yes | graph |
+| `mixer/shadow` | yes | graph |
+| `mixer/shapeMask` | yes | graph |
+| `mixer/split` | yes | graph |
+| `mixer/thresholdMix` | yes | graph |
+| `mixer/uvRemap` | yes | graph |
+| `points/attractor` | yes | graph |
+| `points/buddhabrot` | yes | graph |
+| `points/dla` | yes | graph |
+| `points/flock` | yes | graph |
+| `points/flow` | yes | graph |
+| `points/heightGrid` | yes | graph+pixel |
+| `points/hydraulic` | yes | graph |
+| `points/lenia` | yes | graph |
+| `points/life` | yes | graph |
+| `points/physarum` | yes | graph |
+| `points/physical` | yes | graph |
+| `render/loopBegin` | yes | graph |
+| `render/loopEnd` | yes | graph |
+| `render/meshLoader` | yes | graph |
+| `render/meshRender` | yes | graph |
+| `render/pointsBillboardRender` | yes | graph+pixel |
+| `render/pointsEmit` | yes | graph+pixel |
+| `render/pointsRender` | yes | graph+pixel |
+| `render/render3d` | yes | graph+pixel |
+| `render/renderCubemap3d` | yes | graph+pixel |
+| `render/renderCubemapSurface` | yes | graph+pixel |
+| `render/renderLandscape3d` | yes | graph+pixel |
+| `render/renderLit3d` | yes | graph |
+| `synth/bitwise` | yes | graph |
+| `synth/cell` | yes | graph+pixel |
+| `synth/cellularAutomata` | yes | graph |
+| `synth/curl` | yes | graph |
+| `synth/gabor` | yes | graph |
+| `synth/gradient` | yes | graph+pixel |
+| `synth/julia` | yes | graph |
+| `synth/mandala` | yes | graph+pixel |
+| `synth/mandelbrot` | yes | graph |
+| `synth/media` | no | graph |
+| `synth/mnca` | yes | graph |
+| `synth/modPattern` | yes | graph |
+| `synth/navierStokes` | yes | graph |
+| `synth/newton` | yes | graph |
+| `synth/noise` | yes | graph+pixel |
+| `synth/osc2d` | yes | graph+pixel |
+| `synth/pattern` | yes | graph |
+| `synth/perlin` | yes | graph+pixel |
+| `synth/polygon` | yes | graph |
+| `synth/reactionDiffusion` | yes | graph |
+| `synth/remap` | yes | graph+pixel |
+| `synth/roll` | yes | graph |
+| `synth/sacredGeometry` | yes | graph+pixel |
+| `synth/scope` | no | graph |
+| `synth/shape` | yes | graph+pixel |
+| `synth/solid` | yes | graph+pixel |
+| `synth/spectrum` | no | graph |
+| `synth/subdivide` | yes | graph |
+| `synth/testPattern` | yes | graph+pixel |
+| `synth3d/cell3d` | yes | graph+pixel |
+| `synth3d/cellularAutomata3d` | yes | graph+pixel |
+| `synth3d/flythrough3d` | yes | graph+pixel |
+| `synth3d/fractal3d` | yes | graph+pixel |
+| `synth3d/heightmap3d` | yes | graph+pixel |
+| `synth3d/noise3d` | yes | graph+pixel |
+| `synth3d/reactionDiffusion3d` | yes | graph+pixel |
+| `synth3d/shape3d` | yes | graph+pixel |
 
-### Native observations, 2026-09-24
+### Native observations, 2026-09-24 (full gate, current authority)
+
+Unity 6000.3.16f1, isolated consumer project (`~/nmhlsl-parity`) with the package embedded from source `2344c30`, Linear color space, Metal. Goldens regenerated from the pinned authority worktree `noisemaker@c9ee8a04` (v1.0.176) via the reference WebGL2/Chromium renderer — no retained historical inputs. Every declared fixture executed; zero skips.
+
+| Gate (script) | Fixtures | Policy | PASS | ALLOWED_NEAR | FAIL | Exit |
+|---|---|---|---|---|---|---|
+| `root-verify.sh` (root, 256px) | 30 | tol 1, SSIM ≥ 0.9999, `programs/exceptions.json` | 25 | 5 | 0 | 0 |
+| `3d-verify.sh` (3D, 256px) | 9 | tol 2, SSIM ≥ 0.98, `programs/3d-exceptions.json` | 6 | 3 | 0 | 0 |
+| v104 manifest (127px) | 70 | tol 1, SSIM ≥ 0.9999, `v104/exceptions.json` | 66 | 4 | 0 | 0 |
+| tiled manifest (127px tile of 4096²) | 3 | tol 0 (exact) | 3 | 0 | 0 | 0 |
+| Total | 112 | — | 100 | 12 | 0 | 0 |
+
+Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live compiler vs reference oracle at the pinned authority). Compiler contract tests: PASS (0 failures).
+
+Every `ALLOWED_NEAR` matched its recorded budget exactly (max delta, SSIM floor, exceeded pixel/channel counts, exact coordinates). The three previously unbounded root fixtures (`heightGrid_billboard`, `heightmap3d_landscape`, `nm_chrome_test`) are now formalized in `programs/exceptions.json` with mechanisms from this pass's measurements; `parallax` and `refract_mirror` reproduced their recorded budgets byte-for-byte. The v104 corpus reproduced its recorded 66+4 result unchanged.
+
+These gates establish rendered parity for the declared fixture corpora at the pinned authority. Per-effect parameter/state/input breadth remains open under GAP-001; installed-workflow (GAP-002) and distribution (GAP-003) qualification remain open.
+
+### Native observations, 2026-09-24 (initial bounded probe)
 
 Unity 6000.5.5f1 with an isolated embedded package and Linear color space. 19 selected fixtures rendered. Exact comparison: 4 passes and 15 differences. The 109 tracked fixtures include 39 root fixtures and 70 v104 fixtures. Twenty root graphs were absent.
 The graphs and goldens are retained historical inputs. Their full authority provenance remains unresolved in this pass.
@@ -324,6 +350,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-24 (pass 2) | `2344c30211c73804989647058506a387de404c91` vs authority `c9ee8a049b2b63cd300da67c01ee40baf29dc288` (v1.0.176) | Declared-corpora parity **measured, exit 0**: graph 316/316, render 112/112 (100 PASS + 12 bounded), contract tests PASS | Regenerated all goldens/graphs from the pinned authority worktree; ran root/3D/v104/tiled gates + graph gate + contract tests; formalized the three previously unbounded root fixtures in `programs/exceptions.json`; added `programs/manifest.tsv` + `root-verify.sh`; refreshed this report with per-effect graph/pixel status. GAP-002/GAP-003 remain open. |
 | 2026-09-24 | `d48de74c806213789bf1ed8d79ebd8e918437c57` | Full qualification unverified | Created the requested maintained compatibility report. Preserved historical evidence and open gaps. |
 
 Run: `20260924-remaining-gap-documents`. Later audits and reviews update this report with source-bound results.

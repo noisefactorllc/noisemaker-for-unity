@@ -60,7 +60,11 @@ Historical denominators and tolerances remain in the original source documents. 
 No global installation, user-project modification, manual deployment, or manual release occurred.
 Native applications present on the machine are not evidence of a qualified host workflow.
 
-### Native observations, 2026-09-24
+### Native observations, 2026-09-24 (full gate, current authority — pass 2)
+
+Source `2344c30` vs pinned authority worktree `noisemaker@c9ee8a04` (v1.0.176). Unity 6000.3.16f1, isolated consumer, Linear, Metal; goldens from the reference WebGL2 renderer off the pinned worktree. All declared fixtures executed, zero skips, all gates exit 0: graph 316/316 byte-clean; render 112/112 (100 `PASS`, 12 measured bounded `ALLOWED_NEAR`, 0 fail); compiler contract tests PASS. Authority provenance is resolved (immutable worktree, tag `v1.0.176`); goldens were regenerated, not replaced silently — historical measurements remain in the initial probe below. Details: [compatibility report §3](COMPATIBILITY.md#3-parity-coverage).
+
+### Native observations, 2026-09-24 (initial bounded probe)
 
 Unity 6000.5.5f1 with an isolated embedded package and Linear color space. 19 selected fixtures rendered. Exact comparison: 4 passes and 15 differences. The 109 tracked fixtures include 39 root fixtures and 70 v104 fixtures. Twenty root graphs were absent.
 The candidate source is the source listed in the [compatibility report](COMPATIBILITY.md#1-source-and-authority-revisions).
@@ -79,9 +83,9 @@ These initial entries record missing qualification, not inferred implementation 
 - Status: open. Priority: P2. Category: verification.
 - Affected scope: unity/com.noisemaker.hlsl/package.json, unity/com.noisemaker.hlsl/Samples~/QuickStart/, parity/, README.md
 - Expected behavior: Each supported claim has reproducible evidence tied to the port and authority revisions.
-- Observed behavior: Package metadata declares Unity 2021.3, while README verification names 6000.3.16f1. The declared minimum lacks fresh qualification here.
-- Evidence: [Historical claim](https://github.com/noisefactorllc/noisemaker-for-unity/blob/d48de74c806213789bf1ed8d79ebd8e918437c57/README.md) and the bounded checks in section 3.
-- Next action: Run current graph and image gates. Preserve the 20-case historical denominator and separate tolerances until current evidence replaces them.
+- Observed behavior: Package metadata declares Unity 2021.3, while README verification names 6000.3.16f1. The declared minimum lacks fresh qualification here. Pass 2 (2026-09-24): current graph and image gates executed at the pinned authority — graph 316/316, render 112/112 (100 PASS + 12 measured bounded exceptions, exit 0), compiler contract tests PASS. What remains open is the declared-minimum host matrix (2021.3), the broader host/platform matrix, and per-effect parameter/state/input breadth.
+- Evidence: [Historical claim](https://github.com/noisefactorllc/noisemaker-for-unity/blob/d48de74c806213789bf1ed8d79ebd8e918437c57/README.md), the bounded checks in section 3, and the pass-2 gate table in [COMPATIBILITY.md §3](COMPATIBILITY.md#3-parity-coverage).
+- Next action: Qualify the declared-minimum host (Unity 2021.3) and record the supported-version matrix; extend per-effect parameter/state coverage. Historical denominators and tolerances are preserved in the initial-probe section; current evidence is source-bound in the pass-2 section.
 - Dependencies: Resolve immutable authority inputs before comparison. Retain historical goldens and their provenance.
 - Acceptance criteria: Record every applicable case, parameter choice, exclusion, error, and tolerance. Pass the declared contract without silently reducing coverage.
 - Required checks: Existing compiler and parity entry points from the README, with raw results and exact source hashes.
@@ -127,6 +131,7 @@ Implementation changes belong to the separate implementation job. This register 
 
 | Date | Source SHA | Changes | Tested scope | Remaining limits |
 |---|---|---|---|---|
+| 2026-09-24 (pass 2) | `2344c30211c73804989647058506a387de404c91` | Authority pinned to immutable worktree `noisemaker@c9ee8a04` (v1.0.176); all goldens/graphs regenerated; root/3D/v104/tiled render gates + graph gate + compiler contract tests executed; three previously unbounded root fixtures formalized in `programs/exceptions.json` with measured budgets; added `programs/manifest.tsv` and `parity/root-verify.sh`; registers refreshed. | Graph 316/316 byte-clean. Render 112/112 (100 PASS + 12 bounded ALLOWED_NEAR, 0 fail), all gates exit 0. Contract tests PASS. | Declared-minimum host (2021.3) and platform matrix unqualified; per-effect parameter/state breadth open; GAP-002 (installed workflow) and GAP-003 (distribution) open. |
 | 2026-09-24 | `d48de74c806213789bf1ed8d79ebd8e918437c57` | Created the requested six-section register and README link. No closures. | 27 Python comparator tests passed. A later native batch rendered 19 graphs. Full current-authority parity and player workflows remain unverified. | Full audit, current parity, installed workflows, platform qualification, and release readiness remain open. |
 
 Run ID: `20260924-remaining-gap-documents`.
