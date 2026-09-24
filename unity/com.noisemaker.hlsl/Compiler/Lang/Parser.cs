@@ -259,7 +259,7 @@ namespace Noisemaker.Hlsl.Compiler
             Advance(); // consume 'render'
             Expect(TokenType.LPAREN, "Expect '('");
             if (Peek().Type != TokenType.OUTPUT_REF)
-                throw new DslSyntaxError("Expected output reference in render()");
+                throw ParserError("P005", "Expected output reference in render()", Peek());
             var outRef = new OutputRefNode { Name = Advance().Lexeme };
             Expect(TokenType.RPAREN, "Expect ')'");
             return outRef;
@@ -377,7 +377,7 @@ namespace Noisemaker.Hlsl.Compiler
                     if (context == "expression")
                     {
                         Token t = Peek();
-                        throw DslSyntaxError.At("'.write()' is only allowed in statement context", t.Line, t.Col);
+                        throw ParserErrorAt("P005", "'.write()' is only allowed in statement context", t);
                     }
                     Node writeNode = ParseWriteCall();
                     if (allComments.Count > 0) writeNode.LeadingComments = allComments;
@@ -420,7 +420,7 @@ namespace Noisemaker.Hlsl.Compiler
                         if (Peek().Type == TokenType.IDENT && Peek().Lexeme == "none")
                             surface = new OutputRefNode { Name = Advance().Lexeme };
                         else
-                            throw DslSyntaxError.At("write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none)", Peek().Line, Peek().Col);
+                            throw ParserErrorAt("P005", "write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none)", Peek());
                         break;
                 }
                 Expect(TokenType.RPAREN, "Expect ')'");
@@ -433,13 +433,13 @@ namespace Noisemaker.Hlsl.Compiler
             if (Peek().Type == TokenType.OUTPUT_REF) tex3d = new OutputRefNode { Name = Advance().Lexeme };
             else if (Peek().Type == TokenType.VOL_REF) tex3d = new SurfaceRefNode(NodeKind.VolRef) { Name = Advance().Lexeme };
             else if (Peek().Type == TokenType.IDENT) tex3d = new IdentNode { Name = Advance().Lexeme };
-            else throw DslSyntaxError.At("Expected tex3d reference in write3d()", Peek().Line, Peek().Col);
+            else throw ParserErrorAt("P005", "Expected tex3d reference in write3d()", Peek());
             Expect(TokenType.COMMA, "Expect ',' between tex3d and geo in write3d()");
             Node geo;
             if (Peek().Type == TokenType.OUTPUT_REF) geo = new OutputRefNode { Name = Advance().Lexeme };
             else if (Peek().Type == TokenType.GEO_REF) geo = new SurfaceRefNode(NodeKind.GeoRef) { Name = Advance().Lexeme };
             else if (Peek().Type == TokenType.IDENT) geo = new IdentNode { Name = Advance().Lexeme };
-            else throw DslSyntaxError.At("Expected geo reference in write3d()", Peek().Line, Peek().Col);
+            else throw ParserErrorAt("P005", "Expected geo reference in write3d()", Peek());
             Expect(TokenType.RPAREN, "Expect ')'");
             return new Write3DNode { Tex3d = tex3d, Geo = geo, LocLine = tokenLine, LocCol = tokenCol };
         }

@@ -41,6 +41,7 @@ namespace CompilerContractTests
             TestStructuredParserDiagnostics();
             TestStructuredParserDiagnosticsP003Automation();
             TestStructuredParserDiagnosticsP004Search();
+            TestStructuredParserDiagnosticsP005Output();
             TestRenderLandscape3dFilteringDefines();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
@@ -1202,6 +1203,142 @@ namespace CompilerContractTests
                         Check(ex.Diagnostic.Location == null, "unlocated diag location null");
                         Check(ex.Diagnostic.Span == null, "unlocated diag span null");
                     }
+                }
+            }
+        }
+
+        private static void TestStructuredParserDiagnosticsP005Output()
+        {
+            var cases = new (string name, string source, string message, int line, int column)[]
+            {
+                ("render string target", "search synth\nrender(\"o0\")", "Expected output reference in render()", 2, 8),
+                ("render numeric target", "search synth\nrender(1)", "Expected output reference in render()", 2, 8),
+                ("render EOF target", "search synth\nrender(", "Expected output reference in render()", 2, 8),
+                ("expression context write", "search synth\nlet x = diagProbe().write(o0)", "'.write()' is only allowed in statement context at line 2 col 21", 2, 21),
+                ("expression context write3d", "search synth\nlet x = diagProbe().write3d(vol0, geo0)", "'.write()' is only allowed in statement context at line 2 col 21", 2, 21),
+                ("render call write argument", "search synth\nrender(diagProbe().write(o0))", "Expected output reference in render()", 2, 8),
+                ("write numeric surface", "search synth\ndiagProbe().write(1)", "write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line 2 col 19", 2, 19),
+                ("write empty surface", "search synth\ndiagProbe().write()", "write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line 2 col 19", 2, 19),
+                ("write unknown identifier", "search synth\ndiagProbe().write(bogus)", "write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line 2 col 19", 2, 19),
+                ("write at EOF", "search synth\ndiagProbe().write(", "write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line 2 col 19", 2, 19),
+                ("write3d numeric texture", "search synth\ndiagProbe().write3d(1, geo0)", "Expected tex3d reference in write3d() at line 2 col 21", 2, 21),
+                ("write3d empty texture", "search synth\ndiagProbe().write3d()", "Expected tex3d reference in write3d() at line 2 col 21", 2, 21),
+                ("write3d texture at EOF", "search synth\ndiagProbe().write3d(", "Expected tex3d reference in write3d() at line 2 col 21", 2, 21),
+                ("write3d numeric geometry", "search synth\ndiagProbe().write3d(vol0, 1)", "Expected geo reference in write3d() at line 2 col 27", 2, 27),
+                ("write3d geometry at EOF", "search synth\ndiagProbe().write3d(vol0,", "Expected geo reference in write3d() at line 2 col 26", 2, 26),
+                ("CRLF and tab render target", "// 😀\r\nsearch synth\r\n\trender(\"😀\")", "Expected output reference in render()", 3, 9),
+                ("UTF-16 render target column", "search synth\nlet x = \"😀\"; render(none)", "Expected output reference in render()", 2, 22),
+            };
+
+            foreach (var c in cases)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(c.source), ProbeRegistry());
+                    Check(false, "TestStructuredParserDiagnosticsP005Output: expected parse error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "P005 msg " + c.name + " (" + ex.Message + " == " + c.message + ")");
+                    Check(ex.Diagnostic != null, "P005 diag non-null " + c.name);
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P005", "P005 code " + c.name + " (" + ex.Diagnostic.Code + " == P005)");
+                        Check(ex.Diagnostic.Stage == "parser", "P005 stage " + c.name);
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "P005 severity " + c.name);
+                        Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == c.line && ex.Diagnostic.Location.Column == c.column, "P005 loc " + c.name + $" ({ex.Diagnostic.Location?.Line},{ex.Diagnostic.Location?.Column} == {c.line},{c.column})");
+                        Check(ex.Diagnostic.Span == null, "P005 span null " + c.name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnosticsP005Output: unexpected exception for " + c.name + ": " + ex);
+                }
+            }
+
+            // Unavailable caller-token coordinates test for P005
+            var unlocatedCases = new (object line, object col, string lineStr, string colStr)[]
+            {
+                (null, null, "undefined", "undefined"),
+                (1, null, "1", "undefined"),
+                (0, 1, "0", "1"),
+                (1, double.NaN, "1", "NaN"),
+            };
+
+            var outputFailures = new (string name, string src)[]
+            {
+                ("render string target", "search synth\nrender(\"o0\")"),
+                ("render numeric target", "search synth\nrender(1)"),
+                ("expression context write", "search synth\nlet x = diagProbe().write(o0)"),
+                ("expression context write3d", "search synth\nlet x = diagProbe().write3d(vol0, geo0)"),
+                ("write numeric surface", "search synth\ndiagProbe().write(1)"),
+                ("write at EOF", "search synth\ndiagProbe().write("),
+                ("invalid write3d texture", "search synth\ndiagProbe().write3d(1, geo0)"),
+                ("write3d texture at EOF", "search synth\ndiagProbe().write3d("),
+                ("invalid write3d geometry", "search synth\ndiagProbe().write3d(vol0, 1)"),
+                ("write3d geometry at EOF", "search synth\ndiagProbe().write3d(vol0,"),
+                ("CRLF and tab render target", "// 😀\r\nsearch synth\r\n\trender(\"😀\")"),
+                ("UTF-16 render target column", "search synth\nlet x = \"😀\"; render(none)"),
+            };
+
+            foreach (var of in outputFailures)
+            {
+                foreach (var uc in unlocatedCases)
+                {
+                    var tokens = new List<Token>();
+                    foreach (var t in Lexer.Lex(of.src))
+                    {
+                        tokens.Add(new Token(t.Type, t.Lexeme, uc.line, uc.col));
+                    }
+                    try
+                    {
+                        Parser.Parse(tokens, ProbeRegistry());
+                        Check(false, "expected parse error for unlocated " + of.name);
+                    }
+                    catch (DslSyntaxError ex)
+                    {
+                        Check(ex.Diagnostic != null, "unlocated P005 diag non-null " + of.name);
+                        if (ex.Diagnostic != null)
+                        {
+                            Check(ex.Diagnostic.Code == "P005", "unlocated diag code P005 for " + of.name);
+                            Check(ex.Diagnostic.Location == null, "unlocated diag location null for " + of.name);
+                            Check(ex.Diagnostic.Span == null, "unlocated diag span null for " + of.name);
+                        }
+                    }
+                }
+            }
+
+            // Valid output operations AST check
+            string[] validSurfaces = { "o0", "xyz0", "vel0", "rgba0", "mesh0", "none" };
+            foreach (var s in validSurfaces)
+            {
+                try
+                {
+                    var ast = Parser.Parse(Lexer.Lex($"search synth\ndiagProbe().write({s})"), ProbeRegistry());
+                    Check(ast != null && ast.Plans.Count > 0, "valid write ast for " + s);
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "valid write failed for " + s + ": " + ex.Message);
+                }
+            }
+
+            var validWrite3d = new (string tex, string geo)[]
+            {
+                ("vol0", "geo0"),
+                ("o0", "o1"),
+                ("volume", "geometry"),
+            };
+            foreach (var w in validWrite3d)
+            {
+                try
+                {
+                    var ast = Parser.Parse(Lexer.Lex($"search synth\ndiagProbe().write3d({w.tex}, {w.geo})"), ProbeRegistry());
+                    Check(ast != null && ast.Plans.Count > 0, $"valid write3d ast for {w.tex}, {w.geo}");
+                }
+                catch (Exception ex)
+                {
+                    Check(false, $"valid write3d failed for {w.tex}, {w.geo}: {ex.Message}");
                 }
             }
         }
