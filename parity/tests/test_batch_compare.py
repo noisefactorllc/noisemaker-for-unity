@@ -69,6 +69,22 @@ SYNTH_FIXTURES = {
     "synth__roll",
     "synth__subdivide",
 }
+MIXER_MANIFEST = ROOT / "parity" / "programs" / "mixer-manifest.tsv"
+MIXER_EXCEPTIONS = ROOT / "parity" / "programs" / "mixer-exceptions.json"
+MIXER_FIXTURES = {
+    "mixer__applyMode",
+    "mixer__cellSplit",
+    "mixer__centerMask",
+    "mixer__channelCombine",
+    "mixer__distortion",
+    "mixer__focusBlur",
+    "mixer__patternMix",
+    "mixer__shadow",
+    "mixer__shapeMask",
+    "mixer__split",
+    "mixer__thresholdMix",
+    "mixer__uvRemap",
+}
 
 
 def write_png(path, rgba, size=(16, 16), changed=None):
@@ -845,6 +861,88 @@ class RepositorySynthPolicyContractTests(unittest.TestCase):
         self.assertIsNotNone(report)
         assert report is not None
         self.assertEqual({"PASS": 12, "ALLOWED_NEAR": 3}, report["counts"])
+        self.assertEqual([], report["unused_exceptions"])
+
+
+class RepositoryMixerPolicyContractTests(unittest.TestCase):
+    def test_repository_exposes_an_executable_mixer_gate(self):
+        gate = ROOT / "parity" / "mixer-verify.sh"
+        self.assertTrue(gate.is_file())
+        source = gate.read_text()
+        for required in (
+            "mixer-manifest.tsv",
+            "mixer-exceptions.json",
+            "batch-golden.mjs",
+            "RenderDslBatchFromCommandLine",
+            "--manifest",
+            "--exceptions",
+        ):
+            self.assertIn(required, source)
+
+    def test_repository_mixer_manifest_and_policy_are_exact(self):
+        manifest_lines = [
+            line.split("\t")
+            for line in MIXER_MANIFEST.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(len(manifest_lines), 12)
+        self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
+        self.assertEqual({parts[0] for parts in manifest_lines}, MIXER_FIXTURES)
+        self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
+
+        policy = json.loads(MIXER_EXCEPTIONS.read_text())
+        self.assertEqual(1, policy["schema_version"])
+        self.assertEqual(
+            {
+                "mixer__distortion": {
+                    "max_abs_diff": 26,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 11,
+                    "max_exceeded_channels": 27,
+                    "mechanism": "Sparse bilinear displacement UV tie at Voronoi cell boundary pixels.",
+                },
+                "mixer__thresholdMix": {
+                    "max_abs_diff": 223,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 1,
+                    "max_exceeded_channels": 3,
+                    "allowed_exceeded_pixels": [[39, 119]],
+                    "mechanism": "Step/cutoff threshold boundary tie at exactly one borderline noise luminance pixel.",
+                },
+            },
+            policy["cases"],
+        )
+
+    def test_repository_mixer_policy_is_exercised_by_the_real_grader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            gold = root / "gold"
+            cand = root / "cand"
+            gold.mkdir()
+            cand.mkdir()
+            for name in MIXER_FIXTURES:
+                changed = None
+                if name == "mixer__distortion":
+                    changed = [(0, 0, (130, 127, 127, 255))]
+                elif name == "mixer__thresholdMix":
+                    changed = [(39, 119, (130, 127, 127, 255))]
+                write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
+                write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
+
+            completed, report = run_compare(
+                gold,
+                cand,
+                root / "report.json",
+                "--manifest",
+                str(MIXER_MANIFEST),
+                "--exceptions",
+                str(MIXER_EXCEPTIONS),
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIsNotNone(report)
+        assert report is not None
+        self.assertEqual({"PASS": 10, "ALLOWED_NEAR": 2}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

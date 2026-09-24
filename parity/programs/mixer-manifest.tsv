@@ -1,0 +1,12 @@
+mixer__applyMode	--selftest/mixer__applyMode.dsl
+mixer__cellSplit	--selftest/mixer__cellSplit.dsl
+mixer__centerMask	--selftest/mixer__centerMask.dsl
+mixer__channelCombine	--selftest/mixer__channelCombine.dsl
+mixer__distortion	--selftest/mixer__distortion.dsl
+mixer__focusBlur	--selftest/mixer__focusBlur.dsl
+mixer__patternMix	--selftest/mixer__patternMix.dsl
+mixer__shadow	--selftest/mixer__shadow.dsl
+mixer__shapeMask	--selftest/mixer__shapeMask.dsl
+mixer__split	--selftest/mixer__split.dsl
+mixer__thresholdMix	--selftest/mixer__thresholdMix.dsl
+mixer__uvRemap	--selftest/mixer__uvRemap.dsl

@@ -120,9 +120,11 @@ classicNoisedeck gate reports 15 `PASS` and 2 bounded `ALLOWED_NEAR` (`classicNo
 `classicNoisedeck__kaleido`), bringing the entire `classicNoisedeck` namespace (20/20) to
 100% pixel-verified coverage. The 15-case synth gate reports 12 `PASS` and 3 bounded
 `ALLOWED_NEAR` (`synth__julia`, `synth__mandelbrot`, `synth__newton`), bringing all 26
-renderable `synth` effects to 100% pixel-verified coverage. The 9-case 3D gate reports 6
-`PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact (zero tolerance).
-Full suite: 144 fixtures, 127 PASS + 17 bounded exceptions, exit 0. Every exception is
+renderable `synth` effects to 100% pixel-verified coverage. The 12-case mixer gate reports
+10 `PASS` and 2 bounded `ALLOWED_NEAR` (`mixer__distortion`, `mixer__thresholdMix`), bringing
+the entire `mixer` namespace (15/15) to 100% pixel-verified coverage. The 9-case 3D gate
+reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact (zero tolerance).
+Full suite: 156 fixtures, 137 PASS + 19 bounded exceptions, exit 0. Every exception is
 checked against a per-case maximum delta, SSIM floor, exceeded-pixel/channel counts, and
 exact top-left-origin pixel coordinates where declared.
 
@@ -137,6 +139,8 @@ UNITY=... UNITY_PROJECT=... bash parity/3d-verify.sh
 UNITY=... UNITY_PROJECT=... bash parity/classic-verify.sh
 # synth corpus (15 fixtures, 256px, tol 1 / SSIM 0.92 + synth-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/synth-verify.sh
+# mixer corpus (12 fixtures, 256px, tol 1 / SSIM 0.9999 + mixer-exceptions.json):
+UNITY=... UNITY_PROJECT=... bash parity/mixer-verify.sh
 ```
 
 ## Runbook
@@ -257,6 +261,7 @@ runtime/platform combination.
 - `3d-verify.sh` — self-contained 3D-corpus pixel gate (same shape, 3D policy).
 - `classic-verify.sh` — self-contained classicNoisedeck pixel gate (17 fixtures, tol 1 / SSIM 0.9999).
 - `synth-verify.sh` — self-contained synth pixel gate (15 fixtures, tol 1 / SSIM 0.92).
+- `mixer-verify.sh` — self-contained mixer pixel gate (12 fixtures, tol 1 / SSIM 0.9999).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
@@ -264,6 +269,8 @@ runtime/platform combination.
 - `programs/classic-exceptions.json` — measured tolerances for classicNoisedeck exceptions.
 - `programs/synth-manifest.tsv` — the 15 synth fixtures (`synth-verify.sh` input).
 - `programs/synth-exceptions.json` — measured tolerances for chaotic fractal/root exceptions.
+- `programs/mixer-manifest.tsv` — the 12 mixer fixtures (`mixer-verify.sh` input).
+- `programs/mixer-exceptions.json` — measured tolerances for mixer exceptions.
 - `../unity/com.noisemaker.hlsl/Editor/NMParityRunner.cs` — Unity candidate renderer + `CompileDslDumpBatchFromCommandLine` (graph dumper).
 - `../tools/export-graph.mjs` — golden graph producer (used by both harnesses).
 - `../tools/convert-definitions.mjs` — effect-definition regenerator (step 0).

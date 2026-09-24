@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "mixer__distortion": {
+      "max_abs_diff": 26,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 11,
+      "max_exceeded_channels": 27,
+      "mechanism": "Sparse bilinear displacement UV tie at Voronoi cell boundary pixels."
+    },
+    "mixer__thresholdMix": {
+      "max_abs_diff": 223,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 1,
+      "max_exceeded_channels": 3,
+      "allowed_exceeded_pixels": [
+        [39, 119]
+      ],
+      "mechanism": "Step/cutoff threshold boundary tie at exactly one borderline noise luminance pixel."
+    }
+  }
+}

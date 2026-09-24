@@ -21,8 +21,8 @@ standalone renderer and as **Shader Graph (material) nodes**.
 
 > **🚧 WIP — stabilization toward a full-parity release.** All 210 declared effects are
 > structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
-> and the declared fixture corpora (144 programs across root/3D/classic/synth/v104/tiled gates) render
-> with zero failures — 127 strict byte-level passes plus 17 measured, bounded exceptions.
+> and the declared fixture corpora (156 programs across root/3D/classic/synth/mixer/v104/tiled gates) render
+> with zero failures — 137 strict byte-level passes plus 19 measured, bounded exceptions.
 > The installed Quick Start workflow and macOS player builds are qualified end-to-end on Unity 6.
 > Still open: Windows/Linux coverage, the live-display color pipeline, and remaining per-effect
 > parameter/state sweeps (Unity 6 is required; older versions are not supported). Treat
@@ -102,14 +102,14 @@ blend, blur) were additionally hardened by adversarial line-by-line review vs th
 ↔ Unity candidate ↔ `batch-compare.py`), regenerated at pinned reference authority
 `noisemaker@c9ee8a04` (v1.0.176). Current measured state: **graph parity 316/316
 byte-clean** (the full 207-program `--selftest` corpus + all 109 fixture programs, C#
-live-DSL compiler vs the reference oracle) and **144/144 rendered fixtures graded with
-zero failures** — 127 strict `PASS` and 17 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
-3D corpus 3, classicNoisedeck corpus 2, synth corpus 3, v104 corpus 4), every one pinned by max delta,
-SSIM floor, exceeded pixel/channel counts, and exact pixel coordinates in the tracked exception files.
-Both the `classicNoisedeck` (20/20) and renderable `synth` (26/26) namespaces are 100% pixel-parity
-qualified. The 3-case tiled large-format gate is exact at zero tolerance. Per-corpus tolerances stay
-separate (root/3D/classic/synth/v104 each have their own policy); see `docs/COMPATIBILITY.md` §3 and
-`parity/README.md` for the gates.
+live-DSL compiler vs the reference oracle) and **156/156 rendered fixtures graded with
+zero failures** — 137 strict `PASS` and 19 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
+3D corpus 3, classicNoisedeck corpus 2, synth corpus 3, mixer corpus 2, v104 corpus 4), every one pinned
+by max delta, SSIM floor, exceeded pixel/channel counts, and exact pixel coordinates in the tracked
+exception files. The `classicNoisedeck` (20/20), renderable `synth` (26/26), and `mixer` (15/15)
+namespaces are all 100% pixel-parity qualified. The 3-case tiled large-format gate is exact at zero
+tolerance. Per-corpus tolerances stay separate (root/3D/classic/synth/mixer/v104 each have their own
+policy); see `docs/COMPATIBILITY.md` §3 and `parity/README.md` for the gates.
 
 The Y-flip reconciliation the design anticipated is now solved properly: Unity flips Y once
 per `DrawProcedural` into a RenderTexture, so textures of odd-vs-even render depth ended up

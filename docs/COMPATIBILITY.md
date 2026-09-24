@@ -44,7 +44,7 @@ Unknown values mean `not measured`, never zero.
 
 | Gate | Expected cases | Executed | Strict passes | Failures | Skips | Status |
 |---|---|---|---|---|---|---|
-| Current full render suite | 144 fixtures (30 root + 9 3D + 17 classic + 15 synth + 70 v104 + 3 tiled) | 144 | 127 `PASS` | 0 | 0 | **measured 2026-09-24: exit 0, every non-`PASS` is a measured, bounded `ALLOWED_NEAR`** (17: root 5, 3D 3, classic 2, synth 3, v104 4) |
+| Current full render suite | 156 fixtures (30 root + 9 3D + 17 classic + 15 synth + 12 mixer + 70 v104 + 3 tiled) | 156 | 137 `PASS` | 0 | 0 | **measured 2026-09-24: exit 0, every non-`PASS` is a measured, bounded `ALLOWED_NEAR`** (19: root 5, 3D 3, classic 2, synth 3, mixer 2, v104 4) |
 
 Structural graph parity (separate gate, GPU-free): 316/316 programs byte-clean — the full 207-program `--selftest` corpus plus all 109 `parity/programs/**/*.dsl` fixtures, C# live-DSL graphs vs the reference oracle at the pinned authority. Compiler contract tests: PASS (0 failures).
 
@@ -56,7 +56,7 @@ Missing effects remain visible toward the full-parity goal. Contract exclusions 
 
 Status measured 2026-09-24 at source `2344c30` vs authority `noisemaker@c9ee8a04` (v1.0.176).
 `graph` = the effect appears in at least one of the 316 graph-parity fixtures (byte-clean, all 210 IDs covered).
-`graph+pixel` = additionally appears in at least one of the 144 rendered fixtures (106 IDs; classicNoisedeck 20/20 and renderable synth 26/26 complete).
+`graph+pixel` = additionally appears in at least one of the 156 rendered fixtures (118 IDs; classicNoisedeck 20/20, renderable synth 26/26, mixer 15/15 complete).
 Per-effect parameter/state/input breadth remains tracked by GAP-001.
 
 | Effect ID | Declared in served kit | Current full parity |
@@ -197,20 +197,20 @@ Per-effect parameter/state/input breadth remains tracked by GAP-001.
 | `filter3d/flow3d` | yes | graph+pixel |
 | `filter3d/palette3d` | yes | graph+pixel |
 | `mixer/alphaMask` | yes | graph+pixel |
-| `mixer/applyMode` | yes | graph |
+| `mixer/applyMode` | yes | graph+pixel |
 | `mixer/blendMode` | yes | graph+pixel |
-| `mixer/cellSplit` | yes | graph |
-| `mixer/centerMask` | yes | graph |
-| `mixer/channelCombine` | yes | graph |
-| `mixer/distortion` | yes | graph |
-| `mixer/focusBlur` | yes | graph |
+| `mixer/cellSplit` | yes | graph+pixel |
+| `mixer/centerMask` | yes | graph+pixel |
+| `mixer/channelCombine` | yes | graph+pixel |
+| `mixer/distortion` | yes | graph+pixel |
+| `mixer/focusBlur` | yes | graph+pixel |
 | `mixer/mashup` | yes | graph+pixel |
-| `mixer/patternMix` | yes | graph |
-| `mixer/shadow` | yes | graph |
-| `mixer/shapeMask` | yes | graph |
-| `mixer/split` | yes | graph |
-| `mixer/thresholdMix` | yes | graph |
-| `mixer/uvRemap` | yes | graph |
+| `mixer/patternMix` | yes | graph+pixel |
+| `mixer/shadow` | yes | graph+pixel |
+| `mixer/shapeMask` | yes | graph+pixel |
+| `mixer/split` | yes | graph+pixel |
+| `mixer/thresholdMix` | yes | graph+pixel |
+| `mixer/uvRemap` | yes | graph+pixel |
 | `points/attractor` | yes | graph |
 | `points/buddhabrot` | yes | graph |
 | `points/dla` | yes | graph |
@@ -282,9 +282,10 @@ Unity 6000.3.16f1, isolated consumer project (`~/nmhlsl-parity`) with the packag
 | `3d-verify.sh` (3D, 256px) | 9 | tol 2, SSIM ≥ 0.98, `programs/3d-exceptions.json` | 6 | 3 | 0 | 0 |
 | `classic-verify.sh` (classic, 256px) | 17 | tol 1, SSIM ≥ 0.9999, `programs/classic-exceptions.json` | 15 | 2 | 0 | 0 |
 | `synth-verify.sh` (synth, 256px) | 15 | tol 1, SSIM ≥ 0.92, `programs/synth-exceptions.json` | 12 | 3 | 0 | 0 |
+| `mixer-verify.sh` (mixer, 256px) | 12 | tol 1, SSIM ≥ 0.9999, `programs/mixer-exceptions.json` | 10 | 2 | 0 | 0 |
 | v104 manifest (127px) | 70 | tol 1, SSIM ≥ 0.9999, `v104/exceptions.json` | 66 | 4 | 0 | 0 |
 | tiled manifest (127px tile of 4096²) | 3 | tol 0 (exact) | 3 | 0 | 0 | 0 |
-| Total | 144 | — | 127 | 17 | 0 | 0 |
+| Total | 156 | — | 137 | 19 | 0 | 0 |
 
 Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live compiler vs reference oracle at the pinned authority). Compiler contract tests: PASS (0 failures).
 
@@ -372,6 +373,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-24 (pass 9) | current source | `mixer` 100% pixel parity (12 new fixtures, exit 0) | Added `parity/mixer-verify.sh`, `programs/mixer-manifest.tsv`, `programs/mixer-exceptions.json`; 10 PASS + 2 ALLOWED_NEAR (`distortion`, `thresholdMix`); all 15 `mixer/*` effects pixel-verified; full suite is now 156 fixtures (137 PASS, 19 bounded, exit 0); 36 unit tests PASS. |
 | 2026-09-24 (pass 8) | current source | `synth` 100% renderable pixel parity (15 new fixtures, exit 0) | Added `parity/synth-verify.sh`, `programs/synth-manifest.tsv`, `programs/synth-exceptions.json`; 12 PASS + 3 ALLOWED_NEAR (`julia`, `mandelbrot`, `newton`); all 26 renderable `synth/*` effects pixel-verified; full suite is now 144 fixtures (127 PASS, 17 bounded, exit 0); 33 unit tests PASS. |
 | 2026-09-24 (pass 7) | current source | `classicNoisedeck` 100% pixel parity (17 new fixtures, exit 0) | Added `parity/classic-verify.sh`, `programs/classic-manifest.tsv`, `programs/classic-exceptions.json`; 15 PASS + 2 ALLOWED_NEAR (`fractal`, `kaleido`); entire `classicNoisedeck` namespace (20/20) now pixel-verified; full suite is now 129 fixtures (115 PASS, 14 bounded, exit 0); 30 unit tests PASS. |
 | 2026-09-24 (pass 6) | current source | Host requirements aligned to Unity 6 (`6000.0`) | Dropped obsolete 2021.3 minimum declaration across `package.json` and all documentation; requirements pinned to Unity 6 (`6000.0+`); closes declared-minimum host debt under GAP-001/GAP-002. |
