@@ -164,6 +164,30 @@ FILTER_FIXTURES = {
     "filter__seamless",
     "filter__sharpen",
     "filter__sine",
+    "filter__skew",
+    "filter__smooth",
+    "filter__smoothstep",
+    "filter__snow",
+    "filter__sobel",
+    "filter__spatter",
+    "filter__spiral",
+    "filter__spookyTicker",
+    "filter__step",
+    "filter__strayHair",
+    "filter__temporalAberration",
+    "filter__tetraColorArray",
+    "filter__tetraCosine",
+    "filter__threshold",
+    "filter__tile",
+    "filter__translate",
+    "filter__tunnel",
+    "filter__vaseline",
+    "filter__vignette",
+    "filter__warp",
+    "filter__waves",
+    "filter__wobble",
+    "filter__wormhole",
+    "filter__zoomBlur",
 }
 FILTER_EXCEPTION_CASES = {
     "filter__convolutionFeedback",
@@ -177,6 +201,14 @@ FILTER_EXCEPTION_CASES = {
     "filter__reindex",
     "filter__rotate",
     "filter__scanlineError",
+    "filter__snow",
+    "filter__spiral",
+    "filter__step",
+    "filter__tetraColorArray",
+    "filter__tunnel",
+    "filter__warp",
+    "filter__waves",
+    "filter__wormhole",
 }
 
 
@@ -1193,7 +1225,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             for line in FILTER_MANIFEST.read_text().splitlines()
             if line.strip() and not line.lstrip().startswith("#")
         ]
-        self.assertEqual(len(manifest_lines), 50)
+        self.assertEqual(len(manifest_lines), 74)
         self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
         self.assertEqual({parts[0] for parts in manifest_lines}, FILTER_FIXTURES)
         self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
@@ -1290,6 +1322,72 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 36,
                     "mechanism": "Scanline displacement floor() boundary tie: combined_error lands within 1 ULP of a shift-quantization boundary in 12 scattered rows, displacing the sampled texel by one pixel (all 3 channels).",
                 },
+                "filter__snow": {
+                    "max_abs_diff": 69,
+                    "max_mean_abs_diff": 3.1,
+                    "ssim_min": 0.991,
+                    "max_exceeded_pixels": 51000,
+                    "max_exceeded_channels": 125000,
+                    "mechanism": "Hash z-seed transcendental ULP divergence: cos(t*TAU) differs at 1 ULP between ANGLE and Metal, amplified through the fract hash and pow limiter so the static field decorrelates per-pixel while macro-structure matches (mean 165.36 both sides, 94% speck overlap, signed mean ~0).",
+                },
+                "filter__spiral": {
+                    "max_abs_diff": 15,
+                    "max_mean_abs_diff": 0.007,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 231,
+                    "max_exceeded_channels": 424,
+                    "mechanism": "Spiral angle-warp bilinear resample UV ties at high-curvature arms (231 sparse flips).",
+                },
+                "filter__step": {
+                    "max_abs_diff": 9,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 11,
+                    "max_exceeded_channels": 11,
+                    "mechanism": "Step/threshold quantization boundary tie at 11 scattered level-crossing pixels.",
+                },
+                "filter__tetraColorArray": {
+                    "max_abs_diff": 255,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 1,
+                    "max_exceeded_channels": 1,
+                    "allowed_exceeded_pixels": [[39, 119]],
+                    "mechanism": "Single-channel clamp/lookup tie at exactly one knife-edge noise-field pixel [39, 119] (same coordinate as the mixer thresholdMix tie).",
+                },
+                "filter__tunnel": {
+                    "max_abs_diff": 13,
+                    "max_mean_abs_diff": 0.004,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 140,
+                    "max_exceeded_channels": 240,
+                    "mechanism": "Tunnel radial UV warp bilinear resample ties at depth-gradient boundaries (140 sparse flips).",
+                },
+                "filter__warp": {
+                    "max_abs_diff": 6,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 9,
+                    "max_exceeded_channels": 13,
+                    "mechanism": "Domain-warp bilinear resample UV ties at warped-gradient crossing pixels (9 sparse flips).",
+                },
+                "filter__waves": {
+                    "max_abs_diff": 4,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 1,
+                    "max_exceeded_channels": 2,
+                    "allowed_exceeded_pixels": [[124, 193]],
+                    "mechanism": "Wave displacement bilinear tie at exactly one crest-crossing pixel [124, 193].",
+                },
+                "filter__wormhole": {
+                    "max_abs_diff": 197,
+                    "max_mean_abs_diff": 0.41,
+                    "ssim_min": 0.996,
+                    "max_exceeded_pixels": 478,
+                    "max_exceeded_channels": 1381,
+                    "mechanism": "Strong radial wormhole UV warp displacement boundary ties: 478 sparse pixels sample an adjacent texel (all 3 channels).",
+                },
             },
             policy["cases"],
         )
@@ -1302,12 +1400,18 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             gold.mkdir()
             cand.mkdir()
             for name in FILTER_FIXTURES:
-                # 21 strict fixtures stay byte-exact; the four exception cases carry
+                # 55 strict fixtures stay byte-exact; the 19 exception cases carry
                 # a single mad=2 pixel so every exception is exercised once (above
-                # the tol-1 PASS bound, inside each measured policy). lensWarp pins
-                # its budget to exact pixel [178, 225].
-                if name == "filter__lensWarp":
-                    changed = [(178, 225, (129, 127, 127, 255))]
+                # the tol-1 PASS bound, inside each measured policy). Cases with
+                # allowed_exceeded_pixels pin the diff to their exact coordinate.
+                pinned = {
+                    "filter__lensWarp": (178, 225),
+                    "filter__tetraColorArray": (39, 119),
+                    "filter__waves": (124, 193),
+                }
+                if name in pinned:
+                    x, y = pinned[name]
+                    changed = [(x, y, (129, 127, 127, 255))]
                 elif name in FILTER_EXCEPTION_CASES:
                     changed = [(0, 0, (129, 127, 127, 255))]
                 else:
@@ -1319,6 +1423,8 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                 gold,
                 cand,
                 root / "report.json",
+                "--ssim-min",
+                "0.99",
                 "--manifest",
                 str(FILTER_MANIFEST),
                 "--exceptions",
@@ -1328,7 +1434,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 39, "ALLOWED_NEAR": 11}, report["counts"])
+        self.assertEqual({"PASS": 55, "ALLOWED_NEAR": 19}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

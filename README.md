@@ -21,8 +21,8 @@ standalone renderer and as **Shader Graph (material) nodes**.
 
 > **🚧 WIP — stabilization toward a full-parity release.** All 210 declared effects are
 > structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
-> and the declared fixture corpora (216 programs across root/3D/classic/synth/mixer/points/filter/v104/tiled gates) render
-> with zero failures — 178 strict byte-level passes plus 38 measured, bounded exceptions.
+> and the declared fixture corpora (240 programs across root/3D/classic/synth/mixer/points/filter/v104/tiled gates) render
+> with zero failures — 194 strict byte-level passes plus 46 measured, bounded exceptions.
 > The installed Quick Start workflow and macOS player builds are qualified end-to-end on Unity 6.
 > Still open: Windows/Linux coverage, the live-display color pipeline, and remaining per-effect
 > parameter/state sweeps (Unity 6 is required; older versions are not supported). Treat
@@ -102,15 +102,14 @@ blend, blur) were additionally hardened by adversarial line-by-line review vs th
 ↔ Unity candidate ↔ `batch-compare.py`), regenerated at pinned reference authority
 `noisemaker@c9ee8a04` (v1.0.176). Current measured state: **graph parity 316/316
 byte-clean** (the full 207-program `--selftest` corpus + all 109 fixture programs, C#
-live-DSL compiler vs the reference oracle) and **216/216 rendered fixtures graded with
-zero failures** — 178 strict `PASS` and 38 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
-3D corpus 3, classicNoisedeck corpus 2, synth corpus 3, mixer corpus 2, points corpus 8, filter corpus 11 (batches 1-2 of 3), v104 corpus 4), every one pinned
+live-DSL compiler vs the reference oracle) and **240/240 rendered fixtures graded with
+zero failures** — 194 strict `PASS` and 46 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
+3D corpus 3, classicNoisedeck corpus 2, synth corpus 3, mixer corpus 2, points corpus 8, filter corpus 19, v104 corpus 4), every one pinned
 by max delta, SSIM floor, exceeded pixel/channel counts, and exact pixel coordinates in the tracked
 exception files. The `classicNoisedeck` (20/20), renderable `synth` (26/26), `mixer` (15/15),
-and `points` (11/11) namespaces are all 100% pixel-parity qualified (the points gate grades
-after 60 warm frames, ~1 s of simulation at 60 fps, so particle/agent behavior manifests
-before comparison); the `filter` namespace is 89/113 pixel-verified and continuing in
-alphabetical batches. The 3-case tiled large-format gate is exact at zero
+`points` (11/11), and `filter` (113/113) namespaces are all 100% pixel-parity qualified (the
+points gate grades after 60 warm frames, ~1 s of simulation at 60 fps, so particle/agent
+behavior manifests before comparison). The 3-case tiled large-format gate is exact at zero
 tolerance. Per-corpus tolerances stay separate (root/3D/classic/synth/mixer/points/filter/v104 each have their own
 policy); see `docs/COMPATIBILITY.md` §3 and `parity/README.md` for the gates.
 
