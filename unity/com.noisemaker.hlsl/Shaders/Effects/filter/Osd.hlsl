@@ -126,8 +126,13 @@ float4 nm_osd(float4 texel, int2 icoord, int w, int h)
     // therefore documents "GL coords: y=0 is bottom" and flips the glyph row via
     //   `int local_y = (CELL_H - 1) - ly;`
     // To reproduce the WGSL's top-origin layout exactly, flip the Y coord ONCE
-    // here so the WGSL body below (corner placement, panel test, local_y = ly,
-    // scanline coord.y&1) operates in top-origin space, matching the golden.
+    // here so the WGSL body below (corner placement, panel test, local_y = ly)
+    // operates in top-origin space, matching the golden.
+    // EXCEPTION — scanline parity: the GLSL golden computes
+    //   (globalCoord.y / step) & 1
+    // in gl_FragCoord's BOTTOM-UP frame, so it darkens visual-EVEN rows (an
+    // (h-1)-flip inverts parity when h-1 is odd). Compute the parity from the
+    // un-flipped GL-equivalent y (icoord.y) to match the golden exactly.
     // X is unaffected. `texel`/base_rgb stay at the un-flipped fragment pixel
     // (input and output share the same coord in both the WGSL and this port).
     int2 coord = int2(icoord.x, (h - 1) - icoord.y);
@@ -135,7 +140,7 @@ float4 nm_osd(float4 texel, int2 icoord, int w, int h)
     float blend_alpha = clamp(alpha, 0.0, 1.0);
 
     // Subtle scanline tint across entire image (OSD monitor feel)
-    float scanline = 1.0 - 0.03 * blend_alpha * (float)(coord.y & 1);
+    float scanline = 1.0 - 0.03 * blend_alpha * (float)(icoord.y & 1);
     float3 base_rgb = texel.rgb * scanline;
 
     if (blend_alpha <= 0.0) {

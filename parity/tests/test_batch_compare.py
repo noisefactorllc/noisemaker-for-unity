@@ -139,12 +139,44 @@ FILTER_FIXTURES = {
     "filter__lens",
     "filter__lensWarp",
     "filter__lightLeak",
+    "filter__motionBlur",
+    "filter__normalMap",
+    "filter__normalize",
+    "filter__octaveWarp",
+    "filter__osd",
+    "filter__outline",
+    "filter__palette",
+    "filter__pinch",
+    "filter__pixelSort",
+    "filter__pixels",
+    "filter__polar",
+    "filter__posterize",
+    "filter__prismaticAberration",
+    "filter__reindex",
+    "filter__repeat",
+    "filter__reverb",
+    "filter__ridge",
+    "filter__rotate",
+    "filter__scale",
+    "filter__scanlineError",
+    "filter__scratches",
+    "filter__scroll",
+    "filter__seamless",
+    "filter__sharpen",
+    "filter__sine",
 }
 FILTER_EXCEPTION_CASES = {
     "filter__convolutionFeedback",
     "filter__crt",
     "filter__degauss",
     "filter__lensWarp",
+    "filter__octaveWarp",
+    "filter__pinch",
+    "filter__polar",
+    "filter__posterize",
+    "filter__reindex",
+    "filter__rotate",
+    "filter__scanlineError",
 }
 
 
@@ -1161,7 +1193,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             for line in FILTER_MANIFEST.read_text().splitlines()
             if line.strip() and not line.lstrip().startswith("#")
         ]
-        self.assertEqual(len(manifest_lines), 25)
+        self.assertEqual(len(manifest_lines), 50)
         self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
         self.assertEqual({parts[0] for parts in manifest_lines}, FILTER_FIXTURES)
         self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
@@ -1202,6 +1234,62 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "allowed_exceeded_pixels": [[178, 225]],
                     "mechanism": "Lens displacement UV bilinear tie at exactly one high-distortion pixel [178, 225].",
                 },
+                "filter__octaveWarp": {
+                    "max_abs_diff": 17,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 16,
+                    "max_exceeded_channels": 27,
+                    "mechanism": "Octaved domain-warp bilinear resample UV ties at warped-gradient crossing pixels (16 sparse flips).",
+                },
+                "filter__pinch": {
+                    "max_abs_diff": 11,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 13,
+                    "max_exceeded_channels": 24,
+                    "mechanism": "Radial pinch displacement bilinear resample UV ties near the pinch center (13 sparse flips).",
+                },
+                "filter__polar": {
+                    "max_abs_diff": 18,
+                    "max_mean_abs_diff": 0.003,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 65,
+                    "max_exceeded_channels": 142,
+                    "mechanism": "Polar remap bilinear resample ties at angle-wrap and radius boundaries (65 sparse flips).",
+                },
+                "filter__posterize": {
+                    "max_abs_diff": 2,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 2,
+                    "max_exceeded_channels": 2,
+                    "mechanism": "Posterize quantization step boundary tie at two level-crossing pixels.",
+                },
+                "filter__reindex": {
+                    "max_abs_diff": 37,
+                    "max_mean_abs_diff": 0.003,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 14,
+                    "max_exceeded_channels": 36,
+                    "mechanism": "Palette reindex nearest-entry lookup tie at color-distance boundaries (14 sparse flips).",
+                },
+                "filter__rotate": {
+                    "max_abs_diff": 34,
+                    "max_mean_abs_diff": 0.02,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 112,
+                    "max_exceeded_channels": 290,
+                    "mechanism": "Rotation resample bilinear UV ties concentrated at frame corners where the rotated domain leaves bounds (112 flips).",
+                },
+                "filter__scanlineError": {
+                    "max_abs_diff": 205,
+                    "max_mean_abs_diff": 0.02,
+                    "ssim_min": 0.999,
+                    "max_exceeded_pixels": 12,
+                    "max_exceeded_channels": 36,
+                    "mechanism": "Scanline displacement floor() boundary tie: combined_error lands within 1 ULP of a shift-quantization boundary in 12 scattered rows, displacing the sampled texel by one pixel (all 3 channels).",
+                },
             },
             policy["cases"],
         )
@@ -1240,7 +1328,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 21, "ALLOWED_NEAR": 4}, report["counts"])
+        self.assertEqual({"PASS": 39, "ALLOWED_NEAR": 11}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

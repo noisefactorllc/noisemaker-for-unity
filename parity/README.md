@@ -131,11 +131,15 @@ behavior manifests before grading, and reports 2 strict `PASS` (`points__attract
 trail networks converge while individual agent trajectories drift under float32 chaos),
 bringing the entire `points` namespace (11/11) to 100% pixel-verified coverage. The filter
 corpus is verified alphabetically in batches; batch 1 (25 fixtures, `bloom` through
-`lightLeak`) reports 21 `PASS` and 4 bounded `ALLOWED_NEAR` (`filter__convolutionFeedback`,
-`filter__crt`, `filter__degauss`, `filter__lensWarp`), and its gate always re-renders and
-re-grades the whole tracked manifest so earlier batches stay verified on every run. The 9-case 3D gate
+`lightLeak`) and batch 2 (25 fixtures, `motionBlur` through `sine`) bring the tracked filter
+manifest to 50 fixtures reporting 39 `PASS` and 11 bounded `ALLOWED_NEAR`
+(`convolutionFeedback`, `crt`, `degauss`, `lensWarp`, `octaveWarp`, `pinch`, `polar`,
+`posterize`, `reindex`, `rotate`, `scanlineError`), and the gate always re-renders and
+re-grades the whole tracked manifest so earlier batches stay verified on every run. The
+`osd` scanline-parity port bug the gate exposed (parity must be evaluated in gl_FragCoord's
+bottom-up frame, not after the Y-flip) was fixed; `osd` is now byte-exact. The 9-case 3D gate
 reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact (zero tolerance).
-Full suite: 191 fixtures, 160 PASS + 31 bounded exceptions, exit 0. Every exception is
+Full suite: 216 fixtures, 178 PASS + 38 bounded exceptions, exit 0. Every exception is
 checked against a per-case maximum delta, SSIM floor, exceeded-pixel/channel counts, and
 exact top-left-origin pixel coordinates where declared.
 
@@ -155,8 +159,8 @@ UNITY=... UNITY_PROJECT=... bash parity/mixer-verify.sh
 # points corpus (10 fixtures, 256px, 60 warm frames so particle/agent behavior
 # manifests, tol 1 / SSIM 0.50 + points-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/points-verify.sh
-# filter corpus (grows per batch; batch 1 = 25 fixtures, bloom..lightLeak,
-# 256px, tol 1 / SSIM 0.9999 + filter-exceptions.json):
+# filter corpus (grows per batch; batches 1-2 = 50 fixtures, bloom..sine,
+# 256px, tol 1 / SSIM 0.999 + filter-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/filter-verify.sh
 ```
 

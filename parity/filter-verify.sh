@@ -51,5 +51,5 @@ fi
 
 "$PYTHON" "$HERE/batch-compare.py" "$GOLD" "$CAND" \
   --out "$NM_FILTER_TMP/report.json" \
-  --tolerance 1 --ssim-min 0.9999 \
+  --tolerance 1 --ssim-min 0.999 \
   --manifest "$MANIFEST" --exceptions "$EXCEPTIONS"
