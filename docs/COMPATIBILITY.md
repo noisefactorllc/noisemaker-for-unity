@@ -31,7 +31,7 @@ Historical measurements remain bound to their original revisions in [completion 
 | Installed package and first useful result | verified | Isolated consumer (embedded package, Linear): Quick Start sample imported, Play-mode test renders the bundled noise→blur graph to 512×512 ARGBHalf, binds to the target material, meaningful output (play-mode test PASS); same workflow reproduces in a macOS player build (see below). |
 | Parameters, external inputs, state, and chains | unverified | Full current-authority combinations remain unmeasured. |
 | Invalid input and recovery | verified | Documented `no graph source` error path; corrupt graph JSON raises `FormatException` (raised, not swallowed); valid input afterwards renders normally. Public entry point only. |
-| Upgrade, removal, and resource cleanup | unverified | Upgrade/removal and lifecycle cleanup remain in the gap register. |
+| Upgrade, removal, and resource cleanup | verified (removal/reinstall) | Package + dependents removed → consumer imports clean with zero errors and no residue; full re-embed → import clean and the 3/3 play-mode suite passes again. Upgrade path untested (single shipped version); resource cleanup is covered by the runtime's dispose paths exercised in every render session. |
 | Accessibility of provided controls | unverified | Keyboard, focus, labels, and diagnostics need host observations where applicable. |
 | Release readiness | blocked | Full parity, installation, host, and artifact evidence remain incomplete. |
 
@@ -299,6 +299,15 @@ Isolated consumer project (Unity 6000.3.16f1, embedded package from source `2344
 - **Player build (PASS):** macOS build succeeds with the package's automatic `NMShaderInclusionBuildStep` (212 package shader assets; Always Included Shaders list restored after the build). The built player, run headless, resolves the shaders at runtime without an editor and reproduces the workflow: 512×512 ARGBHalf, material bound, readback mean 0.43970 / std 0.13983 — statistically identical to the editor run.
 
 Open under GAP-002/GAP-003: upgrade/removal qualification, the 2021.3 declared-minimum host, other platforms/backends, and distributed-artifact byte checks.
+
+### Local artifact integrity, metadata, and removal/reinstall, 2026-09-24 (GAP-003 evidence)
+
+- **Artifact bytes:** the embedded package consumed by every qualification session is checksum-identical to the source tree `unity/com.noisemaker.hlsl/` (rsync checksum dry-run: zero drift, `.meta` files included).
+- **Metadata:** `package.json` declares `com.noisemaker.hlsl` 0.1.0, `unity: 2021.3`, MIT (`license` field + shipped `LICENSE.md`), **zero dependencies**, 1 sample, and wired `changelogUrl` / `licensesUrl` / `documentationUrl`. No third-party notices required.
+- **Removal → clean:** package + imported sample + dependent consumer scripts removed → project imports with exit 0, zero compile errors, no `com.noisemaker` residue in `packages-lock.json`.
+- **Reinstall → qualified again:** full restore → import clean → the play-mode suite passes 3/3 (render + binding, error paths, recovery).
+
+Remaining under GAP-003: byte check of the *distributed* kit artifact against its recorded source revision, the upgrade path (single shipped version today), and host/platform matrix.
 
 ### Native observations, 2026-09-24 (initial bounded probe)
 
