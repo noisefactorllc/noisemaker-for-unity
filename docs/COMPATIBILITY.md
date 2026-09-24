@@ -28,10 +28,10 @@ Historical measurements remain bound to their original revisions in [completion 
 | Actual host rendering | verified | 112/112 fixtures rendered and graded at the pinned authority (100 `PASS`, 12 bounded `ALLOWED_NEAR`, 0 fail, exit 0). Full host/platform matrix beyond macOS/Metal remains open. |
 | Minimum and current host versions | unverified | Declared requirements are not a tested version matrix. |
 | Supported operating systems and backends | unverified | This pass does not establish Windows, Linux, and macOS coverage. |
-| Installed package and first useful result | unverified | Complete isolated installation was not qualified for this source. |
+| Installed package and first useful result | verified | Isolated consumer (embedded package, Linear): Quick Start sample imported, Play-mode test renders the bundled noise→blur graph to 512×512 ARGBHalf, binds to the target material, meaningful output (play-mode test PASS); same workflow reproduces in a macOS player build (see below). |
 | Parameters, external inputs, state, and chains | unverified | Full current-authority combinations remain unmeasured. |
-| Invalid input and recovery | unverified | Unit checks do not establish every installed public entry point. |
-| Upgrade, removal, and resource cleanup | unverified | Prior defects and missing workflows remain in the gap register. |
+| Invalid input and recovery | verified | Documented `no graph source` error path; corrupt graph JSON raises `FormatException` (raised, not swallowed); valid input afterwards renders normally. Public entry point only. |
+| Upgrade, removal, and resource cleanup | unverified | Upgrade/removal and lifecycle cleanup remain in the gap register. |
 | Accessibility of provided controls | unverified | Keyboard, focus, labels, and diagnostics need host observations where applicable. |
 | Release readiness | blocked | Full parity, installation, host, and artifact evidence remain incomplete. |
 
@@ -289,6 +289,16 @@ Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live
 Every `ALLOWED_NEAR` matched its recorded budget exactly (max delta, SSIM floor, exceeded pixel/channel counts, exact coordinates). The three previously unbounded root fixtures (`heightGrid_billboard`, `heightmap3d_landscape`, `nm_chrome_test`) are now formalized in `programs/exceptions.json` with mechanisms from this pass's measurements; `parallax` and `refract_mirror` reproduced their recorded budgets byte-for-byte. The v104 corpus reproduced its recorded 66+4 result unchanged.
 
 These gates establish rendered parity for the declared fixture corpora at the pinned authority. Per-effect parameter/state/input breadth remains open under GAP-001; installed-workflow (GAP-002) and distribution (GAP-003) qualification remain open.
+
+### Installed workflow and player build, 2026-09-24 (GAP-002/GAP-003 evidence)
+
+Isolated consumer project (Unity 6000.3.16f1, embedded package from source `2344c30`, Linear color space). Quick Start sample imported; the documented workflow driven by play-mode tests (fail-closed, machine-readable evidence):
+
+- **Play leg (PASS):** bundled `noise → blur` graph renders to 512×512 ARGBHalf `Output` after 1 frame; the sample binds it to the target material; readback mean 0.43972 / std 0.13992 / 257k distinct values / 100% non-black.
+- **Error/recovery legs (PASS):** no-source `Rebuild()` logs the documented error and `Output` stays null; corrupt graph JSON raises `FormatException` from the public entry point and `Output` stays null; valid input then renders normally.
+- **Player build (PASS):** macOS build succeeds with the package's automatic `NMShaderInclusionBuildStep` (212 package shader assets; Always Included Shaders list restored after the build). The built player, run headless, resolves the shaders at runtime without an editor and reproduces the workflow: 512×512 ARGBHalf, material bound, readback mean 0.43970 / std 0.13983 — statistically identical to the editor run.
+
+Open under GAP-002/GAP-003: upgrade/removal qualification, the 2021.3 declared-minimum host, other platforms/backends, and distributed-artifact byte checks.
 
 ### Native observations, 2026-09-24 (initial bounded probe)
 
