@@ -211,17 +211,17 @@ Per-effect parameter/state/input breadth remains tracked by GAP-001.
 | `mixer/split` | yes | graph+pixel |
 | `mixer/thresholdMix` | yes | graph+pixel |
 | `mixer/uvRemap` | yes | graph+pixel |
-| `points/attractor` | yes | graph |
-| `points/buddhabrot` | yes | graph |
-| `points/dla` | yes | graph |
-| `points/flock` | yes | graph |
-| `points/flow` | yes | graph |
+| `points/attractor` | yes | graph+pixel |
+| `points/buddhabrot` | yes | graph+pixel |
+| `points/dla` | yes | graph+pixel |
+| `points/flock` | yes | graph+pixel |
+| `points/flow` | yes | graph+pixel |
 | `points/heightGrid` | yes | graph+pixel |
-| `points/hydraulic` | yes | graph |
-| `points/lenia` | yes | graph |
-| `points/life` | yes | graph |
-| `points/physarum` | yes | graph |
-| `points/physical` | yes | graph |
+| `points/hydraulic` | yes | graph+pixel |
+| `points/lenia` | yes | graph+pixel |
+| `points/life` | yes | graph+pixel |
+| `points/physarum` | yes | graph+pixel |
+| `points/physical` | yes | graph+pixel |
 | `render/loopBegin` | yes | graph |
 | `render/loopEnd` | yes | graph |
 | `render/meshLoader` | yes | graph |
@@ -283,9 +283,10 @@ Unity 6000.3.16f1, isolated consumer project (`~/nmhlsl-parity`) with the packag
 | `classic-verify.sh` (classic, 256px) | 17 | tol 1, SSIM ≥ 0.9999, `programs/classic-exceptions.json` | 15 | 2 | 0 | 0 |
 | `synth-verify.sh` (synth, 256px) | 15 | tol 1, SSIM ≥ 0.92, `programs/synth-exceptions.json` | 12 | 3 | 0 | 0 |
 | `mixer-verify.sh` (mixer, 256px) | 12 | tol 1, SSIM ≥ 0.9999, `programs/mixer-exceptions.json` | 10 | 2 | 0 | 0 |
+| `points-verify.sh` (points, 256px, 60 warm frames) | 10 | tol 1, SSIM ≥ 0.50, `programs/points-exceptions.json` | 2 | 8 | 0 | 0 |
 | v104 manifest (127px) | 70 | tol 1, SSIM ≥ 0.9999, `v104/exceptions.json` | 66 | 4 | 0 | 0 |
 | tiled manifest (127px tile of 4096²) | 3 | tol 0 (exact) | 3 | 0 | 0 | 0 |
-| Total | 156 | — | 137 | 19 | 0 | 0 |
+| Total | 166 | — | 139 | 27 | 0 | 0 |
 
 Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live compiler vs reference oracle at the pinned authority). Compiler contract tests: PASS (0 failures).
 
@@ -373,6 +374,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-24 (pass 10) | current source | `points` 100% pixel parity (10 new fixtures, exit 0) | Added `parity/points-verify.sh`, `programs/points-manifest.tsv`, `programs/points-exceptions.json`; gates run 60 warm frames (~1 s of simulation at 60 fps) from a clean state so particle/agent behavior manifests before grading: 2 strict PASS (`attractor`, `physical` byte-exact) + 8 ALLOWED_NEAR (`buddhabrot`, `dla`, `flock`, `flow`, `hydraulic`, `lenia`, `life`, `physarum` — emergent agent sims share identical macro-structure/trail networks with chaotic per-agent float drift); all 11 `points/*` effects pixel-verified; full suite is now 166 fixtures (139 PASS, 27 bounded, exit 0); 39 unit tests PASS. |
 | 2026-09-24 (pass 9) | current source | `mixer` 100% pixel parity (12 new fixtures, exit 0) | Added `parity/mixer-verify.sh`, `programs/mixer-manifest.tsv`, `programs/mixer-exceptions.json`; 10 PASS + 2 ALLOWED_NEAR (`distortion`, `thresholdMix`); all 15 `mixer/*` effects pixel-verified; full suite is now 156 fixtures (137 PASS, 19 bounded, exit 0); 36 unit tests PASS. |
 | 2026-09-24 (pass 8) | current source | `synth` 100% renderable pixel parity (15 new fixtures, exit 0) | Added `parity/synth-verify.sh`, `programs/synth-manifest.tsv`, `programs/synth-exceptions.json`; 12 PASS + 3 ALLOWED_NEAR (`julia`, `mandelbrot`, `newton`); all 26 renderable `synth/*` effects pixel-verified; full suite is now 144 fixtures (127 PASS, 17 bounded, exit 0); 33 unit tests PASS. |
 | 2026-09-24 (pass 7) | current source | `classicNoisedeck` 100% pixel parity (17 new fixtures, exit 0) | Added `parity/classic-verify.sh`, `programs/classic-manifest.tsv`, `programs/classic-exceptions.json`; 15 PASS + 2 ALLOWED_NEAR (`fractal`, `kaleido`); entire `classicNoisedeck` namespace (20/20) now pixel-verified; full suite is now 129 fixtures (115 PASS, 14 bounded, exit 0); 30 unit tests PASS. |

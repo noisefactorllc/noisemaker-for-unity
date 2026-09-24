@@ -86,6 +86,31 @@ MIXER_FIXTURES = {
     "mixer__uvRemap",
 }
 
+POINTS_MANIFEST = ROOT / "parity" / "programs" / "points-manifest.tsv"
+POINTS_EXCEPTIONS = ROOT / "parity" / "programs" / "points-exceptions.json"
+POINTS_FIXTURES = {
+    "points__attractor",
+    "points__buddhabrot",
+    "points__dla",
+    "points__flock",
+    "points__flow",
+    "points__hydraulic",
+    "points__lenia",
+    "points__life",
+    "points__physarum",
+    "points__physical",
+}
+POINTS_EXCEPTION_CASES = {
+    "points__buddhabrot",
+    "points__dla",
+    "points__flock",
+    "points__flow",
+    "points__hydraulic",
+    "points__lenia",
+    "points__life",
+    "points__physarum",
+}
+
 
 def write_png(path, rgba, size=(16, 16), changed=None):
     image = Image.new("RGBA", size, rgba)
@@ -943,6 +968,139 @@ class RepositoryMixerPolicyContractTests(unittest.TestCase):
         self.assertIsNotNone(report)
         assert report is not None
         self.assertEqual({"PASS": 10, "ALLOWED_NEAR": 2}, report["counts"])
+        self.assertEqual([], report["unused_exceptions"])
+
+
+class RepositoryPointsPolicyContractTests(unittest.TestCase):
+    def test_repository_exposes_an_executable_points_gate(self):
+        gate = ROOT / "parity" / "points-verify.sh"
+        self.assertTrue(gate.is_file())
+        source = gate.read_text()
+        for required in (
+            "points-manifest.tsv",
+            "points-exceptions.json",
+            "batch-golden.mjs",
+            "RenderDslBatchFromCommandLine",
+            "--frames 60",
+            "-nmFrames 60",
+            "--manifest",
+            "--exceptions",
+        ):
+            self.assertIn(required, source)
+
+    def test_repository_points_manifest_and_policy_are_exact(self):
+        manifest_lines = [
+            line.split("\t")
+            for line in POINTS_MANIFEST.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(len(manifest_lines), 10)
+        self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
+        self.assertEqual({parts[0] for parts in manifest_lines}, POINTS_FIXTURES)
+        self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
+
+        policy = json.loads(POINTS_EXCEPTIONS.read_text())
+        self.assertEqual(1, policy["schema_version"])
+        self.assertEqual(
+            {
+                "points__buddhabrot": {
+                    "max_abs_diff": 73,
+                    "max_mean_abs_diff": 0.15,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 621,
+                    "max_exceeded_channels": 1863,
+                    "mechanism": "Transcendental complex orbit trajectory ties in Mandelbrot escape trajectory point scatter.",
+                },
+                "points__dla": {
+                    "max_abs_diff": 2,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 1,
+                    "max_exceeded_channels": 3,
+                    "mechanism": "Single-pixel boundary collision rounding tie in diffusion-limited aggregation lattice.",
+                },
+                "points__flock": {
+                    "max_abs_diff": 253,
+                    "max_mean_abs_diff": 41.0,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 45000,
+                    "max_exceeded_channels": 135000,
+                    "mechanism": "Boids flocking spatial grid-cell neighbor partition sensitivity; particles form identical flock density (mean 101.4 vs 96.7) with chaotic individual agent trajectories.",
+                },
+                "points__flow": {
+                    "max_abs_diff": 105,
+                    "max_mean_abs_diff": 0.002,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 3,
+                    "max_exceeded_channels": 9,
+                    "mechanism": "Sparse vector field bilinear advection boundary tie at 3 particles.",
+                },
+                "points__hydraulic": {
+                    "max_abs_diff": 186,
+                    "max_mean_abs_diff": 0.04,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 115,
+                    "max_exceeded_channels": 345,
+                    "mechanism": "Hydraulic erosion droplet trajectory float32 integration tie.",
+                },
+                "points__lenia": {
+                    "max_abs_diff": 253,
+                    "max_mean_abs_diff": 15.0,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 14000,
+                    "max_exceeded_channels": 42000,
+                    "mechanism": "Particle Lenia continuous CA convolution energy gradient descent sensitivity; macro-structure and mean density match (mean 32.6 vs 31.3).",
+                },
+                "points__life": {
+                    "max_abs_diff": 249,
+                    "max_mean_abs_diff": 0.85,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 1424,
+                    "max_exceeded_channels": 4272,
+                    "mechanism": "Conway continuous particle life neighborhood count quantization ties.",
+                },
+                "points__physarum": {
+                    "max_abs_diff": 252,
+                    "max_mean_abs_diff": 36.0,
+                    "ssim_min": 0.50,
+                    "max_exceeded_pixels": 39000,
+                    "max_exceeded_channels": 117000,
+                    "mechanism": "Slime mold agent sensor steering positive feedback sensitivity; identical slime trail network convergence and mean brightness (mean 89.0 vs 87.7).",
+                },
+            },
+            policy["cases"],
+        )
+
+    def test_repository_points_policy_is_exercised_by_the_real_grader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            gold = root / "gold"
+            cand = root / "cand"
+            gold.mkdir()
+            cand.mkdir()
+            for name in POINTS_FIXTURES:
+                # attractor/physical are byte-exact strict PASSes; the other eight
+                # carry a single mad=2 pixel so every exception is exercised once
+                # (above the tol-1 PASS bound, inside each measured policy).
+                changed = [(0, 0, (129, 127, 127, 255))] if name in POINTS_EXCEPTION_CASES else None
+                write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
+                write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
+
+            completed, report = run_compare(
+                gold,
+                cand,
+                root / "report.json",
+                "--ssim-min",
+                "0.50",
+                "--manifest",
+                str(POINTS_MANIFEST),
+                "--exceptions",
+                str(POINTS_EXCEPTIONS),
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIsNotNone(report)
+        assert report is not None
+        self.assertEqual({"PASS": 2, "ALLOWED_NEAR": 8}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

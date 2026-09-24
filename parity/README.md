@@ -122,9 +122,16 @@ classicNoisedeck gate reports 15 `PASS` and 2 bounded `ALLOWED_NEAR` (`classicNo
 `ALLOWED_NEAR` (`synth__julia`, `synth__mandelbrot`, `synth__newton`), bringing all 26
 renderable `synth` effects to 100% pixel-verified coverage. The 12-case mixer gate reports
 10 `PASS` and 2 bounded `ALLOWED_NEAR` (`mixer__distortion`, `mixer__thresholdMix`), bringing
-the entire `mixer` namespace (15/15) to 100% pixel-verified coverage. The 9-case 3D gate
+the entire `mixer` namespace (15/15) to 100% pixel-verified coverage. The 10-case points gate
+runs 60 warm frames (~1 s of simulation at 60 fps) from a clean state so particle/agent
+behavior manifests before grading, and reports 2 strict `PASS` (`points__attractor`,
+`points__physical` — byte-exact) and 8 bounded `ALLOWED_NEAR` (`points__buddhabrot`,
+`points__dla`, `points__flock`, `points__flow`, `points__hydraulic`, `points__lenia`,
+`points__life`, `points__physarum` — emergent agent simulations whose macro-structure and
+trail networks converge while individual agent trajectories drift under float32 chaos),
+bringing the entire `points` namespace (11/11) to 100% pixel-verified coverage. The 9-case 3D gate
 reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact (zero tolerance).
-Full suite: 156 fixtures, 137 PASS + 19 bounded exceptions, exit 0. Every exception is
+Full suite: 166 fixtures, 139 PASS + 27 bounded exceptions, exit 0. Every exception is
 checked against a per-case maximum delta, SSIM floor, exceeded-pixel/channel counts, and
 exact top-left-origin pixel coordinates where declared.
 
@@ -141,6 +148,9 @@ UNITY=... UNITY_PROJECT=... bash parity/classic-verify.sh
 UNITY=... UNITY_PROJECT=... bash parity/synth-verify.sh
 # mixer corpus (12 fixtures, 256px, tol 1 / SSIM 0.9999 + mixer-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/mixer-verify.sh
+# points corpus (10 fixtures, 256px, 60 warm frames so particle/agent behavior
+# manifests, tol 1 / SSIM 0.50 + points-exceptions.json):
+UNITY=... UNITY_PROJECT=... bash parity/points-verify.sh
 ```
 
 ## Runbook
@@ -262,6 +272,8 @@ runtime/platform combination.
 - `classic-verify.sh` — self-contained classicNoisedeck pixel gate (17 fixtures, tol 1 / SSIM 0.9999).
 - `synth-verify.sh` — self-contained synth pixel gate (15 fixtures, tol 1 / SSIM 0.92).
 - `mixer-verify.sh` — self-contained mixer pixel gate (12 fixtures, tol 1 / SSIM 0.9999).
+- `points-verify.sh` — self-contained points pixel gate (10 fixtures, 60 warm frames so
+  particle/agent behavior manifests, tol 1 / SSIM 0.50 + points-exceptions.json).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
@@ -271,6 +283,9 @@ runtime/platform combination.
 - `programs/synth-exceptions.json` — measured tolerances for chaotic fractal/root exceptions.
 - `programs/mixer-manifest.tsv` — the 12 mixer fixtures (`mixer-verify.sh` input).
 - `programs/mixer-exceptions.json` — measured tolerances for mixer exceptions.
+- `programs/points-manifest.tsv` — the 10 points fixtures (`points-verify.sh` input).
+- `programs/points-exceptions.json` — measured tolerances for particle/agent simulation
+  exceptions (graded after 60 warm frames so emergent behavior manifests).
 - `../unity/com.noisemaker.hlsl/Editor/NMParityRunner.cs` — Unity candidate renderer + `CompileDslDumpBatchFromCommandLine` (graph dumper).
 - `../tools/export-graph.mjs` — golden graph producer (used by both harnesses).
 - `../tools/convert-definitions.mjs` — effect-definition regenerator (step 0).

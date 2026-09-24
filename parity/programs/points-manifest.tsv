@@ -1,0 +1,10 @@
+points__attractor	--selftest/points__attractor.dsl
+points__buddhabrot	--selftest/points__buddhabrot.dsl
+points__dla	--selftest/points__dla.dsl
+points__flock	--selftest/points__flock.dsl
+points__flow	--selftest/points__flow.dsl
+points__hydraulic	--selftest/points__hydraulic.dsl
+points__lenia	--selftest/points__lenia.dsl
+points__life	--selftest/points__life.dsl
+points__physarum	--selftest/points__physarum.dsl
+points__physical	--selftest/points__physical.dsl

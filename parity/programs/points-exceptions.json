@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "points__buddhabrot": {
+      "max_abs_diff": 73,
+      "max_mean_abs_diff": 0.15,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 621,
+      "max_exceeded_channels": 1863,
+      "mechanism": "Transcendental complex orbit trajectory ties in Mandelbrot escape trajectory point scatter."
+    },
+    "points__dla": {
+      "max_abs_diff": 2,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 1,
+      "max_exceeded_channels": 3,
+      "mechanism": "Single-pixel boundary collision rounding tie in diffusion-limited aggregation lattice."
+    },
+    "points__flock": {
+      "max_abs_diff": 253,
+      "max_mean_abs_diff": 41.0,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 45000,
+      "max_exceeded_channels": 135000,
+      "mechanism": "Boids flocking spatial grid-cell neighbor partition sensitivity; particles form identical flock density (mean 101.4 vs 96.7) with chaotic individual agent trajectories."
+    },
+    "points__flow": {
+      "max_abs_diff": 105,
+      "max_mean_abs_diff": 0.002,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 3,
+      "max_exceeded_channels": 9,
+      "mechanism": "Sparse vector field bilinear advection boundary tie at 3 particles."
+    },
+    "points__hydraulic": {
+      "max_abs_diff": 186,
+      "max_mean_abs_diff": 0.04,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 115,
+      "max_exceeded_channels": 345,
+      "mechanism": "Hydraulic erosion droplet trajectory float32 integration tie."
+    },
+    "points__lenia": {
+      "max_abs_diff": 253,
+      "max_mean_abs_diff": 15.0,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 14000,
+      "max_exceeded_channels": 42000,
+      "mechanism": "Particle Lenia continuous CA convolution energy gradient descent sensitivity; macro-structure and mean density match (mean 32.6 vs 31.3)."
+    },
+    "points__life": {
+      "max_abs_diff": 249,
+      "max_mean_abs_diff": 0.85,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 1424,
+      "max_exceeded_channels": 4272,
+      "mechanism": "Conway continuous particle life neighborhood count quantization ties."
+    },
+    "points__physarum": {
+      "max_abs_diff": 252,
+      "max_mean_abs_diff": 36.0,
+      "ssim_min": 0.50,
+      "max_exceeded_pixels": 39000,
+      "max_exceeded_channels": 117000,
+      "mechanism": "Slime mold agent sensor steering positive feedback sensitivity; identical slime trail network convergence and mean brightness (mean 89.0 vs 87.7)."
+    }
+  }
+}
