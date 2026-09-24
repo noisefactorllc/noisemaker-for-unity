@@ -129,9 +129,13 @@ behavior manifests before grading, and reports 2 strict `PASS` (`points__attract
 `points__dla`, `points__flock`, `points__flow`, `points__hydraulic`, `points__lenia`,
 `points__life`, `points__physarum` — emergent agent simulations whose macro-structure and
 trail networks converge while individual agent trajectories drift under float32 chaos),
-bringing the entire `points` namespace (11/11) to 100% pixel-verified coverage. The 9-case 3D gate
+bringing the entire `points` namespace (11/11) to 100% pixel-verified coverage. The filter
+corpus is verified alphabetically in batches; batch 1 (25 fixtures, `bloom` through
+`lightLeak`) reports 21 `PASS` and 4 bounded `ALLOWED_NEAR` (`filter__convolutionFeedback`,
+`filter__crt`, `filter__degauss`, `filter__lensWarp`), and its gate always re-renders and
+re-grades the whole tracked manifest so earlier batches stay verified on every run. The 9-case 3D gate
 reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact (zero tolerance).
-Full suite: 166 fixtures, 139 PASS + 27 bounded exceptions, exit 0. Every exception is
+Full suite: 191 fixtures, 160 PASS + 31 bounded exceptions, exit 0. Every exception is
 checked against a per-case maximum delta, SSIM floor, exceeded-pixel/channel counts, and
 exact top-left-origin pixel coordinates where declared.
 
@@ -151,6 +155,9 @@ UNITY=... UNITY_PROJECT=... bash parity/mixer-verify.sh
 # points corpus (10 fixtures, 256px, 60 warm frames so particle/agent behavior
 # manifests, tol 1 / SSIM 0.50 + points-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/points-verify.sh
+# filter corpus (grows per batch; batch 1 = 25 fixtures, bloom..lightLeak,
+# 256px, tol 1 / SSIM 0.9999 + filter-exceptions.json):
+UNITY=... UNITY_PROJECT=... bash parity/filter-verify.sh
 ```
 
 ## Runbook
@@ -274,6 +281,8 @@ runtime/platform combination.
 - `mixer-verify.sh` — self-contained mixer pixel gate (12 fixtures, tol 1 / SSIM 0.9999).
 - `points-verify.sh` — self-contained points pixel gate (10 fixtures, 60 warm frames so
   particle/agent behavior manifests, tol 1 / SSIM 0.50 + points-exceptions.json).
+- `filter-verify.sh` — self-contained filter pixel gate (alphabetical batches; the gate
+  always re-renders the whole tracked manifest, tol 1 / SSIM 0.9999 + filter-exceptions.json).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
@@ -286,6 +295,9 @@ runtime/platform combination.
 - `programs/points-manifest.tsv` — the 10 points fixtures (`points-verify.sh` input).
 - `programs/points-exceptions.json` — measured tolerances for particle/agent simulation
   exceptions (graded after 60 warm frames so emergent behavior manifests).
+- `programs/filter-manifest.tsv` — the filter fixtures verified so far (`filter-verify.sh`
+  input; grows per alphabetical batch).
+- `programs/filter-exceptions.json` — measured tolerances for filter exceptions.
 - `../unity/com.noisemaker.hlsl/Editor/NMParityRunner.cs` — Unity candidate renderer + `CompileDslDumpBatchFromCommandLine` (graph dumper).
 - `../tools/export-graph.mjs` — golden graph producer (used by both harnesses).
 - `../tools/convert-definitions.mjs` — effect-definition regenerator (step 0).

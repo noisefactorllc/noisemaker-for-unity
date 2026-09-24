@@ -82,45 +82,45 @@ Per-effect parameter/state/input breadth remains tracked by GAP-001.
 | `classicNoisedeck/shapes3d` | yes | graph+pixel |
 | `classicNoisedeck/splat` | yes | graph+pixel |
 | `filter/adjust` | yes | graph+pixel |
-| `filter/bloom` | yes | graph |
+| `filter/bloom` | yes | graph+pixel |
 | `filter/blur` | yes | graph+pixel |
-| `filter/bulge` | yes | graph |
-| `filter/celShading` | yes | graph |
-| `filter/channel` | yes | graph |
-| `filter/chroma` | yes | graph |
-| `filter/chromaticAberration` | yes | graph |
+| `filter/bulge` | yes | graph+pixel |
+| `filter/celShading` | yes | graph+pixel |
+| `filter/channel` | yes | graph+pixel |
+| `filter/chroma` | yes | graph+pixel |
+| `filter/chromaticAberration` | yes | graph+pixel |
 | `filter/chrome` | yes | graph+pixel |
-| `filter/clouds` | yes | graph |
-| `filter/colorReplace` | yes | graph |
-| `filter/convolutionFeedback` | yes | graph |
-| `filter/corrupt` | yes | graph |
+| `filter/clouds` | yes | graph+pixel |
+| `filter/colorReplace` | yes | graph+pixel |
+| `filter/convolutionFeedback` | yes | graph+pixel |
+| `filter/corrupt` | yes | graph+pixel |
 | `filter/craquelure` | yes | graph+pixel |
-| `filter/crt` | yes | graph |
-| `filter/degauss` | yes | graph |
-| `filter/deriv` | yes | graph |
+| `filter/crt` | yes | graph+pixel |
+| `filter/degauss` | yes | graph+pixel |
+| `filter/deriv` | yes | graph+pixel |
 | `filter/directionalBlur` | yes | graph+pixel |
 | `filter/dither` | yes | graph+pixel |
 | `filter/edge` | yes | graph+pixel |
 | `filter/emboss` | yes | graph+pixel |
 | `filter/extrude` | yes | graph+pixel |
-| `filter/feedback` | yes | graph |
-| `filter/fibers` | yes | graph |
-| `filter/flipMirror` | yes | graph |
-| `filter/fxaa` | yes | graph |
-| `filter/glowingEdge` | yes | graph |
-| `filter/glyphMap` | yes | graph |
+| `filter/feedback` | yes | graph+pixel |
+| `filter/fibers` | yes | graph+pixel |
+| `filter/flipMirror` | yes | graph+pixel |
+| `filter/fxaa` | yes | graph+pixel |
+| `filter/glowingEdge` | yes | graph+pixel |
+| `filter/glyphMap` | yes | graph+pixel |
 | `filter/grade` | yes | graph+pixel |
-| `filter/grain` | yes | graph |
-| `filter/grime` | yes | graph |
+| `filter/grain` | yes | graph+pixel |
+| `filter/grime` | yes | graph+pixel |
 | `filter/halftone` | yes | graph+pixel |
 | `filter/hatch` | yes | graph+pixel |
 | `filter/highPass` | yes | graph+pixel |
-| `filter/historicPalette` | yes | graph |
+| `filter/historicPalette` | yes | graph+pixel |
 | `filter/invert` | yes | graph+pixel |
-| `filter/lens` | yes | graph |
+| `filter/lens` | yes | graph+pixel |
 | `filter/lensFlare` | yes | graph+pixel |
-| `filter/lensWarp` | yes | graph |
-| `filter/lightLeak` | yes | graph |
+| `filter/lensWarp` | yes | graph+pixel |
+| `filter/lightLeak` | yes | graph+pixel |
 | `filter/lighting` | yes | graph+pixel |
 | `filter/lowPoly` | yes | graph+pixel |
 | `filter/median` | yes | graph+pixel |
@@ -284,9 +284,10 @@ Unity 6000.3.16f1, isolated consumer project (`~/nmhlsl-parity`) with the packag
 | `synth-verify.sh` (synth, 256px) | 15 | tol 1, SSIM ≥ 0.92, `programs/synth-exceptions.json` | 12 | 3 | 0 | 0 |
 | `mixer-verify.sh` (mixer, 256px) | 12 | tol 1, SSIM ≥ 0.9999, `programs/mixer-exceptions.json` | 10 | 2 | 0 | 0 |
 | `points-verify.sh` (points, 256px, 60 warm frames) | 10 | tol 1, SSIM ≥ 0.50, `programs/points-exceptions.json` | 2 | 8 | 0 | 0 |
+| `filter-verify.sh` (filter batch 1, 256px) | 25 | tol 1, SSIM ≥ 0.9999, `programs/filter-exceptions.json` | 21 | 4 | 0 | 0 |
 | v104 manifest (127px) | 70 | tol 1, SSIM ≥ 0.9999, `v104/exceptions.json` | 66 | 4 | 0 | 0 |
 | tiled manifest (127px tile of 4096²) | 3 | tol 0 (exact) | 3 | 0 | 0 | 0 |
-| Total | 166 | — | 139 | 27 | 0 | 0 |
+| Total | 191 | — | 160 | 31 | 0 | 0 |
 
 Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live compiler vs reference oracle at the pinned authority). Compiler contract tests: PASS (0 failures).
 
@@ -374,6 +375,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-24 (pass 11) | current source | `filter` batch 1 of 3 pixel parity (25 new fixtures, exit 0) | Added `parity/filter-verify.sh`, `programs/filter-manifest.tsv`, `programs/filter-exceptions.json`; namespace verified alphabetically in batches, the gate always re-renders and re-grades the whole tracked manifest: 21 strict PASS + 4 ALLOWED_NEAR (`convolutionFeedback` mad 8 / 770 px feedback accumulation drift, `crt` mad 24 / 812 px phosphor-mask ties, `degauss` mad 8 / 175 px barrel-warp resample ties, `lensWarp` mad 3 / 1 px exact-coordinate displacement tie); filter pixel-verified total now 64/113; full suite is now 191 fixtures (160 PASS, 31 bounded, exit 0); 42 unit tests PASS. |
 | 2026-09-24 (pass 10) | current source | `points` 100% pixel parity (10 new fixtures, exit 0) | Added `parity/points-verify.sh`, `programs/points-manifest.tsv`, `programs/points-exceptions.json`; gates run 60 warm frames (~1 s of simulation at 60 fps) from a clean state so particle/agent behavior manifests before grading: 2 strict PASS (`attractor`, `physical` byte-exact) + 8 ALLOWED_NEAR (`buddhabrot`, `dla`, `flock`, `flow`, `hydraulic`, `lenia`, `life`, `physarum` — emergent agent sims share identical macro-structure/trail networks with chaotic per-agent float drift); all 11 `points/*` effects pixel-verified; full suite is now 166 fixtures (139 PASS, 27 bounded, exit 0); 39 unit tests PASS. |
 | 2026-09-24 (pass 9) | current source | `mixer` 100% pixel parity (12 new fixtures, exit 0) | Added `parity/mixer-verify.sh`, `programs/mixer-manifest.tsv`, `programs/mixer-exceptions.json`; 10 PASS + 2 ALLOWED_NEAR (`distortion`, `thresholdMix`); all 15 `mixer/*` effects pixel-verified; full suite is now 156 fixtures (137 PASS, 19 bounded, exit 0); 36 unit tests PASS. |
 | 2026-09-24 (pass 8) | current source | `synth` 100% renderable pixel parity (15 new fixtures, exit 0) | Added `parity/synth-verify.sh`, `programs/synth-manifest.tsv`, `programs/synth-exceptions.json`; 12 PASS + 3 ALLOWED_NEAR (`julia`, `mandelbrot`, `newton`); all 26 renderable `synth/*` effects pixel-verified; full suite is now 144 fixtures (127 PASS, 17 bounded, exit 0); 33 unit tests PASS. |

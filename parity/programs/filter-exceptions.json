@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "filter__convolutionFeedback": {
+      "max_abs_diff": 8,
+      "max_mean_abs_diff": 0.02,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 770,
+      "max_exceeded_channels": 776,
+      "mechanism": "Iterative kernel convolution feedback accumulation; float32 accumulation drift on sparse high-gradient edges (770 of 65536 pixels, 1.2%)."
+    },
+    "filter__crt": {
+      "max_abs_diff": 24,
+      "max_mean_abs_diff": 0.03,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 812,
+      "max_exceeded_channels": 991,
+      "mechanism": "Scanline/phosphor-mask color math boundary ties at beam-intensity transitions (812 sparse pixels along mask rows)."
+    },
+    "filter__degauss": {
+      "max_abs_diff": 8,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 175,
+      "max_exceeded_channels": 175,
+      "mechanism": "Barrel-warp bilinear resample UV boundary ties at high-curvature pixels (175 single-channel flips)."
+    },
+    "filter__lensWarp": {
+      "max_abs_diff": 3,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 1,
+      "max_exceeded_channels": 3,
+      "allowed_exceeded_pixels": [[178, 225]],
+      "mechanism": "Lens displacement UV bilinear tie at exactly one high-distortion pixel [178, 225]."
+    }
+  }
+}

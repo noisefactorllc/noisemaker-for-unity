@@ -111,6 +111,42 @@ POINTS_EXCEPTION_CASES = {
     "points__physarum",
 }
 
+FILTER_MANIFEST = ROOT / "parity" / "programs" / "filter-manifest.tsv"
+FILTER_EXCEPTIONS = ROOT / "parity" / "programs" / "filter-exceptions.json"
+FILTER_FIXTURES = {
+    "filter__bloom",
+    "filter__bulge",
+    "filter__celShading",
+    "filter__channel",
+    "filter__chroma",
+    "filter__chromaticAberration",
+    "filter__clouds",
+    "filter__colorReplace",
+    "filter__convolutionFeedback",
+    "filter__corrupt",
+    "filter__crt",
+    "filter__degauss",
+    "filter__deriv",
+    "filter__feedback",
+    "filter__fibers",
+    "filter__flipMirror",
+    "filter__fxaa",
+    "filter__glowingEdge",
+    "filter__glyphMap",
+    "filter__grain",
+    "filter__grime",
+    "filter__historicPalette",
+    "filter__lens",
+    "filter__lensWarp",
+    "filter__lightLeak",
+}
+FILTER_EXCEPTION_CASES = {
+    "filter__convolutionFeedback",
+    "filter__crt",
+    "filter__degauss",
+    "filter__lensWarp",
+}
+
 
 def write_png(path, rgba, size=(16, 16), changed=None):
     image = Image.new("RGBA", size, rgba)
@@ -1101,6 +1137,110 @@ class RepositoryPointsPolicyContractTests(unittest.TestCase):
         self.assertIsNotNone(report)
         assert report is not None
         self.assertEqual({"PASS": 2, "ALLOWED_NEAR": 8}, report["counts"])
+        self.assertEqual([], report["unused_exceptions"])
+
+
+class RepositoryFilterPolicyContractTests(unittest.TestCase):
+    def test_repository_exposes_an_executable_filter_gate(self):
+        gate = ROOT / "parity" / "filter-verify.sh"
+        self.assertTrue(gate.is_file())
+        source = gate.read_text()
+        for required in (
+            "filter-manifest.tsv",
+            "filter-exceptions.json",
+            "batch-golden.mjs",
+            "RenderDslBatchFromCommandLine",
+            "--manifest",
+            "--exceptions",
+        ):
+            self.assertIn(required, source)
+
+    def test_repository_filter_manifest_and_policy_are_exact(self):
+        manifest_lines = [
+            line.split("\t")
+            for line in FILTER_MANIFEST.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(len(manifest_lines), 25)
+        self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
+        self.assertEqual({parts[0] for parts in manifest_lines}, FILTER_FIXTURES)
+        self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
+
+        policy = json.loads(FILTER_EXCEPTIONS.read_text())
+        self.assertEqual(1, policy["schema_version"])
+        self.assertEqual(set(policy["cases"]), FILTER_EXCEPTION_CASES)
+        self.assertEqual(
+            {
+                "filter__convolutionFeedback": {
+                    "max_abs_diff": 8,
+                    "max_mean_abs_diff": 0.02,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 770,
+                    "max_exceeded_channels": 776,
+                    "mechanism": "Iterative kernel convolution feedback accumulation; float32 accumulation drift on sparse high-gradient edges (770 of 65536 pixels, 1.2%).",
+                },
+                "filter__crt": {
+                    "max_abs_diff": 24,
+                    "max_mean_abs_diff": 0.03,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 812,
+                    "max_exceeded_channels": 991,
+                    "mechanism": "Scanline/phosphor-mask color math boundary ties at beam-intensity transitions (812 sparse pixels along mask rows).",
+                },
+                "filter__degauss": {
+                    "max_abs_diff": 8,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 175,
+                    "max_exceeded_channels": 175,
+                    "mechanism": "Barrel-warp bilinear resample UV boundary ties at high-curvature pixels (175 single-channel flips).",
+                },
+                "filter__lensWarp": {
+                    "max_abs_diff": 3,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 1,
+                    "max_exceeded_channels": 3,
+                    "allowed_exceeded_pixels": [[178, 225]],
+                    "mechanism": "Lens displacement UV bilinear tie at exactly one high-distortion pixel [178, 225].",
+                },
+            },
+            policy["cases"],
+        )
+
+    def test_repository_filter_policy_is_exercised_by_the_real_grader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            gold = root / "gold"
+            cand = root / "cand"
+            gold.mkdir()
+            cand.mkdir()
+            for name in FILTER_FIXTURES:
+                # 21 strict fixtures stay byte-exact; the four exception cases carry
+                # a single mad=2 pixel so every exception is exercised once (above
+                # the tol-1 PASS bound, inside each measured policy). lensWarp pins
+                # its budget to exact pixel [178, 225].
+                if name == "filter__lensWarp":
+                    changed = [(178, 225, (129, 127, 127, 255))]
+                elif name in FILTER_EXCEPTION_CASES:
+                    changed = [(0, 0, (129, 127, 127, 255))]
+                else:
+                    changed = None
+                write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
+                write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
+
+            completed, report = run_compare(
+                gold,
+                cand,
+                root / "report.json",
+                "--manifest",
+                str(FILTER_MANIFEST),
+                "--exceptions",
+                str(FILTER_EXCEPTIONS),
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIsNotNone(report)
+        assert report is not None
+        self.assertEqual({"PASS": 21, "ALLOWED_NEAR": 4}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 
