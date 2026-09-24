@@ -306,8 +306,9 @@ Open under GAP-002/GAP-003: upgrade/removal qualification, the 2021.3 declared-m
 - **Metadata:** `package.json` declares `com.noisemaker.hlsl` 0.1.0, `unity: 2021.3`, MIT (`license` field + shipped `LICENSE.md`), **zero dependencies**, 1 sample, and wired `changelogUrl` / `licensesUrl` / `documentationUrl`. No third-party notices required.
 - **Removal → clean:** package + imported sample + dependent consumer scripts removed → project imports with exit 0, zero compile errors, no `com.noisemaker` residue in `packages-lock.json`.
 - **Reinstall → qualified again:** full restore → import clean → the play-mode suite passes 3/3 (render + binding, error paths, recovery).
+- **Distributed kit (`0.1.17`):** published at source `2344c30` — the exact tested revision (served `deployment-meta.json` and `kit.json` `source.sha`). All 2107 inventoried files fetched from the CDN and verified byte-for-byte against the manifest (sha256 + size, fail-closed, 0 bad). Exact-source CI: Export kit run 35984719956 = `success` at that SHA.
 
-Remaining under GAP-003: byte check of the *distributed* kit artifact against its recorded source revision, the upgrade path (single shipped version today), and host/platform matrix.
+Remaining under GAP-003: the upgrade path (single shipped version today) and host/platform matrix.
 
 ### Native observations, 2026-09-24 (initial bounded probe)
 
