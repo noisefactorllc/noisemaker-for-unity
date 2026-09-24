@@ -191,7 +191,22 @@ MeshRenderVaryings vert_render(uint vertexID : SV_VertexID)
     int texWidth = (int)tw;
 
     // Texel coordinate from vertex ID.  WGSL: x = id % texWidth, y = id / texWidth.
-    int vertexIDi = (int)vertexID;
+    // WINDING RECONCILIATION: the GLSL golden (webgl2) renders with
+    // gl.frontFace(CCW) + cullFace(BACK), so outward (near, +z-normal) triangles
+    // are front faces. This VS applies the WGSL-style manual clip-Y flip, which
+    // inverts the projected winding on Metal/Unity: with Cull Back the
+    // rasterizer culls the near hemisphere and shades the far one (visible
+    // normals point -z; the image collapses to flat ambient+rim, exactly 131/255
+    // here). Reversing each triangle's vertex order — swap the slot-1 and slot-2
+    // attribute reads — restores the golden's front-face orientation without
+    // touching the packed atlas or the cull state: geometry and per-corner
+    // attributes are unchanged, only the loop order flips.
+    uint slot = vertexID % 3u;
+    uint triBase = vertexID - slot;
+    uint logicalID = (slot == 1u) ? (triBase + 2u)
+                   : (slot == 2u) ? (triBase + 1u)
+                   : vertexID;
+    int vertexIDi = (int)logicalID;
     int x = vertexIDi % texWidth;
     int y = vertexIDi / texWidth;
 

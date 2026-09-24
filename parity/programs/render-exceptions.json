@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "render__loopBegin": {
+      "max_abs_diff": 9,
+      "max_mean_abs_diff": 0.001,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 10,
+      "max_exceeded_channels": 14,
+      "mechanism": "Loop-carried domain-warp bilinear resample UV ties (same warp tie class and coordinates as filter/warp; 10 sparse flips)."
+    },
+    "render__loopEnd": {
+      "max_abs_diff": 9,
+      "max_mean_abs_diff": 0.001,
+      "ssim_min": 0.9999,
+      "max_exceeded_pixels": 10,
+      "max_exceeded_channels": 14,
+      "mechanism": "Same loop/warp program as render/loopBegin; identical measured budget."
+    }
+  }
+}

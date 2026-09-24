@@ -1,0 +1,3 @@
+render__loopBegin	--selftest/render__loopBegin.dsl
+render__loopEnd	--selftest/render__loopEnd.dsl
+render__renderLit3d	--selftest/render__renderLit3d.dsl

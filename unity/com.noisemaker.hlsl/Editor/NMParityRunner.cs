@@ -715,6 +715,19 @@ namespace Noisemaker.Hlsl.Editor
             var pipeline = new NMPipeline(graph);
             pipeline.Init(size, size);
 
+            // -nmMesh <path>: load an OBJ file into the mesh0 surface AFTER Init
+            // (zeroed) and BEFORE rendering — the exact order the golden harness
+            // uses (zero everything, then loadOBJFromString, then the frame loop).
+            // Mesh fixtures (render/meshLoader + render/meshRender) share the same
+            // OBJ asset on both sides so the mesh data textures are identical.
+            string meshPath = GetArg("-nmMesh");
+            if (!string.IsNullOrEmpty(meshPath))
+            {
+                string objText = File.ReadAllText(meshPath);
+                int verts = pipeline.LoadMeshObj("mesh0", objText);
+                Debug.Log($"[NMParity] mesh0 loaded from {meshPath}: {verts} vertices");
+            }
+
             int fullWidth = ParseIntArg("-nmFullWidth", 0);
             int fullHeight = ParseIntArg("-nmFullHeight", 0);
             if ((fullWidth > 0) != (fullHeight > 0))

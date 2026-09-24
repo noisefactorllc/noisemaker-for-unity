@@ -135,6 +135,8 @@ namespace Noisemaker.Hlsl.Editor
                 TestFrameExportQueue();
                 TestDeviceLimitPolicy();
                 TestPipelineSinkIntegration();
+                TestMeshChainScopeResolution();
+                TestMeshRenderShadedOutput();
                 StartGpuExportTest();
             }
             catch (Exception error)
@@ -384,6 +386,186 @@ namespace Noisemaker.Hlsl.Editor
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Check(apply != null, "NMPipeline device-limit policy is missing");
             apply.Invoke(pipeline, new object[] { maxTextureSize, maxColorBytesPerSample });
+        }
+
+        // Shared mesh fixture for the mesh certification tests: a tiny closed
+        // tetrahedron with explicit per-vertex normals (OBJ v//vn form, the same
+        // shape the parity corpus exercises via share/meshes/sphere.obj).
+        private const string MeshTestObj =
+            "# parity tetra\n" +
+            "v 0 1 0\n" +
+            "v -1 -1 1\n" +
+            "v 1 -1 1\n" +
+            "v 0 -1 -1\n" +
+            "vn 0 1 0\n" +
+            "vn -0.5 -0.5 0.5\n" +
+            "vn 0.5 -0.5 0.5\n" +
+            "vn 0 -0.5 -0.5\n" +
+            "f 1//1 2//2 3//3\n" +
+            "f 1//1 3//3 4//4\n";
+
+        // Certifies the chain-scoped mesh-binding fix: the compiled graph binds
+        // global_mesh0_<attr>_chain_<n> aliases, which MUST resolve to the static
+        // mesh-data triplet. Regression: the resolver treated the chain suffix as
+        // part of the attribute name, fell through to a zeroed pooled RT, and
+        // every mesh vertex read position (0,0,0,w=0) — nothing rasterized.
+        private static void TestMeshChainScopeResolution()
+        {
+            PreloadPackageShaders();
+            RenderGraph graph = Noisemaker.Hlsl.Compiler.DslCompiler.Compile(
+                "search render\n\nmeshLoader()\n.meshRender()\n.write(o0)\n\nrender(o0)",
+                LoadEffectRegistry());
+            var pipeline = new NMPipeline(graph);
+            try
+            {
+                pipeline.Init(64, 64);
+                var staticPos = pipeline.GetStoredTexture("global_mesh0_positions");
+                var staticNrm = pipeline.GetStoredTexture("global_mesh0_normals");
+                Check(staticPos != null, "mesh0 positions RT missing after Init");
+                Check(staticNrm != null, "mesh0 normals RT missing after Init");
+                Check(ReferenceEquals(pipeline.ResolveRead("global_mesh0_positions_chain_0"), staticPos),
+                    "chain-scoped positions binding did not resolve to the static mesh triplet");
+                Check(ReferenceEquals(pipeline.ResolveRead("global_mesh0_normals_chain_0"), staticNrm),
+                    "chain-scoped normals binding did not resolve to the static mesh triplet");
+
+                int verts = pipeline.LoadMeshObj("mesh0", MeshTestObj);
+                Check(verts == 6, "mesh upload vertex count mismatch: got " + verts);
+                Check(ReadMeshTexelW(staticPos) == 1.0f,
+                    "uploaded position texel lost its valid flag (w != 1)");
+            }
+            finally
+            {
+                pipeline.Dispose();
+            }
+        }
+
+        // Certifies the mesh winding fix end-to-end: with the WGSL-style manual
+        // clip-Y flip, Metal/Unity culls the NEAR hemisphere under Cull Back and
+        // shades the far one — visible normals point -z, diffuse clamps to zero,
+        // and the interior collapses to a flat ambient+rim field (measured
+        // 131/255 = 0.514 on the parity sphere).
+        private static void TestMeshRenderShadedOutput()
+        {
+            PreloadPackageShaders();
+            RenderGraph graph = Noisemaker.Hlsl.Compiler.DslCompiler.Compile(
+                "search render\n\nmeshLoader()\n.meshRender()\n.write(o0)\n\nrender(o0)",
+                LoadEffectRegistry());
+            var pipeline = new NMPipeline(graph);
+            try
+            {
+                pipeline.Init(64, 64);
+                string sphere = SphereObj(16, 8);
+                int verts = pipeline.LoadMeshObj("mesh0", sphere);
+                Check(verts > 0, "sphere upload rejected: " + verts);
+                pipeline.Render(0.25f);
+
+                RenderTexture output = pipeline.GetOutput();
+                Check(output != null, "mesh program produced no output texture");
+                RenderTexture prev = RenderTexture.active;
+                RenderTexture.active = output;
+                var tex = new Texture2D(64, 64, TextureFormat.RGBAFloat, false);
+                tex.ReadPixels(new Rect(0, 0, 64, 64), 0, 0);
+                tex.Apply();
+                var px = tex.GetPixelData<UnityEngine.Color>(0);
+                // GetPixelData returns a native view over the texture; copy out
+                // BEFORE destroying it or every later read throws
+                // ObjectDisposedException.
+                var pixels = new UnityEngine.Color[64 * 64];
+                for (int i = 0; i < 64 * 64; i++) pixels[i] = px[i];
+                RenderTexture.active = prev;
+                UnityEngine.Object.DestroyImmediate(tex);
+
+                float bg = pixels[2 * 64 + 2].r; // corner = background
+                var geometry = new System.Collections.Generic.List<float>();
+                for (int i = 0; i < 64 * 64; i++)
+                    if (Math.Abs(pixels[i].r - bg) > 0.05f)
+                        geometry.Add(pixels[i].r);
+                Check(geometry.Count > 400,
+                    "mesh program rendered too little geometry: " + geometry.Count + " px");
+
+                // Discriminator: the geometry-center normal is (0,0,+1) on the NEAR
+                // hemisphere — color = ambient 0.08 + diffuse 0.41*0.7*0.8 + spec
+                // ≈ 0.318 linear → 0.598 after the FS gamma. On the FAR hemisphere
+                // (the winding regression) the center normal is (0,0,-1): diffuse
+                // and spec clamp to zero, rim = 0.15 → 0.23 linear → 0.514 (the
+                // measured flat 131/255). Assert the near-hemisphere value.
+                float center = 0f;
+                for (int y = 28; y < 36; y++)
+                    for (int x = 28; x < 36; x++)
+                        center += pixels[y * 64 + x].r;
+                center /= 64f;
+                Check(center >= 0.56f,
+                    $"mesh output center is {center:F3} — the far hemisphere is being " +
+                    "shaded (winding regression; near-hemisphere center measures ≈0.598, " +
+                    "far-hemisphere flat field measures ≈0.514)");
+            }
+            finally
+            {
+                pipeline.Dispose();
+            }
+        }
+
+        // Unit UV sphere as OBJ text (v and vn share indices; quads fan into two
+        // triangles). Smooth shading needs a curved mesh: the flat-face tetrahedron
+        // would defeat the dominant-value metric this test relies on.
+        private static string SphereObj(int segU, int segV)
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int iv = 0; iv <= segV; iv++)
+            {
+                double phi = Math.PI * iv / segV;
+                for (int iu = 0; iu < segU; iu++)
+                {
+                    double theta = 2.0 * Math.PI * iu / segU;
+                    double x = Math.Sin(phi) * Math.Cos(theta);
+                    double y = Math.Cos(phi);
+                    double z = Math.Sin(phi) * Math.Sin(theta);
+                    sb.AppendLine($"v {x:F6} {y:F6} {z:F6}");
+                    sb.AppendLine($"vn {x:F6} {y:F6} {z:F6}");
+                }
+            }
+            for (int iv = 0; iv < segV; iv++)
+            {
+                for (int iu = 0; iu < segU; iu++)
+                {
+                    int iu2 = (iu + 1) % segU;
+                    int a = iv * segU + iu + 1;
+                    int b = iv * segU + iu2 + 1;
+                    int c = (iv + 1) * segU + iu2 + 1;
+                    int d = (iv + 1) * segU + iu + 1;
+                    // Authored CW-outward to match share/meshes/sphere.obj (the
+                    // loader reverses every face to CCW; the test asserts the
+                    // NEAR hemisphere renders, so the convention must match the
+                    // reference-authored meshes).
+                    sb.AppendLine($"f {a}//{a} {c}//{c} {b}//{b}");
+                    sb.AppendLine($"f {a}//{a} {d}//{d} {c}//{c}");
+                }
+            }
+            return sb.ToString();
+        }
+
+        // Read the w component of texel (0,0) of a float mesh-data RT.
+        private static float ReadMeshTexelW(RenderTexture rt)
+        {
+            RenderTexture prev = RenderTexture.active;
+            RenderTexture.active = rt;
+            var tex = new Texture2D(1, 1, TextureFormat.RGBAFloat, false);
+            tex.ReadPixels(new Rect(0, 0, 1, 1), 0, 0);
+            tex.Apply();
+            float w = tex.GetPixel(0, 0).a;
+            RenderTexture.active = prev;
+            UnityEngine.Object.DestroyImmediate(tex);
+            return w;
+        }
+
+        // NMParityRunner.LoadRegistryFromPackage is private; reach it by reflection
+        // so the registry path logic lives in exactly one place.
+        private static Noisemaker.Hlsl.Compiler.EffectRegistry LoadEffectRegistry()
+        {
+            var method = typeof(NMParityRunner).GetMethod("LoadRegistryFromPackage",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Check(method != null, "NMParityRunner.LoadRegistryFromPackage is not reachable");
+            return (Noisemaker.Hlsl.Compiler.EffectRegistry)method.Invoke(null, null);
         }
 
         private static void TestPipelineSinkIntegration()

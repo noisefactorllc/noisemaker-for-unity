@@ -139,7 +139,15 @@ every run, and the entire `filter` namespace (113/113) is now 100% pixel-verifie
 `osd` scanline-parity port bug the gate exposed (parity must be evaluated in gl_FragCoord's
 bottom-up frame, not after the Y-flip) was fixed; `osd` is now byte-exact. The 9-case 3D gate
 reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact (zero tolerance).
-Full suite: 240 fixtures, 194 PASS + 46 bounded exceptions, exit 0. Every exception is
+The render namespace gate (5 fixtures: `loopBegin`, `loopEnd`, `renderLit3d`, and the two mesh
+fixtures `meshLoader`/`meshRender`, which share a sphere OBJ copied from the pinned authority
+through `--mesh`/`-nmMesh`) reports 3 `PASS` and 2 bounded `ALLOWED_NEAR` (the warp loop tie)
+— and exposed two real mesh-path bugs, now fixed with certification tests in the
+`NMOutputRuntimeTests` harness: chain-scoped mesh bindings resolved to zeroed pooled RTs
+(nothing rasterized), and the clip-Y flip inverted the projected winding so `Cull Back`
+shaded the far hemisphere (a flat 131/255 ambient+rim field); both mesh fixtures are
+byte-exact after the fixes.
+Full suite: 245 fixtures, 197 PASS + 48 bounded exceptions, exit 0. Every exception is
 checked against a per-case maximum delta, SSIM floor, exceeded-pixel/channel counts, and
 exact top-left-origin pixel coordinates where declared.
 
@@ -162,6 +170,10 @@ UNITY=... UNITY_PROJECT=... bash parity/points-verify.sh
 # filter corpus (74 fixtures across batches 1-3, bloom..zoomBlur,
 # 256px, tol 1 / SSIM 0.99 + filter-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/filter-verify.sh
+# render corpus (5 fixtures: loopBegin/loopEnd/renderLit3d + mesh fixtures
+# meshLoader/meshRender sharing meshes/sphere.obj, tol 1 / SSIM 0.9999 +
+# render-exceptions.json):
+UNITY=... UNITY_PROJECT=... bash parity/render-verify.sh
 ```
 
 ## Runbook
@@ -287,6 +299,9 @@ runtime/platform combination.
   particle/agent behavior manifests, tol 1 / SSIM 0.50 + points-exceptions.json).
 - `filter-verify.sh` — self-contained filter pixel gate (alphabetical batches; the gate
   always re-renders the whole tracked manifest, tol 1 / SSIM 0.9999 + filter-exceptions.json).
+- `render-verify.sh` — self-contained render pixel gate (two batches; mesh fixtures
+  share `programs/meshes/sphere.obj` via `--mesh`/`-nmMesh`, tol 1 / SSIM 0.9999 +
+  render-exceptions.json).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
@@ -302,6 +317,11 @@ runtime/platform combination.
 - `programs/filter-manifest.tsv` — the filter fixtures verified so far (`filter-verify.sh`
   input; grows per alphabetical batch).
 - `programs/filter-exceptions.json` — measured tolerances for filter exceptions.
+- `programs/render-manifest.tsv` — the 3 non-mesh render fixtures (`render-verify.sh` batch A).
+- `programs/render-mesh-manifest.tsv` — the 2 mesh render fixtures (`render-verify.sh` batch B).
+- `programs/render-exceptions.json` — measured tolerances for render-loop exceptions.
+- `programs/meshes/sphere.obj` — shared mesh fixture, copied from the pinned authority's
+  `share/meshes/sphere.obj`; both sides parse and upload the same text.
 - `../unity/com.noisemaker.hlsl/Editor/NMParityRunner.cs` — Unity candidate renderer + `CompileDslDumpBatchFromCommandLine` (graph dumper).
 - `../tools/export-graph.mjs` — golden graph producer (used by both harnesses).
 - `../tools/convert-definitions.mjs` — effect-definition regenerator (step 0).

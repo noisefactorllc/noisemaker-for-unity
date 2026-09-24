@@ -1,0 +1,2 @@
+render__meshLoader	--selftest/render__meshLoader.dsl
+render__meshRender	--selftest/render__meshRender.dsl

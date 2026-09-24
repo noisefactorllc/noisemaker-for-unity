@@ -211,6 +211,23 @@ FILTER_EXCEPTION_CASES = {
     "filter__wormhole",
 }
 
+RENDER_MANIFEST = ROOT / "parity" / "programs" / "render-manifest.tsv"
+RENDER_MESH_MANIFEST = ROOT / "parity" / "programs" / "render-mesh-manifest.tsv"
+RENDER_EXCEPTIONS = ROOT / "parity" / "programs" / "render-exceptions.json"
+RENDER_FIXTURES = {
+    "render__loopBegin",
+    "render__loopEnd",
+    "render__renderLit3d",
+}
+RENDER_MESH_FIXTURES = {
+    "render__meshLoader",
+    "render__meshRender",
+}
+RENDER_EXCEPTION_CASES = {
+    "render__loopBegin",
+    "render__loopEnd",
+}
+
 
 def write_png(path, rgba, size=(16, 16), changed=None):
     image = Image.new("RGBA", size, rgba)
@@ -1435,6 +1452,110 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertIsNotNone(report)
         assert report is not None
         self.assertEqual({"PASS": 55, "ALLOWED_NEAR": 19}, report["counts"])
+        self.assertEqual([], report["unused_exceptions"])
+
+
+class RepositoryRenderPolicyContractTests(unittest.TestCase):
+    def _combined_render_manifest(self, root):
+        # The gate concatenates both batch manifests into one grading pass.
+        combined = root / "combined.tsv"
+        combined.write_text(
+            RENDER_MANIFEST.read_text() + RENDER_MESH_MANIFEST.read_text())
+        return combined
+
+    def test_repository_exposes_an_executable_render_gate(self):
+        gate = ROOT / "parity" / "render-verify.sh"
+        self.assertTrue(gate.is_file())
+        source = gate.read_text()
+        for required in (
+            "render-manifest.tsv",
+            "render-mesh-manifest.tsv",
+            "render-exceptions.json",
+            "meshes/sphere.obj",
+            "batch-golden.mjs",
+            "RenderDslBatchFromCommandLine",
+            "--mesh",       # golden side loads the shared OBJ
+            "-nmMesh",      # Unity side loads the same OBJ after Init
+            "mesh0 loaded", # the gate fails closed if the OBJ never lands
+            "--manifest",
+            "--exceptions",
+        ):
+            self.assertIn(required, source)
+
+    def test_repository_render_manifests_and_policy_are_exact(self):
+        for manifest, expected in (
+            (RENDER_MANIFEST, RENDER_FIXTURES),
+            (RENDER_MESH_MANIFEST, RENDER_MESH_FIXTURES),
+        ):
+            lines = [
+                line.split("\t")
+                for line in manifest.read_text().splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
+            self.assertEqual({parts[0] for parts in lines}, expected)
+            self.assertTrue(all(len(parts) == 2 for parts in lines))
+            self.assertTrue(all((ROOT / parts[1]).is_file() for parts in lines))
+
+        self.assertTrue((ROOT / "parity" / "programs" / "meshes" / "sphere.obj").is_file())
+
+        policy = json.loads(RENDER_EXCEPTIONS.read_text())
+        self.assertEqual(1, policy["schema_version"])
+        self.assertEqual(set(policy["cases"]), RENDER_EXCEPTION_CASES)
+        self.assertEqual(
+            {
+                "render__loopBegin": {
+                    "max_abs_diff": 9,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 10,
+                    "max_exceeded_channels": 14,
+                    "mechanism": "Loop-carried domain-warp bilinear resample UV ties (same warp tie class and coordinates as filter/warp; 10 sparse flips).",
+                },
+                "render__loopEnd": {
+                    "max_abs_diff": 9,
+                    "max_mean_abs_diff": 0.001,
+                    "ssim_min": 0.9999,
+                    "max_exceeded_pixels": 10,
+                    "max_exceeded_channels": 14,
+                    "mechanism": "Same loop/warp program as render/loopBegin; identical measured budget.",
+                },
+            },
+            policy["cases"],
+        )
+
+    def test_repository_render_policy_is_exercised_by_the_real_grader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            gold = root / "gold"
+            cand = root / "cand"
+            gold.mkdir()
+            cand.mkdir()
+            all_fixtures = RENDER_FIXTURES | RENDER_MESH_FIXTURES
+            for name in all_fixtures:
+                # renderLit3d and the two mesh fixtures are byte-exact strict
+                # passes; the two loop fixtures carry a single mad=2 pixel so
+                # each exception is exercised once (above the tol-1 PASS bound,
+                # inside the measured policy).
+                changed = [(0, 0, (129, 127, 127, 255))] if name in RENDER_EXCEPTION_CASES else None
+                write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
+                write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
+
+            completed, report = run_compare(
+                gold,
+                cand,
+                root / "report.json",
+                # The gate grades both batches through one combined manifest
+                # (one exceptions file covers both); mirror that here.
+                "--manifest",
+                str(self._combined_render_manifest(root)),
+                "--exceptions",
+                str(RENDER_EXCEPTIONS),
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIsNotNone(report)
+        assert report is not None
+        self.assertEqual({"PASS": 3, "ALLOWED_NEAR": 2}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

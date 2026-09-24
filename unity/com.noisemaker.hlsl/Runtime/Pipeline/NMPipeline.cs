@@ -369,6 +369,13 @@ namespace Noisemaker.Hlsl
             return _meshData.GetVertexCount(meshName);
         }
 
+        // Parity-harness probe: read back a texture by store id (e.g. a mesh data
+        // RT) so NMParityRunner can verify uploads landed before debugging draws.
+        public RenderTexture GetStoredTexture(string id)
+        {
+            return _store.Get(id);
+        }
+
         private double? UniformLookup(string name)
         {
             double v;
@@ -632,6 +639,23 @@ namespace Noisemaker.Hlsl
             string meshName = surfName.Substring(0, underscore);
             string attr = surfName.Substring(underscore + 1);
             if (!meshName.StartsWith("mesh", System.StringComparison.Ordinal)) return null;
+            // Chain-scoped aliases ("positions_chain_0") resolve to the SAME static
+            // triplet: the reference copies loadOBJ's static data into per-chain
+            // instances on chain compile, which is content-identical to reading the
+            // static texture (passes never write mesh surfaces). Without this, the
+            // graph's chain-scoped binding resolves to a zeroed pooled RT and every
+            // mesh vertex reads position (0,0,0,w=0) — nothing rasterizes.
+            // Anchored: only strip when the remainder is exactly "chain" + digits,
+            // so a legitimate attribute containing "_chain_" mid-name survives.
+            int chain = attr.IndexOf("_chain_", System.StringComparison.Ordinal);
+            if (chain > 0)
+            {
+                string tail = attr.Substring(chain + 7);
+                bool digits = tail.Length > 0;
+                foreach (char c in tail)
+                    if (c < '0' || c > '9') { digits = false; break; }
+                if (digits) attr = attr.Substring(0, chain);
+            }
             SurfaceRecord rec = _surfaces.GetSurface(meshName);
             if (rec == null || !rec.IsMesh) return null;
             switch (attr)

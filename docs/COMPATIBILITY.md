@@ -222,10 +222,10 @@ Per-effect parameter/state/input breadth remains tracked by GAP-001.
 | `points/life` | yes | graph+pixel |
 | `points/physarum` | yes | graph+pixel |
 | `points/physical` | yes | graph+pixel |
-| `render/loopBegin` | yes | graph |
-| `render/loopEnd` | yes | graph |
-| `render/meshLoader` | yes | graph |
-| `render/meshRender` | yes | graph |
+| `render/loopBegin` | yes | graph+pixel |
+| `render/loopEnd` | yes | graph+pixel |
+| `render/meshLoader` | yes | graph+pixel |
+| `render/meshRender` | yes | graph+pixel |
 | `render/pointsBillboardRender` | yes | graph+pixel |
 | `render/pointsEmit` | yes | graph+pixel |
 | `render/pointsRender` | yes | graph+pixel |
@@ -233,7 +233,7 @@ Per-effect parameter/state/input breadth remains tracked by GAP-001.
 | `render/renderCubemap3d` | yes | graph+pixel |
 | `render/renderCubemapSurface` | yes | graph+pixel |
 | `render/renderLandscape3d` | yes | graph+pixel |
-| `render/renderLit3d` | yes | graph |
+| `render/renderLit3d` | yes | graph+pixel |
 | `synth/bitwise` | yes | graph+pixel |
 | `synth/cell` | yes | graph+pixel |
 | `synth/cellularAutomata` | yes | graph+pixel |
@@ -285,9 +285,10 @@ Unity 6000.3.16f1, isolated consumer project (`~/nmhlsl-parity`) with the packag
 | `mixer-verify.sh` (mixer, 256px) | 12 | tol 1, SSIM ≥ 0.9999, `programs/mixer-exceptions.json` | 10 | 2 | 0 | 0 |
 | `points-verify.sh` (points, 256px, 60 warm frames) | 10 | tol 1, SSIM ≥ 0.50, `programs/points-exceptions.json` | 2 | 8 | 0 | 0 |
 | `filter-verify.sh` (filter batches 1-3, 256px) | 74 | tol 1, SSIM ≥ 0.99, `programs/filter-exceptions.json` | 55 | 19 | 0 | 0 |
+| `render-verify.sh` (render, 256px; mesh batch shares `meshes/sphere.obj`) | 5 | tol 1, SSIM ≥ 0.9999, `programs/render-exceptions.json` | 3 | 2 | 0 | 0 |
 | v104 manifest (127px) | 70 | tol 1, SSIM ≥ 0.9999, `v104/exceptions.json` | 66 | 4 | 0 | 0 |
 | tiled manifest (127px tile of 4096²) | 3 | tol 0 (exact) | 3 | 0 | 0 | 0 |
-| Total | 240 | — | 194 | 46 | 0 | 0 |
+| Total | 245 | — | 197 | 48 | 0 | 0 |
 
 Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live compiler vs reference oracle at the pinned authority). Compiler contract tests: PASS (0 failures).
 
@@ -375,6 +376,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-24 (pass 14) | current source | `render` namespace pixel parity (5 new fixtures, exit 0) — **all 207 ported effects now pixel-verified** | Added `parity/render-verify.sh` (two batches: `loopBegin`/`loopEnd`/`renderLit3d`, then `meshLoader`/`meshRender` sharing `programs/meshes/sphere.obj` copied from the pinned authority), `programs/render-manifest.tsv`, `programs/render-mesh-manifest.tsv`, `programs/render-exceptions.json`; 3 strict PASS (`renderLit3d` byte-exact) + 2 ALLOWED_NEAR (`loopBegin`/`loopEnd` — the warp bilinear tie, mad 9 / 10 px / SSIM 0.999999). Extended the harnesses for mesh fixtures (`--mesh` in `batch-golden.mjs`, `-nmMesh` in `NMParityRunner`) and fixed two real bugs the gate exposed: (1) chain-scoped mesh bindings (`global_mesh0_positions_chain_0`) resolved to zeroed pooled RTs instead of the static mesh triplet — nothing rasterized; (2) the WGSL-style manual clip-Y flip inverted the projected winding on Metal, so `Cull Back` culled the near hemisphere and shaded the far one (flat 131/255 ambient+rim field); the VS now reverses each triangle's vertex order to restore the golden's front-face convention. Both fixtures are byte-exact after the fixes. Added certification tests to the `NMOutputRuntimeTests` harness: chain-scoped bindings must resolve to the static triplet, and the shaded-sphere center must measure the near-hemisphere value (≥0.56; the far-hemisphere regression measures 0.513). 45 contract tests PASS. **Full catalog status: 210 declared effects, 3 unported (`synth/media`, `synth/scope`, `synth/spectrum`), all 207 ported effects graph+pixel verified.** |
 | 2026-09-24 (pass 13) | current source | `filter` batch 3 of 3 pixel parity (24 new fixtures, exit 0) — filter namespace 113/113 complete | Extended `programs/filter-manifest.tsv` to 74 (`skew` through `zoomBlur`); 16 strict PASS + 8 ALLOWED_NEAR (`spiral`, `step`, `tetraColorArray` — 1 px at the [39,119] knife-edge shared with mixer `thresholdMix`, `tunnel`, `warp`, `waves` — 1 px at [124,193], `snow`, `wormhole`); gate global SSIM floor 0.999 → 0.99 to admit the `snow` cos-ULP→fract-hash decorrelation (mad 69, macro-identical: mean 165.36 both, 94% speck overlap) and the `wormhole` strong-warp displacement tie (mad 197 / 478 px); all budgets still pinned per-case. Filter pixel-verified total now 113/113 (100%); full suite is now 240 fixtures (194 PASS, 46 bounded, exit 0); 42 unit tests PASS. Remaining graph-only: `render/loopBegin`, `loopEnd`, `meshLoader`, `meshRender`, `renderLit3d`. |
 | 2026-09-24 (pass 12) | current source | `filter` batch 2 of 3 pixel parity (25 new fixtures, exit 0) + `osd` scanline-parity fix | Extended `programs/filter-manifest.tsv` to 50 (`motionBlur` through `sine`); 18 strict PASS + 7 ALLOWED_NEAR (`octaveWarp`, `pinch`, `polar`, `posterize`, `reindex`, `rotate`, `scanlineError`); gate global SSIM floor lowered 0.9999 → 0.999 to admit the `scanlineError` floor() displacement tie (mad 205 / 12 px / SSIM 0.99949, all other budgets SSIM ≥ 0.99997). Fixed a real implementation bug: `Osd.hlsl` computed scanline parity in top-origin space after the Y-flip, but the golden computes it in gl_FragCoord's bottom-up frame (the (h-1)-flip inverts parity when h-1 is odd) — parity now taken from the un-flipped coord, `osd` went from 64048 differing pixels to byte-exact. Filter pixel-verified total now 89/113; full suite is now 216 fixtures (178 PASS, 38 bounded, exit 0); 42 unit tests PASS. |
 | 2026-09-24 (pass 11) | current source | `filter` batch 1 of 3 pixel parity (25 new fixtures, exit 0) | Added `parity/filter-verify.sh`, `programs/filter-manifest.tsv`, `programs/filter-exceptions.json`; namespace verified alphabetically in batches, the gate always re-renders and re-grades the whole tracked manifest: 21 strict PASS + 4 ALLOWED_NEAR (`convolutionFeedback` mad 8 / 770 px feedback accumulation drift, `crt` mad 24 / 812 px phosphor-mask ties, `degauss` mad 8 / 175 px barrel-warp resample ties, `lensWarp` mad 3 / 1 px exact-coordinate displacement tie); filter pixel-verified total now 64/113; full suite is now 191 fixtures (160 PASS, 31 bounded, exit 0); 42 unit tests PASS. |

@@ -46,13 +46,14 @@ function parseArgs (argv) {
     else if (a === '--full-height') o.fullHeight = parseInt(argv[++i], 10)
     else if (a === '--render-scale') o.renderScale = parseFloat(argv[++i])
     else if (a === '--veltex') o.veltex = argv[++i]   // read this surface's raw float32 (velocity .rg) instead of comparing the display
+    else if (a === '--mesh') o.meshPath = argv[++i]   // OBJ text loaded into mesh0 before rendering (mesh fixtures)
     else if (a === '--veldump') o.veldump = argv[++i] // path to write the raw float32 rgba
     else pos.push(a) }
   o.manifest = pos[0]; o.outDir = pos[1]; return o
 }
 
 // Drive the demo to load one DSL and read back o0 as linear-quantised RGBA8 top-down.
-async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null) {
+async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null, meshText = null) {
   const baselineId = lastId
   await page.evaluate((src) => {
     const ed = document.getElementById('dsl-editor'); const run = document.getElementById('dsl-run-btn')
@@ -106,7 +107,7 @@ async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 
   // Together these make the golden the SAME clean N-frames-from-zero render the
   // Unity side does, and removes the warm-up pollution + cross-effect leakage that
   // made stateful goldens bimodal.
-  await page.evaluate(({ t, frames, ts, region }) => {
+  await page.evaluate(async ({ t, frames, ts, region, meshText }) => {
     const p = window.__noisemakerRenderingPipeline
     const r = window.__noisemakerCanvasRenderer
     if (region) {
@@ -156,10 +157,21 @@ async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 
       p.frameIndex = 0
       p.lastTime = 0
     }
+    // MESH FIXTURES — load the shared OBJ into the mesh surface AFTER the
+    // zeroing (so the upload is the last write, exactly like the Unity side's
+    // Init(Zeroed) -> LoadMeshObj order) and BEFORE the frame loop. The
+    // reference demo drives this from the host UI (canvas.loadOBJFromURL);
+    // the harness passes the same OBJ text the Unity runner reads from disk.
+    if (meshText) {
+      const rr = window.__noisemakerCanvasRenderer
+      if (!rr || typeof rr.loadOBJFromString !== 'function') throw new Error('reference renderer has no loadOBJFromString')
+      const res = await rr.loadOBJFromString(meshText, 'mesh0')
+      if (!res || !res.success) throw new Error('mesh0 load failed: ' + (res && res.error))
+    }
     // ts>0 ADVANCES time per frame (animated input — reproduces the live demo's
     // normalized=(Time.time/dur)%1); ts=0 keeps the fixed-time deterministic render.
     for (let i = 0; i < frames; i++) { const tt = ts > 0 ? (t + i * ts) % 1 : t; if (p && p.render) p.render(tt); else if (r && r.render) r.render(tt) }
-  }, { t: time, frames, ts: timestep, region })
+  }, { t: time, frames, ts: timestep, region, meshText })
   const result = await page.evaluate(() => {
     const pipeline = window.__noisemakerRenderingPipeline
     const gl = pipeline?.backend?.gl
@@ -257,10 +269,11 @@ async function main () {
         }
         firstItem = false
         const dsl = readFileSync(it.dslPath, 'utf8')
+        const meshText = o.meshPath ? readFileSync(o.meshPath, 'utf8') : null
         // graph.json (no browser needed; uses the reference compiler).
         try { const g = await exportGraph(dsl); writeFileSync(join(o.outDir, `${it.name}.graph.json`), JSON.stringify(g, null, 2) + '\n') }
         catch (e) { process.stderr.write(`[batch] ${it.name} GRAPH-FAIL ${e?.message || e}\n`); fail++; continue }
-        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region)
+        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region, meshText)
         lastId = graphId
         writeFileSync(join(o.outDir, `${it.name}.golden.png`), png)
         if (vel) {
