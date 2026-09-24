@@ -19,13 +19,14 @@ It renders **live procedural textures from the Polymorphic DSL**, aiming to be
 **pixel-identical** to the JS/WebGPU reference engine, and exposes effects both as a
 standalone renderer and as **Shader Graph (material) nodes**.
 
-> **🚧 WIP — very early development.** This project is in **very early development and
-> is not recommended for general use** until we have fully tested it, addressed
-> performance, and provided detailed integration guidance. Most deterministic effects
-> (generators / filters) render correctly and the Tier-1 programs are pixel-identical,
-> but parity work is ongoing — notably the chaotic iterative simulations
-> (`navierStokes`, `reactionDiffusion`, feedback) and agent / particle systems, plus
-> the live-display color pipeline. Treat all current output as provisional.
+> **🚧 WIP — stabilization toward a full-parity release.** All 210 declared effects are
+> structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
+> and the declared fixture corpora (112 programs across root/3D/v104/tiled gates) render
+> with zero failures — 100 strict byte-level passes plus 12 measured, bounded exceptions.
+> The installed Quick Start workflow and macOS player builds are qualified end-to-end.
+> Still open: the 2021.3 declared-minimum host, Windows/Linux coverage, the live-display
+> color pipeline, and broader per-effect parameter/state sweeps. Treat remaining platform
+> claims as provisional until those close.
 
 ## Layout
 
@@ -93,25 +94,21 @@ depends on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.m
 ## Status
 
 **Compiles and renders in Unity 6** (verified on 6000.3.16f1). The C# engine compiles
-clean and all 184 effect shaders compile (re-verified after the v1.0.98 sync —
-`filter/parallax` plus the lighting/refract/cellRefract/simpleAberration/remap
-updates — via a batchmode package import + render pass); driving `NMParityRunner`
-in batchmode produced correct
-output for `solid` (exact `#FF8000` fill), `noise` (multi-octave RGB simplex), and a
-multi-pass `noise → blur` chain (correctly softened — exercises pooled intermediates +
-filter input sampling + per-pass selection). Parity-critical shaders (PCG, noise, cell,
+clean (compiler contract tests: PASS) and all effect shaders compile via batchmode
+package import + render passes. Parity-critical shaders (PCG, noise, cell,
 blend, blur) were additionally hardened by adversarial line-by-line review vs the WGSL.
 
 **Pixel parity verified** via the `parity/` harness (JS/WebGL2 golden in headless Chromium
-↔ Unity candidate ↔ `compare.py`). **18 of 20 parity programs are pixel-identical**
-(within 1/255 = float→8-bit rounding, SSIM 1.00000): the eight Tier-1 programs (`solid`,
-`noise`, `cell`, `gradient`, `shape`, `osc2d`, the multi-pass `blur`, the two-surface mixer
-`blendMode`), the 3D/mixer additions `palette3d`, `mashup`, `renderCubemap3d`, and
-`renderCubemapSurface`, and the v1.0.98-sync programs `lighting`/`lighting_hm`,
-`parallax_hm`, `cellRefract_mirror`, `simpleAberration`, and `remap_zones`. The remaining
-two (`parallax`, `refract_mirror`) match at SSIM 1.00000 with 3–4 isolated pixels each
-(ray-march refinement / mirror-seam pixels; upstream's own GLSL↔WGSL delta on these
-effects is 7–11 px) — within their per-effect tolerance.
+↔ Unity candidate ↔ `batch-compare.py`), regenerated at pinned reference authority
+`noisemaker@c9ee8a04` (v1.0.176). Current measured state: **graph parity 316/316
+byte-clean** (the full 207-program `--selftest` corpus + all 109 fixture programs, C#
+live-DSL compiler vs the reference oracle) and **112/112 rendered fixtures graded with
+zero failures** — 100 strict `PASS` and 12 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
+3D corpus 3, v104 corpus 4), every one pinned by max delta, SSIM floor, exceeded
+pixel/channel counts, and exact pixel coordinates in the tracked exception files. The
+3-case tiled large-format gate is exact at zero tolerance. Per-corpus tolerances stay
+separate (root/3D/v104 each have their own policy); see `docs/COMPATIBILITY.md` §3 and
+`parity/README.md` for the gates.
 
 The Y-flip reconciliation the design anticipated is now solved properly: Unity flips Y once
 per `DrawProcedural` into a RenderTexture, so textures of odd-vs-even render depth ended up
@@ -127,11 +124,14 @@ reserved-word collisions in the (now-removed, MPB-driven) `Properties` blocks, t
 reserved word `point` in `Cell.hlsl`, and `export-graph` starter-op + compile-time-`define`
 promotion. See `parity/README.md` for the runbook.
 
-**Effect coverage: 185 effect definitions** — every namespace complete:
-`synth` 29 · `filter` 91 · `mixer` 15 · `classicNoisedeck` 20 · `points` 10 · `synth3d` 7 ·
-`filter3d` 2 · `render` 11 (the `render` count includes the `loopBegin`/`loopEnd`/`meshLoader`
-control passes). 184 ship a renderable shader. `synth/media` is a definition-only stub (no
-shader — external image/video input is out of scope).
+**Effect coverage: 210 effect definitions** — every namespace complete:
+`synth` 29 · `filter` 113 · `mixer` 15 · `classicNoisedeck` 20 · `points` 11 · `synth3d` 8 ·
+`filter3d` 2 · `render` 12 (the `render` count includes the `loopBegin`/`loopEnd`/`meshLoader`
+control passes). 209 ship a renderable shader; `synth/media` is a definition-only stub (no
+shader — external image/video input is out of scope). `Shaders/` additionally carries the
+`NMBlit`, `NMFrameExportResolve`, and `NMCubeEquirect` utility shaders. The served kit
+(`0.1.17`) publishes the identical source revision and all 2107 files verify against its
+inventory.
 
 Each ported effect ships an `.hlsl` core, a `.shader`, and a runtime `Effects/*.json`.
 Single-pass effects also ship a Shader Graph Custom Function node. Every port is faithful to
