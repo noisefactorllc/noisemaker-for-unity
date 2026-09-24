@@ -71,6 +71,7 @@ namespace Noisemaker.Hlsl
         void Configure(NMOutputDescriptor descriptor);
         bool Submit(RenderTexture texture, double timestampMilliseconds);
         void Close(NMOutputCloseOptions options = null);
+        bool DeferRender() => false;
     }
 
     public sealed class NMSinkStats
@@ -220,6 +221,37 @@ namespace Noisemaker.Hlsl
                     if (accepted) registration.Stats.Accepted++;
                     else registration.Stats.Dropped++;
                 }
+            }
+            finally
+            {
+                _iterationDepth--;
+                if (_iterationDepth == 0) CompactRegistrations();
+            }
+        }
+
+        public bool ShouldDeferRender()
+        {
+            if (_closed) return false;
+
+            _iterationDepth++;
+            try
+            {
+                for (int i = 0; i < _registrations.Count; i++)
+                {
+                    Registration registration = _registrations[i];
+                    if (!registration.Active) continue;
+                    INMOutputSink sink = registration.Sink;
+                    try
+                    {
+                        if (sink.DeferRender()) return true;
+                    }
+                    catch (Exception error)
+                    {
+                        registration.Stats.Failed++;
+                        Report(error, sink);
+                    }
+                }
+                return false;
             }
             finally
             {

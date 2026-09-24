@@ -631,7 +631,7 @@ float3 nmn_multires(float2 st_in, float2 freq, int oct, float s, float blend)
         float nominalBase = nominalFreq.x * 0.5 * multiplier;
         multiplicand = multiplicand + 1.0 / multiplier;
 
-        if (REFRACT_MODE == 1 || REFRACT_MODE == 2) {
+        if (refractAmt != 0.0 && (REFRACT_MODE == 1 || REFRACT_MODE == 2)) {
             float2 xRefractFreq = float2(baseFreq.x, nominalBase);
             float2 yRefractFreq = float2(nominalBase, baseFreq.y);
             float xRef = nmn_value(st, xRefractFreq, s + 10.0 * (float)i, blend) - 0.5;
@@ -642,7 +642,7 @@ float3 nmn_multires(float2 st_in, float2 freq, int oct, float s, float blend)
 
         float3 layer = nmn_generate_octave(st, baseFreq, s + 10.0 * (float)i, blend, (float)i);
 
-        if (REFRACT_MODE == 0 || REFRACT_MODE == 2) {
+        if (refractAmt != 0.0 && (REFRACT_MODE == 0 || REFRACT_MODE == 2)) {
             float xOff = cos(layer.z) * 0.5 + 0.5;
             float yOff = sin(layer.z) * 0.5 + 0.5;
             float3 refLayer = nmn_generate_octave(float2(st.x + xOff, st.y + yOff), baseFreq, s + 15.0 * (float)i, blend, (float)i);

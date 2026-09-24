@@ -206,35 +206,39 @@ float4 g_glitch(float2 st_in, float aspectRatioV, float timev, float xChonkV, fl
                 float glitchinessV, float aspectLensV, float distortionV, float aberrationV)
 {
     float2 st = st_in;
-    float2 freq = float2(1.0, 1.0);
-    freq.x = freq.x * g_map(xChonkV, 1.0, 100.0, 50.0, 1.0);
-    freq.y = freq.y * g_map(yChonkV, 1.0, 100.0, 50.0, 1.0);
 
-    freq = freq * float2(g_periodicFunction(g_prng(float3(floor(st * freq), 0.0)).x - timev),
-                         g_periodicFunction(g_prng(float3(floor(st * freq), 0.0)).x - timev));
+    if (glitchinessV != 0.0)
+    {
+        float2 freq = float2(1.0, 1.0);
+        freq.x = freq.x * g_map(xChonkV, 1.0, 100.0, 50.0, 1.0);
+        freq.y = freq.y * g_map(yChonkV, 1.0, 100.0, 50.0, 1.0);
 
-    float g = g_map(glitchinessV, 0.0, 100.0, 0.0, 1.0);
+        freq = freq * float2(g_periodicFunction(g_prng(float3(floor(st * freq), 0.0)).x - timev),
+                             g_periodicFunction(g_prng(float3(floor(st * freq), 0.0)).x - timev));
 
-    // get drift value from somewhere far away
-    float xDrift = g_prng(float3(floor(st * freq) + 10.0, 0.0)).x * g;
-    float yDrift = g_prng(float3(floor(st * freq) - 10.0, 0.0)).x * g;
+        float g = g_map(glitchinessV, 0.0, 100.0, 0.0, 1.0);
 
-    float sparseness = g_map(glitchinessV, 0.0, 100.0, 8.0, 2.0);
+        // get drift value from somewhere far away
+        float xDrift = g_prng(float3(floor(st * freq) + 10.0, 0.0)).x * g;
+        float yDrift = g_prng(float3(floor(st * freq) - 10.0, 0.0)).x * g;
 
-    // clamp for sparseness
-    float rand = g_prng(float3(floor(st * freq), 0.0)).x;
-    float xOffset = clamp((g_periodicFunction(rand + xDrift - timev) - g_periodicFunction(xDrift - timev) * sparseness) * 4.0, 0.0, 1.0);
-    float yOffset = clamp((g_periodicFunction(rand + yDrift - timev) - g_periodicFunction(yDrift - timev) * sparseness) * 4.0, 0.0, 1.0);
+        float sparseness = g_map(glitchinessV, 0.0, 100.0, 8.0, 2.0);
 
-    float refractAmt = g * 0.125;
+        // clamp for sparseness
+        float rand = g_prng(float3(floor(st * freq), 0.0)).x;
+        float xOffset = clamp((g_periodicFunction(rand + xDrift - timev) - g_periodicFunction(xDrift - timev) * sparseness) * 4.0, 0.0, 1.0);
+        float yOffset = clamp((g_periodicFunction(rand + yDrift - timev) - g_periodicFunction(yDrift - timev) * sparseness) * 4.0, 0.0, 1.0);
 
-    // Floored mod (sign of divisor): the dividend can be negative here (st.x
-    // near 0, sin(...)*refractAmt in [-0.125,0.125]), where floored and
-    // truncated mod diverge: nm_mod(-0.04,1)=0.96 vs fmod(-0.04,1)=-0.04.
-    // The GLSL golden always used mod(); the WGSL's truncated `% 1.0` was the
-    // bug, fixed upstream (3c614a7d) with fract() == nm_mod(x, 1.0).
-    st.x = nm_mod(st.x + sin(xOffset * G_TAU) * refractAmt, 1.0);
-    st.y = nm_mod(st.y + sin(yOffset * G_TAU) * refractAmt, 1.0);
+        float refractAmt = g * 0.125;
+
+        // Floored mod (sign of divisor): the dividend can be negative here (st.x
+        // near 0, sin(...)*refractAmt in [-0.125,0.125]), where floored and
+        // truncated mod diverge: nm_mod(-0.04,1)=0.96 vs fmod(-0.04,1)=-0.04.
+        // The GLSL golden always used mod(); the WGSL's truncated `% 1.0` was the
+        // bug, fixed upstream (3c614a7d) with fract() == nm_mod(x, 1.0).
+        st.x = nm_mod(st.x + sin(xOffset * G_TAU) * refractAmt, 1.0);
+        st.y = nm_mod(st.y + sin(yOffset * G_TAU) * refractAmt, 1.0);
+    }
 
     // aberration and lensing
     float2 diff = float2(0.5 - st.x, 0.5 - st.y);
@@ -283,8 +287,14 @@ float4 NMFrag_glitch(NMVaryings i) : SV_Target
 
     float4 color = g_glitch(uv, aspectRatioV, time, (float)xChonk, (float)yChonk,
                             glitchiness, (float)aspectLens, distortion, aberration);
-    color = g_scanlines(color, uv, res, (float)scanlinesAmt, time, seed);
-    color = g_snow(color, fragCoord, snowAmt, time);
+    if (scanlinesAmt != 0)
+    {
+        color = g_scanlines(color, uv, res, (float)scanlinesAmt, time, seed);
+    }
+    if (snowAmt != 0.0)
+    {
+        color = g_snow(color, fragCoord, snowAmt, time);
+    }
 
     // vignette (WGSL parenthesised form)
     if (vignetteAmt < 0.0)

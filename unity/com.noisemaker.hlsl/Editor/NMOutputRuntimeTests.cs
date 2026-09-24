@@ -22,6 +22,14 @@ namespace Noisemaker.Hlsl.Editor
             public Action OnSubmit;
             public bool Accept = true;
             public bool ThrowOnClose;
+            public bool Defer;
+            public bool ThrowOnDefer;
+
+            public bool DeferRender()
+            {
+                if (ThrowOnDefer) throw new InvalidOperationException("defer failure");
+                return Defer;
+            }
 
             public void Configure(NMOutputDescriptor descriptor)
             {
@@ -46,6 +54,13 @@ namespace Noisemaker.Hlsl.Editor
                 CloseOptions = options;
                 if (ThrowOnClose) throw new InvalidOperationException("close failure");
             }
+        }
+
+        private sealed class DefaultInterfaceSink : INMOutputSink
+        {
+            public void Configure(NMOutputDescriptor descriptor) { }
+            public bool Submit(RenderTexture texture, double timestampMilliseconds) => true;
+            public void Close(NMOutputCloseOptions options = null) { }
         }
 
         private sealed class FakeFrameExportAdapter : INMFrameExportAdapter
@@ -160,6 +175,18 @@ namespace Noisemaker.Hlsl.Editor
                 manager.Configure(descriptor);
                 Check(manager.Stats[first].Failed == 1, "configure failure stat is wrong");
                 Check(reported == 1, "configure failure was not isolated and reported");
+
+                Check(!manager.ShouldDeferRender(), "non-deferring sink should not defer render");
+                first.Defer = true;
+                Check(manager.ShouldDeferRender(), "active deferring sink did not defer render");
+                first.Defer = false;
+                Check(!manager.ShouldDeferRender(), "restored non-deferring sink deferred render");
+
+                first.ThrowOnDefer = true;
+                Check(!manager.ShouldDeferRender(), "throwing defer sink should not defer render");
+                Check(manager.Stats[first].Failed == 2, "throwing defer stat was not incremented");
+                Check(reported == 2, "throwing defer error was not isolated and reported");
+                first.ThrowOnDefer = false;
             }
             finally
             {
@@ -173,7 +200,29 @@ namespace Noisemaker.Hlsl.Editor
                 "sink close failure was swallowed");
             Check(first.Closes == 1, "manager did not close its sink");
             Check(ReferenceEquals(first.CloseOptions, closeOptions), "close options were not forwarded");
+            Check(!manager.ShouldDeferRender(), "closed manager reported deferral");
             manager.Close();
+            Check(!manager.ShouldDeferRender(), "double-closed manager reported deferral");
+
+            var multiMgr = new NMSinkManager((error, sink) => reported++);
+            var sinkA = new RecordingSink();
+            var sinkB = new RecordingSink();
+            var defaultSink = new DefaultInterfaceSink();
+            multiMgr.Add(sinkA);
+            multiMgr.Add(sinkB);
+            multiMgr.Add(defaultSink);
+            Check(!multiMgr.ShouldDeferRender(), "multi-sink manager with non-deferring sinks deferred render");
+
+            sinkB.Defer = true;
+            Check(multiMgr.ShouldDeferRender(), "second sink deferral was not honoured");
+
+            sinkA.ThrowOnDefer = true;
+            Check(multiMgr.ShouldDeferRender(), "throwing sink prevented subsequent sink deferral");
+            Check(multiMgr.Stats[sinkA].Failed == 1, "throwing sink stat in multi-mgr not incremented");
+            sinkA.ThrowOnDefer = false;
+            sinkB.Defer = false;
+            Check(!multiMgr.ShouldDeferRender(), "reset multi-sink manager deferred render");
+            multiMgr.Close();
         }
 
         private static void TestFrameExportQueue()
@@ -357,6 +406,12 @@ namespace Noisemaker.Hlsl.Editor
                     "pipeline did not preserve an explicit presentation timestamp");
                 Check(ReferenceEquals(sink.LastTexture, pipeline.GetOutput()),
                     "pipeline did not submit its selected pre-swap output texture");
+
+                Check(!pipeline.ShouldDeferRender(), "pipeline should not defer render without deferring sink");
+                sink.Defer = true;
+                Check(pipeline.ShouldDeferRender(), "pipeline did not forward shouldDeferRender");
+                sink.Defer = false;
+                Check(!pipeline.ShouldDeferRender(), "pipeline deferred render after sink deferral reset");
             }
             finally
             {

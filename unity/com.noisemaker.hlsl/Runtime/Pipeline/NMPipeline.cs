@@ -84,6 +84,11 @@ namespace Noisemaker.Hlsl
             return _sinkManager.Add(sink);
         }
 
+        public bool ShouldDeferRender()
+        {
+            return _sinkManager.ShouldDeferRender();
+        }
+
         public void SetMidiState(MidiState state)
         {
             _binder.MidiState = state;

@@ -161,6 +161,7 @@ namespace Noisemaker.Hlsl
         private void LateUpdate()
         {
             if (_pipeline == null) return;
+            if (ShouldDeferRender()) return;
 
             if (Animate)
             {
@@ -232,6 +233,11 @@ namespace Noisemaker.Hlsl
                 throw new System.InvalidOperationException(
                     "NMRenderer has no active pipeline; rebuild before adding a sink");
             return _pipeline.AddSink(sink);
+        }
+
+        public bool ShouldDeferRender()
+        {
+            return _pipeline != null && _pipeline.ShouldDeferRender();
         }
 
         public NMFrameExportQueue CreateFrameExportQueue(int slots = 3,
