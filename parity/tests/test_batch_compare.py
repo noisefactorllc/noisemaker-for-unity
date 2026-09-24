@@ -50,6 +50,25 @@ CLASSIC_FIXTURES = {
     "classicNoisedeck__shapes3d",
     "classicNoisedeck__splat",
 }
+SYNTH_MANIFEST = ROOT / "parity" / "programs" / "synth-manifest.tsv"
+SYNTH_EXCEPTIONS = ROOT / "parity" / "programs" / "synth-exceptions.json"
+SYNTH_FIXTURES = {
+    "synth__bitwise",
+    "synth__cellularAutomata",
+    "synth__curl",
+    "synth__gabor",
+    "synth__julia",
+    "synth__mandelbrot",
+    "synth__mnca",
+    "synth__modPattern",
+    "synth__navierStokes",
+    "synth__newton",
+    "synth__pattern",
+    "synth__polygon",
+    "synth__reactionDiffusion",
+    "synth__roll",
+    "synth__subdivide",
+}
 
 
 def write_png(path, rgba, size=(16, 16), changed=None):
@@ -731,6 +750,101 @@ class RepositoryClassicPolicyContractTests(unittest.TestCase):
         self.assertIsNotNone(report)
         assert report is not None
         self.assertEqual({"PASS": 15, "ALLOWED_NEAR": 2}, report["counts"])
+        self.assertEqual([], report["unused_exceptions"])
+
+
+class RepositorySynthPolicyContractTests(unittest.TestCase):
+    def test_repository_exposes_an_executable_synth_gate(self):
+        gate = ROOT / "parity" / "synth-verify.sh"
+        self.assertTrue(gate.is_file())
+        source = gate.read_text()
+        for required in (
+            "synth-manifest.tsv",
+            "synth-exceptions.json",
+            "batch-golden.mjs",
+            "RenderDslBatchFromCommandLine",
+            "--manifest",
+            "--exceptions",
+        ):
+            self.assertIn(required, source)
+
+    def test_repository_synth_manifest_and_policy_are_exact(self):
+        manifest_lines = [
+            line.split("\t")
+            for line in SYNTH_MANIFEST.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(len(manifest_lines), 15)
+        self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
+        self.assertEqual({parts[0] for parts in manifest_lines}, SYNTH_FIXTURES)
+        self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
+
+        policy = json.loads(SYNTH_EXCEPTIONS.read_text())
+        self.assertEqual(1, policy["schema_version"])
+        self.assertEqual(
+            {
+                "synth__julia": {
+                    "max_abs_diff": 251,
+                    "max_mean_abs_diff": 0.07,
+                    "ssim_min": 0.92,
+                    "max_exceeded_pixels": 184,
+                    "max_exceeded_channels": 552,
+                    "mechanism": "Iterative escape-time boundary classification is chaotic under cross-backend floating-point rounding at the set boundary.",
+                },
+                "synth__mandelbrot": {
+                    "max_abs_diff": 225,
+                    "max_mean_abs_diff": 0.10,
+                    "ssim_min": 0.92,
+                    "max_exceeded_pixels": 130,
+                    "max_exceeded_channels": 390,
+                    "mechanism": "Iterative escape-time boundary classification is chaotic under cross-backend floating-point rounding at the set boundary; low-luminance field amplifies relative SSIM impact of 130 boundary pixels.",
+                },
+                "synth__newton": {
+                    "max_abs_diff": 252,
+                    "max_mean_abs_diff": 0.11,
+                    "ssim_min": 0.92,
+                    "max_exceeded_pixels": 127,
+                    "max_exceeded_channels": 381,
+                    "mechanism": "Iterative root-basin boundary classification is chaotic under cross-backend floating-point rounding at basin fractal boundaries.",
+                },
+            },
+            policy["cases"],
+        )
+
+    def test_repository_synth_policy_is_exercised_by_the_real_grader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            gold = root / "gold"
+            cand = root / "cand"
+            gold.mkdir()
+            cand.mkdir()
+            for name in SYNTH_FIXTURES:
+                changed = None
+                if name == "synth__julia":
+                    changed = [(0, 0, (130, 127, 127, 255))]
+                elif name == "synth__mandelbrot":
+                    changed = [(1, 1, (130, 127, 127, 255))]
+                elif name == "synth__newton":
+                    changed = [(2, 2, (130, 127, 127, 255))]
+                write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
+                write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
+
+            completed, report = run_compare(
+                gold,
+                cand,
+                root / "report.json",
+                "--manifest",
+                str(SYNTH_MANIFEST),
+                "--exceptions",
+                str(SYNTH_EXCEPTIONS),
+                "--ssim-min",
+                "0.92",
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIsNotNone(report)
+        assert report is not None
+        self.assertEqual({"PASS": 12, "ALLOWED_NEAR": 3}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

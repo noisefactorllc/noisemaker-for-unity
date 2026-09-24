@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "synth__julia": {
+      "max_abs_diff": 251,
+      "max_mean_abs_diff": 0.07,
+      "ssim_min": 0.92,
+      "max_exceeded_pixels": 184,
+      "max_exceeded_channels": 552,
+      "mechanism": "Iterative escape-time boundary classification is chaotic under cross-backend floating-point rounding at the set boundary."
+    },
+    "synth__mandelbrot": {
+      "max_abs_diff": 225,
+      "max_mean_abs_diff": 0.10,
+      "ssim_min": 0.92,
+      "max_exceeded_pixels": 130,
+      "max_exceeded_channels": 390,
+      "mechanism": "Iterative escape-time boundary classification is chaotic under cross-backend floating-point rounding at the set boundary; low-luminance field amplifies relative SSIM impact of 130 boundary pixels."
+    },
+    "synth__newton": {
+      "max_abs_diff": 252,
+      "max_mean_abs_diff": 0.11,
+      "ssim_min": 0.92,
+      "max_exceeded_pixels": 127,
+      "max_exceeded_channels": 381,
+      "mechanism": "Iterative root-basin boundary classification is chaotic under cross-backend floating-point rounding at basin fractal boundaries."
+    }
+  }
+}

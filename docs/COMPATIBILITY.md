@@ -44,7 +44,7 @@ Unknown values mean `not measured`, never zero.
 
 | Gate | Expected cases | Executed | Strict passes | Failures | Skips | Status |
 |---|---|---|---|---|---|---|
-| Current full render suite | 129 fixtures (30 root + 9 3D + 17 classic + 70 v104 + 3 tiled) | 129 | 115 `PASS` | 0 | 0 | **measured 2026-09-24: exit 0, every non-`PASS` is a measured, bounded `ALLOWED_NEAR`** (14: root 5, 3D 3, classic 2, v104 4) |
+| Current full render suite | 144 fixtures (30 root + 9 3D + 17 classic + 15 synth + 70 v104 + 3 tiled) | 144 | 127 `PASS` | 0 | 0 | **measured 2026-09-24: exit 0, every non-`PASS` is a measured, bounded `ALLOWED_NEAR`** (17: root 5, 3D 3, classic 2, synth 3, v104 4) |
 
 Structural graph parity (separate gate, GPU-free): 316/316 programs byte-clean — the full 207-program `--selftest` corpus plus all 109 `parity/programs/**/*.dsl` fixtures, C# live-DSL graphs vs the reference oracle at the pinned authority. Compiler contract tests: PASS (0 failures).
 
@@ -56,7 +56,7 @@ Missing effects remain visible toward the full-parity goal. Contract exclusions 
 
 Status measured 2026-09-24 at source `2344c30` vs authority `noisemaker@c9ee8a04` (v1.0.176).
 `graph` = the effect appears in at least one of the 316 graph-parity fixtures (byte-clean, all 210 IDs covered).
-`graph+pixel` = additionally appears in at least one of the 129 rendered fixtures (91 IDs; classicNoisedeck 20/20 complete).
+`graph+pixel` = additionally appears in at least one of the 144 rendered fixtures (106 IDs; classicNoisedeck 20/20 and renderable synth 26/26 complete).
 Per-effect parameter/state/input breadth remains tracked by GAP-001.
 
 | Effect ID | Declared in served kit | Current full parity |
@@ -234,34 +234,34 @@ Per-effect parameter/state/input breadth remains tracked by GAP-001.
 | `render/renderCubemapSurface` | yes | graph+pixel |
 | `render/renderLandscape3d` | yes | graph+pixel |
 | `render/renderLit3d` | yes | graph |
-| `synth/bitwise` | yes | graph |
+| `synth/bitwise` | yes | graph+pixel |
 | `synth/cell` | yes | graph+pixel |
-| `synth/cellularAutomata` | yes | graph |
-| `synth/curl` | yes | graph |
-| `synth/gabor` | yes | graph |
+| `synth/cellularAutomata` | yes | graph+pixel |
+| `synth/curl` | yes | graph+pixel |
+| `synth/gabor` | yes | graph+pixel |
 | `synth/gradient` | yes | graph+pixel |
-| `synth/julia` | yes | graph |
+| `synth/julia` | yes | graph+pixel |
 | `synth/mandala` | yes | graph+pixel |
-| `synth/mandelbrot` | yes | graph |
+| `synth/mandelbrot` | yes | graph+pixel |
 | `synth/media` | no | graph |
-| `synth/mnca` | yes | graph |
-| `synth/modPattern` | yes | graph |
-| `synth/navierStokes` | yes | graph |
-| `synth/newton` | yes | graph |
+| `synth/mnca` | yes | graph+pixel |
+| `synth/modPattern` | yes | graph+pixel |
+| `synth/navierStokes` | yes | graph+pixel |
+| `synth/newton` | yes | graph+pixel |
 | `synth/noise` | yes | graph+pixel |
 | `synth/osc2d` | yes | graph+pixel |
-| `synth/pattern` | yes | graph |
+| `synth/pattern` | yes | graph+pixel |
 | `synth/perlin` | yes | graph+pixel |
-| `synth/polygon` | yes | graph |
-| `synth/reactionDiffusion` | yes | graph |
+| `synth/polygon` | yes | graph+pixel |
+| `synth/reactionDiffusion` | yes | graph+pixel |
 | `synth/remap` | yes | graph+pixel |
-| `synth/roll` | yes | graph |
+| `synth/roll` | yes | graph+pixel |
 | `synth/sacredGeometry` | yes | graph+pixel |
 | `synth/scope` | no | graph |
 | `synth/shape` | yes | graph+pixel |
 | `synth/solid` | yes | graph+pixel |
 | `synth/spectrum` | no | graph |
-| `synth/subdivide` | yes | graph |
+| `synth/subdivide` | yes | graph+pixel |
 | `synth/testPattern` | yes | graph+pixel |
 | `synth3d/cell3d` | yes | graph+pixel |
 | `synth3d/cellularAutomata3d` | yes | graph+pixel |
@@ -281,9 +281,10 @@ Unity 6000.3.16f1, isolated consumer project (`~/nmhlsl-parity`) with the packag
 | `root-verify.sh` (root, 256px) | 30 | tol 1, SSIM ≥ 0.9999, `programs/exceptions.json` | 25 | 5 | 0 | 0 |
 | `3d-verify.sh` (3D, 256px) | 9 | tol 2, SSIM ≥ 0.98, `programs/3d-exceptions.json` | 6 | 3 | 0 | 0 |
 | `classic-verify.sh` (classic, 256px) | 17 | tol 1, SSIM ≥ 0.9999, `programs/classic-exceptions.json` | 15 | 2 | 0 | 0 |
+| `synth-verify.sh` (synth, 256px) | 15 | tol 1, SSIM ≥ 0.92, `programs/synth-exceptions.json` | 12 | 3 | 0 | 0 |
 | v104 manifest (127px) | 70 | tol 1, SSIM ≥ 0.9999, `v104/exceptions.json` | 66 | 4 | 0 | 0 |
 | tiled manifest (127px tile of 4096²) | 3 | tol 0 (exact) | 3 | 0 | 0 | 0 |
-| Total | 129 | — | 115 | 14 | 0 | 0 |
+| Total | 144 | — | 127 | 17 | 0 | 0 |
 
 Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live compiler vs reference oracle at the pinned authority). Compiler contract tests: PASS (0 failures).
 
@@ -371,6 +372,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-24 (pass 8) | current source | `synth` 100% renderable pixel parity (15 new fixtures, exit 0) | Added `parity/synth-verify.sh`, `programs/synth-manifest.tsv`, `programs/synth-exceptions.json`; 12 PASS + 3 ALLOWED_NEAR (`julia`, `mandelbrot`, `newton`); all 26 renderable `synth/*` effects pixel-verified; full suite is now 144 fixtures (127 PASS, 17 bounded, exit 0); 33 unit tests PASS. |
 | 2026-09-24 (pass 7) | current source | `classicNoisedeck` 100% pixel parity (17 new fixtures, exit 0) | Added `parity/classic-verify.sh`, `programs/classic-manifest.tsv`, `programs/classic-exceptions.json`; 15 PASS + 2 ALLOWED_NEAR (`fractal`, `kaleido`); entire `classicNoisedeck` namespace (20/20) now pixel-verified; full suite is now 129 fixtures (115 PASS, 14 bounded, exit 0); 30 unit tests PASS. |
 | 2026-09-24 (pass 6) | current source | Host requirements aligned to Unity 6 (`6000.0`) | Dropped obsolete 2021.3 minimum declaration across `package.json` and all documentation; requirements pinned to Unity 6 (`6000.0+`); closes declared-minimum host debt under GAP-001/GAP-002. |
 | 2026-09-24 (pass 2) | `2344c30211c73804989647058506a387de404c91` vs authority `c9ee8a049b2b63cd300da67c01ee40baf29dc288` (v1.0.176) | Declared-corpora parity **measured, exit 0**: graph 316/316, render 112/112 (100 PASS + 12 bounded), contract tests PASS | Regenerated all goldens/graphs from the pinned authority worktree; ran root/3D/v104/tiled gates + graph gate + contract tests; formalized the three previously unbounded root fixtures in `programs/exceptions.json`; added `programs/manifest.tsv` + `root-verify.sh`; refreshed this report with per-effect graph/pixel status. GAP-002/GAP-003 remain open. |

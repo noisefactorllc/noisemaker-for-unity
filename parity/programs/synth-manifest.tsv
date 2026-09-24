@@ -1,0 +1,15 @@
+synth__bitwise	--selftest/synth__bitwise.dsl
+synth__cellularAutomata	--selftest/synth__cellularAutomata.dsl
+synth__curl	--selftest/synth__curl.dsl
+synth__gabor	--selftest/synth__gabor.dsl
+synth__julia	--selftest/synth__julia.dsl
+synth__mandelbrot	--selftest/synth__mandelbrot.dsl
+synth__mnca	--selftest/synth__mnca.dsl
+synth__modPattern	--selftest/synth__modPattern.dsl
+synth__navierStokes	--selftest/synth__navierStokes.dsl
+synth__newton	--selftest/synth__newton.dsl
+synth__pattern	--selftest/synth__pattern.dsl
+synth__polygon	--selftest/synth__polygon.dsl
+synth__reactionDiffusion	--selftest/synth__reactionDiffusion.dsl
+synth__roll	--selftest/synth__roll.dsl
+synth__subdivide	--selftest/synth__subdivide.dsl
