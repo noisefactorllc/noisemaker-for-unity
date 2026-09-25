@@ -93,9 +93,14 @@ namespace Noisemaker.Hlsl.Compiler
                     Depth = src.Depth
                 };
                 // GAP-004 (noisemaker@2f47612c2904): definition-level texture policies.
-                // `filter` is 3D-only; `mipmaps`/`persistent` are 2D-only — same
-                // branch structure as compiler.js extractTextureSpecs().
-                if (spec.Is3D) spec.Filter = src.Filter;
+                // `filter` is 3D-only (whitelist "nearest"/"linear", matching the
+                // Expander/GraphLoader and upstream effect-validator.js);
+                // `mipmaps`/`persistent` are 2D-only — same branch structure as
+                // compiler.js extractTextureSpecs().
+                if (spec.Is3D)
+                {
+                    if (src.Filter == "nearest" || src.Filter == "linear") spec.Filter = src.Filter;
+                }
                 else { spec.Mipmaps = src.Mipmaps; spec.Persistent = src.Persistent; }
                 textures.Add(kv.Key, spec);
             }
