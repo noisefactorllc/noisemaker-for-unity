@@ -5,7 +5,7 @@
 Daily review: 2026-09-25. Current inspected source: [`a2642d834335d0fb30d98d3e6c0245e109930cf7`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/a2642d834335d0fb30d98d3e6c0245e109930cf7).
 Full rendered parity remains **unverified**. No release approval or new closure follows from this review.
 Current upstream discovery: `bbdeb56c4b75cf33379766c3e87b0f5a18bcbba8`. Published Noisemaker authority: `1.0.179`, source `fca611fd8f91424661d4e531d39313d24ea21134`, 210 effect IDs.
-The observations below retain their original source and authority identities; they do not qualify later updates.
+The observations below retain their original source and authority identities. They do not qualify later updates.
 Current served kit: `0.1.22`, source `a2642d834335d0fb30d98d3e6c0245e109930cf7`. [Retrieved inventory and hashes](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-served-inventories.json). Artifact identity does not establish host qualification.
 
 ### Earlier source observations
@@ -37,7 +37,7 @@ The matrix below retains the earlier measured scope. A historical verified row i
 |---|---|---|
 | Source-level checks | verified | 316/316 graph parity + compiler contract tests PASS + 27 comparator unit tests. |
 | Actual host rendering | verified | 112/112 fixtures rendered and graded at the pinned authority (100 `PASS`, 12 bounded `ALLOWED_NEAR`, 0 fail, exit 0). Full host/platform matrix beyond macOS/Metal remains open. |
-| Minimum and current host versions | unverified minimum | Package declared minimum aligned to Unity 6 (`6000.0`); observed on `6000.3.16f1`; this does not test `6000.0`. Obsolete 2021.3 minimum dropped. |
+| Minimum and current host versions | unverified minimum | Package declared minimum aligned to Unity 6 (`6000.0`). Observed on `6000.3.16f1`. This does not test `6000.0`. Obsolete 2021.3 minimum dropped. |
 | Supported operating systems and backends | unverified | This pass does not establish Windows, Linux, and macOS coverage. |
 | Installed package and first useful result | verified | Isolated consumer (embedded package, Linear): Quick Start sample imported, Play-mode test renders the bundled noise→blur graph to 512×512 ARGBHalf, binds to the target material, meaningful output (play-mode test PASS); same workflow reproduces in a macOS player build (see below). |
 | Parameters, external inputs, state, and chains | unverified | Full current-authority combinations remain unmeasured. |
@@ -50,7 +50,7 @@ The matrix below retains the earlier measured scope. A historical verified row i
 
 ### Daily review, 2026-09-25
 
-The report of 245 fixtures contains 197 tolerance-based PASS results and 48 bounded differences, with three unported current effect IDs. It is not full parity. This review independently ran Unity 6000.5.5f1 on the current package: solid is exact; noise differs in 30 channels with maximum 1; heightmap3d_landscape differs in five channels with maximum 3. These three comparisons use retained historical goldens. The 6000.0 minimum, full player workflow, and later 245-case claim remain incompletely reviewed. [Raw evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json).
+The report of 245 fixtures contains 197 tolerance-based PASS results and 48 bounded differences, with three unported current effect IDs. It is not full parity. This review independently ran Unity 6000.5.5f1 on the current package: solid is exact. Noise differs in 30 channels with maximum 1. Heightmap3d_landscape differs in five channels with maximum 3. These three comparisons use retained historical goldens. The 6000.0 minimum, full player workflow, and later 245-case claim remain incompletely reviewed. [Raw evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json).
 
 The current full case denominator remains incomplete. Missing parameters, hosts, external inputs, and stateful sequences remain qualification gaps. No skip or tolerated difference counts as exact parity.
 
@@ -385,7 +385,7 @@ A successful dispatch or unit-test summary does not establish a full rendered ga
 
 ## 5. Open compatibility limits
 
-Next bounded check: Re-run all 245 reported fixtures with immutable current reference inputs and raw per-case results. Report zero-tolerance matches separately from 48 historical bounded differences and include the three unported IDs. Test installation and Quick Start on Unity 6000.0 itself before qualifying that minimum, then test the served package in a player build and verify upgrade/removal.
+Next bounded check: Re-run all 245 reported fixtures with immutable current reference inputs and raw per-case results. Report zero-tolerance matches separately from 48 historical bounded differences and include the three unported IDs. Test installation and Quick Start on Unity 6000.0 itself before qualifying that minimum, then test the served package in a player build and check upgrade/removal.
 See the stable entries in [completion gaps](COMPLETION_GAPS.md).
 
 See [GAP-001 and the complete gap register](COMPLETION_GAPS.md#4-known-gaps) for evidence, dependencies, and acceptance criteria.
@@ -400,7 +400,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 ## 6. History
 
-2026-09-25 daily review at `a2642d834335d0fb30d98d3e6c0245e109930cf7`: source freshness and bounded evidence reviewed; open qualification limits retained. [Retained review evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json). No new closure claimed.
+2026-09-25 daily review at `a2642d834335d0fb30d98d3e6c0245e109930cf7`: source freshness and bounded evidence reviewed. Open qualification limits retained. [Retained review evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json). No new closure claimed.
 
 | Date | Source | Result | Change |
 |---|---|---|---|
