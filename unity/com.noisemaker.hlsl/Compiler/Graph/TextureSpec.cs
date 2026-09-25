@@ -10,7 +10,7 @@
 // (the DEFAULT is applied by the pipeline, NOT here — Format stays null if the
 // JSON omits it, so the runtime can apply its own default and round-trip exactly).
 //
-// GAP-004 texture policies (noisemaker@a021a283), carried as data only — the
+// GAP-004 texture policies (noisemaker@2f47612c2904), carried as data only — the
 // executor applies its previous defaults (engine-wide NEAREST point sampling,
 // single mip level, no content preservation) when the fields are absent:
 //   - Filter: 3D volumes only ("nearest" | "linear"). Null when absent.

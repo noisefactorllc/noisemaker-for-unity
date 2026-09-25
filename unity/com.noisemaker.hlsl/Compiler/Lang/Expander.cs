@@ -1315,14 +1315,17 @@ namespace Noisemaker.Hlsl.Compiler
             };
             JsonValue depth = s.Get("depth");
             if (depth != null && depth.Kind != JsonKind.Null) spec.Depth = GraphLoader.ParseDim(depth);
-            // GAP-004 texture policies (noisemaker@a021a283): definition-level data
+            // GAP-004 texture policies (noisemaker@2f47612c2904): definition-level data
             // contract. Branch on the EFFECTIVE is3D (container flag or authored
             // spec.is3D), mirroring compiler.js extractTextureSpecs which keys on
             // effectSpec.is3D: `filter` is a 3D policy ("nearest"/"linear");
             // `mipmaps`/`persistent` are 2D-only allocation policies. Upstream
-            // effect-validator.js enforces placement (filter only in textures3d);
-            // the converter (convert-definitions.mjs) branches on the same
-            // (container || spec.is3D) condition, so both paths agree.
+            // enforces placement at authoring time (effect-validator.js rejects
+            // filter outside textures3d), so converted effect JSON never reaches
+            // this compiler with an out-of-place field; the edge case below only
+            // exercises extractTextureSpecs's own is3D-keyed branch, which the
+            // C# Expander mirrors exactly. The converter (convert-definitions.mjs)
+            // branches on the same (container || spec.is3D) condition.
             bool effective3d = is3d || spec.Is3D;
             JsonValue filter = s.Get("filter");
             if (effective3d && filter != null && filter.Kind == JsonKind.String && filter.AsString.Length > 0)

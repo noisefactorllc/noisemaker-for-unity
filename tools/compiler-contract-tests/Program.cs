@@ -1921,7 +1921,7 @@ namespace CompilerContractTests
             }
         }
 
-        // GAP-004 (noisemaker@a021a283..2f47612c2904): definition-level mipmaps /
+        // GAP-004 (noisemaker@9d3474df..2f47612c2904): definition-level mipmaps /
         // persistent / 3D-filter texture policies. The C# compiler carries them as
         // data only (the executor keeps its engine-wide NEAREST / single-mip /
         // no-preserve defaults); placement follows compiler.js extractTextureSpecs().
@@ -2029,6 +2029,12 @@ namespace CompilerContractTests
                 "\"filter\":\"linear\"}}}";
             TextureSpec bad = RenderGraph.FromJson(negJson).Textures["_bad"];
             Check(bad.Filter == null, "GAP-004 loader rejects 2D filter placement");
+            string neg3dJson = "{\"passes\":[],\"textures\":{" +
+                "\"_bad3d\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"," +
+                "\"usage\":[\"storage\",\"sample\",\"copySrc\",\"copyDst\"],\"depth\":16," +
+                "\"is3D\":true,\"mipmaps\":true}}}";
+            TextureSpec bad3d = RenderGraph.FromJson(neg3dJson).Textures["_bad3d"];
+            Check(!bad3d.Mipmaps.HasValue, "GAP-004 loader rejects 3D mipmaps placement");
         }
 
         private static RenderGraph CompileProbe(string body)

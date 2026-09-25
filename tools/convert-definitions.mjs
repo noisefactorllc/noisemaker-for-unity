@@ -148,7 +148,7 @@ function projectTextures (textures, is3D) {
     if (spec.depth !== undefined) t.depth = spec.depth
     if (is3D || spec.is3D) t.is3D = true
     t.format = spec.format || 'rgba16f'
-    // GAP-004 (noisemaker@a021a283): definition-level texture policies. `filter`
+    // GAP-004 (noisemaker@2f47612c2904): definition-level texture policies. `filter`
     // is authorable on 3D specs only ('nearest'|'linear'); `mipmaps`/`persistent`
     // are 2D-only allocation policies. Copied only when present so unchanged
     // definitions stay byte-stable. Placement is enforced upstream by
