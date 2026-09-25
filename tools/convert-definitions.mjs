@@ -61,6 +61,22 @@ try {
   process.exit(1)
 }
 
+let validateEffectDefinition = null
+const validatorPath = join(REFERENCE_ROOT, 'shaders', 'src', 'runtime', 'effect-validator.js')
+if (existsSync(validatorPath)) {
+  try {
+    const validatorMod = await import(pathToFileURL(validatorPath).href)
+    validateEffectDefinition = validatorMod.validateEffectDefinition || null
+    if (!validateEffectDefinition) {
+      process.stderr.write(`[convert] WARNING: validateEffectDefinition export not found in ${validatorPath}\n`)
+    }
+  } catch (err) {
+    process.stderr.write(`[convert] WARNING: failed to load effect-validator.js: ${err?.message || err}\n`)
+  }
+} else {
+  process.stderr.write(`[convert] WARNING: effect-validator.js not found at ${validatorPath}; specification validation will be bypassed\n`)
+}
+
 // ---------------------------------------------------------------------------
 // Field projection. We copy only the fields the C# definition loader reads, in a
 // stable order, so the output is byte-stable across runs and minimally diffs.
@@ -217,6 +233,7 @@ async function main () {
   let written = 0
   let failed = 0
   const errors = []
+  const candidates = []
 
   for (const { namespace, name, defPath } of enumerateEffects(filter)) {
     let instance
@@ -232,10 +249,29 @@ async function main () {
       errors.push(`${namespace}/${name}: no default export`)
       continue
     }
+    if (validateEffectDefinition) {
+      if (!instance.namespace) instance.namespace = namespace
+      const valErrors = validateEffectDefinition(instance)
+      if (valErrors.length > 0) {
+        failed++
+        errors.push(`${namespace}/${name}: validation failure — ${valErrors.join('; ')}`)
+        continue
+      }
+    }
     const func = instance.func || name
     const def = convertEffect(instance, namespace, name)
     const outNsDir = join(OUT_DIR, namespace)
     const outPath = join(outNsDir, `${func}.json`)
+    candidates.push({ outNsDir, outPath, def, namespace, name, func })
+  }
+
+  if (failed > 0) {
+    process.stderr.write(`\n[convert] FAILED: ${failed} error(s) encountered during validation/collection; aborting without writing to disk.\n`)
+    for (const e of errors) process.stderr.write(`  ! ${e}\n`)
+    process.exit(1)
+  }
+
+  for (const { outNsDir, outPath, def, namespace, name, func } of candidates) {
     if (!dryRun) {
       mkdirSync(outNsDir, { recursive: true })
       writeFileSync(outPath, JSON.stringify(def, null, 2) + '\n')
@@ -245,8 +281,6 @@ async function main () {
   }
 
   process.stderr.write(`\n[convert] ${dryRun ? 'would write' : 'wrote'} ${written} effect(s), ${failed} failed.\n`)
-  for (const e of errors) process.stderr.write(`  ! ${e}\n`)
-  if (failed > 0 && written === 0) process.exit(1)
 }
 
 if (basename(process.argv[1] || '') === 'convert-definitions.mjs') {
