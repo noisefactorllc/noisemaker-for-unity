@@ -1941,6 +1941,15 @@ namespace CompilerContractTests
                 "\"program\":\"automationProbe\",\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}]," +
                 "\"textures3d\":{\"_vol\":{\"width\":\"input\",\"height\":\"input\",\"depth\":\"input\"," +
                 "\"format\":\"rgba16f\",\"filter\":\"linear\"}}}"));
+            // Edge case mirroring compiler.js extractTextureSpecs: a 2D-map entry
+            // that authors is3D:true is treated as 3D by extractTextureSpecs (which
+            // keys on effectSpec.is3D) — filter carries, mipmaps/persistent do not.
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Edge 3D Probe\",\"namespace\":\"synth\",\"func\":\"edge3dProbe\"," +
+                "\"starter\":false,\"globals\":{},\"passes\":[{\"name\":\"render\"," +
+                "\"program\":\"automationProbe\",\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}]," +
+                "\"textures\":{\"_edge\":{\"width\":\"input\",\"height\":\"input\",\"depth\":\"input\"," +
+                "\"is3D\":true,\"format\":\"rgba16f\",\"filter\":\"nearest\"}}}"));
 
             // 2D: mipmaps/persistent propagate from the definition into the graph model.
             RenderGraph g2d = DslCompiler.Compile(
@@ -1978,6 +1987,23 @@ namespace CompilerContractTests
             string json3d = DslCompiler.ToNormalizedJson(g3d);
             Check(json3d.Contains("\"is3D\":true,\"filter\":\"linear\""),
                 "GAP-004 normalized graph emits filter after is3D in key order");
+
+            // Edge: 2D-map entry authoring is3D:true + filter behaves like the 3D
+            // branch (extractTextureSpecs keys on effectSpec.is3D).
+            RenderGraph gEdge = DslCompiler.Compile(
+                "search synth\nedge3dProbe().write(o0)\nrender(o0)\n", reg);
+            string texIdEdge = null;
+            foreach (var kv in gEdge.Textures)
+                if (kv.Key.Contains("_edge")) { texIdEdge = kv.Key; break; }
+            Check(texIdEdge != null, "GAP-004 edge texture spec present in graph");
+            if (texIdEdge != null)
+            {
+                TextureSpec specEdge = gEdge.Textures[texIdEdge];
+                Check(specEdge.Is3D, "GAP-004 edge spec is3D from authored flag");
+                Check(specEdge.Filter == "nearest", "GAP-004 edge spec carries filter");
+                Check(!specEdge.Mipmaps.HasValue && !specEdge.Persistent.HasValue,
+                    "GAP-004 edge spec carries no mipmaps/persistent");
+            }
 
             // GraphLoader round-trip: graph JSON declares the fields; loader parses them.
             string loaderJson = "{\"passes\":[],\"textures\":{" +
