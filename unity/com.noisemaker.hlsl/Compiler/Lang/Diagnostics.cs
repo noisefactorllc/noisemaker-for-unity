@@ -85,6 +85,7 @@ namespace Noisemaker.Hlsl.Compiler
                 { "P004", new Entry("Invalid search directive", DiagnosticSeverity.Error, "parser") },
                 { "P005", new Entry("Invalid output operation", DiagnosticSeverity.Error, "parser") },
                 { "P006", new Entry("Invalid subchain", DiagnosticSeverity.Error, "parser") },
+                { "P007", new Entry("Invalid call expression", DiagnosticSeverity.Error, "parser") },
                 { "S001", new Entry("Unknown identifier", DiagnosticSeverity.Error, "semantic") },
                 { "S002", new Entry("Argument out of range", DiagnosticSeverity.Warning, "semantic") },
                 { "S003", new Entry("Variable used before assignment", DiagnosticSeverity.Error, "semantic") },

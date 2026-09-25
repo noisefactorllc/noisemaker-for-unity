@@ -43,6 +43,10 @@ namespace CompilerContractTests
             TestStructuredParserDiagnosticsP004Search();
             TestStructuredParserDiagnosticsP005Output();
             TestStructuredParserDiagnosticsP006Subchain();
+            TestStructuredParserDiagnosticsP007CallForm();
+            TestStructuredParserDiagnosticsP001RemainingExpectations();
+            TestNumberCoercionDiagnostics();
+            TestValidCallForms();
             TestRenderLandscape3dFilteringDefines();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
@@ -1490,6 +1494,239 @@ namespace CompilerContractTests
                     Check(steps[4].Op == "_write" && steps[4].Builtin && steps[4].Temp == 4 && steps[4].From == 3, "step 4 _write");
                 }
                 Check(validated.Render == null, "valid subchain render null for " + vc.args);
+            }
+        }
+
+        private static void TestStructuredParserDiagnosticsP007CallForm()
+        {
+            var cases = new (string name, string source, string message, int line, int column)[]
+            {
+                ("from named arguments", "search synth\nlet x = from(a: 1, b: 2)", "'from' does not support named arguments at line 2 col 9", 2, 9),
+                ("from missing second argument", "search synth\nlet x = from(synth)", "'from' requires exactly two arguments (namespace, call) at line 2 col 9", 2, 9),
+                ("from namespace not an identifier", "search synth\nlet x = from(1, diagProbe())", "'from' namespace argument must be an identifier at line 2 col 9", 2, 9),
+                ("from second argument not a call", "search synth\nlet x = from(synth, 1)", "'from' second argument must be a call expression at line 2 col 9", 2, 9),
+                ("inline namespace", "search synth\nnd.noise()", "Inline namespace syntax 'nd.noise()' is not allowed. Use 'search nd' at the start of the program instead, at line 2 col 1", 2, 1),
+                ("positional then keyword", "search synth\ndiagProbe(1, x: 2)", "Cannot mix positional and keyword arguments at line 2 col 14", 2, 14),
+                ("keyword then positional", "search synth\ndiagProbe(x: 1, 2)", "Cannot mix positional and keyword arguments at line 2 col 17", 2, 17),
+                ("CRLF tab and UTF-16", "// 😀\r\nsearch synth\r\n\tdiagProbe(1, x: 2)", "Cannot mix positional and keyword arguments at line 3 col 15", 3, 15),
+                ("UTF-16 inline namespace column", "search synth\nlet x = \"😀\"; nd.noise()", "Inline namespace syntax 'nd.noise()' is not allowed. Use 'search nd' at the start of the program instead, at line 2 col 15", 2, 15),
+            };
+
+            foreach (var c in cases)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(c.source), ProbeRegistry());
+                    Check(false, "TestStructuredParserDiagnosticsP007CallForm: expected parse error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "P007 msg " + c.name + " (" + ex.Message + " == " + c.message + ")");
+                    Check(ex.Diagnostic != null, "P007 diag non-null " + c.name);
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P007", "P007 code " + c.name + " (" + ex.Diagnostic.Code + " == P007)");
+                        Check(ex.Diagnostic.Stage == "parser", "P007 stage " + c.name);
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "P007 severity " + c.name);
+                        Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == c.line && ex.Diagnostic.Location.Column == c.column, "P007 loc " + c.name + $" ({ex.Diagnostic.Location?.Line},{ex.Diagnostic.Location?.Column} == {c.line},{c.column})");
+                        Check(ex.Diagnostic.Span == null, "P007 span null " + c.name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnosticsP007CallForm: unexpected exception for " + c.name + ": " + ex);
+                }
+            }
+
+            // Unavailable caller-token coordinates test for P007
+            var unlocatedCases = new (object line, object col)[]
+            {
+                (null, null),
+                (1, null),
+                (0, 1),
+                (1, double.NaN),
+            };
+
+            foreach (var c in cases)
+            {
+                foreach (var uc in unlocatedCases)
+                {
+                    var tokens = new List<Token>();
+                    foreach (var t in Lexer.Lex(c.source))
+                    {
+                        tokens.Add(new Token(t.Type, t.Lexeme, uc.line, uc.col));
+                    }
+                    try
+                    {
+                        Parser.Parse(tokens, ProbeRegistry());
+                        Check(false, "expected parse error for unlocated P007 " + c.name);
+                    }
+                    catch (DslSyntaxError ex)
+                    {
+                        Check(ex.Diagnostic != null, "unlocated P007 diag non-null " + c.name);
+                        if (ex.Diagnostic != null)
+                        {
+                            Check(ex.Diagnostic.Code == "P007", "unlocated diag code P007 for " + c.name);
+                            Check(ex.Diagnostic.Location == null, "unlocated diag location null for " + c.name);
+                            Check(ex.Diagnostic.Span == null, "unlocated diag span null for " + c.name);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void TestStructuredParserDiagnosticsP001RemainingExpectations()
+        {
+            var cases = new (string name, string source, string message, int line, int column)[]
+            {
+                ("expected expression in assignment", "search synth\nlet x = ;", "Expected expression after '=' at line 2 col 9", 2, 9),
+                ("expected expression in keyword argument", "search synth\ndiagProbe(a: )", "Expected expression after '=' at line 2 col 14", 2, 14),
+                ("expected closing bracket", "search synth\nlet x = [1 2]", "Expected ']' at line 2 col 12", 2, 12),
+                ("expected identifier after dot", "search synth\nlet x = foo.+", "Expected identifier after '.' at line 2 col 13", 2, 13),
+                ("unexpected primary token", "search synth\ndiagProbe(; 1)", "Unexpected token SEMICOLON at line 2 col 11", 2, 11),
+                ("UTF-16 column", "search synth\nlet x = \"😀\"; let y = [1 2]", "Expected ']' at line 2 col 26", 2, 26),
+            };
+
+            foreach (var c in cases)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(c.source), ProbeRegistry());
+                    Check(false, "TestStructuredParserDiagnosticsP001RemainingExpectations: expected parse error for " + c.name);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == c.message, "P001 msg " + c.name + " (" + ex.Message + " == " + c.message + ")");
+                    Check(ex.Diagnostic != null, "P001 diag non-null " + c.name);
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P001", "diag code " + c.name + " (" + ex.Diagnostic.Code + " == P001)");
+                        Check(ex.Diagnostic.Stage == "parser", "diag stage " + c.name);
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "diag severity " + c.name);
+                        Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == c.line && ex.Diagnostic.Location.Column == c.column, "diag loc " + c.name + $" ({ex.Diagnostic.Location?.Line},{ex.Diagnostic.Location?.Column} == {c.line},{c.column})");
+                        Check(ex.Diagnostic.Span == null, "diag span null " + c.name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "TestStructuredParserDiagnosticsP001RemainingExpectations: unexpected exception for " + c.name + ": " + ex);
+                }
+            }
+
+            // Unavailable caller-token coordinates test for P001 cases
+            var unlocatedCases = new (object line, object col)[]
+            {
+                (null, null),
+                (1, null),
+                (0, 1),
+                (1, double.NaN),
+            };
+
+            foreach (var c in cases)
+            {
+                foreach (var uc in unlocatedCases)
+                {
+                    var tokens = new List<Token>();
+                    foreach (var t in Lexer.Lex(c.source))
+                    {
+                        tokens.Add(new Token(t.Type, t.Lexeme, uc.line, uc.col));
+                    }
+                    try
+                    {
+                        Parser.Parse(tokens, ProbeRegistry());
+                        Check(false, "expected parse error for unlocated " + c.name);
+                    }
+                    catch (DslSyntaxError ex)
+                    {
+                        Check(ex.Diagnostic != null, "unlocated diag non-null " + c.name);
+                        if (ex.Diagnostic != null)
+                        {
+                            Check(ex.Diagnostic.Code == "P001", "unlocated diag code for " + c.name);
+                            Check(ex.Diagnostic.Location == null, "unlocated diag location null for " + c.name);
+                            Check(ex.Diagnostic.Span == null, "unlocated diag span null for " + c.name);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void TestNumberCoercionDiagnostics()
+        {
+            var unlocatedSources = new string[]
+            {
+                "search synth\nlet x = 1 + o0",
+                "search synth\nlet x = diagProbe() + 1"
+            };
+
+            foreach (var src in unlocatedSources)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(src), ProbeRegistry());
+                    Check(false, "expected number coercion error for unlocated: " + src);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Message == "Expected number", "number coercion msg (" + ex.Message + " == Expected number)");
+                    Check(ex.Diagnostic != null, "number coercion diag non-null");
+                    if (ex.Diagnostic != null)
+                    {
+                        Check(ex.Diagnostic.Code == "P001", "number coercion diag code P001");
+                        Check(ex.Diagnostic.Stage == "parser", "number coercion diag stage parser");
+                        Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "number coercion diag severity error");
+                        Check(ex.Diagnostic.Location == null, "number coercion diag location null");
+                        Check(ex.Diagnostic.Span == null, "number coercion diag span null");
+                    }
+                }
+            }
+
+            string locatedSource = "search synth\nlet x = 1 + [1, 2]";
+            try
+            {
+                Parser.Parse(Lexer.Lex(locatedSource), ProbeRegistry());
+                Check(false, "expected number coercion error for located: " + locatedSource);
+            }
+            catch (DslSyntaxError ex)
+            {
+                Check(ex.Message == "Expected number", "located number coercion msg");
+                Check(ex.Diagnostic != null, "located number coercion diag non-null");
+                if (ex.Diagnostic != null)
+                {
+                    Check(ex.Diagnostic.Code == "P001", "located number coercion code P001");
+                    Check(ex.Diagnostic.Stage == "parser", "located number coercion stage parser");
+                    Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "located number coercion severity error");
+                    Check(ex.Diagnostic.Location != null && ex.Diagnostic.Location.Line == 2 && ex.Diagnostic.Location.Column == 13,
+                        $"located number coercion loc ({ex.Diagnostic.Location?.Line},{ex.Diagnostic.Location?.Column} == 2,13)");
+                    Check(ex.Diagnostic.Span == null, "located number coercion span null");
+                }
+            }
+        }
+
+        private static void TestValidCallForms()
+        {
+            var ast = Parser.Parse(Lexer.Lex("search synth\nlet x = from(synth, diagProbe())"), ProbeRegistry());
+            Check(ast != null && ast.Vars.Count == 1, "valid from ast non-null");
+            var call = ast.Vars[0].Expr as CallNode;
+            Check(call != null, "valid from expr is CallNode");
+            if (call != null)
+            {
+                Check(call.Name == "diagProbe", "valid from call name diagProbe");
+                Check(call.Namespace != null, "valid from namespace non-null");
+                if (call.Namespace != null)
+                {
+                    Check(call.Namespace.Name == "synth", "valid from namespace name synth");
+                    Check(call.Namespace.FromOverride, "valid from fromOverride is true");
+                }
+            }
+
+            var mixedAst = Parser.Parse(Lexer.Lex("search synth\nlet a = midi(1, channel: 2)"), ProbeRegistry());
+            Check(mixedAst != null && mixedAst.Vars.Count == 1, "valid mixed midi ast non-null");
+            var midi = mixedAst.Vars[0].Expr as MidiNode;
+            Check(midi != null, "valid mixed midi is MidiNode");
+            if (midi != null)
+            {
+                var chanNum = midi.Channel as NumberNode;
+                Check(chanNum != null && chanNum.Value == 2.0, "valid mixed midi channel is 2");
             }
         }
 

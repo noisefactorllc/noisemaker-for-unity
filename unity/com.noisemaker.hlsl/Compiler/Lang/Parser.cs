@@ -159,7 +159,7 @@ namespace Noisemaker.Hlsl.Compiler
                     if (render != null)
                     {
                         Token t = Peek();
-                        throw DslSyntaxError.At("Duplicate render() directive", t.Line, t.Col);
+                        throw ParserErrorAt("P005", "Duplicate render() directive", t);
                     }
                     render = ParseRenderDirective();
                     while (Peek().Type == TokenType.SEMICOLON) Advance();
@@ -295,7 +295,7 @@ namespace Noisemaker.Hlsl.Compiler
                 if (!ExprStart.Contains(Peek().Type))
                 {
                     Token t = Peek();
-                    throw DslSyntaxError.At("Expected expression after '='", t.Line, t.Col);
+                    throw ParserErrorAt("P001", "Expected expression after '='", t);
                 }
                 Node expr = ParseAdditive();
                 return new VarAssignNode { Name = name, Expr = expr };
@@ -528,10 +528,11 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     Token after = TokenAt(_current + 2);
                     if (after != null && after.Type == TokenType.LPAREN)
-                        throw DslSyntaxError.At(
+                        throw ParserErrorAt(
+                            "P007",
                             "Inline namespace syntax '" + nameToken.Lexeme + "." + next.Lexeme +
                             "()' is not allowed. Use 'search " + nameToken.Lexeme +
-                            "' at the start of the program instead,", nameToken.Line, nameToken.Col);
+                            "' at the start of the program instead,", nameToken);
                 }
             }
             Expect(TokenType.LPAREN, "Expect '('");
@@ -549,7 +550,7 @@ namespace Noisemaker.Hlsl.Compiler
                         if (positional && !allowMixed)
                         {
                             Token t = Peek();
-                            throw DslSyntaxError.At("Cannot mix positional and keyword arguments", t.Line, t.Col);
+                            throw ParserErrorAt("P007", "Cannot mix positional and keyword arguments", t);
                         }
                         keyword = true;
                         if (kwargs == null) kwargs = new OrderedKwargs();
@@ -560,7 +561,7 @@ namespace Noisemaker.Hlsl.Compiler
                         if (keyword && !allowMixed)
                         {
                             Token t = Peek();
-                            throw DslSyntaxError.At("Cannot mix positional and keyword arguments", t.Line, t.Col);
+                            throw ParserErrorAt("P007", "Cannot mix positional and keyword arguments", t);
                         }
                         positional = true;
                         args.Add(ParseArg());
@@ -629,7 +630,7 @@ namespace Noisemaker.Hlsl.Compiler
             if (!ExprStart.Contains(Peek().Type))
             {
                 Token t = Peek();
-                throw DslSyntaxError.At("Expected expression after '='", t.Line, t.Col);
+                throw ParserErrorAt("P001", "Expected expression after '='", t);
             }
             obj.Set(key, ParseArg());
         }
@@ -638,7 +639,7 @@ namespace Noisemaker.Hlsl.Compiler
 
         private Node TransformFrom(CallNode call, Token nameToken)
         {
-            void Fail(string message) { throw DslSyntaxError.At(message, nameToken.Line, nameToken.Col); }
+            void Fail(string message) { throw ParserErrorAt("P007", message, nameToken); }
             if (call.Kwargs != null && call.Kwargs.Count > 0) Fail("'from' does not support named arguments");
             if (call.Args.Count != 2) Fail("'from' requires exactly two arguments (namespace, call)");
 
@@ -878,10 +879,14 @@ namespace Noisemaker.Hlsl.Compiler
             return ParsePrimary();
         }
 
-        private static double ToNumber(Node node)
+        private double ToNumber(Node node)
         {
             if (node is NumberNode nn) return nn.Value;
-            throw new DslSyntaxError("Expected number");
+            if (node != null && node.LocLine.HasValue && node.LocCol.HasValue)
+            {
+                throw ParserError("P001", "Expected number", explicitLine: node.LocLine, explicitCol: node.LocCol);
+            }
+            throw ParserError("P001", "Expected number");
         }
 
         private Node ParsePrimary()
@@ -911,7 +916,7 @@ namespace Noisemaker.Hlsl.Compiler
                     if (Peek().Type != TokenType.RBRACKET)
                     {
                         Token t = Peek();
-                        throw DslSyntaxError.At("Expected ']'", t.Line, t.Col);
+                        throw ParserErrorAt("P001", "Expected ']'", t);
                     }
                     Advance();
                     return new ArrayLiteralNode { Elements = elements, LocLine = sl, LocCol = sc };
@@ -949,7 +954,7 @@ namespace Noisemaker.Hlsl.Compiler
                         if (next == null) break;
                         if (TokenAt(_current + 2)?.Type == TokenType.LPAREN) break; // dot begins a call
                         if (!MemberTokens.Contains(next.Type))
-                            throw DslSyntaxError.At("Expected identifier after '.'", next.Line, next.Col);
+                            throw ParserErrorAt("P001", "Expected identifier after '.'", next);
                         Advance(); // consume '.'
                         Advance(); // consume segment
                         path.Add(next.Lexeme);
@@ -973,7 +978,7 @@ namespace Noisemaker.Hlsl.Compiler
                     return expr;
                 }
                 default:
-                    throw DslSyntaxError.At("Unexpected token " + token.Type, token.Line, token.Col);
+                    throw ParserErrorAt("P001", "Unexpected token " + token.Type, token);
             }
         }
 
