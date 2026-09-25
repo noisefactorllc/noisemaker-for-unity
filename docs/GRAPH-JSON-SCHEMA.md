@@ -80,7 +80,8 @@ Blit passes use `"passType":"blit"`, `"func":"blit"`, `inputs:{src:...}`,
 `{scale, clamp?}`. Resolve with the exact rounding rules in `reference/04 §9`
 (`floor` for param/percent/scale, `round` for screenDivide, always `max(1, …)`).
 
-GAP-004 texture policies (noisemaker@a021a283), carried as data — placement is
+GAP-004 texture policies (noisemaker@2f47612c2904, introduced in the
+range by a021a283), carried as data — placement is
 enforced upstream by `effect-validator.js`: `filter` is authorable on 3D specs
 only (`textures3d`), `mipmaps`/`persistent` are 2D-only allocation policies.
 Fields are copied only when authored, so unchanged graphs stay byte-stable.
