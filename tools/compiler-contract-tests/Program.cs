@@ -2035,6 +2035,13 @@ namespace CompilerContractTests
                 "\"is3D\":true,\"mipmaps\":true}}}";
             TextureSpec bad3d = RenderGraph.FromJson(neg3dJson).Textures["_bad3d"];
             Check(!bad3d.Mipmaps.HasValue, "GAP-004 loader rejects 3D mipmaps placement");
+            // Whitelist: only "nearest"/"linear" pass the loader (validator parity).
+            string negValJson = "{\"passes\":[],\"textures\":{" +
+                "\"_badval\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"," +
+                "\"usage\":[\"storage\",\"sample\",\"copySrc\",\"copyDst\"],\"depth\":16," +
+                "\"is3D\":true,\"filter\":\"trilinear\"}}}";
+            TextureSpec badval = RenderGraph.FromJson(negValJson).Textures["_badval"];
+            Check(badval.Filter == null, "GAP-004 loader whitelist rejects unknown filter");
         }
 
         private static RenderGraph CompileProbe(string body)

@@ -1318,7 +1318,10 @@ namespace Noisemaker.Hlsl.Compiler
             // GAP-004 texture policies (noisemaker@2f47612c2904): definition-level data
             // contract. Branch on the EFFECTIVE is3D (container flag or authored
             // spec.is3D), mirroring compiler.js extractTextureSpecs which keys on
-            // effectSpec.is3D: `filter` is a 3D policy ("nearest"/"linear");
+            // effectSpec.is3D — the per-texture-spec flag carried through the
+            // expander (3D-container entries arrive as {...spec, is3D:true}; 2D
+            // entries verbatim, so an authored spec-level is3D behaves the same):
+            // `filter` is a 3D policy ("nearest"/"linear");
             // `mipmaps`/`persistent` are 2D-only allocation policies. Upstream
             // enforces placement at authoring time (effect-validator.js rejects
             // filter outside textures3d), so converted effect JSON never reaches
@@ -1327,8 +1330,13 @@ namespace Noisemaker.Hlsl.Compiler
             // C# Expander mirrors exactly. The converter (convert-definitions.mjs)
             // branches on the same (container || spec.is3D) condition.
             bool effective3d = is3d || spec.Is3D;
+            // Upstream constrains values at authoring time (effect-validator.js
+            // TEXTURE_FILTERS = 'nearest'|'linear'); the C# carry-through keeps
+            // the same whitelist so hand-authored graphs cannot smuggle other
+            // values past the loader.
             JsonValue filter = s.Get("filter");
-            if (effective3d && filter != null && filter.Kind == JsonKind.String && filter.AsString.Length > 0)
+            if (effective3d && filter != null && filter.Kind == JsonKind.String &&
+                (filter.AsString == "nearest" || filter.AsString == "linear"))
                 spec.Filter = filter.AsString;
             if (!effective3d)
             {

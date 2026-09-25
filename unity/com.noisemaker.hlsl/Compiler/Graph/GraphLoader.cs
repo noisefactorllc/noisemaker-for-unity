@@ -290,7 +290,11 @@ namespace Noisemaker.Hlsl.Compiler.Graph
                     spec.Persistent = persistent.AsBool;
             }
             if (spec.Is3D)
-                spec.Filter = GetString(s, "filter");
+            {
+                // Whitelist matches effect-validator.js TEXTURE_FILTERS.
+                string filter = GetString(s, "filter");
+                if (filter == "nearest" || filter == "linear") spec.Filter = filter;
+            }
             JsonValue depth = s.Get("depth");
             if (depth != null && depth.Kind != JsonKind.Null)
                 spec.Depth = ParseDim(depth);
