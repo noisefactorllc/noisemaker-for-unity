@@ -4,6 +4,14 @@ Current compatibility matrix: [compatibility report](COMPATIBILITY.md).
 
 ## 1. Scope and source revisions
 
+Daily review: 2026-09-25. Current inspected source: [`a2642d834335d0fb30d98d3e6c0245e109930cf7`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/a2642d834335d0fb30d98d3e6c0245e109930cf7).
+Full rendered parity remains **unverified**. No release approval or new closure follows from this review.
+Current upstream discovery: `bbdeb56c4b75cf33379766c3e87b0f5a18bcbba8`. Published Noisemaker authority: `1.0.179`, source `fca611fd8f91424661d4e531d39313d24ea21134`, 210 effect IDs.
+The observations below retain their original source and authority identities; they do not qualify later updates.
+Current served kit: `0.1.22`, source `a2642d834335d0fb30d98d3e6c0245e109930cf7`. [Retrieved inventory and hashes](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-served-inventories.json). Artifact identity does not establish host qualification.
+
+### Earlier source observations
+
 Date: 2026-09-24. Reviewed source: [`d48de74c806213789bf1ed8d79ebd8e918437c57`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/d48de74c806213789bf1ed8d79ebd8e918437c57).
 Local HEAD matched remote `main` before checks. The operator requested missing registers for all remaining eligible ports in this run.
 This is an initial register with bounded evidence, not a completed port audit or release approval.
@@ -32,6 +40,13 @@ Exact commit, remote document hashes, and downstream results are retained in the
 | CLAIM-005 | [Exact-source Actions](https://github.com/noisefactorllc/noisemaker-for-unity/actions?query=head_sha%3Ad48de74c806213789bf1ed8d79ebd8e918437c57) | Exact-source automated evidence | supported | [Export kit](https://github.com/noisefactorllc/noisemaker-for-unity/actions/runs/35956581828): `success`. This finding covers workflow status only. |
 
 ## 3. Methods and evidence
+
+Review CI boundary: Exact-source runs: Export kit. A passing export dispatch does not qualify rendered parity. Current complete-render enforcement remains an open verification requirement. [Exact-source responses and workflows](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/noisemaker-for-unity-remote-evidence.json).
+
+### Daily review, 2026-09-25
+
+The report of 245 fixtures contains 197 tolerance-based PASS results and 48 bounded differences, with three unported current effect IDs. It is not full parity. This review independently ran Unity 6000.5.5f1 on the current package: solid is exact; noise differs in 30 channels with maximum 1; heightmap3d_landscape differs in five channels with maximum 3. These three comparisons use retained historical goldens. The 6000.0 minimum, full player workflow, and later 245-case claim remain incompletely reviewed. [Raw evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json).
+The review checked source changes, worker evidence, source-bound CI where present, and current served inventories. Full installed-host and platform qualification remains incomplete.
 
 Environment: macOS 26.5, Darwin arm64. Source-file SHA-256 records bind the local checks to the reviewed revision.
 [Source hashes](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/noisemaker-for-unity-source-hashes.json). [Remote evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/noisemaker-for-unity-remote.json).
@@ -85,7 +100,7 @@ These initial entries record missing qualification, not inferred implementation 
 - Expected behavior: Each supported claim has reproducible evidence tied to the port and authority revisions.
 - Observed behavior: Package metadata declares Unity 6 (`6000.0`), aligning with verified `6000.3.16f1`. The obsolete 2021.3 minimum declaration was dropped across package manifest and docs. Pass 2 (2026-09-24): current graph and image gates executed at the pinned authority — graph 316/316, render 112/112 (100 PASS + 12 measured bounded exceptions, exit 0), compiler contract tests PASS. Pass 7 (2026-09-24): `classic-verify.sh` added 17 new fixtures covering all remaining `classicNoisedeck/*` effects (15 PASS, 2 ALLOWED_NEAR, exit 0; namespace 20/20 complete). Pass 8 (2026-09-24): `synth-verify.sh` added 15 new fixtures covering all remaining renderable `synth/*` effects (12 PASS, 3 ALLOWED_NEAR, exit 0; renderable synth 26/26 complete). Pass 9 (2026-09-24): `mixer-verify.sh` added 12 new fixtures covering all remaining `mixer/*` effects (10 PASS, 2 ALLOWED_NEAR, exit 0; mixer 15/15 complete). Pass 10 (2026-09-24): `points-verify.sh` added 10 new fixtures covering all remaining `points/*` effects, running 60 warm frames (~1 s of simulation at 60 fps) from a clean state so particle/agent behavior manifests before grading (2 strict byte-exact PASS, 8 ALLOWED_NEAR, exit 0; points 11/11 complete). Pass 11 (2026-09-24): `filter-verify.sh` added 25 new `filter/*` fixtures (batch 1 of the 74 remaining graph-only filter effects, verified alphabetically; 21 PASS, 4 ALLOWED_NEAR, exit 0; filter pixel-verified total 64/113). Pass 12 (2026-09-24): `filter-verify.sh` extended to 50 fixtures (batch 2, `motionBlur` through `sine`; 18 PASS, 7 ALLOWED_NEAR, exit 0) and fixed a real `Osd.hlsl` scanline-parity bug found by the gate (parity must be taken in gl_FragCoord's bottom-up frame; osd went from 64048 differing pixels to byte-exact; filter pixel-verified total 89/113). Pass 13 (2026-09-24): `filter-verify.sh` extended to 74 fixtures (batch 3, `skew` through `zoomBlur`; 16 PASS, 8 ALLOWED_NEAR, exit 0); filter namespace complete at 113/113 (100%); gate global SSIM floor 0.999 → 0.99 to admit the `snow` cos-ULP→fract-hash decorrelation and `wormhole` displacement ties, all budgets pinned per-case. Pass 14 (2026-09-24): `render-verify.sh` added the final 5 graph-only fixtures (`loopBegin`, `loopEnd`, `meshLoader`, `meshRender`, `renderLit3d`; 3 PASS, 2 ALLOWED_NEAR, exit 0) with two real fixes the gate exposed — chain-scoped mesh bindings now resolve to the static mesh-data triplet (previously zeroed pooled RTs, nothing rasterized), and the mesh VS reverses each triangle's winding to restore the golden's front-face convention after the WGSL-style clip-Y flip (previously the far hemisphere was shaded: flat 131/255 field); mesh fixtures are byte-exact after the fixes; certification tests added to the `NMOutputRuntimeTests` harness. Full suite expanded to 245 fixtures (197 PASS, 48 bounded, exit 0). **All 207 ported effects (210 declared, 3 unported: `synth/media`, `synth/scope`, `synth/spectrum`) are now graph+pixel verified.** What remains open is the broader host/platform matrix (Windows/Linux) and remaining per-effect parameter/state/input breadth.
 - Evidence: [Historical claim](https://github.com/noisefactorllc/noisemaker-for-unity/blob/d48de74c806213789bf1ed8d79ebd8e918437c57/README.md), the bounded checks in section 3, and the pass-2 gate table in [COMPATIBILITY.md §3](COMPATIBILITY.md#3-parity-coverage).
-- Next action: Extend per-effect parameter/state coverage toward unrendered effects in the catalog; qualify broader platform matrix (Windows/Linux). Declared-minimum host qualification is complete for Unity 6.
+- Next action: Extend per-effect parameter/state coverage toward unrendered effects in the catalog; qualify broader platform matrix (Windows/Linux). Declared-minimum host qualification remains unverified: testing 6000.3.16f1 does not test the declared 6000.0 floor.
 - Dependencies: Resolve immutable authority inputs before comparison. Retain historical goldens and their provenance.
 - Acceptance criteria: Record every applicable case, parameter choice, exclusion, error, and tolerance. Pass the declared contract without silently reducing coverage.
 - Required checks: Existing compiler and parity entry points from the README, with raw results and exact source hashes.
@@ -119,6 +134,9 @@ These initial entries record missing qualification, not inferred implementation 
 
 ## 5. Ordered next actions
 
+Current first action: Re-run all 245 reported fixtures with immutable current reference inputs and raw per-case results. Report zero-tolerance matches separately from 48 historical bounded differences and include the three unported IDs. Test installation and Quick Start on Unity 6000.0 itself before qualifying that minimum, then test the served package in a player build and verify upgrade/removal.
+Subsequent historical actions remain dependent on that evidence. No implementation is authorized by this audit.
+
 1. Resolve authority revisions and retained evidence for GAP-001. Preserve all previous comparisons and exclusions.
 2. Run the bounded installed workflow for GAP-002. Record output, errors, recovery, host version, and resource cleanup.
 3. Execute the declared parity cases for GAP-001. Keep compilation, structure, rendered pixels, and platform qualification separate.
@@ -128,6 +146,8 @@ These initial entries record missing qualification, not inferred implementation 
 Implementation changes belong to the separate implementation job. This register does not authorize further effect ports or checkpoint advancement.
 
 ## 6. Pass history
+
+2026-09-25 daily review at `a2642d834335d0fb30d98d3e6c0245e109930cf7`: source freshness and bounded evidence reviewed; open qualification limits retained. [Retained review evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json). No new closure claimed.
 
 | Date | Source SHA | Changes | Tested scope | Remaining limits |
 |---|---|---|---|---|
