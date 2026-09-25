@@ -643,6 +643,26 @@ namespace Noisemaker.Hlsl.Compiler
                 // SAME ordering as the reference (begin temp, recurse, end temp).
                 if (original is SubchainNode sub)
                 {
+                    if (sub.SubchainArgumentDiagnostics != null && sub.SubchainArgumentDiagnostics.Count > 0)
+                    {
+                        foreach (var report in sub.SubchainArgumentDiagnostics)
+                        {
+                            var d = new Diagnostic
+                            {
+                                Code = report.Code,
+                                Message = report.Message,
+                                Severity = report.Severity,
+                                Stage = report.Stage,
+                                NodeId = sub.Id,
+                                Location = report.Location,
+                                Span = report.Span,
+                                Line = report.Line,
+                                Column = report.Column
+                            };
+                            _diagnostics.Add(d);
+                        }
+                    }
+
                     if (current == null)
                     {
                         PushDiag("S005", original, "subchain() requires an input - cannot be first in chain");

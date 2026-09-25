@@ -53,6 +53,7 @@ namespace Noisemaker.Hlsl.Compiler
         public DiagnosticLocation Location { get; set; }
         public DiagnosticSpan Span { get; set; }
         public string Identifier { get; set; } // extractIdentifierName result, when present
+        public string NodeId { get; set; }
     }
 
     public static class DiagnosticTable
@@ -86,6 +87,9 @@ namespace Noisemaker.Hlsl.Compiler
                 { "P005", new Entry("Invalid output operation", DiagnosticSeverity.Error, "parser") },
                 { "P006", new Entry("Invalid subchain", DiagnosticSeverity.Error, "parser") },
                 { "P007", new Entry("Invalid call expression", DiagnosticSeverity.Error, "parser") },
+                { "P008", new Entry("Unknown subchain argument key", DiagnosticSeverity.Warning, "parser") },
+                { "P009", new Entry("Duplicate subchain argument key", DiagnosticSeverity.Warning, "parser") },
+                { "P010", new Entry("Missing ',' between subchain arguments", DiagnosticSeverity.Warning, "parser") },
                 { "S001", new Entry("Unknown identifier", DiagnosticSeverity.Error, "semantic") },
                 { "S002", new Entry("Argument out of range", DiagnosticSeverity.Warning, "semantic") },
                 { "S003", new Entry("Variable used before assignment", DiagnosticSeverity.Error, "semantic") },

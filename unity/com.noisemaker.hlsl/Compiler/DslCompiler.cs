@@ -43,10 +43,10 @@ namespace Noisemaker.Hlsl.Compiler
     {
         // Compile DSL source into a RenderGraph. Throws DslSyntaxError on lex/parse errors,
         // CompileException on validator error-diagnostics or expansion errors (reference/02 §1.2).
-        public static RenderGraph Compile(string dsl, EffectRegistry reg)
+        public static RenderGraph Compile(string dsl, EffectRegistry reg, ParserOptions options = null)
         {
             List<Token> tokens = Lexer.Lex(dsl);
-            ProgramNode ast = Parser.Parse(tokens, reg);
+            ProgramNode ast = Parser.Parse(tokens, reg, options);
             ValidateResult validated = Validator.Validate(ast, reg);
 
             // reference compiler.js: error-severity diagnostics abort compilation.

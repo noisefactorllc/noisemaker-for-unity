@@ -226,6 +226,7 @@ namespace Noisemaker.Hlsl.Compiler
         // is the reference-exact behavior for `loopBegin()/loopEnd()` accumulators.
         public int? Iterations { get; set; } // null when absent
         public List<Node> Body { get; set; } = new List<Node>();
+        public List<Diagnostic> SubchainArgumentDiagnostics { get; set; }
     }
 
     public sealed class ReadNode : Node

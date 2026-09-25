@@ -21,11 +21,18 @@ using System.Collections.Generic;
 
 namespace Noisemaker.Hlsl.Compiler
 {
+    public sealed class ParserOptions
+    {
+        public string SubchainArguments { get; set; }
+    }
+
     public sealed class Parser
     {
         private readonly List<Token> _tokens;
         private int _current;
         private readonly EffectRegistry _registry;
+        private readonly ParserOptions _options;
+        private readonly bool _strictSubchainArguments;
 
         private List<string> _programSearchOrder; // null until `search` parsed
         private readonly NamespaceMeta _programNamespace = new NamespaceMeta();
@@ -56,16 +63,18 @@ namespace Noisemaker.Hlsl.Compiler
             TokenType.BREAK, TokenType.CONTINUE, TokenType.RETURN
         };
 
-        private Parser(List<Token> tokens, EffectRegistry registry)
+        private Parser(List<Token> tokens, EffectRegistry registry, ParserOptions options = null)
         {
             _tokens = tokens;
             _registry = registry;
+            _options = options;
+            _strictSubchainArguments = options != null && string.Equals(options.SubchainArguments, "strict", System.StringComparison.OrdinalIgnoreCase);
             _current = 0;
         }
 
-        public static ProgramNode Parse(List<Token> tokens, EffectRegistry registry = null)
+        public static ProgramNode Parse(List<Token> tokens, EffectRegistry registry = null, ParserOptions options = null)
         {
-            return new Parser(tokens, registry ?? new EffectRegistry()).ParseProgram();
+            return new Parser(tokens, registry ?? new EffectRegistry(), options).ParseProgram();
         }
 
         // --- cursor helpers -------------------------------------------------
@@ -73,7 +82,7 @@ namespace Noisemaker.Hlsl.Compiler
         private Token Peek() { return _tokens[_current]; }
         private Token TokenAt(int idx) { return (idx >= 0 && idx < _tokens.Count) ? _tokens[idx] : null; }
         private Token Advance() { return _tokens[_current++]; }
-        private DslSyntaxError ParserError(string code, string message, Token token = null, int? explicitLine = null, int? explicitCol = null)
+        private DslSyntaxError ParserError(string code, string message, Token token = null, int? explicitLine = null, int? explicitCol = null, DiagnosticSeverity? severityOverride = null)
         {
             object lineObj = token != null ? token.RawLine : (object)explicitLine;
             object colObj = token != null ? token.RawCol : (object)explicitCol;
@@ -90,7 +99,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 Code = code,
                 Stage = DiagnosticTable.Stage(code),
-                Severity = DiagnosticTable.Severity(code),
+                Severity = severityOverride ?? DiagnosticTable.Severity(code),
                 Message = message,
                 Location = hasLocation ? new DiagnosticLocation { Line = line, Column = col } : null,
                 Span = null,
@@ -100,14 +109,14 @@ namespace Noisemaker.Hlsl.Compiler
             return new DslSyntaxError(message, diag);
         }
 
-        private DslSyntaxError ParserErrorAt(string code, string core, Token token, string suffix = "")
+        private DslSyntaxError ParserErrorAt(string code, string core, Token token, string suffix = "", DiagnosticSeverity? severityOverride = null)
         {
             object lineObj = token != null ? token.RawLine : null;
             object colObj = token != null ? token.RawCol : null;
             string lineStr = DslSyntaxError.CoordStr(lineObj);
             string colStr = DslSyntaxError.CoordStr(colObj);
             string message = $"{core} at line {lineStr} col {colStr}{suffix}";
-            return ParserError(code, message, token);
+            return ParserError(code, message, token, severityOverride: severityOverride);
         }
 
         private Token Expect(TokenType type, string msg)
@@ -452,20 +461,57 @@ namespace Noisemaker.Hlsl.Compiler
             Advance(); // consume 'subchain'
             Expect(TokenType.LPAREN, "Expect '(' after subchain");
 
+            var argDiagnostics = new List<Diagnostic>();
+
+            void ReportArgIssue(string code, string message, Token token)
+            {
+                if (_strictSubchainArguments)
+                {
+                    throw ParserError(code, message, token, severityOverride: DiagnosticSeverity.Error);
+                }
+
+                object lineObj = token != null ? token.RawLine : null;
+                object colObj = token != null ? token.RawCol : null;
+                int line = token != null ? token.Line : -1;
+                int col = token != null ? token.Col : -1;
+
+                bool hasLocation = line > 0 && col > 0
+                    && !(lineObj is double dl && double.IsNaN(dl))
+                    && !(colObj is double dc && double.IsNaN(dc))
+                    && !(lineObj is float fl && float.IsNaN(fl))
+                    && !(colObj is float fc && float.IsNaN(fc));
+
+                argDiagnostics.Add(new Diagnostic
+                {
+                    Code = code,
+                    Stage = DiagnosticTable.Stage(code),
+                    Severity = DiagnosticTable.Severity(code),
+                    Message = message,
+                    Location = hasLocation ? new DiagnosticLocation { Line = line, Column = col } : null,
+                    Span = null,
+                    Line = hasLocation ? (int?)line : null,
+                    Column = hasLocation ? (int?)col : null,
+                });
+            }
+
             string nameVal = null;
             string idVal = null;
             int? iterationsVal = null;
+            var kwargs = new HashSet<string>();
+
             if (Peek().Type != TokenType.RPAREN)
             {
                 if (Peek().Type == TokenType.STRING)
                 {
                     nameVal = Advance().Lexeme; // positional name
+                    kwargs.Add("name");
                 }
                 else if (Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON)
                 {
                     while (Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON)
                     {
-                        string key = Advance().Lexeme;
+                        Token keyToken = Advance();
+                        string key = keyToken.Lexeme;
                         Advance(); // consume ':'
                         // DSL LOOPS: `iterations:` takes a NUMBER; name/id remain STRING
                         // (reference subchain only had name/id strings — this is additive
@@ -483,10 +529,46 @@ namespace Noisemaker.Hlsl.Compiler
                             if (Peek().Type != TokenType.STRING)
                                 throw ParserErrorAt("P006", "Expected string value for subchain " + key, Peek());
                             string val = Advance().Lexeme;
+                            string keyLineStr = DslSyntaxError.CoordStr(keyToken.RawLine);
+                            string keyColStr = DslSyntaxError.CoordStr(keyToken.RawCol);
+
+                            if (key != "name" && key != "id")
+                            {
+                                ReportArgIssue(
+                                    "P008",
+                                    $"Unknown subchain argument '{key}' at line {keyLineStr} col {keyColStr}. Valid keys: name, id. The value is discarded.",
+                                    keyToken
+                                );
+                            }
+                            else if (kwargs.Contains(key))
+                            {
+                                ReportArgIssue(
+                                    "P009",
+                                    $"Duplicate subchain argument '{key}' at line {keyLineStr} col {keyColStr}. The last value wins.",
+                                    keyToken
+                                );
+                            }
+
+                            kwargs.Add(key);
                             if (key == "name") nameVal = val;
                             else if (key == "id") idVal = val;
                         }
-                        if (Peek().Type == TokenType.COMMA) Advance();
+
+                        if (Peek().Type == TokenType.COMMA)
+                        {
+                            Advance();
+                        }
+                        else if (Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON)
+                        {
+                            Token nextTok = Peek();
+                            string nextLineStr = DslSyntaxError.CoordStr(nextTok.RawLine);
+                            string nextColStr = DslSyntaxError.CoordStr(nextTok.RawCol);
+                            ReportArgIssue(
+                                "P010",
+                                $"Missing ',' between subchain arguments at line {nextLineStr} col {nextColStr}",
+                                nextTok
+                            );
+                        }
                     }
                 }
             }
@@ -512,7 +594,16 @@ namespace Noisemaker.Hlsl.Compiler
             if (body.Count == 0)
                 throw ParserErrorAt("P006", "Subchain body cannot be empty", subchainToken);
 
-            return new SubchainNode { Name = nameVal, Id = idVal, Iterations = iterationsVal, Body = body, LocLine = tokenLine, LocCol = tokenCol };
+            return new SubchainNode
+            {
+                Name = nameVal,
+                Id = idVal,
+                Iterations = iterationsVal,
+                Body = body,
+                LocLine = tokenLine,
+                LocCol = tokenCol,
+                SubchainArgumentDiagnostics = argDiagnostics.Count > 0 ? argDiagnostics : null
+            };
         }
 
         // --- calls (reference/01 §4.2) --------------------------------------

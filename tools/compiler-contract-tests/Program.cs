@@ -43,6 +43,7 @@ namespace CompilerContractTests
             TestStructuredParserDiagnosticsP004Search();
             TestStructuredParserDiagnosticsP005Output();
             TestStructuredParserDiagnosticsP006Subchain();
+            TestSubchainArgumentDiagnosticsGAP027();
             TestStructuredParserDiagnosticsP007CallForm();
             TestStructuredParserDiagnosticsP001RemainingExpectations();
             TestNumberCoercionDiagnostics();
@@ -1447,12 +1448,12 @@ namespace CompilerContractTests
             }
 
             // Valid subchains AST and validator steps
-            var validCases = new (string args, string name, string id)[]
+            var validCases = new (string args, string name, string id, int diagCount)[]
             {
-                ("", null, null),
-                ("\"positional\"", "positional", null),
-                ("name: \"named\", id: \"s\"", "named", "s"),
-                ("foo: \"x\" name: \"a\" name: \"b\" id: \"s\"", "b", "s"),
+                ("", null, null, 0),
+                ("\"positional\"", "positional", null, 0),
+                ("name: \"named\", id: \"s\"", "named", "s", 0),
+                ("foo: \"x\" name: \"a\" name: \"b\" id: \"s\"", "b", "s", 5),
             };
 
             var reg = ProbeRegistry();
@@ -1477,7 +1478,7 @@ namespace CompilerContractTests
                 }
 
                 var validated = Validator.Validate(ast, reg);
-                Check(validated.Diagnostics.Count == 0, "valid subchain no diagnostics for " + vc.args);
+                Check(validated.Diagnostics.Count == vc.diagCount, "valid subchain diagnostics count for " + vc.args);
                 Check(validated.Plans.Count == 1, "valid subchain 1 plan for " + vc.args);
                 var steps = validated.Plans[0].Chain;
                 Check(steps.Count == 5, "valid subchain 5 steps for " + vc.args);
@@ -1494,6 +1495,144 @@ namespace CompilerContractTests
                     Check(steps[4].Op == "_write" && steps[4].Builtin && steps[4].Temp == 4 && steps[4].From == 3, "step 4 _write");
                 }
                 Check(validated.Render == null, "valid subchain render null for " + vc.args);
+            }
+        }
+
+        private static void TestSubchainArgumentDiagnosticsGAP027()
+        {
+            var reg = ProbeRegistry();
+
+            // 1. P008: Unknown subchain key
+            {
+                string source = "search synth\nread(o0).subchain(nme: \"typo\", name: \"ok\") { .diagFilter() }.write(o1)";
+                var ast = Parser.Parse(Lexer.Lex(source), reg);
+                var sub = (ast.Plans[0] as ChainStatementNode)?.Chain[1] as SubchainNode;
+                Check(sub != null && sub.Name == "ok" && sub.Id == null, "P008: discarded nme from AST");
+                var validated = Validator.Validate(ast, reg);
+                var p008 = validated.Diagnostics.FindAll(d => d.Code == "P008");
+                Check(p008.Count == 1, "P008 count == 1");
+                if (p008.Count == 1)
+                {
+                    Check(p008[0].Severity == DiagnosticSeverity.Warning, "P008 severity warning");
+                    Check(p008[0].Message.Contains("Unknown subchain argument 'nme'"), "P008 message contains nme");
+                    Check(p008[0].Location != null && p008[0].Location.Line == 2 && p008[0].Location.Column == 19, "P008 location (2,19)");
+                }
+            }
+
+            // 2. P009: Duplicate subchain key
+            {
+                string source = "search synth\nread(o0).subchain(name: \"first\", name: \"second\") { .diagFilter() }.write(o1)";
+                var ast = Parser.Parse(Lexer.Lex(source), reg);
+                var sub = (ast.Plans[0] as ChainStatementNode)?.Chain[1] as SubchainNode;
+                Check(sub != null && sub.Name == "second", "P009: last value second wins");
+                var validated = Validator.Validate(ast, reg);
+                var p009 = validated.Diagnostics.FindAll(d => d.Code == "P009");
+                Check(p009.Count == 1, "P009 count == 1");
+                if (p009.Count == 1)
+                {
+                    Check(p009[0].Severity == DiagnosticSeverity.Warning, "P009 severity warning");
+                    Check(p009[0].Message.Contains("Duplicate subchain argument 'name'"), "P009 message contains name");
+                    Check(p009[0].Location != null && p009[0].Location.Line == 2 && p009[0].Location.Column == 34, $"P009 location ({p009[0].Location?.Line},{p009[0].Location?.Column} == 2,34)");
+                }
+            }
+
+            // 3. P010: Missing comma separator
+            {
+                string source = "search synth\nread(o0).subchain(name: \"a\" id: \"b\") { .diagFilter() }.write(o1)";
+                var ast = Parser.Parse(Lexer.Lex(source), reg);
+                var sub = (ast.Plans[0] as ChainStatementNode)?.Chain[1] as SubchainNode;
+                Check(sub != null && sub.Name == "a" && sub.Id == "b", "P010: AST parsed both name and id");
+                var validated = Validator.Validate(ast, reg);
+                var p010 = validated.Diagnostics.FindAll(d => d.Code == "P010");
+                Check(p010.Count == 1, "P010 count == 1");
+                if (p010.Count == 1)
+                {
+                    Check(p010[0].Severity == DiagnosticSeverity.Warning, "P010 severity warning");
+                    Check(p010[0].Message.Contains("Missing ',' between subchain arguments"), "P010 message text");
+                    Check(p010[0].Location != null && p010[0].Location.Line == 2 && p010[0].Location.Column == 29, "P010 location (2,29)");
+                }
+            }
+
+            // 4. Co-occurring violations in source order
+            {
+                string source = "search synth\nread(o0).subchain(nme: \"x\", name: \"a\" name: \"b\") { .diagFilter() }.write(o1)";
+                var ast = Parser.Parse(Lexer.Lex(source), reg);
+                var validated = Validator.Validate(ast, reg);
+                Check(validated.Diagnostics.Count == 3, "co-occurring diagnostics count == 3");
+                if (validated.Diagnostics.Count == 3)
+                {
+                    Check(validated.Diagnostics[0].Code == "P008", "diag[0] is P008");
+                    Check(validated.Diagnostics[1].Code == "P010", "diag[1] is P010");
+                    Check(validated.Diagnostics[2].Code == "P009", "diag[2] is P009");
+                }
+            }
+
+            // 5. Strict mode throws DslSyntaxError with Error severity
+            var strictCases = new (string source, string code)[]
+            {
+                ("search synth\nread(o0).subchain(nme: \"x\") { .diagFilter() }.write(o1)", "P008"),
+                ("search synth\nread(o0).subchain(name: \"a\", name: \"b\") { .diagFilter() }.write(o1)", "P009"),
+                ("search synth\nread(o0).subchain(name: \"a\" id: \"b\") { .diagFilter() }.write(o1)", "P010"),
+            };
+            var strictOpt = new ParserOptions { SubchainArguments = "strict" };
+            foreach (var sc in strictCases)
+            {
+                try
+                {
+                    Parser.Parse(Lexer.Lex(sc.source), reg, strictOpt);
+                    Check(false, "strict mode expected exception for " + sc.code);
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Diagnostic != null && ex.Diagnostic.Code == sc.code, "strict mode code " + sc.code);
+                    Check(ex.Diagnostic != null && ex.Diagnostic.Severity == DiagnosticSeverity.Error, "strict mode severity Error for " + sc.code);
+                }
+            }
+
+            // 6. DslCompiler integration: options forwarding
+            {
+                string dsl = "search synth\nread(o0).subchain(nme: \"x\") { .diagFilter() }.write(o1)\nrender(o1)\n";
+                // Default mode succeeds
+                var graph = DslCompiler.Compile(dsl, reg);
+                Check(graph != null, "DslCompiler default mode succeeds with P008 warning");
+
+                // Strict mode throws
+                try
+                {
+                    DslCompiler.Compile(dsl, reg, strictOpt);
+                    Check(false, "DslCompiler strict mode expected error");
+                }
+                catch (DslSyntaxError ex)
+                {
+                    Check(ex.Diagnostic != null && ex.Diagnostic.Code == "P008", "DslCompiler strict throws P008");
+                }
+            }
+
+            // 7. Preserves unavailable caller-token coordinates without throwing
+            {
+                var unlocatedCases = new (object line, object col, string lineStr, string colStr)[]
+                {
+                    (null, null, "undefined", "undefined"),
+                    (1, null, "1", "undefined"),
+                    (0, 1, "0", "1"),
+                    (1, double.NaN, "1", "NaN"),
+                };
+                string dsl = "search synth\nread(o0).subchain(nme: \"x\") { .diagFilter() }.write(o1)";
+                foreach (var uc in unlocatedCases)
+                {
+                    var tokens = new List<Token>();
+                    foreach (var t in Lexer.Lex(dsl))
+                        tokens.Add(new Token(t.Type, t.Lexeme, uc.line, uc.col));
+
+                    var ast = Parser.Parse(tokens, reg);
+                    var validated = Validator.Validate(ast, reg);
+                    var p008 = validated.Diagnostics.Find(d => d.Code == "P008");
+                    Check(p008 != null, "P008 reported for unlocated token");
+                    if (p008 != null)
+                    {
+                        Check(p008.Message.Contains($"line {uc.lineStr} col {uc.colStr}"), $"P008 message coordinates {uc.lineStr},{uc.colStr}");
+                    }
+                }
             }
         }
 
