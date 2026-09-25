@@ -49,6 +49,7 @@ namespace CompilerContractTests
             TestNumberCoercionDiagnostics();
             TestValidCallForms();
             TestRenderLandscape3dFilteringDefines();
+            TestGap004TexturePolicyContract();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -1918,6 +1919,90 @@ namespace CompilerContractTests
             {
                 Check(false, "TestRenderLandscape3dFilteringDefines: " + ex.Message);
             }
+        }
+
+        // GAP-004 (noisemaker@a021a283..2f47612c2904): definition-level mipmaps /
+        // persistent / 3D-filter texture policies. The C# compiler carries them as
+        // data only (the executor keeps its engine-wide NEAREST / single-mip /
+        // no-preserve defaults); placement follows compiler.js extractTextureSpecs().
+        private static void TestGap004TexturePolicyContract()
+        {
+            var reg = new EffectRegistry();
+            // 2D texture declaring mipmaps + persistent; 3D texture declaring filter.
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Mip Probe\",\"namespace\":\"synth\",\"func\":\"mipProbe\",\"starter\":false," +
+                "\"globals\":{},\"passes\":[{\"name\":\"render\",\"program\":\"automationProbe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}]," +
+                "\"textures\":{\"_feedback\":{\"width\":\"input\",\"height\":\"input\"," +
+                "\"format\":\"rgba16f\",\"mipmaps\":true,\"persistent\":true}}}"));
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Filter 3D Probe\",\"namespace\":\"synth3d\",\"func\":\"filter3dProbe\"," +
+                "\"starter\":false,\"globals\":{},\"passes\":[{\"name\":\"render\"," +
+                "\"program\":\"automationProbe\",\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}]," +
+                "\"textures3d\":{\"_vol\":{\"width\":\"input\",\"height\":\"input\",\"depth\":\"input\"," +
+                "\"format\":\"rgba16f\",\"filter\":\"linear\"}}}"));
+
+            // 2D: mipmaps/persistent propagate from the definition into the graph model.
+            RenderGraph g2d = DslCompiler.Compile(
+                "search synth\nmipProbe().write(o0)\nrender(o0)\n", reg);
+            string texId2d = null;
+            foreach (var kv in g2d.Textures)
+                if (kv.Key.Contains("_feedback")) { texId2d = kv.Key; break; }
+            Check(texId2d != null, "GAP-004 2D texture spec present in graph");
+            if (texId2d != null)
+            {
+                TextureSpec spec = g2d.Textures[texId2d];
+                Check(spec.Mipmaps == true, "GAP-004 2D mipmaps propagated");
+                Check(spec.Persistent == true, "GAP-004 2D persistent propagated");
+                Check(spec.Filter == null, "GAP-004 2D spec carries no filter");
+            }
+            string json2d = DslCompiler.ToNormalizedJson(g2d);
+            Check(json2d.Contains("\"mipmaps\":true,\"persistent\":true"),
+                "GAP-004 normalized graph emits mipmaps+persistent in key order");
+
+            // 3D: filter propagates from textures3d into the graph model.
+            RenderGraph g3d = DslCompiler.Compile(
+                "search synth3d\nfilter3dProbe().write(o0)\nrender(o0)\n", reg);
+            string texId3d = null;
+            foreach (var kv in g3d.Textures)
+                if (kv.Key.Contains("_vol")) { texId3d = kv.Key; break; }
+            Check(texId3d != null, "GAP-004 3D texture spec present in graph");
+            if (texId3d != null)
+            {
+                TextureSpec spec3d = g3d.Textures[texId3d];
+                Check(spec3d.Is3D, "GAP-004 3D spec is3D");
+                Check(spec3d.Filter == "linear", "GAP-004 3D filter carried");
+                Check(!spec3d.Mipmaps.HasValue && !spec3d.Persistent.HasValue,
+                    "GAP-004 3D spec carries no mipmaps/persistent");
+            }
+            string json3d = DslCompiler.ToNormalizedJson(g3d);
+            Check(json3d.Contains("\"is3D\":true,\"filter\":\"linear\""),
+                "GAP-004 normalized graph emits filter after is3D in key order");
+
+            // GraphLoader round-trip: graph JSON declares the fields; loader parses them.
+            string loaderJson = "{\"passes\":[],\"textures\":{" +
+                "\"_mip\":{\"width\":128,\"height\":128,\"format\":\"rgba16f\"," +
+                "\"usage\":[\"render\",\"sample\",\"copySrc\",\"copyDst\"]," +
+                "\"mipmaps\":true,\"persistent\":false}," +
+                "\"_vol\":{\"width\":\"screen\",\"height\":\"screen\",\"format\":\"rgba16f\"," +
+                "\"usage\":[\"storage\",\"sample\",\"copySrc\",\"copyDst\"],\"depth\":64," +
+                "\"is3D\":true,\"filter\":\"nearest\"}}}";
+            RenderGraph loaded = RenderGraph.FromJson(loaderJson);
+            TextureSpec mip = loaded.Textures["_mip"];
+            Check(mip.Mipmaps == true, "GAP-004 loader parses 2D mipmaps");
+            Check(mip.Persistent == false, "GAP-004 loader parses explicit 2D persistent:false");
+            TextureSpec vol = loaded.Textures["_vol"];
+            Check(vol.Filter == "nearest", "GAP-004 loader parses 3D filter");
+            Check(vol.Is3D, "GAP-004 loader parses 3D is3D");
+
+            // Negative placement: filter is 3D-only in the loader too — a
+            // hand-authored 2D spec with "filter" must not be parsed.
+            string negJson = "{\"passes\":[],\"textures\":{" +
+                "\"_bad\":{\"width\":64,\"height\":64,\"format\":\"rgba16f\"," +
+                "\"usage\":[\"render\",\"sample\",\"copySrc\",\"copyDst\"]," +
+                "\"filter\":\"linear\"}}}";
+            TextureSpec bad = RenderGraph.FromJson(negJson).Textures["_bad"];
+            Check(bad.Filter == null, "GAP-004 loader rejects 2D filter placement");
         }
 
         private static RenderGraph CompileProbe(string body)

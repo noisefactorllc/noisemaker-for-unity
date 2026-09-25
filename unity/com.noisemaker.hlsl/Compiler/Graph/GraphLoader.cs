@@ -274,6 +274,20 @@ namespace Noisemaker.Hlsl.Compiler.Graph
                 Is3D = GetBool(s, "is3D", false),
                 Format = GetString(s, "format")   // null when absent (pipeline defaults)
             };
+            // GAP-004 texture policies (noisemaker@a021a283): carried as data.
+            // Filter: 3D-only ("nearest"/"linear") — mirrors the Expander's 3D
+            // placement, so a hand-authored 2D spec with "filter" is not parsed
+            // and re-emission stays consistent (placement is enforced upstream
+            // by effect-validator.js). Mipmaps/Persistent: 2D-only, null when
+            // absent.
+            JsonValue mipmaps = s.Get("mipmaps");
+            if (mipmaps != null && mipmaps.Kind == JsonKind.Bool)
+                spec.Mipmaps = mipmaps.AsBool;
+            JsonValue persistent = s.Get("persistent");
+            if (persistent != null && persistent.Kind == JsonKind.Bool)
+                spec.Persistent = persistent.AsBool;
+            if (spec.Is3D)
+                spec.Filter = GetString(s, "filter");
             JsonValue depth = s.Get("depth");
             if (depth != null && depth.Kind != JsonKind.Null)
                 spec.Depth = ParseDim(depth);

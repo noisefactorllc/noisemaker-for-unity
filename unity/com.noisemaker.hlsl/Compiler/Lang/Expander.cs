@@ -494,7 +494,7 @@ namespace Noisemaker.Hlsl.Compiler
                 else if (texName.StartsWith("global_")) virtualTexId = texName + "_" + chainScopeId;
                 else virtualTexId = nodeId + "_" + texName;
 
-                TextureSpec spec = ParseTextureSpec(specJson);
+                TextureSpec spec = ParseTextureSpec(specJson, false);
                 bool hasParamRef = DimReferencesParam(spec.Width) || DimReferencesParam(spec.Height);
                 // §6.3 shouldScopeParams + scope suffix (particle id when the texture is a
                 // particle texture, else the chain scope).
@@ -523,7 +523,7 @@ namespace Noisemaker.Hlsl.Compiler
                 string texName = kv.Key;
                 string virtualTexId = texName.StartsWith("global_")
                     ? ScopeChainTex(texName, chainScopeId) : nodeId + "_" + texName;
-                TextureSpec spec = ParseTextureSpec(kv.Value);
+                TextureSpec spec = ParseTextureSpec(kv.Value, true);
                 spec.Is3D = true;
                 _result.TextureSpecs.Add(virtualTexId, spec);
             }
@@ -1304,7 +1304,7 @@ namespace Noisemaker.Hlsl.Compiler
 
         // --- JSON dim / texture parsing (delegates to GraphLoader semantics) ---
 
-        private static TextureSpec ParseTextureSpec(JsonValue s)
+        private static TextureSpec ParseTextureSpec(JsonValue s, bool is3d)
         {
             var spec = new TextureSpec
             {
@@ -1315,6 +1315,22 @@ namespace Noisemaker.Hlsl.Compiler
             };
             JsonValue depth = s.Get("depth");
             if (depth != null && depth.Kind != JsonKind.Null) spec.Depth = GraphLoader.ParseDim(depth);
+            // GAP-004 texture policies (noisemaker@a021a283): definition-level data
+            // contract. `filter` is authorable on 3D specs only ("nearest"/"linear");
+            // `mipmaps`/`persistent` are 2D-only allocation policies. Placement is
+            // enforced upstream by effect-validator.js; here we carry it as data.
+            JsonValue filter = s.Get("filter");
+            if (is3d && filter != null && filter.Kind == JsonKind.String && filter.AsString.Length > 0)
+                spec.Filter = filter.AsString;
+            if (!is3d)
+            {
+                JsonValue mipmaps = s.Get("mipmaps");
+                if (mipmaps != null && mipmaps.Kind == JsonKind.Bool)
+                    spec.Mipmaps = mipmaps.AsBool;
+                JsonValue persistent = s.Get("persistent");
+                if (persistent != null && persistent.Kind == JsonKind.Bool)
+                    spec.Persistent = persistent.AsBool;
+            }
             // default 'screen' when width/height absent (compiler.js extractTextureSpecs).
             if (spec.Width == null) spec.Width = Dim.FromScreen();
             if (spec.Height == null) spec.Height = Dim.FromScreen();

@@ -72,12 +72,20 @@ Blit passes use `"passType":"blit"`, `"func":"blit"`, `inputs:{src:...}`,
 ## TextureSpec & dimensions (`reference/04 §9`)
 
 ```jsonc
-{ "width": <Dim>, "height": <Dim>, "depth"?: <Dim>, "is3D"?: bool, "format"?: "rgba16f" }
+{ "width": <Dim>, "height": <Dim>, "depth"?: <Dim>, "is3D"?: bool, "format"?: "rgba16f",
+  "filter"?: "nearest"|"linear", "mipmaps"?: bool, "persistent"?: bool }
 ```
 `Dim` is one of: a number; `"screen"`/`"auto"`; a percent string `"6.25%"`; or an object
 `{param, paramDefault?, multiply?, power?, default?}` | `{screenDivide, default?}` |
 `{scale, clamp?}`. Resolve with the exact rounding rules in `reference/04 §9`
 (`floor` for param/percent/scale, `round` for screenDivide, always `max(1, …)`).
+
+GAP-004 texture policies (noisemaker@a021a283), carried as data — placement is
+enforced upstream by `effect-validator.js`: `filter` is authorable on 3D specs
+only (`textures3d`), `mipmaps`/`persistent` are 2D-only allocation policies.
+Fields are copied only when authored, so unchanged graphs stay byte-stable.
+The Unity executor keeps its engine-wide NEAREST sampling, single mip level,
+and no content preservation (no shipped effect definition authors these yet).
 
 ## texId conventions
 
