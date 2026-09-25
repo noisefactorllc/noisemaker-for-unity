@@ -1921,7 +1921,9 @@ namespace CompilerContractTests
             }
         }
 
-        // GAP-004 (noisemaker@9d3474df..2f47612c2904): definition-level mipmaps /
+        // GAP-004 (noisemaker declared range 4891b9953f9f..2f47612c2904; the
+        // unported shader delta synced here is 9d3474df..2f47612c2904, with the
+        // policies introduced by a021a283): definition-level mipmaps /
         // persistent / 3D-filter texture policies. The C# compiler carries them as
         // data only (the executor keeps its engine-wide NEAREST / single-mip /
         // no-preserve defaults); placement follows compiler.js extractTextureSpecs().
