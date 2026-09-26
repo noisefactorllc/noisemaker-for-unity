@@ -570,7 +570,10 @@ Ported to this repo (pass 22, this commit):
   pinned `6a0af04d` checkout); the shipped pixel corpora are unaffected.
 
 Gate evidence (pass 22, current source, Linux audit host, .NET SDK 8.0.412,
-numpy 2.5.3 / pillow 12.3.0; all exit 0):
+numpy 2.5.3 / pillow 12.3.0; all exit 0; raw command transcript committed at
+[`parity/evidence/2026-09-26-gap006-upstream-range-audit.txt`](../parity/evidence/2026-09-26-gap006-upstream-range-audit.txt),
+re-executed fresh at pass 25 — upstream range commands verbatim, local gates re-run
+verbatim):
 
 - `dotnet run --project tools/compiler-contract-tests`:
   `compiler contract tests: PASS (0 failures)` — including the new

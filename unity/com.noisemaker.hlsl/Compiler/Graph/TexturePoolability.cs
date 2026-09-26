@@ -195,7 +195,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 case DimKind.Number: return "n:" + d.Number.ToString("R");
                 case DimKind.Screen: return "s:" + (d.ScreenLiteral ?? "");
-                case DimKind.Percent: return "p:" + d.Percent.ToString("R");
+                case DimKind.Percent: return "%:" + d.Percent.ToString("R");
                 case DimKind.Param:
                     return "p:" + (d.Param ?? "") + ":" +
                         (d.ParamDefault.HasValue ? d.ParamDefault.Value.ToString("R") : "-") +
