@@ -1,0 +1,391 @@
+classicNoisedeck/coalesce	tex	type surface not swept
+classicNoisedeck/composite	tex	type surface not swept
+classicNoisedeck/composite	inputColor	type color not swept
+classicNoisedeck/lensDistortion	tint	type color not swept
+classicNoisedeck/splat	color	type color not swept
+classicNoisedeck/splat	speckColor	type color not swept
+filter/bloom	tint	type color not swept
+filter/celShading	edgeColor	type color not swept
+filter/channel	channel	no enumerable values
+filter/colorReplace	targetColor	type color not swept
+filter/colorReplace	replaceColor	type color not swept
+filter/grade	shadowTint	no enumerable values
+filter/grade	highlightTint	no enumerable values
+filter/grade	wheelShadows	no enumerable values
+filter/grade	wheelMidtones	no enumerable values
+filter/grade	wheelHighlights	no enumerable values
+filter/halftone	inkColor	type color not swept
+filter/halftone	paperColor	type color not swept
+filter/hatch	inkColor	type color not swept
+filter/hatch	paperColor	type color not swept
+filter/lensFlare	tint	type color not swept
+filter/lightLeak	color	type color not swept
+filter/lighting	diffuseColor	type color not swept
+filter/lighting	specularColor	type color not swept
+filter/lighting	ambientColor	type color not swept
+filter/lighting	heightMap	type surface not swept
+filter/lowPoly	edgeColor	type color not swept
+filter/mosaicTiles	backgroundColor	type color not swept
+filter/palette	index	no enumerable values
+filter/parallax	heightMap	type surface not swept
+filter/photocopy	inkColor	type color not swept
+filter/photocopy	paperColor	type color not swept
+filter/relief	inkColor	type color not swept
+filter/relief	paperColor	type color not swept
+filter/spatter	color	type color not swept
+filter/stamp	inkColor	type color not swept
+filter/stamp	paperColor	type color not swept
+filter/stipple	paperColor	type color not swept
+filter/tetraColorArray	color0	type color not swept
+filter/tetraColorArray	color1	type color not swept
+filter/tetraColorArray	color2	type color not swept
+filter/tetraColorArray	color3	type color not swept
+filter/tetraColorArray	color4	type color not swept
+filter/tetraColorArray	color5	type color not swept
+filter/tetraColorArray	color6	type color not swept
+filter/tetraColorArray	color7	type color not swept
+filter/tint	color	type color not swept
+filter3d/palette3d	index	no enumerable values
+mixer/alphaMask	tex	type surface not swept
+mixer/alphaMask	baseTex	type surface not swept
+mixer/applyMode	tex	type surface not swept
+mixer/blendMode	tex	type surface not swept
+mixer/cellSplit	tex	type surface not swept
+mixer/centerMask	tex	type surface not swept
+mixer/channelCombine	rTex	type surface not swept
+mixer/channelCombine	gTex	type surface not swept
+mixer/channelCombine	bTex	type surface not swept
+mixer/distortion	tex	type surface not swept
+mixer/focusBlur	tex	type surface not swept
+mixer/mashup	source	type surface not swept
+mixer/mashup	layer0_tex	type surface not swept
+mixer/mashup	layer1_tex	type surface not swept
+mixer/mashup	layer2_tex	type surface not swept
+mixer/mashup	layer3_tex	type surface not swept
+mixer/mashup	layer4_tex	type surface not swept
+mixer/mashup	layer5_tex	type surface not swept
+mixer/mashup	layer6_tex	type surface not swept
+mixer/mashup	layer7_tex	type surface not swept
+mixer/patternMix	tex	type surface not swept
+mixer/shadow	tex	type surface not swept
+mixer/shadow	color	type color not swept
+mixer/shapeMask	tex	type surface not swept
+mixer/split	tex	type surface not swept
+mixer/thresholdMix	tex	type surface not swept
+mixer/uvRemap	tex	type surface not swept
+points/heightGrid	-	no base program
+render/meshRender	diffuseColor	type color not swept
+render/meshRender	specularColor	type color not swept
+render/meshRender	ambientColor	type color not swept
+render/meshRender	meshColor	type color not swept
+render/meshRender	bgColor	type color not swept
+render/pointsBillboardRender	tex	type surface not swept
+render/render3d	bgColor	type color not swept
+render/renderCubemap3d	cubeBasis	no enumerable values
+render/renderCubemap3d	bgColor	type color not swept
+render/renderCubemapSurface	cubeBasis	no enumerable values
+render/renderCubemapSurface	bgColor	type color not swept
+render/renderLandscape3d	-	no base program
+render/renderLit3d	cameraPosition	no enumerable values
+render/renderLit3d	bgColor	type color not swept
+render/renderLit3d	diffuseColor	type color not swept
+render/renderLit3d	specularColor	type color not swept
+render/renderLit3d	ambientColor	type color not swept
+synth/cellularAutomata	tex	type surface not swept
+synth/gradient	color1	type color not swept
+synth/gradient	color2	type color not swept
+synth/gradient	color3	type color not swept
+synth/gradient	color4	type color not swept
+synth/mandala	fgColor	type color not swept
+synth/mandala	bgColor	type color not swept
+synth/mnca	tex	type surface not swept
+synth/navierStokes	tex	type surface not swept
+synth/osc2d	oscType	no enumerable values
+synth/pattern	fgColor	type color not swept
+synth/pattern	bgColor	type color not swept
+synth/polygon	fgColor	type color not swept
+synth/polygon	bgColor	type color not swept
+synth/reactionDiffusion	tex	type surface not swept
+synth/remap	bgColor	type color not swept
+synth/remap	zone0_tex	type surface not swept
+synth/remap	zone0_bounds	no enumerable values
+synth/remap	zone0_v0	no enumerable values
+synth/remap	zone0_v1	no enumerable values
+synth/remap	zone0_v2	no enumerable values
+synth/remap	zone0_v3	no enumerable values
+synth/remap	zone0_v4	no enumerable values
+synth/remap	zone0_v5	no enumerable values
+synth/remap	zone0_v6	no enumerable values
+synth/remap	zone0_v7	no enumerable values
+synth/remap	zone0_v8	no enumerable values
+synth/remap	zone0_v9	no enumerable values
+synth/remap	zone0_v10	no enumerable values
+synth/remap	zone0_v11	no enumerable values
+synth/remap	zone0_v12	no enumerable values
+synth/remap	zone0_v13	no enumerable values
+synth/remap	zone0_v14	no enumerable values
+synth/remap	zone0_v15	no enumerable values
+synth/remap	zone0_v16	no enumerable values
+synth/remap	zone0_v17	no enumerable values
+synth/remap	zone0_v18	no enumerable values
+synth/remap	zone0_v19	no enumerable values
+synth/remap	zone0_v20	no enumerable values
+synth/remap	zone0_v21	no enumerable values
+synth/remap	zone0_v22	no enumerable values
+synth/remap	zone0_v23	no enumerable values
+synth/remap	zone0_v24	no enumerable values
+synth/remap	zone0_v25	no enumerable values
+synth/remap	zone0_v26	no enumerable values
+synth/remap	zone0_v27	no enumerable values
+synth/remap	zone0_v28	no enumerable values
+synth/remap	zone0_v29	no enumerable values
+synth/remap	zone0_v30	no enumerable values
+synth/remap	zone0_v31	no enumerable values
+synth/remap	zone1_tex	type surface not swept
+synth/remap	zone1_bounds	no enumerable values
+synth/remap	zone1_v0	no enumerable values
+synth/remap	zone1_v1	no enumerable values
+synth/remap	zone1_v2	no enumerable values
+synth/remap	zone1_v3	no enumerable values
+synth/remap	zone1_v4	no enumerable values
+synth/remap	zone1_v5	no enumerable values
+synth/remap	zone1_v6	no enumerable values
+synth/remap	zone1_v7	no enumerable values
+synth/remap	zone1_v8	no enumerable values
+synth/remap	zone1_v9	no enumerable values
+synth/remap	zone1_v10	no enumerable values
+synth/remap	zone1_v11	no enumerable values
+synth/remap	zone1_v12	no enumerable values
+synth/remap	zone1_v13	no enumerable values
+synth/remap	zone1_v14	no enumerable values
+synth/remap	zone1_v15	no enumerable values
+synth/remap	zone1_v16	no enumerable values
+synth/remap	zone1_v17	no enumerable values
+synth/remap	zone1_v18	no enumerable values
+synth/remap	zone1_v19	no enumerable values
+synth/remap	zone1_v20	no enumerable values
+synth/remap	zone1_v21	no enumerable values
+synth/remap	zone1_v22	no enumerable values
+synth/remap	zone1_v23	no enumerable values
+synth/remap	zone1_v24	no enumerable values
+synth/remap	zone1_v25	no enumerable values
+synth/remap	zone1_v26	no enumerable values
+synth/remap	zone1_v27	no enumerable values
+synth/remap	zone1_v28	no enumerable values
+synth/remap	zone1_v29	no enumerable values
+synth/remap	zone1_v30	no enumerable values
+synth/remap	zone1_v31	no enumerable values
+synth/remap	zone2_tex	type surface not swept
+synth/remap	zone2_bounds	no enumerable values
+synth/remap	zone2_v0	no enumerable values
+synth/remap	zone2_v1	no enumerable values
+synth/remap	zone2_v2	no enumerable values
+synth/remap	zone2_v3	no enumerable values
+synth/remap	zone2_v4	no enumerable values
+synth/remap	zone2_v5	no enumerable values
+synth/remap	zone2_v6	no enumerable values
+synth/remap	zone2_v7	no enumerable values
+synth/remap	zone2_v8	no enumerable values
+synth/remap	zone2_v9	no enumerable values
+synth/remap	zone2_v10	no enumerable values
+synth/remap	zone2_v11	no enumerable values
+synth/remap	zone2_v12	no enumerable values
+synth/remap	zone2_v13	no enumerable values
+synth/remap	zone2_v14	no enumerable values
+synth/remap	zone2_v15	no enumerable values
+synth/remap	zone2_v16	no enumerable values
+synth/remap	zone2_v17	no enumerable values
+synth/remap	zone2_v18	no enumerable values
+synth/remap	zone2_v19	no enumerable values
+synth/remap	zone2_v20	no enumerable values
+synth/remap	zone2_v21	no enumerable values
+synth/remap	zone2_v22	no enumerable values
+synth/remap	zone2_v23	no enumerable values
+synth/remap	zone2_v24	no enumerable values
+synth/remap	zone2_v25	no enumerable values
+synth/remap	zone2_v26	no enumerable values
+synth/remap	zone2_v27	no enumerable values
+synth/remap	zone2_v28	no enumerable values
+synth/remap	zone2_v29	no enumerable values
+synth/remap	zone2_v30	no enumerable values
+synth/remap	zone2_v31	no enumerable values
+synth/remap	zone3_tex	type surface not swept
+synth/remap	zone3_bounds	no enumerable values
+synth/remap	zone3_v0	no enumerable values
+synth/remap	zone3_v1	no enumerable values
+synth/remap	zone3_v2	no enumerable values
+synth/remap	zone3_v3	no enumerable values
+synth/remap	zone3_v4	no enumerable values
+synth/remap	zone3_v5	no enumerable values
+synth/remap	zone3_v6	no enumerable values
+synth/remap	zone3_v7	no enumerable values
+synth/remap	zone3_v8	no enumerable values
+synth/remap	zone3_v9	no enumerable values
+synth/remap	zone3_v10	no enumerable values
+synth/remap	zone3_v11	no enumerable values
+synth/remap	zone3_v12	no enumerable values
+synth/remap	zone3_v13	no enumerable values
+synth/remap	zone3_v14	no enumerable values
+synth/remap	zone3_v15	no enumerable values
+synth/remap	zone3_v16	no enumerable values
+synth/remap	zone3_v17	no enumerable values
+synth/remap	zone3_v18	no enumerable values
+synth/remap	zone3_v19	no enumerable values
+synth/remap	zone3_v20	no enumerable values
+synth/remap	zone3_v21	no enumerable values
+synth/remap	zone3_v22	no enumerable values
+synth/remap	zone3_v23	no enumerable values
+synth/remap	zone3_v24	no enumerable values
+synth/remap	zone3_v25	no enumerable values
+synth/remap	zone3_v26	no enumerable values
+synth/remap	zone3_v27	no enumerable values
+synth/remap	zone3_v28	no enumerable values
+synth/remap	zone3_v29	no enumerable values
+synth/remap	zone3_v30	no enumerable values
+synth/remap	zone3_v31	no enumerable values
+synth/remap	zone4_tex	type surface not swept
+synth/remap	zone4_bounds	no enumerable values
+synth/remap	zone4_v0	no enumerable values
+synth/remap	zone4_v1	no enumerable values
+synth/remap	zone4_v2	no enumerable values
+synth/remap	zone4_v3	no enumerable values
+synth/remap	zone4_v4	no enumerable values
+synth/remap	zone4_v5	no enumerable values
+synth/remap	zone4_v6	no enumerable values
+synth/remap	zone4_v7	no enumerable values
+synth/remap	zone4_v8	no enumerable values
+synth/remap	zone4_v9	no enumerable values
+synth/remap	zone4_v10	no enumerable values
+synth/remap	zone4_v11	no enumerable values
+synth/remap	zone4_v12	no enumerable values
+synth/remap	zone4_v13	no enumerable values
+synth/remap	zone4_v14	no enumerable values
+synth/remap	zone4_v15	no enumerable values
+synth/remap	zone4_v16	no enumerable values
+synth/remap	zone4_v17	no enumerable values
+synth/remap	zone4_v18	no enumerable values
+synth/remap	zone4_v19	no enumerable values
+synth/remap	zone4_v20	no enumerable values
+synth/remap	zone4_v21	no enumerable values
+synth/remap	zone4_v22	no enumerable values
+synth/remap	zone4_v23	no enumerable values
+synth/remap	zone4_v24	no enumerable values
+synth/remap	zone4_v25	no enumerable values
+synth/remap	zone4_v26	no enumerable values
+synth/remap	zone4_v27	no enumerable values
+synth/remap	zone4_v28	no enumerable values
+synth/remap	zone4_v29	no enumerable values
+synth/remap	zone4_v30	no enumerable values
+synth/remap	zone4_v31	no enumerable values
+synth/remap	zone5_tex	type surface not swept
+synth/remap	zone5_bounds	no enumerable values
+synth/remap	zone5_v0	no enumerable values
+synth/remap	zone5_v1	no enumerable values
+synth/remap	zone5_v2	no enumerable values
+synth/remap	zone5_v3	no enumerable values
+synth/remap	zone5_v4	no enumerable values
+synth/remap	zone5_v5	no enumerable values
+synth/remap	zone5_v6	no enumerable values
+synth/remap	zone5_v7	no enumerable values
+synth/remap	zone5_v8	no enumerable values
+synth/remap	zone5_v9	no enumerable values
+synth/remap	zone5_v10	no enumerable values
+synth/remap	zone5_v11	no enumerable values
+synth/remap	zone5_v12	no enumerable values
+synth/remap	zone5_v13	no enumerable values
+synth/remap	zone5_v14	no enumerable values
+synth/remap	zone5_v15	no enumerable values
+synth/remap	zone5_v16	no enumerable values
+synth/remap	zone5_v17	no enumerable values
+synth/remap	zone5_v18	no enumerable values
+synth/remap	zone5_v19	no enumerable values
+synth/remap	zone5_v20	no enumerable values
+synth/remap	zone5_v21	no enumerable values
+synth/remap	zone5_v22	no enumerable values
+synth/remap	zone5_v23	no enumerable values
+synth/remap	zone5_v24	no enumerable values
+synth/remap	zone5_v25	no enumerable values
+synth/remap	zone5_v26	no enumerable values
+synth/remap	zone5_v27	no enumerable values
+synth/remap	zone5_v28	no enumerable values
+synth/remap	zone5_v29	no enumerable values
+synth/remap	zone5_v30	no enumerable values
+synth/remap	zone5_v31	no enumerable values
+synth/remap	zone6_tex	type surface not swept
+synth/remap	zone6_bounds	no enumerable values
+synth/remap	zone6_v0	no enumerable values
+synth/remap	zone6_v1	no enumerable values
+synth/remap	zone6_v2	no enumerable values
+synth/remap	zone6_v3	no enumerable values
+synth/remap	zone6_v4	no enumerable values
+synth/remap	zone6_v5	no enumerable values
+synth/remap	zone6_v6	no enumerable values
+synth/remap	zone6_v7	no enumerable values
+synth/remap	zone6_v8	no enumerable values
+synth/remap	zone6_v9	no enumerable values
+synth/remap	zone6_v10	no enumerable values
+synth/remap	zone6_v11	no enumerable values
+synth/remap	zone6_v12	no enumerable values
+synth/remap	zone6_v13	no enumerable values
+synth/remap	zone6_v14	no enumerable values
+synth/remap	zone6_v15	no enumerable values
+synth/remap	zone6_v16	no enumerable values
+synth/remap	zone6_v17	no enumerable values
+synth/remap	zone6_v18	no enumerable values
+synth/remap	zone6_v19	no enumerable values
+synth/remap	zone6_v20	no enumerable values
+synth/remap	zone6_v21	no enumerable values
+synth/remap	zone6_v22	no enumerable values
+synth/remap	zone6_v23	no enumerable values
+synth/remap	zone6_v24	no enumerable values
+synth/remap	zone6_v25	no enumerable values
+synth/remap	zone6_v26	no enumerable values
+synth/remap	zone6_v27	no enumerable values
+synth/remap	zone6_v28	no enumerable values
+synth/remap	zone6_v29	no enumerable values
+synth/remap	zone6_v30	no enumerable values
+synth/remap	zone6_v31	no enumerable values
+synth/remap	zone7_tex	type surface not swept
+synth/remap	zone7_bounds	no enumerable values
+synth/remap	zone7_v0	no enumerable values
+synth/remap	zone7_v1	no enumerable values
+synth/remap	zone7_v2	no enumerable values
+synth/remap	zone7_v3	no enumerable values
+synth/remap	zone7_v4	no enumerable values
+synth/remap	zone7_v5	no enumerable values
+synth/remap	zone7_v6	no enumerable values
+synth/remap	zone7_v7	no enumerable values
+synth/remap	zone7_v8	no enumerable values
+synth/remap	zone7_v9	no enumerable values
+synth/remap	zone7_v10	no enumerable values
+synth/remap	zone7_v11	no enumerable values
+synth/remap	zone7_v12	no enumerable values
+synth/remap	zone7_v13	no enumerable values
+synth/remap	zone7_v14	no enumerable values
+synth/remap	zone7_v15	no enumerable values
+synth/remap	zone7_v16	no enumerable values
+synth/remap	zone7_v17	no enumerable values
+synth/remap	zone7_v18	no enumerable values
+synth/remap	zone7_v19	no enumerable values
+synth/remap	zone7_v20	no enumerable values
+synth/remap	zone7_v21	no enumerable values
+synth/remap	zone7_v22	no enumerable values
+synth/remap	zone7_v23	no enumerable values
+synth/remap	zone7_v24	no enumerable values
+synth/remap	zone7_v25	no enumerable values
+synth/remap	zone7_v26	no enumerable values
+synth/remap	zone7_v27	no enumerable values
+synth/remap	zone7_v28	no enumerable values
+synth/remap	zone7_v29	no enumerable values
+synth/remap	zone7_v30	no enumerable values
+synth/remap	zone7_v31	no enumerable values
+synth/roll	color	type color not swept
+synth/sacredGeometry	fgColor	type color not swept
+synth/sacredGeometry	bgColor	type color not swept
+synth/solid	color	type color not swept
+synth/subdivide	tex	type surface not swept
+synth3d/cellularAutomata3d	source	no enumerable values
+synth3d/cellularAutomata3d	geoSource	no enumerable values
+synth3d/heightmap3d	-	no base program
+synth3d/reactionDiffusion3d	source	no enumerable values
+synth3d/reactionDiffusion3d	geoSource	no enumerable values

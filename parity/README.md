@@ -174,6 +174,10 @@ UNITY=... UNITY_PROJECT=... bash parity/filter-verify.sh
 # meshLoader/meshRender sharing meshes/sphere.obj, tol 1 / SSIM 0.9999 +
 # render-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/render-verify.sh
+# parameter sweep (1900 generated parameter-variant programs across every
+# user-facing parameter of all 207 ported effects; GPU-free graph-level gate —
+# reference oracle vs C# live DSL compiler via .NET 8, no Unity needed):
+NM_REFERENCE_ROOT=/path/to/noisemaker bash parity/param-sweep-verify.sh
 ```
 
 ## Runbook
@@ -302,6 +306,14 @@ runtime/platform combination.
 - `render-verify.sh` — self-contained render pixel gate (two batches; mesh fixtures
   share `programs/meshes/sphere.obj` via `--mesh`/`-nmMesh`, tol 1 / SSIM 0.9999 +
   render-exceptions.json).
+- `param-sweep.mjs` — parameter-variant corpus generator (graph-level parameter
+  sweep; reads the pinned reference definitions and emits one non-default variant
+  per user-facing parameter value class into `programs/param-sweep/`).
+- `param-sweep-verify.sh` — fail-closed graph-level parameter sweep gate
+  (regenerates the committed corpus byte-identically, compiles every variant with
+  the reference oracle and the C# live DSL compiler, diffs each with
+  `graph-diff.py`; 1900 variants, 391 measured exclusions in
+  `programs/param-sweep/exclusions.tsv`).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
