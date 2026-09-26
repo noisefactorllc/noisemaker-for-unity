@@ -2,11 +2,12 @@
 
 ## 1. Source and authority revisions
 
-Daily review: 2026-09-25. Current inspected source: [`a2642d834335d0fb30d98d3e6c0245e109930cf7`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/a2642d834335d0fb30d98d3e6c0245e109930cf7).
-Full rendered parity remains **unverified**. No release approval or new closure follows from this review.
-Current upstream discovery: `bbdeb56c4b75cf33379766c3e87b0f5a18bcbba8`. Published Noisemaker authority: `1.0.179`, source `fca611fd8f91424661d4e531d39313d24ea21134`, 210 effect IDs.
+Audit pass: 2026-09-26 (pass 21). Audited source: [`7d8178d1785efc2dea0cad98db9e1d8c7f2762bc`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/7d8178d1785efc2dea0cad98db9e1d8c7f2762bc). Local `main` was clean and matched `origin/main` before and after the checks.
+Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates stay **unverified on this automation host** and carry unchanged from passes 2–14. No release approval or new closure follows from this pass.
+Current upstream head: `66b8ce7d861010ad31de6fd37bc364d0a72fc897`, documentation-only beyond the published authority `1.0.185` = `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`. The published effect manifest is byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`: 210 effect IDs, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`.
+Beyond the delivered range end `noisemaker@8eeb7b5ac14e`, upstream holds 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. Undelivered to this port. Delivery and parity belong to the implementation job.
 The observations below retain their original source and authority identities. They do not qualify later updates.
-Current served kit: `0.1.22`, source `a2642d834335d0fb30d98d3e6c0245e109930cf7`. [Retrieved inventory and hashes](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-served-inventories.json). Artifact identity does not establish host qualification.
+Current served kit: `0.1.25`, source `ebd3e7b757bedcfc0652340acef026c334ea6070`, re-verified fresh this pass: 2107/2107 CDN files byte-checked, source cross-check 2105/2105 at `7d8178d`, exit 0. [Deployment metadata](https://kits.noisedeck.app/unity/0/deployment-meta.json). Artifact identity does not establish host qualification.
 
 ### Earlier source observations
 
@@ -71,7 +72,7 @@ Earlier served compatibility inventory declares 207 effect IDs. Declaration does
 IDs absent from the served declaration: `synth/media`, `synth/scope`, `synth/spectrum`.
 Missing effects remain visible toward the full-parity goal. Contract exclusions do not become successful tests.
 
-Current served declaration: 207 effect IDs. This inventory is not evidence of execution. The declaration column below reflects kit `0.1.22`.
+Current served declaration: 207 effect IDs. This inventory is not evidence of execution. The declaration column below was measured at the kit-`0.1.22`-era package; the served kit `0.1.25` ships the byte-identical package payload (pass 19 cross-check, re-verified pass 21: 2105/2105 files identical to the current source tree).
 
 ### Effect inventory
 
@@ -445,6 +446,30 @@ graph-dump batch done: 1900 ok, 0 fail
 param sweep: 1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants
 ```
 
+### Gate evidence, 2026-09-26 (pass 21, current source `7d8178d`, fresh execution)
+
+Host: Linux x86_64, kernel 6.8.0-134-generic; node v26.5.1; .NET SDK 8.0.412; Python 3.11.2.
+Reference pinned by SHA at `noisemaker@8eeb7b5ac14e`. All commands exit 0.
+
+- `python -m unittest discover -s parity/tests -p "test_*.py"`: `Ran 46 tests` → `OK`.
+- `dotnet run --project tools/compiler-contract-tests`: `compiler contract tests: PASS (0 failures)`.
+- `bash parity/param-sweep-verify.sh`: corpus drift clean (1900 variants),
+  oracle 1900/1900, C# graphdump 1900/1900,
+  `param sweep: 1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants`.
+- Served-kit byte verification (pass-19 script, cross-check revision `7d8178d`):
+  `2107 fetched, 0 bad`; `2105 compared, 0 bad`.
+- Package identity: `unity/com.noisemaker.hlsl`, 1681 files,
+  manifest sha256 `5a7032f9dc09fe1a9db643012549b8e585381a7348e07432f0b8437eca5f0a82`;
+  `git diff 3686fd0..7d8178d --name-only -- unity/` → 0 files.
+- Authority-drift probe at upstream head `66b8ce7`: the reference oracle re-compiled
+  all 1900 corpus variants and the golden graphs are byte-identical to the pinned
+  `8eeb7b5a` output (`diff -r` identical, exit 0). The undelivered upstream runtime
+  delta does not change any golden graph.
+
+Carried, not re-run (Unity editor required, license-blocked): the 245-fixture pixel
+gates and the 316-program Unity graph gate from passes 2–14. The Windows/Linux
+platform matrix and the 6000.0 minimum floor stay blocked.
+
 ## 4. Evidence
 
 Review CI boundary: Exact-source runs: Export kit. A passing export dispatch does not qualify rendered parity. Current complete-render enforcement remains an open verification requirement. [Exact-source responses and workflows](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/noisemaker-for-unity-remote-evidence.json).
@@ -476,6 +501,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 | Date | Source | Result | Change |
 |---|---|---|---|
+| 2026-09-26 (pass 21) | `7d8178d1785efc2dea0cad98db9e1d8c7f2762bc` | Automation re-verification, fresh execution on the Linux audit host (exit 0 on all gates; no closure): comparator 46/46; contract tests PASS; param sweep 1900/1900 graph-clean at pinned `noisemaker@8eeb7b5ac14e`; served kit `0.1.25` byte-verified 2107/2107 with source cross-check 2105/2105; package identity `5a7032f9…` unchanged; authority-drift probe: oracle at `66b8ce7` reproduces all 1900 golden graphs byte-identically | Report header refreshed to the current source, upstream head `66b8ce7`, authority `1.0.185` (`6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`, 210 effect IDs, manifest sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`), and served kit `0.1.25`; pass-21 gate evidence added; declaration-column note corrected to the byte-identical `0.1.25` payload; upstream runtime delta `8eeb7b5a..66b8ce7` recorded as undelivered (implementation job) |
 | 2026-09-26 (pass 17) | current source | GAP-002 evidence recording (docs + committed raw evidence; **status remains open**): installed package artifact hash recorded — `unity/com.noisemaker.hlsl`, 1681 files, manifest sha256 `5a7032f9dc09fe1a9db643012549b8e585381a7348e07432f0b8437eca5f0a82` (command + output committed: `parity/evidence/2026-09-26-package-artifact-hash.txt`); first-hand Linux editor license run with raw log committed (`parity/evidence/2026-09-26-linux-editor-license-run.log`): batch mode exit 198 "No valid Unity Editor license found", 0 entitlements, changeset `a56f230f6470` tarball on x86_64 kernel 6.8.0-134 | OS/backend matrix row updated: macOS/Metal qualified; Windows/Linux recorded explicitly unavailable to this automation; 6000.0 minimum floor untested (same license blocker); upgrade path not exercisable (single shipped version). Installed-workflow open-items note reworded to "recorded, not closed". GAP-002 status remains **open**: minimum-host and platform-matrix required checks unmet. No host qualification, no pixels rendered. |
 | 2026-09-25 (pass 15) | current source | Graph-level per-effect parameter sweep (1900 variants, exit 0, no pixels) | Added `parity/param-sweep.mjs`, `parity/param-sweep-verify.sh`, and the committed corpus `parity/programs/param-sweep/`: one non-default variant per value class of every user-facing parameter of all 207 ported effects (every non-default enum choice, boolean flip, slider midpoint; unbounded float/int params default+1), generated from the pinned authority's definitions `noisemaker@c9ee8a04` (v1.0.176). The gate regenerates the corpus byte-identically (drift-checked), compiles every variant with the reference oracle (`tools/export-graph.mjs`) and the C# live DSL compiler (.NET 8 `tools/graphdump`, no Unity editor), and diffs each with `graph-diff.py`: 1900/1900 graph-clean, 0 FAIL, 0 missing. 391 measured exclusions recorded (`exclusions.tsv`: 280 parameters with no DSL-expressible non-default value, 64 color, 44 surface-input, 3 effects without a curated base program — already covered by the 3D pixel fixtures). Raw per-variant results committed (`results.tsv`). Graph-level only — Unity-side pixel rendering of parameter variants, the Windows/Linux platform matrix, and the declared 6000.0 minimum floor remain open (Unity license activation is account-bound). |
 | 2026-09-26 (pass 16) | current source | GAP-005 pass-field row ported (upstream `fa83eeab`, delivered range `27590caad94d..8eeb7b5ac14e`) + gates re-run at the delivered range end | Audited the delivered upstream range `4891b9953f9f..8eeb7b5ac14e` (force-push flagged; `4891b9953f9f` verified an ancestor of `8eeb7b5a`): the only shaders/ code delta beyond the previously synced `2f47612c2904` is `fa83eeab` (GAP-005) — no effect-definition changes (`shaders/effects` untouched `c9ee8a04..8eeb7b5a`), so the effect catalog is unchanged (0 new/changed/removed) and the shipped pixel corpora are unaffected. Ported the pass-field row: `name`/`type`/`clear`/`viewport`/`samplerTypes` copied verbatim onto compiled passes (Expander + GraphLoader), `clear` emitted in the normalized graph only when authored (after `repeat`, oracle key order), the viewport grammar extended to x/y + `w ?? width`/`h ?? height` with per-draw uniform-driven resolution in `NMRenderBackend` (x/y offsets supported; numeric boxes pass through), `samplerTypes`/`name`/`type` retained as queryable data (sampler selection is reference-WebGPU-only). Viewport orientation verified against the upstream diff: the resolved `{x,y,w,h}` is fed verbatim to the reference WebGL2 `gl.viewport` (bottom-left origin, which Unity's `SetViewport` shares) with no flip, and no shipped effect definition authors a non-zero viewport `y` (test fixtures only), so shipped-corpus behavior is unchanged. Evidence: compiler contract tests PASS (0 failures, including the new `TestGap005PassFieldsContract`, red-checked by corrupting the Expander copy), `parity/tests` comparator suite 46/46 PASS, `param-sweep-verify.sh` re-run with `NM_REFERENCE_ROOT` pinned by SHA at `noisemaker@8eeb7b5ac14e`: corpus regenerates byte-identically (1900 variants, drift check clean), oracle 1900/1900 ok, C# 1900/1900 ok, 1900/1900 graph-clean, exit 0 — normalized graphs byte-stable through the delivered range end. Review-resolution follow-ups (same tree): the live writer's normalized key order was brought into exact fidelity with the port-local oracle (`export-graph.mjs` `normalizePass`, untouched by `fa83eeab`) — `repeat` before `clear` before `conditions`; the pre-candidate order emitted `conditions` first, a latent oracle mismatch no corpus pass exercises (the 316-program and 1900-variant corpora contain no pass authoring both, and the sweep diffs stayed byte-identical through the reorder); `pass.clear` now round-trips any authored JSON literal verbatim (the reference consumes it truthily only — webgpu.js `loadOp` — and its PASS_KEYS whitelist at `8eeb7b5a` does not admit `clear`/`samplerTypes` on definition passes, so the row reaches the model via hand-authored graphs; the array/number forms match NMRenderBackend's `ClearColorOf` grammar, guarded by new contract-test cases). Retained: the Unity-side viewport `x`/`y` backend path (`SetViewport` in `NMRenderBackend`) is not exercised by automated tests in this environment — it requires a Unity session (license activation is account-bound) — while the shipped corpus authors no viewport at all, so behavior is unchanged for every shipped effect. Clear semantics aligned to the reference's truthy consumption: `NMRenderBackend` now gates the render-target clear through the new `GraphLoader.IsTruthy` (exact JS truthiness — `clear: false`/`0`/`""`/null do NOT clear; any array/object/non-zero number/non-empty string does), replacing the pre-GAP-005 presence gate that would have cleared on definition-authored `clear: false`; falsy/truthy forms are guarded by contract-test cases. |

@@ -4,11 +4,13 @@ Current compatibility matrix: [compatibility report](COMPATIBILITY.md).
 
 ## 1. Scope and source revisions
 
-Daily review: 2026-09-25. Current inspected source: [`a2642d834335d0fb30d98d3e6c0245e109930cf7`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/a2642d834335d0fb30d98d3e6c0245e109930cf7).
-Full rendered parity remains **unverified**. No release approval or new closure follows from this review.
-Current upstream discovery: `bbdeb56c4b75cf33379766c3e87b0f5a18bcbba8`. Published Noisemaker authority: `1.0.179`, source `fca611fd8f91424661d4e531d39313d24ea21134`, 210 effect IDs.
+Audit pass: 2026-09-26 (pass 21). Audited source: [`7d8178d1785efc2dea0cad98db9e1d8c7f2762bc`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/7d8178d1785efc2dea0cad98db9e1d8c7f2762bc). Local `main` was clean and matched `origin/main` before and after the checks.
+The commits after the last measured source `8692e96` are documentation and evidence files only: `144612e`, `5650d1a`, `7d8178d` touch `docs/` and `parity/evidence/` only. No runtime, package, or workflow file changed.
+Automation-completable gates were re-verified fresh at this source (section 3). Unity-host pixel gates stay **unverified on this automation host** and carry unchanged from passes 2–14. No release approval or new closure follows.
+Current upstream head: `66b8ce7d861010ad31de6fd37bc364d0a72fc897`, documentation-only beyond the published authority `1.0.185` = `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`. The published effect manifest is byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`: 210 effect IDs, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`.
+Upstream runtime delta beyond the delivered range end `noisemaker@8eeb7b5ac14e`: 3 commits — `f83a427` (structured backend diagnostics union), `9574362` (viewport-pass texture pooling), `6113da0` (texturePooling resource plan, GAP-006) — touch `shaders/src/runtime/**` and `shaders/tests/**` only. The effect catalog and compiler expander are unchanged. These commits are not delivered to this port. Delivery and parity belong to the separate implementation job. The authority-drift oracle probe this pass measured the golden-graph effect of that delta (section 3).
 The observations below retain their original source and authority identities. They do not qualify later updates.
-Current served kit: `0.1.22`, source `a2642d834335d0fb30d98d3e6c0245e109930cf7`. [Retrieved inventory and hashes](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-served-inventories.json). Artifact identity does not establish host qualification.
+Current served kit: `0.1.25`, source `ebd3e7b757bedcfc0652340acef026c334ea6070`. This pass re-verified it fresh: 2107/2107 CDN files byte-checked, source cross-check 2105/2105 at `7d8178d`, exit 0 (section 3). Artifact identity does not establish host qualification.
 
 ### Earlier source observations
 
@@ -75,6 +77,38 @@ Historical denominators and tolerances remain in the original source documents. 
 No global installation, user-project modification, manual deployment, or manual release occurred.
 Native applications present on the machine are not evidence of a qualified host workflow.
 
+### Automation re-verification, 2026-09-26 (pass 21, current source)
+
+Host: Linux x86_64, kernel 6.8.0-134-generic; node v26.5.1; .NET SDK 8.0.412; Python 3.11.2 (numpy 2.5.3, pillow 12.3.0). Source `7d8178d`, clean tree, matched `origin/main` before and after. Reference authority checked out by SHA at `noisemaker@8eeb7b5ac14e` (clone, detached). [Raw evidence](/series/evidence-audit-20260926-170500/result-noisemaker-for-unity.json).
+
+Executed commands, all exit 0:
+
+```sh
+python -m unittest discover -s parity/tests -p "test_*.py"
+# Ran 46 tests ... OK
+
+dotnet run --project tools/compiler-contract-tests
+# compiler contract tests: PASS (0 failures)
+
+bash parity/param-sweep-verify.sh   # NM_REFERENCE_ROOT pinned at 8eeb7b5ac14e
+# corpus matches committed fixtures: 1900 variants
+# oracle ok: 1900, failed: 0
+# graph-dump batch done: 1900 ok, 0 fail
+# param sweep: 1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants
+
+python3 verify-kit-0.1.25.py        # pass-19 script, cross-check revision 7d8178d
+# CDN byte check: 2107 fetched, 0 bad
+# source cross-check vs 7d8178d: 2105 compared, 0 bad
+
+# unity/com.noisemaker.hlsl: find . -type f | sort | sha256sum chain
+# 1681 files, manifest sha256 5a7032f9dc09fe1a9db643012549b8e585381a7348e07432f0b8437eca5f0a82
+# git diff 3686fd0..7d8178d --name-only -- unity/  ->  0 files
+```
+
+Authority-drift oracle probe at the current upstream head `66b8ce7`: the reference oracle re-compiled all 1900 corpus variants and produced graphs byte-identical to the pinned `8eeb7b5a` output (`diff -r`: identical, exit 0). The undelivered upstream runtime delta does not change any golden graph. Pixel-level behavior of those runtime features stays unported and unmeasured.
+
+Carried, not re-run, all Unity-host legs (license-blocked, passes 17/18 raw logs): pixel gates (245 fixtures, passes 2–14), the 316-program graph gate (needs the Unity editor binary), the Windows/Linux platform matrix, and the 6000.0 minimum floor. Exact-source CI: no workflow matches the audited documentation-only commits; the latest Export kit run `36215557742` stays `success` at `ebd3e7b`.
+
 ### Native observations, 2026-09-24 (full gate, current authority — pass 2)
 
 Source `2344c30` vs pinned authority worktree `noisemaker@c9ee8a04` (v1.0.176). Unity 6000.3.16f1, isolated consumer, Linear, Metal; goldens from the reference WebGL2 renderer off the pinned worktree. All declared fixtures executed, zero skips, all gates exit 0: graph 316/316 byte-clean; render 112/112 (100 `PASS`, 12 measured bounded `ALLOWED_NEAR`, 0 fail); compiler contract tests PASS. Authority provenance is resolved (immutable worktree, tag `v1.0.176`); goldens were regenerated, not replaced silently — historical measurements remain in the initial probe below. Details: [compatibility report §3](COMPATIBILITY.md#3-parity-coverage).
@@ -104,7 +138,7 @@ These initial entries record missing qualification, not inferred implementation 
 - Dependencies: Resolve immutable authority inputs before comparison. Retain historical goldens and their provenance.
 - Acceptance criteria: Record every applicable case, parameter choice, exclusion, error, and tolerance. Pass the declared contract without silently reducing coverage.
 - Required checks: Existing compiler and parity entry points from the README, with raw results and exact source hashes.
-- Last verification: 2026-09-26 (pass-16 re-verification of the pass-15 graph-level parameter sweep at the delivered range end `noisemaker@8eeb7b5ac14e`: 1900/1900 graph-clean, exit 0, corpus drift check clean; platform matrix and minimum floor still unverified). Full behavior qualification remains unverified.
+- Last verification: 2026-09-26 (pass 21: sweep re-run fresh on this Linux automation host at source `7d8178d`, pinned authority checked out by SHA at `noisemaker@8eeb7b5ac14e` — 1900/1900 graph-clean, exit 0, corpus drift clean; comparator suite 46/46; compiler contract tests PASS, 0 failures; kit `0.1.25` byte-verification re-run fresh; authority-drift oracle probe at upstream head `66b8ce7` measured over the same corpus. Pass 16 previously verified the same sweep at the delivered range end. Platform matrix and minimum floor still unverified). Full behavior qualification remains unverified.
 
 ### GAP-002: installed developer workflow qualification
 
@@ -117,7 +151,7 @@ These initial entries record missing qualification, not inferred implementation 
 - Dependencies: Use an isolated consumer and the intended host version. Identify any required GPU, license, or external input before testing. (Identified and confirmed: an account-bound Unity editor license is the human-only requirement for the untested hosts.)
 - Acceptance criteria: Retain the installed artifact hash (met 2026-09-26: committed manifest hash + exact command), interaction steps, meaningful output, recovery result, and cleanup result (met: passes 3, 4, and 6 — isolated consumer at source `2344c30`, play-mode render/binding stats, error/recovery legs, player build, removal/reinstall).
 - Required checks: Test minimum and current supported versions — **current 6000.3.16f1 tested; minimum 6000.0 untested (license-blocked, recorded explicitly)**. Measure cancellation and file preservation where relevant (covered by pass 4). Record unavailable platforms explicitly (done 2026-09-26, first-hand, raw log committed). The minimum-version check is the open closure blocker.
-- Last verification: 2026-09-26 (pass 17: installed artifact hash recorded at the current source; platform/upgrade availability explicitly recorded from a first-hand Linux editor run with committed raw log). Status remains open: the register closes entries only when their acceptance criteria and required checks pass, and the minimum-host/platform-matrix checks are unmet.
+- Last verification: 2026-09-26 (pass 21: installed-artifact identity re-verified fresh at source `7d8178d` — `unity/com.noisemaker.hlsl`, 1681 files, manifest sha256 `5a7032f9dc09fe1a9db643012549b8e585381a7348e07432f0b8437eca5f0a82`, byte-stable since `3686fd0`; `git diff 3686fd0..7d8178d --name-only -- unity/` returned 0 files. Pass 17 recorded the hash and platform availability with committed raw logs). Status remains open: the register closes entries only when their acceptance criteria and required checks pass, and the minimum-host/platform-matrix checks are unmet.
 
 ### GAP-003: distribution and release qualification
 
@@ -130,7 +164,7 @@ These initial entries record missing qualification, not inferred implementation 
 - Dependencies: Complete GAP-002 for the release candidate. Distinguish source CI from downstream publication and host qualification.
 - Acceptance criteria: Match artifact bytes to the inventory (met 2026-09-26 at kit `0.1.25`, 2107/2107 + 1682-file engine cross-check). Check licenses and dependencies (met 2026-09-26 on the served kit). Pass installation, example execution, upgrade, and removal (installation/removal qualified on the `2344c30` payload, passes 3/4; the current payload's import and the upgrade path remain host-bound / not exercisable).
 - Required checks: Inspect required CI jobs at the exact source SHA (done at both published SHAs). Count skips and verify actual render legs, not green summaries.
-- Last verification: 2026-09-26 (pass 19: served kit `0.1.25` byte-verified at source `ebd3e7b`, ancestor of this register's revision). No package or release approval follows from this register.
+- Last verification: 2026-09-26 (pass 21: distributed-kit byte verification re-run fresh — served kit `0.1.25` at source `ebd3e7b` unchanged; 2107/2107 CDN files byte-checked, source cross-check 2105/2105 against the current tree at `7d8178d`, exit 0. Pass 19 recorded the original verification with committed raw evidence). No package or release approval follows from this register.
 
 ## 5. Ordered next actions
 
@@ -151,6 +185,7 @@ Implementation changes belong to the separate implementation job. This register 
 
 | Date | Source SHA | Changes | Tested scope | Remaining limits |
 |---|---|---|---|---|
+| 2026-09-26 (pass 21) | `7d8178d1785efc2dea0cad98db9e1d8c7f2762bc` | Automation re-verification on the Linux audit host (docs-only register update; no code changed): commits `144612e`, `5650d1a`, `7d8178d` after the last measured source `8692e96` are documentation/evidence only; comparator suite 46/46 PASS; compiler contract tests PASS (0 failures); param sweep re-run at pinned authority `noisemaker@8eeb7b5ac14e` — corpus drift clean, oracle 1900/1900, C# 1900/1900, 1900/1900 graph-clean, exit 0; served kit `0.1.25` byte-verification re-run fresh (2107/2107 CDN, source cross-check 2105/2105 at `7d8178d`); package artifact identity re-hashed (1681 files, `5a7032f9…`, 0 `unity/` diffs since `3686fd0`); authority-drift probe: oracle at upstream head `66b8ce7` reproduces all 1900 golden graphs byte-identically. GAP-001/002/003 statuses stay **blocked**; no closure. | Fresh execution: graph-level gates, comparator, contract tests, distributed-kit bytes, package identity, authority-drift oracle probe. Carried unchanged: Unity-host pixel gates (245 fixtures, passes 2–14) and the 316-program Unity graph gate. | License-bound checks (Windows/Linux platform matrix, 6000.0 minimum floor, Unity-side pixel rendering of parameter variants, fresh Unity-host import/player-build of the served `0.1.25` payload) remain blocked on an account-bound Unity license; upstream runtime delta `8eeb7b5a..66b8ce7` (3 commits) undelivered — implementation job. |
 | 2026-09-26 (pass 20) | current source | GAP-001/002/003 status recorded as **blocked** (docs-only; no code, no gates re-run — all measured evidence carried unchanged from passes 2–19): the only remaining required checks (Windows/Linux platform matrix, declared 6000.0 minimum floor, Unity-side pixel rendering of parameter variants, fresh Unity-host import / player-build shader inclusion of the served `0.1.25` payload) all require an activated Unity editor license, account-bound and unsatisfiable by this automation — Linux editor exits batch mode 198 with 0 entitlement groups / 0 free entitlements (raw logs committed under `parity/evidence/`, passes 17/18); no Windows host exists in this automation; upgrade path not exercisable (single served version per slot). Automation-completable work is complete and published at `144612ef58166eb25574b5d671716711c10cff51`. | Carried, not re-run: graph 316/316, 245 pixel fixtures exit 0, 1900/1900 param sweep, kit `0.1.25` 2107/2107 byte-verification with committed raw evidence (passes 2–19). | License-bound checks listed above; resolution requires a licensed host (human `.alf`→`.ulf` exchange or a licensed Windows host). |
 | 2026-09-26 (pass 19) | current source | GAP-003 distributed-kit re-verification (docs; status remains open): served kit `0.1.25` at source `ebd3e7b` (`deployment-meta.json` `git_hash` = `kit.json` `source.sha`; `ebd3e7b` is an ancestor of this register's revision) — 2107/2107 inventoried files byte-verified (sha256 + size, fail-closed, 0 bad; raw evidence + reproducible script committed: `parity/evidence/2026-09-26-kit-0.1.25-byte-verification.txt`); 1681-file `engine/com.noisemaker.hlsl` payload + `LICENSES/noisemaker-for-unity-LICENSE.txt` cross-checked byte-identical to the source tree at `8692e96` (package tree unchanged `ebd3e7b..8692e96`); package metadata on the served kit: MIT + shipped `LICENSE.md`, zero dependencies, 1 sample (QuickStart 3 files byte-identical), `unity: 6000.0`, wired URLs; both `LICENSES/` notices present; 421 `shaders/` files + `NMExportedGraph.cs` present; exact-source CI (Export kit, run 36215557742) `success` at `ebd3e7b`. | Current distributed artifact byte-verified and content-checked at the exact source; served engine payload tied to the source tree (18-file delta vs the import-qualified `2344c30` payload identified: compiler/runtime/tests + unity-floor bump + 2 pixel-gated shader files already byte-exact in the pass-12/14 gates). | GAP-003 stays open: fresh Unity-host import of the `0.1.25` payload and player-build shader-inclusion legs are license-bound (GAP-002's human-only blocker); upgrade path not exercisable (single served version per slot, `unity/1` → 404); platform matrix unchanged. |
 | 2026-09-26 (pass 17) | current source | GAP-002 evidence recording (docs + committed raw evidence; status remains open): installed package artifact hash recorded at this source — `unity/com.noisemaker.hlsl`, 1681 files, manifest sha256 `5a7032f9dc09fe1a9db643012549b8e585381a7348e07432f0b8437eca5f0a82` (exact command + output committed in `parity/evidence/2026-09-26-package-artifact-hash.txt`); first-hand Linux license run recorded with raw log committed (`parity/evidence/2026-09-26-linux-editor-license-run.log`): Unity `6000.3.16f1` Linux editor (changeset `a56f230f6470`, official tarball, unattended) exits batch mode 198 "No valid Unity Editor license found" with 0 entitlements on this automation's x86_64 host (kernel 6.8.0-134); activation requires a human Unity-account `.alf`→`.ulf` exchange. Windows — no host in this automation. Declared 6000.0 minimum floor — untested, same license blocker. Upgrade path — not exercisable (single shipped version; removal→reinstall is the qualified lifecycle). GAP-002 status remains **open**: the minimum-host and platform-matrix required checks are unmet. | Installed artifact hash retained; Windows/Linux platform matrix, 6000.0 minimum floor, and upgrade-path availability explicitly recorded; no host qualification, no pixels rendered. | GAP-002 stays open on the minimum-host/platform-matrix required checks (license-blocked for any licensed host; GAP-001 shares the action); GAP-003 keeps the distributed-kit view. |
