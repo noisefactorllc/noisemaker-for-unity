@@ -7,3 +7,10 @@ recomputation at review candidate 5d4a9e9f4a8f1468d2f5ac1e8aa88f44bc7936a2 (2026
   git diff 3686fd05372b69d8eb4030b20768375b688f1f11 5d4a9e9f4a8f1468d2f5ac1e8aa88f44bc7936a2 --name-only -- unity/com.noisemaker.hlsl  ->  0 files
   same command re-run at candidate (clean tree, 1681 files):
 5a7032f9dc09fe1a9db643012549b8e585381a7348e07432f0b8437eca5f0a82  -
+
+recomputation at current default branch (2026-09-26, commit 448eca7a329c912de34ffbbb79abe60c0b512474):
+  the GAP-006 texture-pooling port changed the package tree: 5 files
+    CHANGELOG.md, Compiler/Graph/TexturePoolability.cs(.meta), Runtime/Pipeline/NMPipeline.cs, Runtime/Pipeline/TextureStore.cs
+  (git diff 2e7f75cf9bf64d5242a3e7cc27e1d11d2cd527cc 448eca7 --name-only -- unity/com.noisemaker.hlsl)
+  clean tree, same command re-run (1683 files now):
+79ba4b6cc26ee5a9418183cbfddb37b3b5e87ccabf62478d1e69461eb40627bd  -
