@@ -50,6 +50,7 @@ namespace CompilerContractTests
             TestValidCallForms();
             TestRenderLandscape3dFilteringDefines();
             TestGap004TexturePolicyContract();
+            TestGap005PassFieldsContract();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -2044,6 +2045,104 @@ namespace CompilerContractTests
                 "\"is3D\":true,\"filter\":\"trilinear\"}}}";
             TextureSpec badval = RenderGraph.FromJson(negValJson).Textures["_badval"];
             Check(badval.Filter == null, "GAP-004 loader whitelist rejects unknown filter");
+        }
+
+        // GAP-005 pass-field row (noisemaker@fa83eeab): expand() copies name/type/
+        // clear/viewport/samplerTypes verbatim onto every expanded pass. Mirrors
+        // shaders/tests/test_pass_fields.js at the C# model level: verbatim copy,
+        // the x/y + w??width/h??height viewport grammar, authored `clear: null`
+        // round-trips as null, and unauthored parity (fields stay null/false and
+        // the normalized graph gains no clear key).
+        private static void TestGap005PassFieldsContract()
+        {
+            var reg = new EffectRegistry();
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Pass Field Probe\",\"namespace\":\"synth\",\"func\":\"passFieldProbe\"," +
+                "\"starter\":true,\"globals\":{},\"passes\":[{" +
+                "\"name\":\"label\",\"program\":\"automationProbe\",\"type\":\"compute\"," +
+                "\"clear\":false,\"samplerTypes\":{\"source\":\"nearest\"}," +
+                "\"viewport\":{\"x\":16,\"y\":32,\"w\":64,\"height\":128}," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}]," +
+                "\"textures\":{}}"));
+            RenderGraph g = DslCompiler.Compile(
+                "search synth\npassFieldProbe().write(o0)\nrender(o0)\n", reg);
+            Pass p = g.Passes[0];
+            Check(p.PassName == "label", "GAP-005 name copied verbatim");
+            Check(p.DeclaredType == "compute", "GAP-005 type copied verbatim");
+            Check(p.ClearSpecified && p.Clear != null && p.Clear.Kind == JsonKind.Bool && !p.Clear.AsBool,
+                "GAP-005 clear copied verbatim (authored false)");
+            Check(p.SamplerTypes != null && p.SamplerTypes.Get("source").AsString == "nearest",
+                "GAP-005 samplerTypes copied verbatim");
+            // Viewport grammar: numeric x/y pass through as Number Dims; w wins over
+            // the width/height aliases (upstream reads spec.w ?? spec.width).
+            Check(p.ViewportX != null && p.ViewportX.Kind == DimKind.Number && p.ViewportX.Number == 16,
+                "GAP-005 viewport x numeric passthrough");
+            Check(p.ViewportY != null && p.ViewportY.Kind == DimKind.Number && p.ViewportY.Number == 32,
+                "GAP-005 viewport y numeric passthrough");
+            Check(p.ViewportWidth != null && p.ViewportWidth.Kind == DimKind.Number && p.ViewportWidth.Number == 64,
+                "GAP-005 viewport w beats width/height aliases");
+            Check(p.ViewportHeight != null && p.ViewportHeight.Kind == DimKind.Number && p.ViewportHeight.Number == 128,
+                "GAP-005 viewport height alias resolves");
+            // Normalized graph: export-graph normalizePass carries clear (when present)
+            // but not name/type/viewport/samplerTypes — the C# writer must match.
+            string json = DslCompiler.ToNormalizedJson(g);
+            Check(json.Contains("\"clear\":false"), "GAP-005 normalized graph emits authored clear");
+            Check(json.IndexOf("\"clear\":false") < json.IndexOf("\"effectKey\""),
+                "GAP-005 clear emitted before the metadata block (oracle key order)");
+            Check(!json.Contains("\"samplerTypes\"") && !json.Contains("\"viewport\"") &&
+                  !json.Contains("\"declaredType\"") && !json.Contains("\"passName\""),
+                "GAP-005 normalized graph stays schema-stable for labels/viewport/samplerTypes");
+
+            // Authored `clear: null` round-trips as a present-but-null key.
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Clear Null Probe\",\"namespace\":\"synth\",\"func\":\"clearNullProbe\"," +
+                "\"starter\":false,\"globals\":{},\"passes\":[{" +
+                "\"program\":\"automationProbe\",\"clear\":null," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+            RenderGraph gNull = DslCompiler.Compile(
+                "search synth\nclearNullProbe().write(o0)\nrender(o0)\n", reg);
+            Check(gNull.Passes[0].ClearSpecified && gNull.Passes[0].Clear == null,
+                "GAP-005 authored clear:null keeps structural presence with null value");
+            Check(DslCompiler.ToNormalizedJson(gNull).Contains("\"clear\":null"),
+                "GAP-005 normalized graph emits authored clear:null");
+
+            // Unauthored parity: no pass-field keys, no clear emission.
+            RenderGraph gNone = DslCompiler.Compile(
+                "search synth\nautomationProbe(amount: 2).write(o0)\nrender(o0)\n", ProbeRegistry());
+            Pass none = gNone.Passes[0];
+            // The probe passDef authors name:"render" — copied verbatim; everything
+            // else in the GAP-005 row stays unauthored (null/false).
+            Check(none.PassName == "render" && none.DeclaredType == null && !none.ClearSpecified &&
+                  none.Clear == null && none.SamplerTypes == null &&
+                  none.ViewportX == null && none.ViewportY == null &&
+                  none.ViewportWidth == null && none.ViewportHeight == null,
+                "GAP-005 unauthored fields stay null/false");
+            Check(!DslCompiler.ToNormalizedJson(gNone).Contains("\"clear\""),
+                "GAP-005 unauthored pass emits no clear key");
+
+            // GraphLoader round-trip: hand-authored graph JSON carries the fields;
+            // the w-alias wins over width (same precedence as the live path).
+            string loaderJson = "{\"passes\":[{" +
+                "\"id\":\"n0_pass_0\",\"passType\":\"effect\",\"namespace\":null,\"func\":null," +
+                "\"progName\":\"probe\",\"program\":\"probe\",\"defines\":{},\"inputs\":{}," +
+                "\"outputs\":{},\"uniforms\":{},\"uniformSpecs\":{}," +
+                "\"name\":\"label\",\"type\":\"compute\",\"clear\":false," +
+                "\"samplerTypes\":{\"source\":\"repeat\"}," +
+                "\"viewport\":{\"y\":8,\"width\":256,\"h\":16}}],\"textures\":{}}";
+            Pass loaded = RenderGraph.FromJson(loaderJson).Passes[0];
+            Check(loaded.PassName == "label" && loaded.DeclaredType == "compute",
+                "GAP-005 loader parses name/type");
+            Check(loaded.ClearSpecified && loaded.Clear != null && !loaded.Clear.AsBool,
+                "GAP-005 loader parses clear presence + value");
+            Check(loaded.SamplerTypes != null && loaded.SamplerTypes.Get("source").AsString == "repeat",
+                "GAP-005 loader parses samplerTypes");
+            Check(loaded.ViewportY != null && loaded.ViewportY.Number == 8,
+                "GAP-005 loader parses viewport y");
+            Check(loaded.ViewportWidth != null && loaded.ViewportWidth.Number == 256,
+                "GAP-005 loader parses viewport width");
+            Check(loaded.ViewportHeight != null && loaded.ViewportHeight.Number == 16,
+                "GAP-005 loader parses viewport h alias");
+            Check(loaded.ViewportX == null, "GAP-005 loader leaves viewport x at default");
         }
 
         private static RenderGraph CompileProbe(string body)

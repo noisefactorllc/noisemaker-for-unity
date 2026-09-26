@@ -166,8 +166,17 @@ namespace Noisemaker.Hlsl.Compiler.Graph
             // graph.json gates correctly at runtime (NMPipeline.ShouldSkipPass).
             pass.Conditions = ParseConditions(p.Get("conditions"));
             pass.Repeat = ParseRepeat(p.Get("repeat"));
+            // GAP-005 pass-field row (noisemaker@fa83eeab): labels/controls copied
+            // verbatim onto the compiled pass. ClearSpecified preserves the
+            // authored `clear: null` form for byte-identical graph round-trips
+            // (the oracle emits clear whenever the key is present, including null).
+            pass.ClearSpecified = p.Has("clear");
             JsonValue clear = p.Get("clear");
             pass.Clear = (clear != null && clear.Kind != JsonKind.Null) ? clear : null;
+            pass.PassName = GetString(p, "name");
+            pass.DeclaredType = GetString(p, "type");
+            JsonValue samplerTypes = p.Get("samplerTypes");
+            pass.SamplerTypes = (samplerTypes != null && samplerTypes.Kind != JsonKind.Null) ? samplerTypes : null;
 
             // metadata
             pass.StepIndex = GetNullableInt(p, "stepIndex");
@@ -184,11 +193,18 @@ namespace Noisemaker.Hlsl.Compiler.Graph
             // 64 x 4096 atlas). Drives NMRenderBackend's _NM_Resolution override so
             // NM_FragCoord recovers integer atlas-pixel -> voxel addressing. Absent ->
             // null (full-target screen resolution, the 2D-effect case).
+            // GAP-005 grammar (noisemaker@fa83eeab): x/y offsets (default 0) and the
+            // w/h aliases (upstream reads `spec.w ?? spec.width`); mirrored here so a
+            // hand-authored graph and the live-DSL pass model agree.
             JsonValue viewport = p.Get("viewport");
             if (viewport != null && viewport.Kind == JsonKind.Object)
             {
-                JsonValue vw = viewport.Get("width");
-                JsonValue vh = viewport.Get("height");
+                JsonValue vx = viewport.Get("x");
+                JsonValue vy = viewport.Get("y");
+                JsonValue vw = viewport.Get("w") ?? viewport.Get("width");
+                JsonValue vh = viewport.Get("h") ?? viewport.Get("height");
+                if (vx != null && vx.Kind != JsonKind.Null) pass.ViewportX = ParseDim(vx);
+                if (vy != null && vy.Kind != JsonKind.Null) pass.ViewportY = ParseDim(vy);
                 if (vw != null && vw.Kind != JsonKind.Null) pass.ViewportWidth = ParseDim(vw);
                 if (vh != null && vh.Kind != JsonKind.Null) pass.ViewportHeight = ParseDim(vh);
             }

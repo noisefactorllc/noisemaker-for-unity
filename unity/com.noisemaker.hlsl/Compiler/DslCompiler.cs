@@ -264,6 +264,25 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 sb.Append(','); WriteKey(sb, "blend"); sb.Append(p.Blend ? "true" : "false");
             }
+            if (p.Repeat != null)
+            {
+                sb.Append(','); WriteKey(sb, "repeat");
+                if (p.Repeat.IsCount) sb.Append(p.Repeat.Count);
+                else WriteJsonString(sb, p.Repeat.UniformName);
+            }
+            // GAP-005 (noisemaker@fa83eeab): the reference expanded pass carries
+            // passDef.clear verbatim and export-graph normalizePass emits it whenever
+            // the key is present (including an authored null). Match that emission
+            // point — after repeat, before conditions, matching the oracle's key
+            // order — so an authored clear round-trips byte-identically.
+            if (p.ClearSpecified)
+            {
+                sb.Append(','); WriteKey(sb, "clear");
+                if (p.Clear == null) sb.Append("null");
+                else if (p.Clear.Kind == JsonKind.Bool) sb.Append(p.Clear.AsBool ? "true" : "false");
+                else if (p.Clear.Kind == JsonKind.Null) sb.Append("null");
+                else throw new InvalidOperationException("pass.clear must be a boolean or null (reference effect-validator.js)");
+            }
             // conditions (runIf/skipIf, reference 0ed489ec): the round's `.flatMap()`
             // per-viewMode-clone pattern is the first use of pass.conditions — expander.js
             // now sets `conditions: passDef.conditions` on the compiled pass, and
@@ -284,12 +303,6 @@ namespace Noisemaker.Hlsl.Compiler
                     WriteKey(sb, "skipIf"); WriteConditionList(sb, p.Conditions.SkipIf);
                 }
                 sb.Append('}');
-            }
-            if (p.Repeat != null)
-            {
-                sb.Append(','); WriteKey(sb, "repeat");
-                if (p.Repeat.IsCount) sb.Append(p.Repeat.Count);
-                else WriteJsonString(sb, p.Repeat.UniformName);
             }
             // Always emit (null when absent) to match the reference normalized graph,
             // which emits effectKey/scopedParams unconditionally (export-graph normalizePass).

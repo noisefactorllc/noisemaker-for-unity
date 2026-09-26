@@ -117,6 +117,21 @@ namespace Noisemaker.Hlsl.Compiler.Graph
         // routes the draw to a distinct `<progName>_alpha` shader pass (NMShaderRegistry).
         public string[] BlendFactors { get; set; }
         public Repeat Repeat { get; set; }        // run pass N times/frame; null = once
+
+        // GAP-005 pass-field row (noisemaker@fa83eeab): pass labels and per-pass
+        // execution controls are copied VERBATIM onto the expanded pass.
+        // `PassName`/`DeclaredType` stay queryable metadata (backend shader-kind
+        // dispatch remains source-derived, so DeclaredType has no behavioral
+        // consumer in this port); `Clear` drives the render-target clear (the
+        // Unity analog of the reference WebGPU loadOp); `Viewport*` is resolved
+        // to backend x/y/w/h numbers per draw (see NMRenderBackend.ExecutePass);
+        // `SamplerTypes` selects per-binding samplers in the reference WebGPU
+        // backend — retained as data with no Unity consumer (this port keeps its
+        // engine-wide sampler states).
+        public string PassName { get; set; }      // pass.name; null when absent
+        public string DeclaredType { get; set; }  // pass.type ("render"|"compute"); null when absent
+        public bool ClearSpecified { get; set; }  // structural presence: authored `clear: null` round-trips as null
+        public JsonValue SamplerTypes { get; set; } // pass.samplerTypes verbatim; null when absent
         public JsonValue Clear { get; set; }      // backend-interpreted; null when absent
 
         // VOLUME-WRITE viewport (reference/04 §10 Pass.viewport, synth3d/filter3d JSON).
@@ -125,9 +140,21 @@ namespace Noisemaker.Hlsl.Compiler.Graph
         // overridden to these dims so NM_FragCoord (= uv * _NM_Resolution) recovers the
         // integer atlas pixel -> voxel addressing. width/height are Dims resolved with the
         // same rules as texture dims (param->64, param^power->4096). null = full-target,
-        // screen resolution (the common 2D effect case). See NMRenderBackend.ExecutePass.
-        public Dim ViewportWidth { get; set; }    // null when absent
-        public Dim ViewportHeight { get; set; }   // null when absent
+        // null = full-target, screen resolution (the common 2D effect case). See NMRenderBackend.ExecutePass.
+        //
+        // GAP-005 (noisemaker@fa83eeab) generalizes the grammar: the authored spec
+        // accepts x/y (offsets, default 0) and w/h (aliases of width/height,
+        // upstream reads `spec.w ?? spec.width`). ViewportX/ViewportY default to
+        // 0 when absent; ViewportWidth/ViewportHeight hold the w/width and
+        // h/height resolution. An already-numeric box passes through unchanged
+        // (Dims of kind Number resolve verbatim). The runtime re-resolves per
+        // draw from the pass uniforms — the analog of the reference's per-frame
+        // `viewportResolved` cache (uniform tracking included, since the lookup
+        // is taken after oscillator resolution).
+        public Dim ViewportX { get; set; }        // null = 0
+        public Dim ViewportY { get; set; }        // null = 0
+        public Dim ViewportWidth { get; set; }    // w ?? width; null = full target width
+        public Dim ViewportHeight { get; set; }   // h ?? height; null = full target height
 
         // --- metadata ---
         public string EffectKey { get; set; }

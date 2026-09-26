@@ -30,6 +30,14 @@ development (pre-1.0); APIs may change.
   upstream v1.0.109. At the default `speed=0` the output is unchanged and loop-seamless. The
   Shader Graph `pondRipples` node gains matching `Speed` and `Time` inputs (`Time` drives the
   animation; leave it 0 for a static ripple).
+- **Pass-field row** (upstream `noisemaker@fa83eeab`, delivered in the range
+  `27590caad94d..8eeb7b5ac14e`): effect-definition passes can author `name`, `type`,
+  `clear`, `viewport` (x/y offsets + w/h dims), and `samplerTypes`; all five are copied
+  verbatim onto the compiled pass. `clear` reaches the Unity render-target clear; `viewport`
+  resolves per draw from the pass uniforms (x/y/w/h, same Dim grammar as texture sizes) in
+  `NMRenderBackend`; `name`/`type`/`samplerTypes` are queryable metadata (sampler selection
+  is a reference-WebGPU-only consumer). The normalized graph gains `clear` only when
+  authored — unchanged graphs stay byte-stable.
 
 ### Changed
 - Renamed `render/renderCubemap3D` → `renderCubemap3d` (lowercase `3d` for func/program/shader;

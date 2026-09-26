@@ -710,16 +710,40 @@ namespace Noisemaker.Hlsl.Compiler
                 if (repeat != null && repeat.Kind == JsonKind.Number) pass.Repeat = Repeat.FromCount((int)repeat.AsNumber);
                 else if (repeat != null && repeat.Kind == JsonKind.String) pass.Repeat = Repeat.FromUniform(repeat.AsString);
 
+                // GAP-005 pass-field row (noisemaker@fa83eeab): labels and per-pass
+                // execution controls are copied VERBATIM onto the expanded pass.
+                // PassName/DeclaredType stay queryable metadata (backend shader-kind
+                // dispatch remains source-derived, so DeclaredType has no behavioral
+                // consumer in this port); Clear drives the render-target clear
+                // (NMRenderBackend — the analog of the reference WebGPU loadOp);
+                // SamplerTypes selects per-binding samplers in the reference WebGPU
+                // backend — retained as data with no Unity consumer (this port keeps
+                // its engine-wide sampler states). ClearSpecified preserves the
+                // authored `clear: null` form for byte-identical graph round-trips.
+                pass.ClearSpecified = passDef.Has("clear");
+                JsonValue clearVal = passDef.Get("clear");
+                pass.Clear = (clearVal != null && clearVal.Kind != JsonKind.Null) ? clearVal : null;
+                pass.PassName = StrOf(passDef, "name");
+                pass.DeclaredType = StrOf(passDef, "type");
+                JsonValue samplerTypes = passDef.Get("samplerTypes");
+                pass.SamplerTypes = (samplerTypes != null && samplerTypes.Kind != JsonKind.Null) ? samplerTypes : null;
+
                 // VOLUME-WRITE viewport (synth3d/filter3d atlas passes, reference/04 §10).
                 // viewport: { width:<Dim>, height:<Dim> } sets the render region AND the
                 // _NM_Resolution override (NMRenderBackend) so NM_FragCoord recovers the
                 // atlas pixel -> voxel addressing. Scope-rewrite Dims like texture dims so a
                 // chained volumeSize param resolves under the node's chain scope.
+                // GAP-005 grammar (noisemaker@fa83eeab): x/y offsets (default 0) and the
+                // w/h aliases (upstream reads `spec.w ?? spec.width`).
                 JsonValue viewport = passDef.Get("viewport");
                 if (viewport != null && viewport.Kind == JsonKind.Object)
                 {
-                    JsonValue vw = viewport.Get("width");
-                    JsonValue vh = viewport.Get("height");
+                    JsonValue vx = viewport.Get("x");
+                    JsonValue vy = viewport.Get("y");
+                    JsonValue vw = viewport.Get("w") ?? viewport.Get("width");
+                    JsonValue vh = viewport.Get("h") ?? viewport.Get("height");
+                    if (vx != null) pass.ViewportX = ScopeDimSpec(GraphLoader.ParseDim(vx), chainScopeId, scopedParamMap);
+                    if (vy != null) pass.ViewportY = ScopeDimSpec(GraphLoader.ParseDim(vy), chainScopeId, scopedParamMap);
                     if (vw != null) pass.ViewportWidth = ScopeDimSpec(GraphLoader.ParseDim(vw), chainScopeId, scopedParamMap);
                     if (vh != null) pass.ViewportHeight = ScopeDimSpec(GraphLoader.ParseDim(vh), chainScopeId, scopedParamMap);
                 }

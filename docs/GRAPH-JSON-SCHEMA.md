@@ -88,6 +88,23 @@ Fields are copied only when authored, so unchanged graphs stay byte-stable.
 The Unity executor keeps its engine-wide NEAREST sampling, single mip level,
 and no content preservation (no shipped effect definition authors these yet).
 
+GAP-005 pass-field row (noisemaker@fa83eeab, delivered in the range
+`27590caad94d..8eeb7b5ac14e`): `expand()` copies `name`, `type`, `clear`,
+`viewport`, and `samplerTypes` verbatim onto every expanded pass. Of these,
+only `clear` is part of the normalized graph — emitted after `repeat` (before
+`conditions`/metadata) exactly when authored, including an explicit `null`;
+`name`/`type`/`viewport`/`samplerTypes` stay runtime-model-only so unchanged
+graphs remain byte-stable with the oracle (`normalizePass` carries only
+`clear`). The viewport grammar accepts `x`/`y` offsets (default 0) and
+`w`/`h` (read as `spec.w ?? spec.width`, `spec.h ?? spec.height`) with the
+same `Dim` forms as texture sizes; the runtime resolves the box per draw from
+the pass uniforms (the analog of the reference's per-frame `viewportResolved`
+cache) and a fully numeric box passes through unchanged. `name`/`type` remain
+queryable labels with no backend consumer (shader-kind dispatch stays
+source-derived); `clear` drives the render-target clear (the Unity analog of
+the reference WebGPU loadOp); `samplerTypes` selects per-binding samplers in
+the reference WebGPU backend only — retained as data, no Unity consumer.
+
 ## texId conventions
 
 - `global_<name>` — double-buffered global surface (`o0..o7`, `geo*`, `vol*`, dynamic).

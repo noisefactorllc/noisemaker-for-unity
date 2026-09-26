@@ -175,16 +175,30 @@ namespace Noisemaker.Hlsl
             // RT already has these exact dims (TextureStore atlas convention), so the
             // viewport normally equals primary.width/height; we still honor an explicit
             // viewport for parity with the reference (which sets gl.viewport per pass).
-            bool hasViewport = pass.ViewportWidth != null || pass.ViewportHeight != null;
+            bool hasViewport = pass.ViewportX != null || pass.ViewportY != null ||
+                pass.ViewportWidth != null || pass.ViewportHeight != null;
             if (hasViewport)
             {
+                // GAP-005 (noisemaker@fa83eeab): resolve the authored viewport grammar
+                // (x/y offsets + w/h dims) per draw from the pass uniforms — the analog
+                // of the reference's per-frame resolvePassViewport() cache, which the
+                // backends prefer via viewportResolved. Resolution AFTER the oscillator
+                // bind values are known (uniformLookup) gives the same uniform tracking
+                // the reference gets from re-resolving after resolvePassUniforms();
+                // numeric specs pass through unchanged (Dims of kind Number).
+                float vpX = pass.ViewportX != null
+                    ? (float)TextureStore.ResolveDimension(pass.ViewportX, primary.width, uniformLookup)
+                    : 0f;
+                float vpY = pass.ViewportY != null
+                    ? (float)TextureStore.ResolveDimension(pass.ViewportY, primary.height, uniformLookup)
+                    : 0f;
                 int vpW = pass.ViewportWidth != null
                     ? TextureStore.ResolveDimension(pass.ViewportWidth, primary.width, uniformLookup)
                     : primary.width;
                 int vpH = pass.ViewportHeight != null
                     ? TextureStore.ResolveDimension(pass.ViewportHeight, primary.height, uniformLookup)
                     : primary.height;
-                cmd.SetViewport(new Rect(0f, 0f, vpW, vpH));
+                cmd.SetViewport(new Rect(vpX, vpY, vpW, vpH));
                 cmd.SetGlobalVector(IdNmResolution, new Vector4(vpW, vpH, 0f, 0f));
             }
             else
