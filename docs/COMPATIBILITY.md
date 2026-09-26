@@ -311,6 +311,8 @@ Unity 6000.3.16f1, isolated consumer project (`~/nmhlsl-parity`) with the packag
 | tiled manifest (127px tile of 4096²) | 3 | tol 0 (exact) | 3 | 0 | 0 | 0 |
 | Total | 245 | — | 197 | 48 | 0 | 0 |
 
+The declared native engine cases `nm_adjust_test`, `nm_grade_test`, `nm_invert_test`, and `nm_tint_test` sit in the root manifest under `root-verify.sh` (tol=1, SSIM ≥ 0.9999) and are absent from `programs/exceptions.json`, so all four graded as strict PASS in this full gate. The FAIL rows in the initial bounded probe below are that superseded probe's own measurement frame (Unity 6000.5.5f1, retained historical goldens, zero byte tolerance) and are non-qualifying by its own terms; they are retained as history, not as current status.
+
 Graph gate: 316/316 byte-clean (207 `--selftest` + 109 fixture programs; C# live compiler vs reference oracle at the pinned authority). Compiler contract tests: PASS (0 failures).
 
 Graph-level parameter sweep (2026-09-25, Linux host, GPU-free — .NET 8 `tools/graphdump`, no Unity editor; authority `noisemaker@c9ee8a04` v1.0.176):
