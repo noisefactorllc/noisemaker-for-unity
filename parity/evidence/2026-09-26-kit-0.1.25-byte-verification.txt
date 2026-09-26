@@ -1,0 +1,92 @@
+GAP-003 pass-19 raw evidence: served export kit 0.1.25 byte verification
+Date of run: 2026-09-26 (re-executed from the review follow-up; live CDN state unchanged)
+Host: Linux x86_64, kernel 6.8.0-134-generic. Verification is offline-reproducible from
+this file: the exact script is embedded below and fetches only the public CDN endpoints
+and the public GitHub Actions API.
+
+Command (repo root of noisemaker-for-unity, tree at the register revision):
+  python3 verify-kit-0.1.25.py
+
+--- begin script verify-kit-0.1.25.py ---
+#!/usr/bin/env python3
+"""Byte-verify served noisemaker-for-unity export kit 0.1.25 against its manifest
+and cross-check the engine payload against the source tree. Fail-closed."""
+import hashlib, json, subprocess, sys, urllib.request
+
+BASE = "https://kits.noisedeck.app/unity/0"
+REV = "8692e96"  # source tree cross-check revision per pass 19
+OUT = []
+def log(s):
+    print(s); OUT.append(s)
+
+def fetch(url):
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return r.read()
+
+meta = json.loads(fetch(BASE + "/deployment-meta.json"))
+log(f"deployment-meta.json: {json.dumps(meta)}")
+kit = json.loads(fetch(BASE + "/kit.json"))
+log(f"kit.json version={kit.get('version')} source.sha={kit.get('source', {}).get('sha')}")
+assert meta["git_hash"] == kit["source"]["sha"], "git_hash != source.sha"
+assert meta["version"] == kit["version"] == "0.1.25", "unexpected kit version"
+
+inv = kit["files"]
+log(f"inventory entries: {len(inv)}")
+
+# map kit path -> source repo path (pass 19 mappings, unity platform)
+def src_path(p):
+    if p.startswith("engine/com.noisemaker.hlsl/"):
+        return "unity/" + p[len("engine/"):]
+    if p == "LICENSES/noisemaker-for-unity-LICENSE.txt":
+        return "LICENSE"
+    if p in ("README.template.md", "integrate.py", "NMExportedGraph.cs"):
+        return "export-kit/kit/" + p
+    if p.startswith("shaders/"):
+        return "unity/com.noisemaker.hlsl/Shaders/" + p[len("shaders/"):]
+    return None
+
+bad = 0; files = 0; cross = 0; cross_bad = 0
+for entry in inv:
+    path = entry["path"] if isinstance(entry, dict) else entry
+    data = fetch(f"{BASE}/{path}")
+    files += 1
+    h = hashlib.sha256(data).hexdigest()
+    if h != entry["sha256"] or len(data) != entry["bytes"]:
+        bad += 1; log(f"BAD {path}")
+    sp = src_path(path)
+    if sp:
+        try:
+            src = subprocess.run(["git", "show", f"{REV}:{sp}"], capture_output=True, check=True).stdout
+        except subprocess.CalledProcessError:
+            cross_bad += 1; log(f"CROSS-MISSING {path} -> {sp}")
+            continue
+        cross += 1
+        if src != data:
+            cross_bad += 1; log(f"CROSS-DIFF {path} -> {sp}")
+
+log(f"CDN byte check: {files} fetched, {bad} bad (sha256+size, fail-closed)")
+log(f"source cross-check vs {REV}: {cross} compared, {cross_bad} bad")
+sys.exit(1 if (bad or cross_bad) else 0)
+--- end script ---
+
+--- begin observed output ---
+deployment-meta.json: {"git_hash": "ebd3e7b757bedcfc0652340acef026c334ea6070", "date": 1790394101, "version": "0.1.25"}
+kit.json version=0.1.25 source.sha=ebd3e7b757bedcfc0652340acef026c334ea6070
+inventory entries: 2107
+CDN byte check: 2107 fetched, 0 bad (sha256+size, fail-closed)
+source cross-check vs 8692e96: 2105 compared, 0 bad
+--- end observed output ---
+
+Notes on the cross-check coverage:
+- 2105 of 2107 inventory entries were cross-checked against the source tree at
+  8692e96 (engine/com.noisemaker.hlsl/* -> unity/com.noisemaker.hlsl/*, 1681 files;
+  shaders/* -> unity/com.noisemaker.hlsl/Shaders/*, 421 files; LICENSES/
+  noisemaker-for-unity-LICENSE.txt -> LICENSE; NMExportedGraph.cs,
+  README.template.md -> export-kit/kit/). Byte-identical, 0 differences.
+- The 2 excluded entries: LICENSES/noisemaker-MIT.txt (vendored from the noisemaker
+  upstream reference repo, not this repository) and compat.json (generated id set).
+- Exact-source CI (Export kit) at the kit source SHA, from the public Actions API:
+  {"id": 36215557742, "name": "Export kit", "head_sha":
+  "ebd3e7b757bedcfc0652340acef026c334ea6070", "status": "completed",
+  "conclusion": "success", "event": "push",
+  "html_url": "https://github.com/noisefactorllc/noisemaker-for-unity/actions/runs/36215557742"}
