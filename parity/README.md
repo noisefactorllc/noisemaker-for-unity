@@ -313,7 +313,11 @@ runtime/platform combination.
   (regenerates the committed corpus byte-identically, compiles every variant with
   the reference oracle and the C# live DSL compiler, diffs each with
   `graph-diff.py`; 1900 variants, 391 measured exclusions in
-  `programs/param-sweep/exclusions.tsv`).
+  `programs/param-sweep/exclusions.tsv`, raw per-variant results in
+  `programs/param-sweep/results.tsv` pinned to authority
+  `noisemaker@c9ee8a04` v1.0.176). Unbounded float/int params (no min/max) sweep
+  default+1 (`plus1` slug); any out-of-range value is a compile failure on one
+  or both sides, never a silent pass.
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).

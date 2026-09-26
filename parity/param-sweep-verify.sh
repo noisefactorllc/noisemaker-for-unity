@@ -28,7 +28,7 @@ node "$ROOT/parity/param-sweep.mjs" "$OUT" > "$OUT/generate.log"
 cat "$OUT/generate.log"
 
 # The committed corpus is the fixed input; regeneration must reproduce it.
-if ! diff -r --exclude=ref --exclude=cs --exclude='*.log' --exclude=drift.diff --exclude=dump.tsv --exclude=oracle-fails.tsv --exclude=report.txt "$CORPUS" "$OUT" > "$OUT/drift.diff"; then
+if ! diff -r --exclude=ref --exclude=cs --exclude='*.log' --exclude=drift.diff --exclude=dump.tsv --exclude=oracle-fails.tsv --exclude=report.txt --exclude=results.tsv "$CORPUS" "$OUT" > "$OUT/drift.diff"; then
   echo "CORPUS DRIFT: regenerated corpus differs from parity/programs/param-sweep/ (see $OUT/drift.diff)"
   exit 1
 fi
@@ -75,6 +75,17 @@ for name, rel in lines:
         fail += 1
         msg = (r.stdout + r.stderr).strip().splitlines()
         fails.append((name, msg[1][:200] if len(msg) > 1 else 'delta'))
+fail_names = {n for n, _ in fails}
+with open(f'{out}/results.tsv', 'w') as f:
+    f.write(f'# param-sweep per-variant results (fail-closed gate)\n'
+            f'# variants: {len(lines)}  graph-clean: {ok}  FAIL: {fail}  missing: {missing}\n')
+    for name, rel in lines:
+        if name in fail_names:
+            msg = dict(fails).get(name, 'FAIL')
+            status = 'MISSING' if msg == 'missing graph' else 'FAIL'
+        else:
+            status = 'PASS'
+        f.write(f'{name}\t{status}\n')
 with open(f'{out}/report.txt', 'w') as f:
     for n, m in fails:
         f.write(f'{n}\t{m}\n')

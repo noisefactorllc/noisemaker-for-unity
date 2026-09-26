@@ -8,8 +8,11 @@
 // variant per non-default value class:
 //   - dropdown/choice params: one variant per non-default choice (structural)
 //   - boolean params: the flipped value
-//   - float/int sliders: the midpoint of [min, max] (or an endpoint if the
-//     midpoint equals the default)
+//   - float/int sliders: the midpoint of [min, max] (or an endpoint when the
+//     midpoint equals the default); for unbounded params (no min/max) the
+//     default+1 is emitted (slug `plus1`) — a declared variant-class choice;
+//     the gate is fail-closed, so any value outside a parameter's legal range
+//     surfaces as a compile failure on one or both sides, never a silent pass
 //   - seed-like params are covered by the slider rule
 // Params of type color / surface / string and controls button/vector3 are
 // recorded as exclusions (counted in the manifest, not emitted).
