@@ -38,6 +38,17 @@ development (pre-1.0); APIs may change.
   `NMRenderBackend`; `name`/`type`/`samplerTypes` are queryable metadata (sampler selection
   is a reference-WebGPU-only consumer). The normalized graph gains `clear` only when
   authored — unchanged graphs stay byte-stable.
+- **Texture-pooling safety + resource plan** (upstream `noisemaker@6113da00` + `95743621`,
+  delivered in the range `8eeb7b5ac14e..6a0af04d3c4f`): this port always materializes the
+  analyzer's physical allocation plan (one phys_N RenderTexture per allocation group). The
+  runtime now refuses unsafe phys-slot sharing with the reference's poolability rules —
+  persistent/mipmapped/3D-policy members, first-touch-read members, self-sampled members,
+  and members written by partial/non-clearing passes (any explicit `drawMode` scatter,
+  `blend`, or a `viewport` write without a truthy `clear`) get dedicated texId-keyed
+  RenderTextures with standalone semantics; a group pools only when every member carries an
+  identical plain 2D (width, height, format) signature. New `NMPipeline.GetResourcePlan()`
+  reports the queryable runtime allocation/reuse plan (`pooling`, `allocations`,
+  `sharedTextures`, per-record `virtualTextures`).
 
 ### Changed
 - Renamed `render/renderCubemap3D` → `renderCubemap3d` (lowercase `3d` for func/program/shader;

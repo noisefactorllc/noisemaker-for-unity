@@ -61,6 +61,11 @@ namespace Noisemaker.Hlsl
         // Cached uniform-lookup delegate (avoids a per-frame method-group allocation).
         private readonly System.Func<string, double?> _uniformLookup;
         private readonly HashSet<string> _warnedVolumeClamps = new HashSet<string>();
+        // GAP-006 poolability set (noisemaker@6113da00 + 95743621): virtual texIds
+        // that may share their graph.allocations phys slot. Recomputed whenever
+        // surfaces/pool are recreated (after MRT format demotion, matching the
+        // reference's "after applyMrtFormatBudget()" ordering).
+        private HashSet<string> _poolable;
         private int _maxTextureSize;
         private bool _disposed;
 
@@ -127,6 +132,10 @@ namespace Noisemaker.Hlsl
         public void Init(int width, int height)
         {
             ApplyDeviceLimits(SystemInfo.maxTextureSize, DetectMrtFormatBudget());
+            // Poolability classification runs AFTER ApplyMrtFormatBudget so demoted
+            // formats participate in the (width, height, format) signature check,
+            // exactly like the reference's buildTexturePoolingPlan placement.
+            _poolable = TexturePoolability.ComputePoolable(Graph);
             ValidatePrograms();
             SeedScopedUniforms();
             Resize(width, height);
@@ -295,7 +304,7 @@ namespace Noisemaker.Hlsl
                 NMOutputAlphaMode.Premultiplied));
             _store.SetScreenSize(_width, _height);
             _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup);
-            _store.AllocatePooled(Graph, UniformLookup);
+            _store.AllocatePooled(Graph, UniformLookup, _poolable);
             // TODO(scope): initAsyncEffects (CPU texture generation) not ported.
         }
 
@@ -341,8 +350,13 @@ namespace Noisemaker.Hlsl
             // If any texture spec references this param, surfaces/pool must resize.
             if (affectsDimensions)
             {
+                // GAP-006: the plan re-derivation order matches Init (demoted formats
+                // cannot change here; the classification is structural, but keep the
+                // plan fresh alongside the recreate, like the reference does per
+                // recreateTextures call).
+                _poolable = TexturePoolability.ComputePoolable(Graph);
                 _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup);
-                _store.AllocatePooled(Graph, UniformLookup);
+                _store.AllocatePooled(Graph, UniformLookup, _poolable);
             }
             // TODO(scope): per-pass uniform fan-out (_node_/_chain_) and palette
             // expansion (reference §13 setUniform) not ported; the named uniform is
@@ -687,7 +701,13 @@ namespace Noisemaker.Hlsl
         {
             if (string.IsNullOrEmpty(texId) || texId == "none") return null;
             string phys;
-            if (Graph.Allocations.TryGetValue(texId, out phys) && phys != null)
+            // GAP-006 poolability (noisemaker@6113da00 + 95743621): a virtual refused
+            // by the poolability analysis must NOT bind its phys slot — it gets a
+            // DEDICATED texId-keyed RT, matching the reference's standalone texture
+            // semantics (zero-initialized/previous-frame contents, no group-mate
+            // bleed from scatter/blend/viewport writes).
+            if (Graph.Allocations.TryGetValue(texId, out phys) && phys != null &&
+                (_poolable == null || _poolable.Contains(texId)))
             {
                 RenderTexture rt = _store.Get(phys);
                 if (rt != null)
@@ -725,6 +745,64 @@ namespace Noisemaker.Hlsl
             if (spec.Is3D && spec.Depth != null)
                 d = TextureStore.ResolveDimension(spec.Depth, _height, UniformLookup);
             return _store.CreateOrReuse(physId, w, h, spec.Format, spec.Is3D, d);
+        }
+
+        // ---- resource plan (reference Pipeline.getResourcePlan, GAP-006) --------
+        // Query the actual runtime texture allocation/reuse plan. Reports the
+        // analyzer's physical allocation map (graph.allocations) and the sharing the
+        // renderer actually materialized: non-global graph textures grouped by
+        // identical physical RenderTexture record. Unlike the reference — where
+        // pooling is an explicit `texturePooling: true` opt-in — this port ALWAYS
+        // materializes the allocation plan (pooling == true); the poolability
+        // refusals (TexturePoolability) keep refused virtuals on dedicated records,
+        // so `sharedTextures` lists only the groups actually sharing one RT.
+        // Read-only: no texture is created or destroyed by this query.
+        public ResourcePlan GetResourcePlan()
+        {
+            var plan = new ResourcePlan { Pooling = true, Allocations = Graph.Allocations };
+            if (Graph.Textures == null) return plan;
+
+            var records = new Dictionary<RenderTexture, ResourcePlanRecord>();
+            foreach (var kv in Graph.Textures)
+            {
+                string texId = kv.Key;
+                if (string.IsNullOrEmpty(texId) || texId.StartsWith("global_")) continue;
+                RenderTexture rt = null;
+                string phys;
+                if (Graph.Allocations != null &&
+                    Graph.Allocations.TryGetValue(texId, out phys) && !string.IsNullOrEmpty(phys))
+                    rt = _store.Get(phys);
+                if (rt == null) rt = _store.Get(texId); // dedicated texId-keyed record
+                if (rt == null) continue; // not yet created — lazily allocated on use
+                if (!records.TryGetValue(rt, out var rec))
+                {
+                    rec = new ResourcePlanRecord
+                    {
+                        Id = texId,
+                        Width = rt.width,
+                        Height = rt.height,
+                        Format = FormatName(rt.format),
+                        VirtualTextures = new List<string>()
+                    };
+                    records[rt] = rec;
+                    plan.Textures.Add(rec);
+                }
+                rec.VirtualTextures.Add(texId);
+            }
+            foreach (var rec in plan.Textures)
+                if (rec.VirtualTextures.Count > 1) plan.SharedTextures.Add(rec.VirtualTextures);
+            return plan;
+        }
+
+        private static string FormatName(RenderTextureFormat format)
+        {
+            switch (format)
+            {
+                case RenderTextureFormat.ARGBHalf: return "rgba16f";
+                case RenderTextureFormat.ARGBFloat: return "rgba32f";
+                case RenderTextureFormat.ARGB32: return "rgba8";
+                default: return format.ToString();
+            }
         }
 
         // ---- presentation / output ----------------------------------------
@@ -877,5 +955,31 @@ namespace Noisemaker.Hlsl
             _globalUniforms.Clear();
             if (firstError != null) throw firstError;
         }
+    }
+
+    // ResourcePlan — the queryable runtime allocation/reuse plan returned by
+    // NMPipeline.GetResourcePlan(). Mirrors the reference getResourcePlan() shape
+    // ({ pooling, allocations, sharedTextures, textures } with per-record
+    // virtualTextures); C#-typed instead of JSON.
+    public sealed class ResourcePlan
+    {
+        // This port always materializes the analyzer's allocation plan (the
+        // reference gates consumption behind `texturePooling: true`).
+        public bool Pooling { get; set; }
+        // virtual texId -> phys_N (the analyzer's map, verbatim; may be null).
+        public OrderedMap<string, string> Allocations { get; set; }
+        // Groups of virtual texIds actually served by ONE physical RT.
+        public List<List<string>> SharedTextures { get; } = new List<List<string>>();
+        // One record per distinct physical RT currently materialized.
+        public List<ResourcePlanRecord> Textures { get; } = new List<ResourcePlanRecord>();
+    }
+
+    public sealed class ResourcePlanRecord
+    {
+        public string Id { get; set; }              // first virtual texId on the record
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public string Format { get; set; }          // normalized spec-format name
+        public List<string> VirtualTextures { get; set; }
     }
 }

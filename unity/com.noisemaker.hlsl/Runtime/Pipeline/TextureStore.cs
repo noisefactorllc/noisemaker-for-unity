@@ -271,7 +271,15 @@ namespace Noisemaker.Hlsl
         // the first-seen format/is3D. ResolvePhysical may reuse that candidate only when
         // the virtual texture's width, height, mapped format, and dimensionality all
         // match exactly; every incompatible alias receives a dedicated virtual-id RT.
-        public void AllocatePooled(RenderGraph graph, System.Func<string, double?> uniforms)
+        //
+        // GAP-006 poolability (noisemaker@6113da00 + 95743621): `poolable` carries the
+        // TexturePoolability.ComputePoolable set; a phys candidate's provisional
+        // identity/dims are computed over POOLABLE members only, and a phys slot whose
+        // members are ALL refused (persistent/first-read/self-sampled/partial-write)
+        // gets no candidate at all — those virtuals resolve to dedicated texId RTs.
+        // Pass null to allocate every group (legacy behavior).
+        public void AllocatePooled(RenderGraph graph, System.Func<string, double?> uniforms,
+            HashSet<string> poolable = null)
         {
             // phys_N -> max (w,h,d) + first-seen provisional format/is3D.
             var maxW = new Dictionary<string, int>();
@@ -286,6 +294,10 @@ namespace Noisemaker.Hlsl
                 string virtualId = kv.Key;
                 string physId = kv.Value;
                 if (string.IsNullOrEmpty(physId)) continue;
+
+                // GAP-006 poolability: a refused virtual must not shape (or create)
+                // its phys group's candidate — it gets a dedicated texId RT.
+                if (poolable != null && !poolable.Contains(virtualId)) continue;
 
                 TextureSpec spec;
                 if (!graph.Textures.TryGetValue(virtualId, out spec) || spec == null)

@@ -51,6 +51,7 @@ namespace CompilerContractTests
             TestRenderLandscape3dFilteringDefines();
             TestGap004TexturePolicyContract();
             TestGap005PassFieldsContract();
+            TestGap006TexturePoolability();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -2191,6 +2192,190 @@ namespace CompilerContractTests
             Check(loaded.ViewportHeight != null && loaded.ViewportHeight.Number == 16,
                 "GAP-005 loader parses viewport h alias");
             Check(loaded.ViewportX == null, "GAP-005 loader leaves viewport x at default");
+        }
+
+        // GAP-006 runtime texture-pooling safety (noisemaker@6113da00 + 95743621):
+        // TexturePoolability.ComputePoolable refuses unsafe phys-slot sharing with
+        // the exact reference refusal rules — persistent/mipmaps/3D policy,
+        // first-touch-read, self-sample, scatter (drawMode) / blend writes, and a
+        // viewport write without a truthy clear — while identical plain 2D specs
+        // with write-first lifetimes stay poolable. Mirrors the refusal branches of
+        // shaders/tests/test_resource_pooling.js at the C# graph level.
+        private static void TestGap006TexturePoolability()
+        {
+            // Shared-safe: two identical plain 2D virtuals, both write-first, disjoint
+            // lifetimes (a produced at pass 0, read at pass 1; b produced at pass 1).
+            RenderGraph safe = PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{\"source\":\"_a\"},\"outputs\":{\"fragColor\":\"_b\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                "{\"_a\":\"phys_0\",\"_b\":\"phys_0\"}");
+            var safeSet = TexturePoolability.ComputePoolable(safe);
+            Check(safeSet.Contains("_a") && safeSet.Contains("_b"),
+                "GAP-006 identical plain 2D write-first group is poolable");
+
+            // Persistent member: the whole group is refused (cross-frame contents).
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                SafePasses(), "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"," +
+                "\"persistent\":true},\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 persistent member refuses the group");
+
+            // Mipmapped member: refused.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                SafePasses(), "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"," +
+                "\"mipmaps\":true},\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 mipmapped member refuses the group");
+
+            // 3D member: refused.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                SafePasses(), "{\"_a\":{\"width\":64,\"height\":4096,\"format\":\"rgba16f\"," +
+                "\"is3D\":true},\"_b\":{\"width\":64,\"height\":4096,\"format\":\"rgba16f\"," +
+                "\"is3D\":true}}", SharedAlloc())).Contains("_a"),
+                "GAP-006 3D members refuse the group");
+
+            // Spec mismatch (format): refused.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                SafePasses(), "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba32f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 format-signature mismatch refuses the group");
+
+            // Spec mismatch (authored dim form, same resolved size): refused.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                SafePasses(), "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":\"6.25%\",\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 dim-form mismatch refuses the group");
+
+            // First touch is a read: refused (expects standalone zero-init contents).
+            // Upstream removes the member from the group; the remainder drops below
+            // two members, so NEITHER virtual pools.
+            var readFirst = TexturePoolability.ComputePoolable(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{\"source\":\"_a\"},\"outputs\":{\"fragColor\":\"_b\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc()));
+            Check(!readFirst.Contains("_a") && !readFirst.Contains("_b"),
+                "GAP-006 first-touch-read member refuses the group");
+
+            // Self-sampled member (the producing pass also samples it): refused.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{\"source\":\"_a\"},\"outputs\":{\"fragColor\":\"_a\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_b\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 self-sampled member is refused");
+
+            // Scatter drawMode write: refused.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"drawMode\":\"points\",\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_b\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 drawMode scatter write is refused");
+
+            // Blend write: refused.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"blend\":true,\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_b\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 blend write is refused");
+
+            // Viewport without clear (95743621): refused — unwritten sub-region would
+            // expose a group-mate's content.
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"viewport\":{\"width\":16,\"height\":16},\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_b\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 viewport write without clear is refused");
+
+            // Viewport with a truthy clear: stays poolable (full overwrite).
+            Check(TexturePoolability.ComputePoolable(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"viewport\":{\"width\":16,\"height\":16},\"clear\":true,\"inputs\":{}," +
+                "\"outputs\":{\"fragColor\":\"_a\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_b\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                SharedAlloc())).Contains("_a"),
+                "GAP-006 viewport write with clear:true stays poolable");
+
+            // Viewport with falsy clear forms (false / 0 / null / absent) — all refuse,
+            // matching the reference's `!pass.clear` truthiness.
+            foreach (string falsy in new[] { "\"clear\":false", "\"clear\":0", "\"clear\":null", "" })
+            {
+                string clearKey = falsy.Length > 0 ? "," + falsy : "";
+                Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                    "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                    "\"viewport\":{\"width\":16,\"height\":16}" + clearKey + ",\"inputs\":{}," +
+                    "\"outputs\":{\"fragColor\":\"_a\"}}," +
+                    "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                    "\"inputs\":{},\"outputs\":{\"fragColor\":\"_b\"}}]",
+                    "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                    "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                    SharedAlloc())).Contains("_a"),
+                    "GAP-006 viewport write with falsy clear refuses (" +
+                    (falsy.Length > 0 ? falsy : "clear absent") + ")");
+            }
+
+            // Global surfaces never pool, and a single-member group is trivially standalone.
+            var singles = TexturePoolability.ComputePoolable(PoolGraph(
+                SafePasses(),
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_c\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                "{\"_a\":\"phys_0\",\"_b\":\"phys_0\",\"_c\":\"phys_1\"}"));
+            Check(!singles.Contains("_c"), "GAP-006 single-member group is standalone");
+            Check(!TexturePoolability.ComputePoolable(PoolGraph(
+                SafePasses(),
+                "{\"global_x_caState\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}," +
+                "\"_b\":{\"width\":32,\"height\":32,\"format\":\"rgba16f\"}}",
+                "{\"global_x_caState\":\"phys_0\",\"_b\":\"phys_0\"}")).Contains("global_x_caState"),
+                "GAP-006 global surfaces are never pooled");
+        }
+
+        private static string SafePasses()
+        {
+            return "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}}," +
+                "{\"id\":\"p1\",\"passType\":\"effect\",\"progName\":\"probe\",\"program\":\"probe\"," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"_b\"}}]";
+        }
+
+        private static string SharedAlloc()
+        {
+            return "{\"_a\":\"phys_0\",\"_b\":\"phys_0\"}";
+        }
+
+        private static RenderGraph PoolGraph(string passesJson, string texturesJson,
+            string allocationsJson)
+        {
+            return RenderGraph.FromJson("{\"passes\":" + passesJson +
+                ",\"textures\":" + texturesJson +
+                ",\"allocations\":" + allocationsJson + "}");
         }
 
         private static RenderGraph CompileProbe(string body)

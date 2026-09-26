@@ -5,7 +5,7 @@
 Audit pass: 2026-09-26 (pass 21). Audited source: [`7d8178d1785efc2dea0cad98db9e1d8c7f2762bc`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/7d8178d1785efc2dea0cad98db9e1d8c7f2762bc). Local `main` was clean and matched `origin/main` before and after the checks.
 Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates stay **unverified on this automation host** and carry unchanged from passes 2–14. No release approval or new closure follows from this pass.
 Current upstream head: `66b8ce7d861010ad31de6fd37bc364d0a72fc897`, documentation-only beyond the published authority `1.0.185` = `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`. The published effect manifest is byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`: 210 effect IDs, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`.
-Beyond the delivered range end `noisemaker@8eeb7b5ac14e`, upstream holds 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. Undelivered to this port. Delivery and parity belong to the implementation job.
+Beyond the previously synced `noisemaker@8eeb7b5ac14e`, upstream held 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. As of pass 22 the GAP-006 row (`6113da0`+`9574362`) is delivered (§3 pass 22); `f83a427` is a JS-backend diagnostic-union change with no Unity-renderer equivalent and needs no port.
 The observations below retain their original source and authority identities. They do not qualify later updates.
 Current served kit: `0.1.25`, source `ebd3e7b757bedcfc0652340acef026c334ea6070`, re-verified fresh this pass: 2107/2107 CDN files byte-checked, source cross-check 2105/2105 at `7d8178d`, exit 0. [Deployment metadata](https://kits.noisedeck.app/unity/0/deployment-meta.json). Artifact identity does not establish host qualification.
 
@@ -519,3 +519,72 @@ Implementation corrections remain with the separate job. This report does not ad
 | 2026-09-24 | `d48de74c806213789bf1ed8d79ebd8e918437c57` | Full qualification unverified | Created the requested maintained compatibility report. Preserved historical evidence and open gaps. |
 
 Run: `20260924-remaining-gap-documents`. Later audits and reviews update this report with source-bound results.
+
+### Delivered-range audit, 2026-09-26 (pass 22)
+
+Upstream range `noisemaker@8eeb7b5ac14e..6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`
+(the declared range end `6a0af04d3c4f` carries the force-push-flagged start
+`4891b9953f9f` as an ancestor — `git merge-base --is-ancestor 4891b9953f9f
+6a0af04d3c4f` → exit 0), checked out detached by SHA at
+`noisemaker@6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`:
+
+- `git log --oneline 8eeb7b5ac14e..6a0af04d3c4f -- shaders/` → exactly three
+  shaders/ code commits, all `shaders/src/runtime/**` + `shaders/tests/**` only:
+  `6113da00` (GAP-006 texturePooling resource plan), `95743621` (viewport pass
+  without clear = partially written for pooling), `f83a427e` (structured backend
+  diagnostic union). `git diff --stat c9ee8a04 6a0af04d -- shaders/effects` →
+  empty (0 files changed): the effect catalog is unchanged (0 new / 0 changed /
+  0 removed); the published effect manifest stays 210 IDs,
+  sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`.
+
+Ported to this repo (pass 22, this commit):
+
+- `6113da00` + `95743621` (GAP-006 texture-pooling safety): this port ALWAYS
+  materializes `graph.allocations` (one phys_N RT per allocation group,
+  `TextureStore.AllocatePooled`), so the reference's `texturePooling: true`
+  opt-in has no opt-out equivalent here — what was missing is upstream's
+  poolability refusals. New `Compiler/Graph/TexturePoolability.cs`
+  (`ComputePoolable`) computes the exact upstream refusal rules from the
+  normalized graph: persistent/mipmaps/3D policy members, first-touch-read
+  members, self-sampled members, and members written by partial/non-clearing
+  passes (any explicit `drawMode` scatter, `blend`, or a `viewport` write
+  without a truthy `clear` — the `95743621` guard) are refused; a group is
+  pooled only when every member carries an identical plain 2D
+  (width, height, format) signature. `TextureStore.AllocatePooled` now shapes
+  each phys candidate over poolable members only, and `NMPipeline.ResolvePhysical`
+  binds a refused virtual to a dedicated texId-keyed RT with standalone
+  semantics. Classification runs after `ApplyMrtFormatBudget()` (Init and every
+  uniform-driven recreate), matching the reference's placement.
+- `Pipeline.getResourcePlan()` (GAP-006 query contract): new
+  `NMPipeline.GetResourcePlan()` returns a C#-typed
+  `{ pooling, allocations, sharedTextures, textures }` plan with per-record
+  `virtualTextures`, reporting the sharing the renderer actually materialized
+  (read-only; lazily unallocated textures are simply absent).
+- `f83a427e` (structured backend diagnostic union): NOT ported — it normalizes
+  WebGL2/WebGPU shader-compile/link throw surfaces in the reference's JS
+  backends; this port has no JS backend (Unity shaders are precompiled assets;
+  failures surface through Unity's own `Debug.LogError` shader-resolution path
+  at `NMRenderBackend.ExecutePass`), so there is no equivalent throw surface.
+- Effect-catalog parity: 0 new / 0 changed / 0 removed (verified against the
+  pinned `6a0af04d` checkout); the shipped pixel corpora are unaffected.
+
+Gate evidence (pass 22, current source, Linux audit host, .NET SDK 8.0.412,
+numpy 2.5.3 / pillow 12.3.0; all exit 0):
+
+- `dotnet run --project tools/compiler-contract-tests`:
+  `compiler contract tests: PASS (0 failures)` — including the new
+  `TestGap006TexturePoolability` (19 checks: poolable group, all refusal
+  branches, dim-form mismatch, viewport clear truthiness
+  false/0/null/absent-vs-true, single-member group, global exclusion),
+  red-checked: disabling the `95743621` viewport guard failed exactly its
+  5 viewport cases and nothing else.
+- `python -m unittest discover -s parity/tests -p "test_*.py"`:
+  `Ran 46 tests` → `OK`.
+- `bash parity/param-sweep-verify.sh` with `NM_REFERENCE_ROOT` pinned by SHA at
+  `noisemaker@6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`:
+  corpus drift clean (1900 variants), oracle 1900/1900, C# graphdump 1900/1900,
+  `param sweep: 1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants`.
+
+Carried, not re-run (Unity editor required, license-blocked): the 245-fixture
+pixel gates and the 316-program Unity graph gate from passes 2–14. The
+Windows/Linux platform matrix and the 6000.0 minimum floor stay blocked.

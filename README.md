@@ -23,8 +23,9 @@ standalone renderer and as **Shader Graph (material) nodes**.
 > declared; `synth/media`, `synth/scope`, `synth/spectrum` are not yet ported) are
 > structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
 > with the runtime contract synced through the delivered upstream work, audited to range end
-> `noisemaker@8eeb7b5a` (force-push flagged; audit in `docs/COMPATIBILITY.md` §6 pass 16 —
-> the only shaders/ code delta is the GAP-005 pass-field row `fa83eeab`; effect catalog
+> `noisemaker@6a0af04d` (force-push flagged; audits in `docs/COMPATIBILITY.md` §6 pass 16 /
+> §3 pass 22 — the only shaders/ code deltas are the GAP-005 pass-field row `fa83eeab` and
+> the runtime-only GAP-006 texture-pooling row `6113da00`+`95743621`; effect catalog
 > unchanged through that range end)
 > AND pixel-verified: the declared fixture corpora (245 programs across root/3D/classic/synth/mixer/points/filter/render/v104/tiled gates) render
 > with zero failures — 197 strict byte-level passes plus 48 measured, bounded exceptions.
@@ -106,8 +107,9 @@ blend, blur) were additionally hardened by adversarial line-by-line review vs th
 **Pixel parity verified** via the `parity/` harness (JS/WebGL2 golden in headless Chromium
 ↔ Unity candidate ↔ `batch-compare.py`), regenerated at pinned reference authority
 `noisemaker@c9ee8a04` (v1.0.176), with the runtime contract synced through the delivered
-upstream work, audited to range end `noisemaker@8eeb7b5a` (GAP-005 pass-field row
-`fa83eeab`; force-push-flagged range audited in `docs/COMPATIBILITY.md` §6 pass 16 —
+upstream work, audited to range end `noisemaker@6a0af04d` (GAP-005 pass-field row
+`fa83eeab`; GAP-006 texture-pooling row `6113da00`+`95743621`; force-push-flagged
+range audited in `docs/COMPATIBILITY.md` §3 pass 22 —
 `4891b9953f9f` verified an ancestor of the range end, the observed delivery
 `27590caad94d..8eeb7b5ac14e` diffed, and `shaders/effects` untouched across it, so the
 effect catalog is unchanged). Current measured state: **graph parity 316/316
