@@ -1,0 +1,17 @@
+command: /state/cache/scratch/unity6000/ed/Editor/Unity -batchmode -nographics -quit -logFile /tmp/unity6000-license-run.log
+editor: Unity 6000.0.84f1 (official LinuxEditorInstaller tarball, changeset 78ab6fc243d5, unattended)
+Unity Editor version:    6000.0.84f1 (78ab6fc243d5)
+exit=198
+Unity Editor version:    6000.0.84f1 (78ab6fc243d5)
+Branch:                  6000.0/staging
+Build type:              Release
+Batch mode:              YES
+System name:             Linux
+Distro version:          #134-Ubuntu SMP PREEMPT_DYNAMIC Fri Jun 26 18:43:11 UTC 2026
+Kernel version:          6.8.0-134-generic
+Architecture:            x86_64
+...
+[Licensing::Module] Licensing Background thread has ended after 1.14s
+[Package Manager] Connected to IPC stream "Upm-2661" after 1.2 seconds.
+[Licensing::Client] Error: Code 404 while processing request (status: Found 0 entitlement groups and 0 free entitlements matching requested entitlement ids)
+No valid Unity Editor license found. Please activate your license.
