@@ -186,6 +186,11 @@ namespace Noisemaker.Hlsl
                 // bind values are known (uniformLookup) gives the same uniform tracking
                 // the reference gets from re-resolving after resolvePassUniforms();
                 // numeric specs pass through unchanged (Dims of kind Number).
+                // ORIENTATION: y is passed through UNFLIPPED, matching the reference —
+                // its WebGL2 backend feeds the resolved {x,y,w,h} verbatim to
+                // gl.viewport (bottom-left origin, which Unity's SetViewport shares);
+                // no shipped effect definition authors a non-zero viewport y (test
+                // fixtures only), so orientation is unchanged for the shipped corpus.
                 float vpX = pass.ViewportX != null
                     ? (float)TextureStore.ResolveDimension(pass.ViewportX, primary.width, uniformLookup)
                     : 0f;
