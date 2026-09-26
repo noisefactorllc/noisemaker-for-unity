@@ -1,0 +1,4 @@
+command: cd unity/com.noisemaker.hlsl && find . -type f ! -name '.DS_Store' -print0 | sort -z | xargs -0 sha256sum | sha256sum
+files: 1681
+source-tree state: clean at commit 3686fd05372b69d8eb4030b20768375b688f1f11
+5a7032f9dc09fe1a9db643012549b8e585381a7348e07432f0b8437eca5f0a82  -
