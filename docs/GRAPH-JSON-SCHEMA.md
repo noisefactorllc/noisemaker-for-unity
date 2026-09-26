@@ -103,7 +103,17 @@ cache) and a fully numeric box passes through unchanged. `name`/`type` remain
 queryable labels with no backend consumer (shader-kind dispatch stays
 source-derived); `clear` drives the render-target clear (the Unity analog of
 the reference WebGPU loadOp); `samplerTypes` selects per-binding samplers in
-the reference WebGPU backend only — retained as data, no Unity consumer.
+the reference WebGPU backend only — retained as data, no Unity consumer. Note
+that at `8eeb7b5a` the upstream effect validator's PASS_KEYS whitelist does not
+admit `clear`/`samplerTypes` on definition passes (upstream consumes `clear`
+truthily only — webgpu.js `loadOp: pass.clear ? 'clear' : 'load'` — and the
+fields reach the expanded pass only through hand-authored graph passes); the
+normalized writer therefore emits whatever JSON literal was authored verbatim
+instead of restricting the grammar, matching NMRenderBackend's
+bool/number/array clear handling. The normalized `repeat`/`conditions`/`clear`
+key order matches the port-local oracle (`export-graph.mjs` `normalizePass`,
+untouched by `fa83eeab`); the pre-candidate live writer emitted `conditions`
+before `repeat` — a latent oracle mismatch no corpus pass exercised.
 
 ## texId conventions
 

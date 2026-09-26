@@ -2106,6 +2106,23 @@ namespace CompilerContractTests
             Check(DslCompiler.ToNormalizedJson(gNull).Contains("\"clear\":null"),
                 "GAP-005 normalized graph emits authored clear:null");
 
+            // Clear grammar: the reference consumes clear truthily only
+            // (webgpu.js loadOp) — any JSON literal round-trips verbatim, matching
+            // NMRenderBackend's bool/number/array ClearColorOf grammar.
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Clear Array Probe\",\"namespace\":\"synth\",\"func\":\"clearArrayProbe\"," +
+                "\"starter\":false,\"globals\":{},\"passes\":[{" +
+                "\"program\":\"automationProbe\",\"clear\":[1,0.5,0,1]," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+            RenderGraph gArr = DslCompiler.Compile(
+                "search synth\nclearArrayProbe().write(o0)\nrender(o0)\n", reg);
+            JsonValue arrClear = gArr.Passes[0].Clear;
+            Check(gArr.Passes[0].ClearSpecified && arrClear != null && arrClear.Kind == JsonKind.Array
+                  && arrClear.AsArray.Count == 4 && arrClear.AsArray[1].AsNumber == 0.5,
+                "GAP-005 clear array form round-trips verbatim");
+            Check(DslCompiler.ToNormalizedJson(gArr).Contains("\"clear\":[1,0.5,0,1]"),
+                "GAP-005 normalized graph emits authored clear array verbatim");
+
             // Unauthored parity: no pass-field keys, no clear emission.
             RenderGraph gNone = DslCompiler.Compile(
                 "search synth\nautomationProbe(amount: 2).write(o0)\nrender(o0)\n", ProbeRegistry());

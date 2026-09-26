@@ -273,15 +273,23 @@ namespace Noisemaker.Hlsl.Compiler
             // GAP-005 (noisemaker@fa83eeab): the reference expanded pass carries
             // passDef.clear verbatim and export-graph normalizePass emits it whenever
             // the key is present (including an authored null). Match that emission
-            // point — after repeat, before conditions, matching the oracle's key
-            // order — so an authored clear round-trips byte-identically.
+            // point — after repeat, before conditions, exactly the oracle's key order
+            // (drawMode, count, countUniform, drawBuffers, blend, repeat, clear,
+            // conditions). The pre-candidate order emitted conditions BEFORE repeat —
+            // a latent byte-order mismatch against the oracle that no corpus pass
+            // exercised (no program authors both). normalizePass is the port-local
+            // oracle contract (fa83eeab does not touch it); the reorder brings the
+            // live writer into fidelity with it.
+            // Runtime grammar: the reference consumes pass.clear truthily only
+            // (webgpu.js `loadOp: pass.clear ? 'clear' : 'load'`); the effect
+            // validator's PASS_KEYS whitelist does not admit clear/samplerTypes on
+            // definition passes at 8eeb7b5a, so this row reaches the model only
+            // through hand-authored graphs. Emit the authored JSON verbatim (any
+            // literal form) instead of restricting to bool — NMRenderBackend's
+            // ClearColorOf accepts bool/number/array the same way.
             if (p.ClearSpecified)
             {
-                sb.Append(','); WriteKey(sb, "clear");
-                if (p.Clear == null) sb.Append("null");
-                else if (p.Clear.Kind == JsonKind.Bool) sb.Append(p.Clear.AsBool ? "true" : "false");
-                else if (p.Clear.Kind == JsonKind.Null) sb.Append("null");
-                else throw new InvalidOperationException("pass.clear must be a boolean or null (reference effect-validator.js)");
+                sb.Append(','); WriteKey(sb, "clear"); WriteClearValue(sb, p.Clear);
             }
             // conditions (runIf/skipIf, reference 0ed489ec): the round's `.flatMap()`
             // per-viewMode-clone pattern is the first use of pass.conditions — expander.js
@@ -320,6 +328,44 @@ namespace Noisemaker.Hlsl.Compiler
                 sb.Append(','); WriteKey(sb, "loopIterations"); sb.Append(p.LoopIterations);
             }
             sb.Append('}');
+        }
+
+        private static void WriteClearValue(StringBuilder sb, JsonValue clear)
+        {
+            // Verbatim JSON emission for pass.clear (GAP-005). C# null (authored
+            // `clear: null` round-tripped as Clear=null + ClearSpecified) and JSON
+            // null both emit `null`; other literals emit their JSON form. The
+            // reference consumes clear truthily only (webgpu.js
+            // `loadOp: pass.clear ? 'clear' : 'load'`), so the value form is
+            // author's-choice data, matching NMRenderBackend's bool/number/array
+            // ClearColorOf grammar.
+            if (clear == null || clear.Kind == JsonKind.Null) { sb.Append("null"); return; }
+            switch (clear.Kind)
+            {
+                case JsonKind.Bool: sb.Append(clear.AsBool ? "true" : "false"); break;
+                case JsonKind.Number: sb.Append(JsNum(clear.AsNumber)); break;
+                case JsonKind.String: WriteJsonString(sb, clear.AsString); break;
+                case JsonKind.Array:
+                    sb.Append('[');
+                    bool first = true;
+                    foreach (JsonValue v in clear.AsArray)
+                    {
+                        if (!first) sb.Append(','); first = false;
+                        WriteClearValue(sb, v);
+                    }
+                    sb.Append(']');
+                    break;
+                case JsonKind.Object:
+                    sb.Append('{');
+                    bool firstKv = true;
+                    foreach (var kv in clear.AsObject)
+                    {
+                        if (!firstKv) sb.Append(','); firstKv = false;
+                        WriteKey(sb, kv.Key); WriteClearValue(sb, kv.Value);
+                    }
+                    sb.Append('}');
+                    break;
+            }
         }
 
         private static void WriteProgram(StringBuilder sb, Program prog)
