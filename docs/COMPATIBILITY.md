@@ -4,7 +4,7 @@
 
 Audit pass: 2026-09-26 (pass 21). Audited source: [`7d8178d1785efc2dea0cad98db9e1d8c7f2762bc`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/7d8178d1785efc2dea0cad98db9e1d8c7f2762bc). Local `main` was clean and matched `origin/main` before and after the checks.
 Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates stay **unverified on this automation host** and carry unchanged from passes 2–14. No release approval or new closure follows from this pass.
-Current upstream head: `66b8ce7d861010ad31de6fd37bc364d0a72fc897`, documentation-only beyond the published authority `1.0.185` = `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`. The published effect manifest is byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`: 210 effect IDs, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`.
+Current upstream head: `7730ea4a` (documentation-only beyond the code head `403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`), audited in §3 pass 26. Beyond the previously synced `noisemaker@6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`, the delivered `shaders/` code delta is: GAP-008 `403c2a4b` — a JS lang-layer `replaceEffect`/`predictReplacement` preflight in `shaders/src/lang/**` + `shaders/src/index.js` (authoring-time program-transform API; this Unity port has no such layer, so no Unity change); GAP-009 `b35361e0` and GAP-010 `9f85687d` (`shaders/tests/**` only). Effect catalog and runtime are unchanged: `git diff --stat 6a0af04d3c4f..7730ea4a -- shaders/effects shaders/glsl shaders/wgsl shaders/src/definition.js shaders/src/runtime` → 0 files changed; the effect manifest stays 210 IDs (the published manifest remains byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
 Beyond the previously synced `noisemaker@8eeb7b5ac14e`, upstream held 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. As of pass 22 the GAP-006 row (`6113da0`+`9574362`) is delivered (§3 pass 22); `f83a427` is a JS-backend diagnostic-union change with no Unity-renderer equivalent and needs no port.
 The observations below retain their original source and authority identities. They do not qualify later updates.
 Current served kit: `0.1.25`, source `ebd3e7b757bedcfc0652340acef026c334ea6070`, re-verified fresh this pass: 2107/2107 CDN files byte-checked, source cross-check 2105/2105 at `7d8178d`, exit 0. [Deployment metadata](https://kits.noisedeck.app/unity/0/deployment-meta.json). Artifact identity does not establish host qualification.
@@ -592,3 +592,62 @@ verbatim):
 Carried, not re-run (Unity editor required, license-blocked): the 245-fixture
 pixel gates and the 316-program Unity graph gate from passes 2–14. The
 Windows/Linux platform matrix and the 6000.0 minimum floor stay blocked.
+
+### Delivered-range audit, 2026-09-26 (pass 26)
+
+Upstream range `noisemaker@6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa..403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`
+(force-push-flagged trigger; audited, not assumed), reference checked out
+detached by SHA at `403c2a4bf2cb`, current `origin/main` tip `7730ea4a`:
+
+- Ancestry audited first (`git merge-base --is-ancestor`, raw transcript in
+  [`parity/evidence/2026-09-26-gap008-range-audit.txt`](../parity/evidence/2026-09-26-gap008-range-audit.txt)):
+  `4891b995` is an ancestor of `6a0af04d` (the prior force-push flag resolves),
+  `6a0af04d` is an ancestor of `403c2a4b`, `403c2a4b` is on `origin/main`, and
+  the observed side-range commit `9f85687d` (GAP-010) is also on `origin/main`;
+  upstream tip is `7730ea4a` (docs-only beyond `403c2a4b`).
+- `git log --stat 6a0af04d..403c2a4b -- shaders/` → exactly two code commits:
+  `403c2a4b` (GAP-008: `shaders/src/index.js`, `shaders/src/lang/index.js`,
+  `shaders/src/lang/paramAliases.js`, `shaders/src/lang/transform.js` +
+  `shaders/tests/test_transform.js`) and `b35361e0` (GAP-009:
+  `shaders/tests/**` only). Between `403c2a4b` and `origin/main` exactly one
+  further shaders/ commit exists: `9f85687d` (GAP-010, `shaders/tests/**`
+  only), plus `0ac52500` / `7730ea4a` docs. The remaining range commits
+  (`01e9d620`, `3968f6c4`, `a651c075`, `66b8ce7d`, `19fdcb56`) are upstream
+  documentation passes.
+- NOT ported — `403c2a4b` (GAP-008): `predictReplacement()` /
+  `getParamAliases()` / `replaceEffect(preflight:true)` extend the JS
+  lang-layer `replaceEffect` authoring API in `shaders/src/lang/transform.js`.
+  This Unity port has no program-transform/replaceEffect layer: `grep -rn
+  "replaceEffect|getCompatibleReplacements|listSteps|preflight"` over
+  `unity/`, `docs/`, `reference/` matches nothing outside the reference
+  validator spec, and `DslCompiler` exposes no graph-mutation entry point —
+  the C# runtime compiles and renders authored programs only. There is no
+  equivalent surface to change, so no Unity code change follows.
+- NOT ported — GAP-009 `b35361e0` and GAP-010 `9f85687d`: new JS test-harness
+  modules (`frame-metrics`, `uniform-status`) and regressions under
+  `shaders/tests/` only; no engine behavior.
+- Effect-catalog parity: 0 new / 0 changed / 0 removed
+  (`git diff --stat 6a0af04d3c4f..7730ea4a -- shaders/effects shaders/glsl
+  shaders/wgsl shaders/src/definition.js shaders/src/runtime shaders/src/lang/ops.js
+  shaders/src/lang/validator.js` → 0 files); no WGSL/GLSL→HLSL translation is
+  touched by this range, so no translation cross-check arises.
+
+Gate evidence (pass 26, current source, Linux audit host, .NET SDK 8.0.412,
+numpy 2.5.3 / pillow 12.3.0; raw command transcript appended to
+[`parity/evidence/2026-09-26-gap008-range-audit.txt`](../parity/evidence/2026-09-26-gap008-range-audit.txt)):
+
+- `dotnet run --project tools/compiler-contract-tests`:
+  `compiler contract tests: PASS (0 failures)` (no new contract added — the
+  range adds no compiler surface).
+- `python -m unittest discover -s parity/tests -p "test_*.py"`:
+  `Ran 46 tests` → `OK`.
+- `bash parity/param-sweep-verify.sh` with `NM_REFERENCE_ROOT` pinned by SHA at
+  `noisemaker@403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`: authority-drift
+  re-check of the whole golden corpus at the new upstream code head — corpus
+  regenerates byte-identically (1900 variants, drift check clean, 391
+  exclusions), oracle 1900/1900 ok, C# graphdump 1900/1900 ok, `param sweep:
+  1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants`, exit 0.
+
+Carried, not re-run (Unity editor required, license-blocked): the 245-fixture
+pixel gates, the 316-program Unity graph gate, the Windows/Linux platform
+matrix, and the 6000.0 minimum floor — unchanged from passes 17/18.
