@@ -224,7 +224,14 @@ namespace Noisemaker.Hlsl
             // explicit clear directive clears). For triangle/mesh draws the reference
             // ALWAYS clears the depth buffer for the pass (webgl2.js gl.clear(DEPTH_BIT))
             // so geometry depth-sorts correctly regardless of an explicit color clear. ----
-            bool clearColor = pass.Clear != null && !pass.Clear.IsNull;
+            // GAP-005 (noisemaker@fa83eeab): clear is consumed TRUTHILY by the
+            // reference (webgpu.js `loadOp: pass.clear ? 'clear' : 'load'`) — so an
+            // authored `clear: false`/`0`/""/null must NOT clear. IsTruthy implements
+            // exact JS truthiness (absent/JSON-null -> no clear; any array/object or
+            // non-zero number/non-empty string -> clear). The pre-GAP-005 port gated
+            // on mere presence, which would clear on `clear: false` now that the
+            // Expander copies definition-authored values through.
+            bool clearColor = GraphLoader.IsTruthy(pass.Clear);
             if (clearColor || needsDepth)
                 cmd.ClearRenderTarget(needsDepth, clearColor,
                     clearColor ? ClearColorOf(pass.Clear) : new Color(0f, 0f, 0f, 0f));

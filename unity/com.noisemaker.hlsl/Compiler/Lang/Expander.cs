@@ -734,7 +734,9 @@ namespace Noisemaker.Hlsl.Compiler
                 // atlas pixel -> voxel addressing. Scope-rewrite Dims like texture dims so a
                 // chained volumeSize param resolves under the node's chain scope.
                 // GAP-005 grammar (noisemaker@fa83eeab): x/y offsets (default 0) and the
-                // w/h aliases (upstream reads `spec.w ?? spec.width`).
+                // w/h aliases (upstream reads `spec.w ?? spec.width`). Null guards
+                // mirror GraphLoader.ReadPass exactly (Kind != JsonKind.Null), so an
+                // authored `viewport:{"x":null}` is ignored on both paths.
                 JsonValue viewport = passDef.Get("viewport");
                 if (viewport != null && viewport.Kind == JsonKind.Object)
                 {
@@ -742,10 +744,10 @@ namespace Noisemaker.Hlsl.Compiler
                     JsonValue vy = viewport.Get("y");
                     JsonValue vw = viewport.Get("w") ?? viewport.Get("width");
                     JsonValue vh = viewport.Get("h") ?? viewport.Get("height");
-                    if (vx != null) pass.ViewportX = ScopeDimSpec(GraphLoader.ParseDim(vx), chainScopeId, scopedParamMap);
-                    if (vy != null) pass.ViewportY = ScopeDimSpec(GraphLoader.ParseDim(vy), chainScopeId, scopedParamMap);
-                    if (vw != null) pass.ViewportWidth = ScopeDimSpec(GraphLoader.ParseDim(vw), chainScopeId, scopedParamMap);
-                    if (vh != null) pass.ViewportHeight = ScopeDimSpec(GraphLoader.ParseDim(vh), chainScopeId, scopedParamMap);
+                    if (vx != null && vx.Kind != JsonKind.Null) pass.ViewportX = ScopeDimSpec(GraphLoader.ParseDim(vx), chainScopeId, scopedParamMap);
+                    if (vy != null && vy.Kind != JsonKind.Null) pass.ViewportY = ScopeDimSpec(GraphLoader.ParseDim(vy), chainScopeId, scopedParamMap);
+                    if (vw != null && vw.Kind != JsonKind.Null) pass.ViewportWidth = ScopeDimSpec(GraphLoader.ParseDim(vw), chainScopeId, scopedParamMap);
+                    if (vh != null && vh.Kind != JsonKind.Null) pass.ViewportHeight = ScopeDimSpec(GraphLoader.ParseDim(vh), chainScopeId, scopedParamMap);
                 }
 
                 if (StrOf(passDef, "entryPoint") != null || passDef.Has("workgroups") ||

@@ -494,6 +494,26 @@ namespace Noisemaker.Hlsl.Compiler.Graph
             }
         }
 
+        // GAP-005 (noisemaker@fa83eeab): JS truthiness for pass.clear — the
+        // reference consumes it as `pass.clear ? 'clear' : 'load'` (webgpu.js),
+        // so `false`, 0, "" and null/absent mean NO clear, while any array
+        // (even empty) or object is truthy. Unlike IsTruthyBlend (whose
+        // empty-array case predates this row), arrays are ALWAYS truthy here,
+        // matching JavaScript semantics exactly.
+        public static bool IsTruthy(JsonValue v)
+        {
+            if (v == null) return false;
+            switch (v.Kind)
+            {
+                case JsonKind.Bool: return v.AsBool;
+                case JsonKind.Number: return v.AsNumber != 0.0;
+                case JsonKind.String: return v.AsString.Length > 0;
+                case JsonKind.Array:
+                case JsonKind.Object: return true;
+                default: return false; // JSON null
+            }
+        }
+
         // Parse an explicit two-factor blend array ["src","dst"] into a string[2].
         // null for any non-array form (bool/string/number/absent) — those resolve to
         // additive ONE/ONE via the Blend bool. Strings are kept verbatim (the backend

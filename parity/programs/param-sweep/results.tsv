@@ -4,6 +4,11 @@
 # oracle: node tools/export-graph.mjs — 1900/1900 ok
 # candidate: C# live DSL compiler, dotnet 8 tools/graphdump — 1900/1900 ok (no Unity editor)
 # diff: python3 parity/graph-diff.py — 1900 graph-clean, 0 FAIL, 0 missing, exit 0
+# pass-16 re-verification (2026-09-26, current source incl. the GAP-005 pass-field row):
+#   NM_REFERENCE_ROOT re-pinned by SHA at noisemaker@8eeb7b5ac14eb37a8d16037f607a88ce63924cd3
+#   (delivered range end); corpus regenerates byte-identically (definitions unchanged
+#   c9ee8a04..8eeb7b5a), oracle 1900/1900 ok, C# 1900/1900 ok, 1900 graph-clean, 0 FAIL,
+#   0 missing, exit 0. Per-variant statuses unchanged (all PASS).
 classicNoisedeck__bitEffects__mode__bitField	PASS
 classicNoisedeck__bitEffects__speed__mid	PASS
 classicNoisedeck__bitEffects__formula__sierpinski	PASS

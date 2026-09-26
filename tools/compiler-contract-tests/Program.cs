@@ -2123,6 +2123,37 @@ namespace CompilerContractTests
             Check(DslCompiler.ToNormalizedJson(gArr).Contains("\"clear\":[1,0.5,0,1]"),
                 "GAP-005 normalized graph emits authored clear array verbatim");
 
+            // Clear truthiness (runtime consumption): the reference gates the clear
+            // on `pass.clear ? 'clear' : 'load'` — exact JS truthiness. Absent,
+            // JSON null, false, 0, and "" mean NO clear; any array (even empty),
+            // object, non-zero number, or non-empty string means clear.
+            Check(!GraphLoader.IsTruthy(null) && !GraphLoader.IsTruthy(JsonValue.Null)
+                  && !GraphLoader.IsTruthy(JsonValue.Of(false))
+                  && !GraphLoader.IsTruthy(JsonValue.Of(0.0))
+                  && !GraphLoader.IsTruthy(JsonValue.Of("")),
+                "GAP-005 clear falsy forms: null/false/0/empty-string do not clear");
+            Check(GraphLoader.IsTruthy(JsonValue.Of(true))
+                  && GraphLoader.IsTruthy(JsonValue.Of(1.0))
+                  && GraphLoader.IsTruthy(JsonValue.Of("x"))
+                  && GraphLoader.IsTruthy(JsonValue.Parse("[]"))
+                  && GraphLoader.IsTruthy(JsonValue.Parse("[0]")),
+                "GAP-005 clear truthy forms: true/1/non-empty string/any array clear");
+
+            // Writer key order with repeat + clear + conditions: exercises the
+            // reordered emission point byte-exactly (repeat -> clear -> conditions,
+            // the oracle normalizePass order).
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Order Probe\",\"namespace\":\"synth\",\"func\":\"orderProbe\"," +
+                "\"starter\":false,\"globals\":{},\"passes\":[{" +
+                "\"program\":\"automationProbe\",\"repeat\":2,\"clear\":true," +
+                "\"conditions\":{\"skipIf\":[{\"uniform\":\"amount\",\"equals\":0}]}," +
+                "\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+            string orderJson = DslCompiler.ToNormalizedJson(DslCompiler.Compile(
+                "search synth\norderProbe().write(o0)\nrender(o0)\n", reg));
+            Check(orderJson.IndexOf("\"repeat\":2") < orderJson.IndexOf("\"clear\":true")
+                  && orderJson.IndexOf("\"clear\":true") < orderJson.IndexOf("\"conditions\""),
+                "GAP-005 writer emits repeat -> clear -> conditions in oracle order");
+
             // Unauthored parity: no pass-field keys, no clear emission.
             RenderGraph gNone = DslCompiler.Compile(
                 "search synth\nautomationProbe(amount: 2).write(o0)\nrender(o0)\n", ProbeRegistry());
