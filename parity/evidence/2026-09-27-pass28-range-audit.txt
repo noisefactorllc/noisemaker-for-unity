@@ -1,0 +1,142 @@
+# Upstream range audit transcript — noisemaker 403c2a4b..e73a44a3 (tearoff job 00beb88c, 2026-09-27)
+
+## reference clone state
+$ git -C /state/cache/noisemaker rev-parse HEAD
+e73a44a37f0c99bd3779c5fb26c7bba65a46a379
+$ git -C /state/cache/noisemaker status --short
+(clean, detached at e73a44a3)
+
+## ancestry
+$ git merge-base --is-ancestor 403c2a4bf2cb e73a44a37f0c && echo ok
+exit 0 (403c2a4b is an ancestor of e73a44a3)
+$ git merge-base --is-ancestor 7443f6e61803 e73a44a37f0c && echo ok
+exit 0 (declared delivery end 7443f6e is an ancestor of the audited tip)
+$ git merge-base --is-ancestor 7443f6e61803 origin/main && echo ok
+exit 0 (7443f6e is on origin/main)
+$ git log --oneline origin/main -1
+e73a44a3 test(harness): warm up frames before pausing for explicit-time render requests (GAP-014)
+$ git log --oneline e73a44a37f0c..origin/main
+(empty: e73a44a3 is the origin/main tip)
+
+## observed delivery ranges from the trigger
+7dc0f564..7443f6e61803; 132d1bf9..c2252f0caa66; c2252f0caa66..e73a44a37f0c (delivery order is not ancestry order)
+
+## full range, 403c2a4b..e73a44a3
+$ git log --oneline 403c2a4bf2cb..e73a44a37f0c
+e73a44a3 test(harness): warm up frames before pausing for explicit-time render requests (GAP-014)
+c2252f0c test(metrics): auditable GAP-015 metric interchangeability mirror
+132d1bf9 docs: advance AI development contract checkpoint through 7443f6e (GAP-011/012 verified pair audit)
+7443f6e6 test(docs): pin the harness WebGPU render-surface readback and narrow GAP-012
+7dc0f564 feat(tests): auditable measured uniform deltas in the harness uniforms report (GAP-011)
+407eb7a7 docs: advance AI development contract checkpoint through 9f85687 (GAP-010 verified pair audit)
+7730ea4a docs: state the at-least-one-entry requirement in the GAP-010 uniforms guidance prose
+9f85687d feat(tests): truthful uniform-responsiveness aggregation behind --strict-uniforms (GAP-010)
+0ac52500 docs: advance AI development contract checkpoint through 403c2a4 (GAP-008/009 verified pair audit)
+
+## commits touching shaders/ across 403c2a4b..e73a44a3
+$ git log --stat --oneline 403c2a4bf2cb..e73a44a37f0c -- shaders/
+e73a44a3 test(harness): warm up frames before pausing for explicit-time render requests (GAP-014)
+ shaders/tests/frame-warmup.js      |  61 ++++++++++++++++
+ shaders/tests/test-harness.js      |  26 ++++---
+ shaders/tests/test_frame_warmup.js | 144 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 223 insertions(+), 8 deletions(-)
+c2252f0c test(metrics): auditable GAP-015 metric interchangeability mirror
+ shaders/tests/image-metrics.js      | 283 ++++++++++++++++++++++++++++++++++++
+ shaders/tests/test_image_metrics.js | 164 +++++++++++++++++++++
+ 2 files changed, 447 insertions(+)
+7443f6e6 test(docs): pin the harness WebGPU render-surface readback and narrow GAP-012
+ shaders/tests/frame-readback.js      |  83 ++++++++++++++++
+ shaders/tests/test_frame_readback.js | 183 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 266 insertions(+)
+7dc0f564 feat(tests): auditable measured uniform deltas in the harness uniforms report (GAP-011)
+ shaders/tests/test-harness.js        |  44 ++++++
+ shaders/tests/test_uniform_deltas.js | 122 +++++++++++++++
+ shaders/tests/uniform-deltas.js      | 282 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 448 insertions(+)
+9f85687d feat(tests): truthful uniform-responsiveness aggregation behind --strict-uniforms (GAP-010)
+ shaders/tests/test-harness.js        |  24 ++++++--
+ shaders/tests/test_uniform_status.js | 116 +++++++++++++++++++++++++++++++++++
+ shaders/tests/uniform-status.js      |  78 +++++++++++++++++++++++
+ 3 files changed, 214 insertions(+), 4 deletions(-)
+
+## full non-test source delta (effect catalog / lang / runtime / renderer surfaces)
+$ git diff --stat 403c2a4bf2cb..e73a44a37f0c -- shaders/effects shaders/glsl shaders/wgsl shaders/src shaders/scripts
+(empty above = 0 files changed)
+
+## full-tree delta
+$ git diff --stat 403c2a4bf2cb..e73a44a37f0c
+ LEDGER.md                            | 228 +++++++++++++++++++++++++++-
+ llms-full.txt                        | 136 +++++++++++++----
+ scripts/run-js-tests.js              |   5 +
+ shaders/tests/frame-readback.js      |  83 ++++++++++
+ shaders/tests/frame-warmup.js        |  61 ++++++++
+ shaders/tests/image-metrics.js       | 283 +++++++++++++++++++++++++++++++++++
+ shaders/tests/test-harness.js        |  94 ++++++++++--
+ shaders/tests/test_frame_readback.js | 183 ++++++++++++++++++++++
+ shaders/tests/test_frame_warmup.js   | 144 ++++++++++++++++++
+ shaders/tests/test_image_metrics.js  | 164 ++++++++++++++++++++
+ shaders/tests/test_uniform_deltas.js | 122 +++++++++++++++
+ shaders/tests/test_uniform_status.js | 116 ++++++++++++++
+ shaders/tests/uniform-deltas.js      | 282 ++++++++++++++++++++++++++++++++++
+ shaders/tests/uniform-status.js      |  78 ++++++++++
+ 14 files changed, 1934 insertions(+), 45 deletions(-)
+
+## no equivalent surface in this port (all shaders/ delta is JS test-harness only)
+$ grep -rlnE "frame-readback|image-metrics|frame-warmup" unity/
+grep exit: 1 (no matches)
+
+## gate evidence (pass 28, current source, pinned reference e73a44a3)
+$ dotnet --version
+8.0.412
+
+$ dotnet run --project tools/compiler-contract-tests
+
+Welcome to .NET 8.0!
+---------------------
+SDK Version: 8.0.412
+
+Telemetry
+---------
+The .NET tools collect usage data in order to help us improve your experience. It is collected by Microsoft and shared with the community. You can opt-out of telemetry by setting the DOTNET_CLI_TELEMETRY_OPTOUT environment variable to '1' or 'true' using your favorite shell.
+
+Read more about .NET CLI Tools telemetry: https://aka.ms/dotnet-cli-telemetry
+
+----------------
+Installed an ASP.NET Core HTTPS development certificate.
+To trust the certificate, view the instructions: https://aka.ms/dotnet-https-linux
+
+----------------
+Write your first app: https://aka.ms/dotnet-hello-world
+Find out what's new: https://aka.ms/dotnet-whats-new
+Explore documentation: https://aka.ms/dotnet-docs
+Report issues and find source on GitHub: https://github.com/dotnet/core
+Use 'dotnet --help' to see available commands or visit: https://aka.ms/dotnet-cli
+--------------------------------------------------------------------------------------
+compiler contract tests: PASS (0 failures)
+exit: 0
+
+$ python3 -m unittest discover -s parity/tests -p "test_*.py"
+----------------------------------------------------------------------
+Ran 46 tests in 6.462s
+
+FAILED (failures=63, errors=2)
+exit: 1
+
+(note: initial unittest run used system python without numpy; re-run below with the audit venv, numpy 2.5.3 / pillow 12.3.0)
+$ /state/cache/venv/bin/python -m unittest discover -s parity/tests -p "test_*.py"
+Ran 46 tests in 48.700s
+
+OK
+exit: 0
+
+## param sweep transcript (NM_REFERENCE_ROOT=/state/cache/noisemaker detached at e73a44a3)
+$ NM_REFERENCE_ROOT=/state/cache/noisemaker bash parity/param-sweep-verify.sh /state/cache/param-sweep-pass28
+emitted 1900 variants; 3 effects without base program; 0 emit failures; 391 exclusions
+corpus matches committed fixtures: 1900 variants
+=== [2/4] oracle graphs (reference compiler) ===
+oracle ok: 1900, failed: 0
+=== [3/4] C# live-compiler graphs (graphdump, no Unity) ===
+graph-dump batch done: 1900 ok, 0 fail
+=== [4/4] structural diff (fail-closed) ===
+param sweep: 1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants
+exit: 0

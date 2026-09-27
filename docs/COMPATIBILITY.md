@@ -4,7 +4,7 @@
 
 Audit pass: 2026-09-26 (pass 21). Audited source: [`7d8178d1785efc2dea0cad98db9e1d8c7f2762bc`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/7d8178d1785efc2dea0cad98db9e1d8c7f2762bc). Local `main` was clean and matched `origin/main` before and after the checks.
 Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates stay **unverified on this automation host** and carry unchanged from passes 2–14. No release approval or new closure follows from this pass.
-Current upstream head: `7dc0f564` (`7dc0f5640534855d73f8c812ca071fe6b1e09197`), audited in §3 pass 27. Beyond the previously audited `noisemaker@403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`, the delivered range (`403c2a4b..7dc0f564`, force-push flag audited — ancestry verified, raw transcript in [`parity/evidence/2026-09-27-gap011-range-audit.txt`](../parity/evidence/2026-09-27-gap011-range-audit.txt)) adds only GAP-010 `9f85687d` and GAP-011 `7dc0f564`: JS test-harness uniform-reporting modules under `shaders/tests/` (`uniform-status.js`, `uniform-deltas.js` + regressions; this Unity port has no uniforms-reporting harness, so no Unity change), plus upstream documentation passes and a test-runner flag registration. Effect catalog and runtime are unchanged: `git diff --stat 403c2a4bf2cb..7dc0f5640534 -- shaders/effects shaders/glsl shaders/wgsl shaders/src shaders/scripts` → 0 files changed; the effect manifest stays 210 IDs (the published manifest remains byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
+Current upstream head: `e73a44a3` (`e73a44a37f0c99bd3779c5fb26c7bba65a46a379`), audited in §3 pass 28. Beyond the previously audited `noisemaker@7dc0f5640534855d73f8c812ca071fe6b1e09197` (and the previously audited `403c2a4bf2cb` base), the delivered range (`403c2a4b..e73a44a3`, force-push flag audited — the declared delivery end `7443f6e61803` and the observed ranges `7dc0f564..7443f6e`, `132d1bf9..c2252f0`, `c2252f0..e73a44a` are all on `origin/main`, with `7443f6e` an ancestor of the `e73a44a3` tip; raw transcript in [`parity/evidence/2026-09-27-pass28-range-audit.txt`](../parity/evidence/2026-09-27-pass28-range-audit.txt)) adds only: GAP-012 `7443f6e` (`shaders/tests/frame-readback.js` + regressions — harness WebGPU render-surface readback pinning), GAP-015 `c2252f0` (`shaders/tests/image-metrics.js` + regressions — metric interchangeability mirror), GAP-014 `e73a44a` (`shaders/tests/frame-warmup.js` + regressions — warm-up frames before explicit-time render requests), GAP-011 `7dc0f564` and GAP-010 `9f85687d` (uniforms-reporting modules, already audited in pass 27), plus upstream documentation passes and test-runner flag registrations. All of it is JS test-harness code under `shaders/tests/` only; this Unity port has no uniforms-reporting/readback/warmup/metrics harness surface, so no Unity change follows. Effect catalog and runtime are unchanged: `git diff --stat 403c2a4bf2cb..e73a44a37f0c -- shaders/effects shaders/glsl shaders/wgsl shaders/src shaders/scripts` → 0 files changed; the effect manifest stays 210 IDs and remains byte-identical (sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
 Beyond the previously synced `noisemaker@8eeb7b5ac14e`, upstream held 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. As of pass 22 the GAP-006 row (`6113da0`+`9574362`) is delivered (§3 pass 22); `f83a427` is a JS-backend diagnostic-union change with no Unity-renderer equivalent and needs no port.
 The observations below retain their original source and authority identities. They do not qualify later updates.
 Current served kit: `0.1.25`, source `ebd3e7b757bedcfc0652340acef026c334ea6070`, re-verified fresh this pass: 2107/2107 CDN files byte-checked, source cross-check 2105/2105 at `7d8178d`, exit 0. [Deployment metadata](https://kits.noisedeck.app/unity/0/deployment-meta.json). Artifact identity does not establish host qualification.
@@ -754,3 +754,55 @@ compiler contract tests PASS (0 failures); comparator suite `Ran 46 tests … OK
 `synth3d/cell3d` seed — untouched by this change). The full 1803-variant pixel
 sweep was NOT re-run end-to-end this pass; the recorded per-variant verdict for
 this row is the compare.py measurement above under the gate's own filter policy.
+
+### Delivered-range audit, 2026-09-27 (pass 28)
+
+Upstream range `noisemaker@403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e..e73a44a37f0c99bd3779c5fb26c7bba65a46a379`
+(force-push-flagged trigger with three observed delivery ranges; audited, not
+assumed), reference checked out detached by SHA at `e73a44a37f0c`, which is the
+`origin/main` tip (`git log e73a44a37f0c..origin/main` → empty):
+
+- Ancestry audited first (raw transcript in
+  [`parity/evidence/2026-09-27-pass28-range-audit.txt`](../parity/evidence/2026-09-27-pass28-range-audit.txt)):
+  `403c2a4b` and the declared delivery end `7443f6e` are ancestors of
+  `e73a44a3`; all three observed ranges (`7dc0f564..7443f6e`,
+  `132d1bf9..c2252f0`, `c2252f0..e73a44a`) lie on `origin/main`, and `7443f6e`
+  is itself an ancestor of the `e73a44a3` tip — so the audit covers the union
+  of every observed delivery. The range is nine commits: `9f85687d`
+  (GAP-010), `7dc0f564` (GAP-011) audited in pass 27; `7443f6e` (GAP-012);
+  `132d1bf9`, `407eb7a7`, `7730ea4a`, `0ac52500` upstream documentation
+  passes; `c2252f0` (GAP-015); `e73a44a` (GAP-014).
+- Range delta: `git log --stat 403c2a4bf2cb..e73a44a37f0c -- shaders/` →
+  exactly five code commits, `shaders/tests/**` only — GAP-012 `7443f6e`
+  (`frame-readback.js` + regressions, pins the harness WebGPU render-surface
+  readback), GAP-015 `c2252f0` (`image-metrics.js` + regressions, auditable
+  metric interchangeability mirror), GAP-014 `e73a44a` (`frame-warmup.js` +
+  regressions, warm-up frames before explicit-time render requests), plus the
+  two pass-27 uniforms modules. Nothing outside `shaders/tests/` changes in
+  `shaders/`.
+  `git diff --stat 403c2a4bf2cb..e73a44a37f0c -- shaders/effects shaders/glsl
+  shaders/wgsl shaders/src shaders/scripts` → 0 files changed.
+- NOT ported — GAP-012 `7443f6e`, GAP-015 `c2252f0`, GAP-014 `e73a44a`: JS
+  test-harness modules under `shaders/tests/` only; no engine behavior.
+  `grep -rlnE "frame-readback|image-metrics|frame-warmup" unity/` matches
+  nothing, and the port's `parity/` harness has no readback/warmup/metrics
+  harness surface, so there is no equivalent to change.
+- Effect-catalog parity: 0 new / 0 changed / 0 removed; the effect manifest is
+  byte-identical (210 IDs, sha256
+  `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`); no WGSL/GLSL→HLSL translation is touched by this
+  range, so no translation cross-check arises.
+
+Gate evidence (pass 28, current source, Linux audit host, .NET SDK 8.0.412,
+numpy 2.5.3 / pillow 12.3.0; raw command transcript appended to
+[`parity/evidence/2026-09-27-pass28-range-audit.txt`](../parity/evidence/2026-09-27-pass28-range-audit.txt)):
+
+- `dotnet run --project tools/compiler-contract-tests`:
+  `compiler contract tests: PASS (0 failures)` (no new contract added — the
+  range adds no compiler surface).
+- `python -m unittest discover -s parity/tests -p "test_*.py"`:
+  `Ran 46 tests` → `OK`.
+- `bash parity/param-sweep-verify.sh` with `NM_REFERENCE_ROOT` pinned by SHA at
+  `noisemaker@e73a44a37f0c99bd3779c5fb26c7bba65a46a379`: authority-drift
+  re-check of the whole golden corpus at the new upstream code head — corpus
+  regenerates byte-identically (1900 variants, 391 exclusions), oracle and
+  result verdicts recorded in the raw transcript.
