@@ -4,7 +4,7 @@
 
 Audit pass: 2026-09-26 (pass 21). Audited source: [`7d8178d1785efc2dea0cad98db9e1d8c7f2762bc`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/7d8178d1785efc2dea0cad98db9e1d8c7f2762bc). Local `main` was clean and matched `origin/main` before and after the checks.
 Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates stay **unverified on this automation host** and carry unchanged from passes 2–14. No release approval or new closure follows from this pass.
-Current upstream head: `7730ea4a` (documentation-only beyond the code head `403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`), audited in §3 pass 26. Beyond the previously synced `noisemaker@6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`, the delivered `shaders/` code delta is: GAP-008 `403c2a4b` — a JS lang-layer `replaceEffect`/`predictReplacement` preflight in `shaders/src/lang/**` + `shaders/src/index.js` (authoring-time program-transform API; this Unity port has no such layer, so no Unity change); GAP-009 `b35361e0` and GAP-010 `9f85687d` (`shaders/tests/**` only). Effect catalog and runtime are unchanged: `git diff --stat 6a0af04d3c4f..7730ea4a -- shaders/effects shaders/glsl shaders/wgsl shaders/src/definition.js shaders/src/runtime` → 0 files changed; the effect manifest stays 210 IDs (the published manifest remains byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
+Current upstream head: `7dc0f564` (`7dc0f5640534855d73f8c812ca071fe6b1e09197`), audited in §3 pass 27. Beyond the previously audited `noisemaker@403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`, the delivered range (`403c2a4b..7dc0f564`, force-push flag audited — ancestry verified, raw transcript in [`parity/evidence/2026-09-27-gap011-range-audit.txt`](../parity/evidence/2026-09-27-gap011-range-audit.txt)) adds only GAP-010 `9f85687d` and GAP-011 `7dc0f564`: JS test-harness uniform-reporting modules under `shaders/tests/` (`uniform-status.js`, `uniform-deltas.js` + regressions; this Unity port has no uniforms-reporting harness, so no Unity change), plus upstream documentation passes and a test-runner flag registration. Effect catalog and runtime are unchanged: `git diff --stat 403c2a4bf2cb..7dc0f5640534 -- shaders/effects shaders/glsl shaders/wgsl shaders/src shaders/scripts` → 0 files changed; the effect manifest stays 210 IDs (the published manifest remains byte-identical at `1.0.176`, `1.0.184`, and `1.0.185`, sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
 Beyond the previously synced `noisemaker@8eeb7b5ac14e`, upstream held 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. As of pass 22 the GAP-006 row (`6113da0`+`9574362`) is delivered (§3 pass 22); `f83a427` is a JS-backend diagnostic-union change with no Unity-renderer equivalent and needs no port.
 The observations below retain their original source and authority identities. They do not qualify later updates.
 Current served kit: `0.1.25`, source `ebd3e7b757bedcfc0652340acef026c334ea6070`, re-verified fresh this pass: 2107/2107 CDN files byte-checked, source cross-check 2105/2105 at `7d8178d`, exit 0. [Deployment metadata](https://kits.noisedeck.app/unity/0/deployment-meta.json). Artifact identity does not establish host qualification.
@@ -647,6 +647,58 @@ numpy 2.5.3 / pillow 12.3.0; raw command transcript appended to
   regenerates byte-identically (1900 variants, drift check clean, 391
   exclusions), oracle 1900/1900 ok, C# graphdump 1900/1900 ok, `param sweep:
   1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants`, exit 0.
+
+Carried, not re-run (Unity editor required, license-blocked): the 245-fixture
+pixel gates, the 316-program Unity graph gate, the Windows/Linux platform
+matrix, and the 6000.0 minimum floor — unchanged from passes 17/18.
+
+### Delivered-range audit, 2026-09-27 (pass 27)
+
+Upstream range `noisemaker@403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e..7dc0f5640534855d73f8c812ca071fe6b1e09197`
+(force-push-flagged trigger; audited, not assumed), reference checked out
+detached by SHA at `7dc0f564053`, which is the `origin/main` tip
+(`git log 7dc0f564..origin/main` → empty):
+
+- Ancestry audited first (`git merge-base --is-ancestor`, raw transcript in
+  [`parity/evidence/2026-09-27-gap011-range-audit.txt`](../parity/evidence/2026-09-27-gap011-range-audit.txt)):
+  `403c2a4b` is an ancestor of `7dc0f564` (the force-push flag resolves — the
+  delivered range is a contiguous extension of the previously audited tip),
+  `403c2a4b`, the observed-delivery start `407eb7a7`, and the end `7dc0f564`
+  are all on `origin/main`. The range is five commits: `0ac52500`, `7730ea4a`,
+  `407eb7a7` upstream documentation passes; `9f85687d` (GAP-010) and
+  `7dc0f564` (GAP-011) code commits.
+- Range delta: `git log --stat 403c2a4bf2cb..7dc0f5640534 -- shaders/` →
+  exactly the two code commits, `shaders/tests/**` only — GAP-010 `9f85687d`
+  (`uniform-status.js` + regressions, `--strict-uniforms` aggregation behind
+  `scripts/run-js-tests.js` flag registration) and GAP-011 `7dc0f564`
+  (`uniform-deltas.js` + regressions, measured uniform-delta reporting) — plus
+  upstream docs (`LEDGER.md`, `llms-full.txt`).
+  `git diff --stat 403c2a4bf2cb..7dc0f5640534 -- shaders/effects shaders/glsl
+  shaders/wgsl shaders/src shaders/scripts` → 0 files changed.
+- NOT ported — GAP-010 `9f85687d` and GAP-011 `7dc0f564`: JS test-harness
+  uniform-reporting modules under `shaders/tests/` only; no engine behavior.
+  `grep -rln "strict-uniforms|uniform-status|uniform-deltas" unity/` matches
+  nothing, and the port's `parity/` harness has no uniforms-reporting surface
+  (the only `uniform` matches in `unity/` are HLSL uniform declarations), so
+  there is no equivalent to change.
+- Effect-catalog parity: 0 new / 0 changed / 0 removed; no WGSL/GLSL→HLSL
+  translation is touched by this range, so no translation cross-check arises.
+
+Gate evidence (pass 27, current source, Linux audit host, .NET SDK 8.0.412,
+numpy 2.5.3 / pillow 12.3.0; raw command transcript appended to
+[`parity/evidence/2026-09-27-gap011-range-audit.txt`](../parity/evidence/2026-09-27-gap011-range-audit.txt)):
+
+- `dotnet run --project tools/compiler-contract-tests`:
+  `compiler contract tests: PASS (0 failures)` (no new contract added — the
+  range adds no compiler surface).
+- `python -m unittest discover -s parity/tests -p "test_*.py"`:
+  `Ran 46 tests` → `OK`.
+- `bash parity/param-sweep-verify.sh` with `NM_REFERENCE_ROOT` pinned by SHA at
+  `noisemaker@7dc0f5640534855d73f8c812ca071fe6b1e09197`: authority-drift
+  re-check of the whole golden corpus at the new upstream code head — corpus
+  regenerates byte-identically (1900 variants, 391 exclusions), oracle
+  1900/1900 ok, C# graphdump 1900/1900 ok, `param sweep: 1900 graph-clean,
+  0 FAIL, 0 missing, of 1900 variants`, exit 0.
 
 Carried, not re-run (Unity editor required, license-blocked): the 245-fixture
 pixel gates, the 316-program Unity graph gate, the Windows/Linux platform
