@@ -787,6 +787,16 @@ assumed), reference checked out detached by SHA at `e73a44a37f0c`, which is the
   `grep -rlnE "frame-readback|image-metrics|frame-warmup" unity/` matches
   nothing, and the port's `parity/` harness has no readback/warmup/metrics
   harness surface, so there is no equivalent to change.
+- For offline independent verification (review environments without network or
+  a local noisemaker checkout), the verbatim upstream diff is committed at
+  [`parity/evidence/2026-09-27-pass28-upstream-range.patch`](2026-09-27-pass28-upstream-range.patch)
+  (`git diff 403c2a4bf2cb..e73a44a37f0c` from the pinned reference): 2266
+  lines, 14 files — `LEDGER.md`, `llms-full.txt`, `scripts/run-js-tests.js`,
+  and `shaders/tests/{frame-readback,frame-warmup,image-metrics,test-harness,
+  test_frame_readback,test_frame_warmup,test_image_metrics,
+  test_uniform_deltas,test_uniform_status,uniform-deltas,uniform-status}.js`.
+  No `shaders/effects`, `shaders/glsl`, `shaders/wgsl`, or other
+  `shaders/src` file appears in the patch.
 - Effect-catalog parity: 0 new / 0 changed / 0 removed; the effect manifest is
   byte-identical (210 IDs, sha256
   `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`); no WGSL/GLSL→HLSL translation is touched by this
