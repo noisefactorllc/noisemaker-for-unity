@@ -1,0 +1,541 @@
+{
+ "schema_version": 1,
+ "cases": {
+  "points__attractor__attractor__aizawa": {
+   "max_abs_diff": 237.0,
+   "max_mean_abs_diff": 0.01189422607421875,
+   "ssim_min": 0.9999193549156189,
+   "max_exceeded_pixels": 21,
+   "max_exceeded_channels": 60,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__attractor__attractor__chen": {
+   "max_abs_diff": 97.0,
+   "max_mean_abs_diff": 0.005207061767578125,
+   "ssim_min": 0.9999670386314392,
+   "max_exceeded_pixels": 19,
+   "max_exceeded_channels": 51,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__attractor__attractor__dadras": {
+   "max_abs_diff": 179.0,
+   "max_mean_abs_diff": 0.004497528076171875,
+   "ssim_min": 0.9999748468399048,
+   "max_exceeded_pixels": 21,
+   "max_exceeded_channels": 55,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__buddhabrot__centerX__mid": {
+   "max_abs_diff": 90.0,
+   "max_mean_abs_diff": 0.14561080932617188,
+   "ssim_min": 0.9997932314872742,
+   "max_exceeded_pixels": 628,
+   "max_exceeded_channels": 1869,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__buddhabrot__centerY__mid": {
+   "max_abs_diff": 72.0,
+   "max_mean_abs_diff": 0.02072906494140625,
+   "ssim_min": 0.9999399185180664,
+   "max_exceeded_pixels": 78,
+   "max_exceeded_channels": 232,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__buddhabrot__maxIter__mid": {
+   "max_abs_diff": 73.0,
+   "max_mean_abs_diff": 0.2729759216308594,
+   "ssim_min": 0.9997271299362183,
+   "max_exceeded_pixels": 2017,
+   "max_exceeded_channels": 5952,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__buddhabrot__mode__anti": {
+   "max_abs_diff": 42.0,
+   "max_mean_abs_diff": 0.021053314208984375,
+   "ssim_min": 0.9999372959136963,
+   "max_exceeded_pixels": 133,
+   "max_exceeded_channels": 393,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__buddhabrot__stateSize__plus1": {
+   "max_abs_diff": 73.0,
+   "max_mean_abs_diff": 0.14148712158203125,
+   "ssim_min": 0.9998042583465576,
+   "max_exceeded_pixels": 621,
+   "max_exceeded_channels": 1846,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__buddhabrot__zoom__mid": {
+   "max_abs_diff": 72.0,
+   "max_mean_abs_diff": 0.11346817016601562,
+   "ssim_min": 0.9957694411277771,
+   "max_exceeded_pixels": 456,
+   "max_exceeded_channels": 1365,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.996); both engines are self-deterministic"
+  },
+  "points__dla__anchorDensity__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 1.52587890625e-05,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__dla__attrition__mid": {
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 0.000102996826171875,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 5,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__dla__inputWeight__mid": {
+   "max_abs_diff": 240.0,
+   "max_mean_abs_diff": 0.5263862609863281,
+   "ssim_min": 0.9958029985427856,
+   "max_exceeded_pixels": 1078,
+   "max_exceeded_channels": 2575,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.996); both engines are self-deterministic"
+  },
+  "points__dla__matteOpacity__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 1.52587890625e-05,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__dla__stateSize__plus1": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 1.52587890625e-05,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flock__alignment__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 29.872547149658203,
+   "ssim_min": 0.7212932705879211,
+   "max_exceeded_pixels": 43383,
+   "max_exceeded_channels": 119238,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM -0.006 vs port-vs-webgl2 0.721); both engines are self-deterministic"
+  },
+  "points__flock__boundaryMode__softWall": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 19.998382568359375,
+   "ssim_min": 0.7695708274841309,
+   "max_exceeded_pixels": 21433,
+   "max_exceeded_channels": 59923,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.062 vs port-vs-webgl2 0.770); both engines are self-deterministic"
+  },
+  "points__flock__cohesion__mid": {
+   "max_abs_diff": 246.0,
+   "max_mean_abs_diff": 0.24289703369140625,
+   "ssim_min": 0.9846043586730957,
+   "max_exceeded_pixels": 440,
+   "max_exceeded_channels": 1102,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.985); both engines are self-deterministic"
+  },
+  "points__flock__maxForce__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 52.764102935791016,
+   "ssim_min": 0.34570708870887756,
+   "max_exceeded_pixels": 52424,
+   "max_exceeded_channels": 150549,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.033 vs port-vs-webgl2 0.346); both engines are self-deterministic"
+  },
+  "points__flock__maxSpeed__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 34.459163665771484,
+   "ssim_min": 0.6852732300758362,
+   "max_exceeded_pixels": 41160,
+   "max_exceeded_channels": 114809,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.006 vs port-vs-webgl2 0.685); both engines are self-deterministic"
+  },
+  "points__flock__noiseWeight__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 46.091331481933594,
+   "ssim_min": 0.4934534728527069,
+   "max_exceeded_pixels": 49916,
+   "max_exceeded_channels": 142168,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.011 vs port-vs-webgl2 0.493); both engines are self-deterministic"
+  },
+  "points__flock__perceptionRadius__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 29.948516845703125,
+   "ssim_min": 0.7081931233406067,
+   "max_exceeded_pixels": 37990,
+   "max_exceeded_channels": 106112,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.021 vs port-vs-webgl2 0.708); both engines are self-deterministic"
+  },
+  "points__flock__separationRadius__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 62.362186431884766,
+   "ssim_min": 0.27706900238990784,
+   "max_exceeded_pixels": 57318,
+   "max_exceeded_channels": 164230,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.047 vs port-vs-webgl2 0.277); both engines are self-deterministic"
+  },
+  "points__flock__separation__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 55.67976760864258,
+   "ssim_min": 0.35502180457115173,
+   "max_exceeded_pixels": 54247,
+   "max_exceeded_channels": 155399,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.055 vs port-vs-webgl2 0.355); both engines are self-deterministic"
+  },
+  "points__flock__wallMargin__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 40.60798645019531,
+   "ssim_min": 0.5618080496788025,
+   "max_exceeded_pixels": 44761,
+   "max_exceeded_channels": 126858,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.043 vs port-vs-webgl2 0.562); both engines are self-deterministic"
+  },
+  "points__flow__behavior__chaotic": {
+   "max_abs_diff": 14.0,
+   "max_mean_abs_diff": 0.00020599365234375,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 6,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__behavior__crosshatch": {
+   "max_abs_diff": 185.0,
+   "max_mean_abs_diff": 0.00499725341796875,
+   "ssim_min": 0.9999476671218872,
+   "max_exceeded_pixels": 10,
+   "max_exceeded_channels": 26,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__behavior__meandering": {
+   "max_abs_diff": 88.0,
+   "max_mean_abs_diff": 0.000728607177734375,
+   "ssim_min": 0.9999962449073792,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 8,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__behavior__none": {
+   "max_abs_diff": 115.0,
+   "max_mean_abs_diff": 0.0015716552734375,
+   "ssim_min": 0.9999912977218628,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 7,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__behavior__randomMix": {
+   "max_abs_diff": 213.0,
+   "max_mean_abs_diff": 0.0021820068359375,
+   "ssim_min": 0.9999740719795227,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__behavior__unruly": {
+   "max_abs_diff": 20.0,
+   "max_mean_abs_diff": 0.000179290771484375,
+   "ssim_min": 0.9999999403953552,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 5,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__inputWeight__mid": {
+   "max_abs_diff": 11.0,
+   "max_mean_abs_diff": 0.00011444091796875,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__kink__mid": {
+   "max_abs_diff": 163.0,
+   "max_mean_abs_diff": 0.002750396728515625,
+   "ssim_min": 0.9999331831932068,
+   "max_exceeded_pixels": 6,
+   "max_exceeded_channels": 14,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__stateSize__plus1": {
+   "max_abs_diff": 105.0,
+   "max_mean_abs_diff": 0.00179290771484375,
+   "ssim_min": 0.999987006187439,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 7,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__strideDeviation__mid": {
+   "max_abs_diff": 125.0,
+   "max_mean_abs_diff": 0.0023193359375,
+   "ssim_min": 0.9999862909317017,
+   "max_exceeded_pixels": 11,
+   "max_exceeded_channels": 23,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__flow__stride__mid": {
+   "max_abs_diff": 230.0,
+   "max_mean_abs_diff": 0.3535270690917969,
+   "ssim_min": 0.9984430074691772,
+   "max_exceeded_pixels": 1089,
+   "max_exceeded_channels": 2627,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.998); both engines are self-deterministic"
+  },
+  "points__hydraulic__inputWeight__mid": {
+   "max_abs_diff": 186.0,
+   "max_mean_abs_diff": 0.01366424560546875,
+   "ssim_min": 0.9999417662620544,
+   "max_exceeded_pixels": 58,
+   "max_exceeded_channels": 126,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__hydraulic__inverse__true": {
+   "max_abs_diff": 161.0,
+   "max_mean_abs_diff": 0.015575408935546875,
+   "ssim_min": 0.9999146461486816,
+   "max_exceeded_pixels": 66,
+   "max_exceeded_channels": 155,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__hydraulic__stride__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 18.571090698242188,
+   "ssim_min": 0.801031768321991,
+   "max_exceeded_pixels": 30569,
+   "max_exceeded_channels": 86041,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.461 vs port-vs-webgl2 0.801); both engines are self-deterministic"
+  },
+  "points__lenia__depositAmount__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 15.5452880859375,
+   "ssim_min": 0.48584476113319397,
+   "max_exceeded_pixels": 14469,
+   "max_exceeded_channels": 42111,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.043 vs port-vs-webgl2 0.486); both engines are self-deterministic"
+  },
+  "points__lenia__dt__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 18.74579620361328,
+   "ssim_min": 0.2706071436405182,
+   "max_exceeded_pixels": 14866,
+   "max_exceeded_channels": 43322,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.045 vs port-vs-webgl2 0.271); both engines are self-deterministic"
+  },
+  "points__lenia__muG__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 15.405658721923828,
+   "ssim_min": 0.4983915686607361,
+   "max_exceeded_pixels": 14124,
+   "max_exceeded_channels": 40791,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.049 vs port-vs-webgl2 0.498); both engines are self-deterministic"
+  },
+  "points__lenia__muK__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 5.956592559814453,
+   "ssim_min": 0.6237697601318359,
+   "max_exceeded_pixels": 5190,
+   "max_exceeded_channels": 15140,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.013 vs port-vs-webgl2 0.624); both engines are self-deterministic"
+  },
+  "points__lenia__repulsion__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 16.171607971191406,
+   "ssim_min": 0.4304681718349457,
+   "max_exceeded_pixels": 14472,
+   "max_exceeded_channels": 41865,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.188 vs port-vs-webgl2 0.430); both engines are self-deterministic"
+  },
+  "points__lenia__searchRadius__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 20.898326873779297,
+   "ssim_min": 0.3082394301891327,
+   "max_exceeded_pixels": 18171,
+   "max_exceeded_channels": 52689,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.067 vs port-vs-webgl2 0.308); both engines are self-deterministic"
+  },
+  "points__lenia__sigmaG__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 15.079158782958984,
+   "ssim_min": 0.49891021847724915,
+   "max_exceeded_pixels": 13983,
+   "max_exceeded_channels": 40504,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.049 vs port-vs-webgl2 0.499); both engines are self-deterministic"
+  },
+  "points__lenia__sigmaK__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 18.831310272216797,
+   "ssim_min": 0.38317662477493286,
+   "max_exceeded_pixels": 15619,
+   "max_exceeded_channels": 45542,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.060 vs port-vs-webgl2 0.383); both engines are self-deterministic"
+  },
+  "points__life__attractionScale__mid": {
+   "max_abs_diff": 243.0,
+   "max_mean_abs_diff": 0.2961387634277344,
+   "ssim_min": 0.9964101910591125,
+   "max_exceeded_pixels": 523,
+   "max_exceeded_channels": 1336,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.996); both engines are self-deterministic"
+  },
+  "points__life__boundaryMode__bounce": {
+   "max_abs_diff": 247.0,
+   "max_mean_abs_diff": 0.6301612854003906,
+   "ssim_min": 0.9922332167625427,
+   "max_exceeded_pixels": 1128,
+   "max_exceeded_channels": 2843,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.992); both engines are self-deterministic"
+  },
+  "points__life__friction__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.2613525390625,
+   "ssim_min": 0.9969788193702698,
+   "max_exceeded_pixels": 610,
+   "max_exceeded_channels": 1524,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.997); both engines are self-deterministic"
+  },
+  "points__life__matrixSeed__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 2.012115478515625,
+   "ssim_min": 0.9715535044670105,
+   "max_exceeded_pixels": 2903,
+   "max_exceeded_channels": 7592,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.972); both engines are self-deterministic"
+  },
+  "points__life__maxRadius__mid": {
+   "max_abs_diff": 248.0,
+   "max_mean_abs_diff": 1.0561332702636719,
+   "ssim_min": 0.9863107800483704,
+   "max_exceeded_pixels": 1586,
+   "max_exceeded_channels": 4045,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.986); both engines are self-deterministic"
+  },
+  "points__life__maxSpeed__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 16.47364044189453,
+   "ssim_min": 0.7636458277702332,
+   "max_exceeded_pixels": 19845,
+   "max_exceeded_channels": 55490,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.009 vs port-vs-webgl2 0.764); both engines are self-deterministic"
+  },
+  "points__life__minRadius__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 1.3710594177246094,
+   "ssim_min": 0.9810680150985718,
+   "max_exceeded_pixels": 2227,
+   "max_exceeded_channels": 5723,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.981); both engines are self-deterministic"
+  },
+  "points__life__repulsionScale__mid": {
+   "max_abs_diff": 250.0,
+   "max_mean_abs_diff": 2.672626495361328,
+   "ssim_min": 0.965757429599762,
+   "max_exceeded_pixels": 4171,
+   "max_exceeded_channels": 10945,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.966); both engines are self-deterministic"
+  },
+  "points__life__stateSize__plus1": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 51.730010986328125,
+   "ssim_min": 0.01136303972452879,
+   "max_exceeded_pixels": 46139,
+   "max_exceeded_channels": 133540,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.016 vs port-vs-webgl2 0.011); both engines are self-deterministic"
+  },
+  "points__life__symmetricForces__true": {
+   "max_abs_diff": 250.0,
+   "max_mean_abs_diff": 3.3081398010253906,
+   "ssim_min": 0.9467058181762695,
+   "max_exceeded_pixels": 4489,
+   "max_exceeded_channels": 12204,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.012 vs port-vs-webgl2 0.947); both engines are self-deterministic"
+  },
+  "points__life__typeCount__mid": {
+   "max_abs_diff": 247.0,
+   "max_mean_abs_diff": 0.7749443054199219,
+   "ssim_min": 0.9898172616958618,
+   "max_exceeded_pixels": 1236,
+   "max_exceeded_channels": 3253,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.990); both engines are self-deterministic"
+  },
+  "points__life__useTypeColor__true": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.6048660278320312,
+   "ssim_min": 0.988544225692749,
+   "max_exceeded_pixels": 1195,
+   "max_exceeded_channels": 1869,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 0.989); both engines are self-deterministic"
+  },
+  "points__physarum__decay__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 37.308815002441406,
+   "ssim_min": 0.5952189564704895,
+   "max_exceeded_pixels": 40265,
+   "max_exceeded_channels": 111675,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.086 vs port-vs-webgl2 0.595); both engines are self-deterministic"
+  },
+  "points__physarum__deposit__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 35.4671630859375,
+   "ssim_min": 0.6321865916252136,
+   "max_exceeded_pixels": 38262,
+   "max_exceeded_channels": 105608,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.092 vs port-vs-webgl2 0.632); both engines are self-deterministic"
+  },
+  "points__physarum__inputWeight__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 32.54898452758789,
+   "ssim_min": 0.6576448678970337,
+   "max_exceeded_pixels": 34952,
+   "max_exceeded_channels": 96097,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.107 vs port-vs-webgl2 0.658); both engines are self-deterministic"
+  },
+  "points__physarum__moveSpeed__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 35.55775833129883,
+   "ssim_min": 0.627665638923645,
+   "max_exceeded_pixels": 38818,
+   "max_exceeded_channels": 107311,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.092 vs port-vs-webgl2 0.628); both engines are self-deterministic"
+  },
+  "points__physarum__sensorAngle__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 46.681434631347656,
+   "ssim_min": 0.5400897264480591,
+   "max_exceeded_pixels": 49008,
+   "max_exceeded_channels": 136245,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.102 vs port-vs-webgl2 0.540); both engines are self-deterministic"
+  },
+  "points__physarum__sensorDistance__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 52.90581512451172,
+   "ssim_min": 0.4697839021682739,
+   "max_exceeded_pixels": 54449,
+   "max_exceeded_channels": 151292,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.063 vs port-vs-webgl2 0.470); both engines are self-deterministic"
+  },
+  "points__physarum__turnSpeed__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 61.609283447265625,
+   "ssim_min": 0.3425149619579315,
+   "max_exceeded_pixels": 55464,
+   "max_exceeded_channels": 153939,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM 0.084 vs port-vs-webgl2 0.343); both engines are self-deterministic"
+  },
+  "points__physical__drag__mid": {
+   "max_abs_diff": 156.0,
+   "max_mean_abs_diff": 0.001461029052734375,
+   "ssim_min": 0.9999843835830688,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  },
+  "points__physical__wander__mid": {
+   "max_abs_diff": 121.0,
+   "max_mean_abs_diff": 0.00109100341796875,
+   "ssim_min": 0.999991238117218,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "float32 agent-simulation divergence over the 60 warm frames; the reference's own backends diverge at the same magnitude (webgpu-vs-webgl2 SSIM n/a vs port-vs-webgl2 1.000); both engines are self-deterministic"
+  }
+ }
+}

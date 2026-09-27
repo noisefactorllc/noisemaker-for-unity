@@ -1,0 +1,205 @@
+{
+ "schema_version": 1,
+ "cases": {
+  "filter3d__palette3d__offset__mid": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.00066375732421875,
+   "ssim_min": 0.9999997019767761,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth3d__cell3d__colorMode__mono": {
+   "max_abs_diff": 63.0,
+   "max_mean_abs_diff": 0.000904083251953125,
+   "ssim_min": 0.999992311000824,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth3d__cell3d__variation__mid": {
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 0.000225067138671875,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth3d__cell3d__volumeSize__x16": {
+   "max_abs_diff": 50.0,
+   "max_mean_abs_diff": 0.000949859619140625,
+   "ssim_min": 0.9999947547912598,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 9,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth3d__cellularAutomata3d__ruleIndex__rule678": {
+   "max_abs_diff": 165.0,
+   "max_mean_abs_diff": 0.24707794189453125,
+   "ssim_min": 0.9982851147651672,
+   "max_exceeded_pixels": 1638,
+   "max_exceeded_channels": 4914,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9983)"
+  },
+  "synth3d__flythrough3d__bailout__mid": {
+   "max_abs_diff": 189.0,
+   "max_mean_abs_diff": 0.5790443420410156,
+   "ssim_min": 0.993898332118988,
+   "max_exceeded_pixels": 4552,
+   "max_exceeded_channels": 9677,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9938)"
+  },
+  "synth3d__flythrough3d__iterations__mid": {
+   "max_abs_diff": 189.0,
+   "max_mean_abs_diff": 0.7101058959960938,
+   "ssim_min": 0.9915567636489868,
+   "max_exceeded_pixels": 5497,
+   "max_exceeded_channels": 11911,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9914)"
+  },
+  "synth3d__flythrough3d__power__mid": {
+   "max_abs_diff": 165.0,
+   "max_mean_abs_diff": 0.3933563232421875,
+   "ssim_min": 0.9958823919296265,
+   "max_exceeded_pixels": 3655,
+   "max_exceeded_channels": 7779,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9958)"
+  },
+  "synth3d__flythrough3d__seed__mid": {
+   "max_abs_diff": 189.0,
+   "max_mean_abs_diff": 0.5591354370117188,
+   "ssim_min": 0.9943709373474121,
+   "max_exceeded_pixels": 4629,
+   "max_exceeded_channels": 9678,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9943)"
+  },
+  "synth3d__flythrough3d__speed__mid": {
+   "max_abs_diff": 183.0,
+   "max_mean_abs_diff": 0.5198097229003906,
+   "ssim_min": 0.9950968623161316,
+   "max_exceeded_pixels": 4706,
+   "max_exceeded_channels": 9589,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.995)"
+  },
+  "synth3d__flythrough3d__voiSize__mid": {
+   "max_abs_diff": 160.0,
+   "max_mean_abs_diff": 0.25730133056640625,
+   "ssim_min": 0.9964682459831238,
+   "max_exceeded_pixels": 2331,
+   "max_exceeded_channels": 4519,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9964)"
+  },
+  "synth3d__flythrough3d__volumeSize__x128": {
+   "max_abs_diff": 191.0,
+   "max_mean_abs_diff": 0.9704856872558594,
+   "ssim_min": 0.9900928735733032,
+   "max_exceeded_pixels": 7310,
+   "max_exceeded_channels": 16435,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.99)"
+  },
+  "synth3d__flythrough3d__volumeSize__x16": {
+   "max_abs_diff": 156.0,
+   "max_mean_abs_diff": 0.16760635375976562,
+   "ssim_min": 0.9979625344276428,
+   "max_exceeded_pixels": 1645,
+   "max_exceeded_channels": 2543,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9979)"
+  },
+  "synth3d__flythrough3d__volumeSize__x32": {
+   "max_abs_diff": 178.0,
+   "max_mean_abs_diff": 0.29461669921875,
+   "ssim_min": 0.998007595539093,
+   "max_exceeded_pixels": 3060,
+   "max_exceeded_channels": 5758,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.998)"
+  },
+  "synth3d__fractal3d__bailout__mid": {
+   "max_abs_diff": 147.0,
+   "max_mean_abs_diff": 0.022121429443359375,
+   "ssim_min": 0.9998412132263184,
+   "max_exceeded_pixels": 138,
+   "max_exceeded_channels": 414,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
+  },
+  "synth3d__fractal3d__colorMode__iteration": {
+   "max_abs_diff": 164.0,
+   "max_mean_abs_diff": 0.025959014892578125,
+   "ssim_min": 0.9998151659965515,
+   "max_exceeded_pixels": 318,
+   "max_exceeded_channels": 528,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
+  },
+  "synth3d__fractal3d__colorMode__orbitTrap": {
+   "max_abs_diff": 164.0,
+   "max_mean_abs_diff": 0.025959014892578125,
+   "ssim_min": 0.9998151659965515,
+   "max_exceeded_pixels": 318,
+   "max_exceeded_channels": 528,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
+  },
+  "synth3d__fractal3d__iterations__mid": {
+   "max_abs_diff": 169.0,
+   "max_mean_abs_diff": 0.03131103515625,
+   "ssim_min": 0.999480128288269,
+   "max_exceeded_pixels": 145,
+   "max_exceeded_channels": 435,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9995)"
+  },
+  "synth3d__fractal3d__power__mid": {
+   "max_abs_diff": 70.0,
+   "max_mean_abs_diff": 0.02492523193359375,
+   "ssim_min": 0.9998961091041565,
+   "max_exceeded_pixels": 163,
+   "max_exceeded_channels": 489,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "synth3d__fractal3d__volumeSize__x128": {
+   "max_abs_diff": 164.0,
+   "max_mean_abs_diff": 0.06580352783203125,
+   "ssim_min": 0.9992130398750305,
+   "max_exceeded_pixels": 329,
+   "max_exceeded_channels": 987,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9992)"
+  },
+  "synth3d__fractal3d__volumeSize__x16": {
+   "max_abs_diff": 58.0,
+   "max_mean_abs_diff": 0.001865386962890625,
+   "ssim_min": 0.9999775290489197,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 9,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth3d__fractal3d__volumeSize__x32": {
+   "max_abs_diff": 159.0,
+   "max_mean_abs_diff": 0.0104827880859375,
+   "ssim_min": 0.9998003840446472,
+   "max_exceeded_pixels": 16,
+   "max_exceeded_channels": 48,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
+  },
+  "synth3d__noise3d__scale__mid": {
+   "max_abs_diff": 69.0,
+   "max_mean_abs_diff": 0.00146484375,
+   "ssim_min": 0.9999899864196777,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth3d__reactionDiffusion3d__volumeSize__x128": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.0001373291015625,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth3d__shape3d__loopAOffset__tetrahedron": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.000263214111328125,
+   "ssim_min": 0.9999998211860657,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  }
+ }
+}

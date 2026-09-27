@@ -178,6 +178,16 @@ UNITY=... UNITY_PROJECT=... bash parity/render-verify.sh
 # user-facing parameter of all 207 ported effects; GPU-free graph-level gate —
 # reference oracle vs C# live DSL compiler via .NET 8, no Unity needed):
 NM_REFERENCE_ROOT=/path/to/noisemaker bash parity/param-sweep-verify.sh
+# parameter sweep, Unity-side pixel leg (1900 variants): staged gate —
+# goldens (reference repo + headless Chromium WebGL2), unity (licensed editor
+# renders the same DSL manifests; points 60 warm frames, mesh batch shares
+# meshes/sphere.obj), grade (fail-closed compare with pixel-exceptions-*.json;
+# pixel-reference-blocked.tsv excludes variants with no faithful reference
+# render; pixel-unresolved.tsv FAILs stay open by design). Chunkable:
+# NMC_CHUNKS=N NMC_CHUNK=i renders slice i of N per batch.
+#   Stage 1 (any host with the reference): bash parity/param-sweep-pixel-verify.sh --stage goldens <workDir>
+#   Stage 2 (licensed host): UNITY=... UNITY_PROJECT=... bash parity/param-sweep-pixel-verify.sh --stage unity <workDir>
+#   Stage 3 (grading): PYTHON=<numpy python> bash parity/param-sweep-pixel-verify.sh --stage grade <workDir>
 ```
 
 ## Runbook
@@ -318,6 +328,15 @@ runtime/platform combination.
   `noisemaker@c9ee8a04` v1.0.176). Unbounded float/int params (no min/max) sweep
   default+1 (`plus1` slug); any out-of-range value is a compile failure on one
   or both sides, never a silent pass.
+- `param-sweep-pixel-verify.sh` — staged Unity-side pixel leg for the same 1900
+  variants (`--stage goldens|unity|grade`; reference Chromium WebGL2 goldens,
+  licensed-Unity Metal candidates, fail-closed grading with per-group policies
+  and exact per-case budgets). `programs/param-sweep/pixel-exceptions-*.json`
+  pin every `ALLOWED_NEAR` (431, each with its measured mechanism);
+  `pixel-reference-blocked.tsv` records the 97 variants with no faithful
+  reference render and the measured proof; `pixel-unresolved.tsv` lists the 18
+  variants the gate FAILS closed on (unattributed port-vs-reference
+  divergences; reference cross-backend deterministic).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).

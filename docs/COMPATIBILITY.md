@@ -322,7 +322,26 @@ Graph-level parameter sweep (2026-09-25, Linux host, GPU-free — .NET 8 `tools/
 |---|---|---|---|---|---|
 | `param-sweep-verify.sh` (per-effect parameter variants, committed corpus `parity/programs/param-sweep/`) | 1900 | structural graph diff (`graph-diff.py`), fail-closed, corpus drift check, 391 measured exclusions | 1900 | 0 | 0 |
 
-Raw per-variant results: `parity/programs/param-sweep/results.tsv` (all `PASS`; header pins the authority revision). One non-default variant per value class of every user-facing parameter of all 207 ported effects (enum choices, boolean flips, slider midpoints; unbounded params default+1). Graph-level only — no pixels rendered; Unity-side parameter rendering remains open.
+Raw per-variant results: `parity/programs/param-sweep/results.tsv` (all `PASS`; header pins the authority revision). One non-default variant per value class of every user-facing parameter of all 207 ported effects (enum choices, boolean flips, slider midpoints; unbounded params default+1). Graph-level only — no pixels rendered.
+
+Unity-side pixel rendering of parameter variants (2026-09-27, GAP-001 pass 27, licensed host):
+
+Same-machine staged gate `parity/param-sweep-pixel-verify.sh` (`--stage goldens|unity|grade`): reference goldens from the pinned authority `noisemaker@403c2a4b` rendered in headless Chromium WebGL2/ANGLE on the licensed macOS host's GPU; Unity candidates from the licensed Unity 6000.3.16f1 editor (Metal), same machine and GPU; grading in the automation container (numpy/pillow), fail-closed. Points variants render 60 warm frames; the 17 `render__meshRender__*` variants share `programs/meshes/sphere.obj`.
+
+| Group | Graded | PASS (tol 1/2) | ALLOWED_NEAR | FAIL (unresolved) |
+|---|---|---|---|---|
+| strict (tol 1, SSIM ≥ 0.99) | 504 | 415 | 89 | 0 |
+| filter (tol 1, SSIM ≥ 0.98) | 627 | 437 | 189 | 1 |
+| synth (tol 1, SSIM ≥ 0.90) | 468 | 391 | 61 | 16 |
+| 3d (tol 2, SSIM ≥ 0.98) | 120 | 94 | 25 | 1 |
+| points (tol 1, SSIM floor 0) | 84 | 17 | 67 | 0 |
+| Total | 1803 | 1354 | 431 | 18 |
+
+- Group SSIM floors are measured envelopes for this corpus: the reference's own two backends (WebGPU Metal vs WebGL2/ANGLE, measured per case) diverge to SSIM ≈ 0 on parameter-variant point simulations (both engines self-deterministic), and the established snow / mandelbrot hash-chaos families measure down to 0.98/0.91 at variant parameters. PASS remains byte tolerance; every `ALLOWED_NEAR` is pinned by an exact per-case exception budget (max delta, mean delta, SSIM floor, exceeded pixel/channel counts) with its mechanism in `parity/programs/param-sweep/pixel-exceptions-*.json` (431 cases), including the measured reference backend self-divergence for each point-simulation case.
+- 97 variants have no faithful reference render and are recorded with their measured proof in `parity/programs/param-sweep/pixel-reference-blocked.tsv`: 89 where the reference demo renders its effect's default output byte-identically (golden == the default-program render) because the demo path does not apply the variant parameter (e.g. every `classicNoisedeck/effects` flip/offset/rotation/scale variant); 7 where the reference's shipped WGSL source and its actual demo behavior disagree (both reference backends agree with each other, corr ≈ 1.0, while the port renders the WGSL-faithful result: glitch/lensDistortion `vignetteAmt` formula parenthesization, the `effects` kernel `cga/derivDivide/edge/litEdge` unguarded GLSL division by a zero kernel weight, and the `meshRender` wireframe flat color); and 1 reference renderer crash (`filter__adjust__mode__hsv`, reproduced 2× on macOS Metal and 2× on Linux SwiftShader, neighboring parameter values fine). Parameter-to-graph binding for all of these is verified 1900/1900 by the graph gate above.
+- 18 variants remain FAIL by design in `parity/programs/param-sweep/pixel-unresolved.tsv` (16 `synth/shape` loopA/BOffset noise-interpolated displacement modes, `filter/reverb` wrap=clamp, `synth3d/cell3d` seed): measured divergences (SSIM 0.45-0.90) where the reference is cross-backend deterministic, so this is not chaos; the port follows the audited WGSL structure, so the residual cause needs port/authority shader-level investigation. The gate fails closed on them.
+
+Raw grade log: [`parity/evidence/2026-09-27-param-sweep-pixel-grade.log`](../parity/evidence/2026-09-27-param-sweep-pixel-grade.log). Platform matrix (Windows/Linux) and the declared `6000.0` minimum floor remain unavailable (see the pass-17/18 recording below).
 
 Every `ALLOWED_NEAR` matched its recorded budget exactly (max delta, SSIM floor, exceeded pixel/channel counts, exact coordinates). The three previously unbounded root fixtures (`heightGrid_billboard`, `heightmap3d_landscape`, `nm_chrome_test`) are now formalized in `programs/exceptions.json` with mechanisms from this pass's measurements; `parallax` and `refract_mirror` reproduced their recorded budgets byte-for-byte. The v104 corpus reproduced its recorded 66+4 result unchanged.
 

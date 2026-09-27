@@ -1,0 +1,493 @@
+{
+ "schema_version": 1,
+ "cases": {
+  "synth__cellularAutomata__smoothing__catmullRom3x3": {
+   "max_abs_diff": 62.0,
+   "max_mean_abs_diff": 8.223587036132812,
+   "ssim_min": 0.9875755906105042,
+   "max_exceeded_pixels": 49685,
+   "max_exceeded_channels": 149055,
+   "mechanism": "measured float32 divergence; corr(gold,cand)=0.9888"
+  },
+  "synth__julia__invert__true": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.0677032470703125,
+   "ssim_min": 0.9992536902427673,
+   "max_exceeded_pixels": 180,
+   "max_exceeded_channels": 540,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9993)"
+  },
+  "synth__julia__iterations__mid": {
+   "max_abs_diff": 34.0,
+   "max_mean_abs_diff": 0.02140045166015625,
+   "ssim_min": 0.9999794363975525,
+   "max_exceeded_pixels": 176,
+   "max_exceeded_channels": 528,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__julia__outputMode__normalMap": {
+   "max_abs_diff": 240.0,
+   "max_mean_abs_diff": 0.15850067138671875,
+   "ssim_min": 0.9933766722679138,
+   "max_exceeded_pixels": 498,
+   "max_exceeded_channels": 1494,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9933)"
+  },
+  "synth__julia__outputMode__smoothIteration": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.1251068115234375,
+   "ssim_min": 0.9897953867912292,
+   "max_exceeded_pixels": 328,
+   "max_exceeded_channels": 984,
+   "mechanism": "measured float32 divergence; corr(gold,cand)=0.9894"
+  },
+  "synth__julia__outputMode__stripeAverage": {
+   "max_abs_diff": 203.0,
+   "max_mean_abs_diff": 0.06635284423828125,
+   "ssim_min": 0.9972530603408813,
+   "max_exceeded_pixels": 458,
+   "max_exceeded_channels": 1374,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9972)"
+  },
+  "synth__julia__poi__dragonCurve": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 1.1697921752929688,
+   "ssim_min": 0.9779099225997925,
+   "max_exceeded_pixels": 502,
+   "max_exceeded_channels": 1506,
+   "mechanism": "measured float32 divergence; corr(gold,cand)=0.9778"
+  },
+  "synth__julia__poi__galaxy": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 0.8948822021484375,
+   "ssim_min": 0.9852046370506287,
+   "max_exceeded_pixels": 450,
+   "max_exceeded_channels": 1350,
+   "mechanism": "measured float32 divergence; corr(gold,cand)=0.9852"
+  },
+  "synth__julia__poi__lightning": {
+   "max_abs_diff": 223.0,
+   "max_mean_abs_diff": 0.05280303955078125,
+   "ssim_min": 0.9980435967445374,
+   "max_exceeded_pixels": 24,
+   "max_exceeded_channels": 72,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.998)"
+  },
+  "synth__julia__poi__siegel": {
+   "max_abs_diff": 236.0,
+   "max_mean_abs_diff": 0.0206451416015625,
+   "ssim_min": 0.9985542297363281,
+   "max_exceeded_pixels": 8,
+   "max_exceeded_channels": 24,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9985)"
+  },
+  "synth__julia__poi__starfish": {
+   "max_abs_diff": 28.0,
+   "max_mean_abs_diff": 0.0026092529296875,
+   "ssim_min": 0.9999969005584717,
+   "max_exceeded_pixels": 20,
+   "max_exceeded_channels": 60,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__julia__rotation__mid": {
+   "max_abs_diff": 246.0,
+   "max_mean_abs_diff": 0.09267425537109375,
+   "ssim_min": 0.9987874627113342,
+   "max_exceeded_pixels": 180,
+   "max_exceeded_channels": 540,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9988)"
+  },
+  "synth__julia__trapShape__circle": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.056671142578125,
+   "ssim_min": 0.9989141225814819,
+   "max_exceeded_pixels": 80,
+   "max_exceeded_channels": 240,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9989)"
+  },
+  "synth__julia__trapShape__cross": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.057037353515625,
+   "ssim_min": 0.9981716871261597,
+   "max_exceeded_pixels": 36,
+   "max_exceeded_channels": 108,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9982)"
+  },
+  "synth__mandelbrot__centerX__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 0.069122314453125,
+   "ssim_min": 0.9235144257545471,
+   "max_exceeded_pixels": 100,
+   "max_exceeded_channels": 300,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.8968"
+  },
+  "synth__mandelbrot__invert__true": {
+   "max_abs_diff": 225.0,
+   "max_mean_abs_diff": 0.0908203125,
+   "ssim_min": 0.9294804930686951,
+   "max_exceeded_pixels": 134,
+   "max_exceeded_channels": 402,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9067"
+  },
+  "synth__mandelbrot__outputMode__normalMap": {
+   "max_abs_diff": 90.0,
+   "max_mean_abs_diff": 0.024044036865234375,
+   "ssim_min": 0.999374270439148,
+   "max_exceeded_pixels": 108,
+   "max_exceeded_channels": 324,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9994"
+  },
+  "synth__mandelbrot__outputMode__orbitTrap": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 0.07047271728515625,
+   "ssim_min": 0.9980548024177551,
+   "max_exceeded_pixels": 68,
+   "max_exceeded_channels": 204,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.998"
+  },
+  "synth__mandelbrot__outputMode__stripeAverage": {
+   "max_abs_diff": 163.0,
+   "max_mean_abs_diff": 0.061763763427734375,
+   "ssim_min": 0.9990110993385315,
+   "max_exceeded_pixels": 274,
+   "max_exceeded_channels": 822,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.999"
+  },
+  "synth__mandelbrot__poi__birdOfParadise": {
+   "max_abs_diff": 246.0,
+   "max_mean_abs_diff": 0.0557098388671875,
+   "ssim_min": 0.9460204243659973,
+   "max_exceeded_pixels": 87,
+   "max_exceeded_channels": 261,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9227"
+  },
+  "synth__mandelbrot__poi__doubleSpiral": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 0.07476425170898438,
+   "ssim_min": 0.9077792167663574,
+   "max_exceeded_pixels": 101,
+   "max_exceeded_channels": 303,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.8619"
+  },
+  "synth__mandelbrot__poi__elephantValley": {
+   "max_abs_diff": 247.0,
+   "max_mean_abs_diff": 0.0439910888671875,
+   "ssim_min": 0.9523279070854187,
+   "max_exceeded_pixels": 80,
+   "max_exceeded_channels": 240,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9285"
+  },
+  "synth__mandelbrot__poi__feigenbaum": {
+   "max_abs_diff": 242.0,
+   "max_mean_abs_diff": 0.05687713623046875,
+   "ssim_min": 0.9434451460838318,
+   "max_exceeded_pixels": 94,
+   "max_exceeded_channels": 282,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9127"
+  },
+  "synth__mandelbrot__poi__miniBrot": {
+   "max_abs_diff": 241.0,
+   "max_mean_abs_diff": 0.036163330078125,
+   "ssim_min": 0.949038565158844,
+   "max_exceeded_pixels": 56,
+   "max_exceeded_channels": 168,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9097"
+  },
+  "synth__mandelbrot__poi__scepterValley": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.04026031494140625,
+   "ssim_min": 0.9288219213485718,
+   "max_exceeded_pixels": 52,
+   "max_exceeded_channels": 156,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.875"
+  },
+  "synth__mandelbrot__poi__seahorseValley": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 0.06654739379882812,
+   "ssim_min": 0.9395363926887512,
+   "max_exceeded_pixels": 109,
+   "max_exceeded_channels": 327,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9149"
+  },
+  "synth__mandelbrot__poi__spiralGalaxy": {
+   "max_abs_diff": 250.0,
+   "max_mean_abs_diff": 0.07503890991210938,
+   "ssim_min": 0.9211644530296326,
+   "max_exceeded_pixels": 112,
+   "max_exceeded_channels": 336,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.8872"
+  },
+  "synth__mandelbrot__rotation__mid": {
+   "max_abs_diff": 246.0,
+   "max_mean_abs_diff": 0.08776473999023438,
+   "ssim_min": 0.9335180521011353,
+   "max_exceeded_pixels": 129,
+   "max_exceeded_channels": 387,
+   "mechanism": "mandelbrot fractal root-iteration chaos (family of the base-parameters ALLOWED_NEAR exception); corr(gold,cand)=0.9103"
+  },
+  "synth__mnca__smoothing__catmullRom3x3": {
+   "max_abs_diff": 61.0,
+   "max_mean_abs_diff": 8.09622573852539,
+   "ssim_min": 0.9881556630134583,
+   "max_exceeded_pixels": 51223,
+   "max_exceeded_channels": 153669,
+   "mechanism": "measured float32 divergence; corr(gold,cand)=0.9895"
+  },
+  "synth__newton__centerX__mid": {
+   "max_abs_diff": 245.0,
+   "max_mean_abs_diff": 0.06003570556640625,
+   "ssim_min": 0.9962723851203918,
+   "max_exceeded_pixels": 70,
+   "max_exceeded_channels": 210,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9962)"
+  },
+  "synth__newton__centerY__mid": {
+   "max_abs_diff": 245.0,
+   "max_mean_abs_diff": 0.17233657836914062,
+   "ssim_min": 0.992493748664856,
+   "max_exceeded_pixels": 178,
+   "max_exceeded_channels": 534,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9924)"
+  },
+  "synth__newton__invert__true": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 0.10114288330078125,
+   "ssim_min": 0.998435378074646,
+   "max_exceeded_pixels": 125,
+   "max_exceeded_channels": 375,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9984)"
+  },
+  "synth__newton__iterations__mid": {
+   "max_abs_diff": 215.0,
+   "max_mean_abs_diff": 0.09157562255859375,
+   "ssim_min": 0.9986266493797302,
+   "max_exceeded_pixels": 118,
+   "max_exceeded_channels": 354,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9986)"
+  },
+  "synth__newton__outputMode__iteration": {
+   "max_abs_diff": 204.0,
+   "max_mean_abs_diff": 0.061740875244140625,
+   "ssim_min": 0.9975184202194214,
+   "max_exceeded_pixels": 240,
+   "max_exceeded_channels": 720,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9975)"
+  },
+  "synth__newton__outputMode__rootIndex": {
+   "max_abs_diff": 212.0,
+   "max_mean_abs_diff": 0.09621047973632812,
+   "ssim_min": 0.9985163807868958,
+   "max_exceeded_pixels": 100,
+   "max_exceeded_channels": 300,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9985)"
+  },
+  "synth__newton__poi__manual": {
+   "max_abs_diff": 167.0,
+   "max_mean_abs_diff": 0.00304412841796875,
+   "ssim_min": 0.9999459981918335,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "synth__newton__poi__octoFlower8": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 0.22550582885742188,
+   "ssim_min": 0.9964962005615234,
+   "max_exceeded_pixels": 237,
+   "max_exceeded_channels": 711,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9965)"
+  },
+  "synth__newton__poi__pentaSpiral5": {
+   "max_abs_diff": 209.0,
+   "max_mean_abs_diff": 0.10892486572265625,
+   "ssim_min": 0.9980407357215881,
+   "max_exceeded_pixels": 112,
+   "max_exceeded_channels": 336,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.998)"
+  },
+  "synth__newton__poi__spiralJunction3": {
+   "max_abs_diff": 170.0,
+   "max_mean_abs_diff": 0.003055572509765625,
+   "ssim_min": 0.99993497133255,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "synth__newton__poi__starCenter5": {
+   "max_abs_diff": 223.0,
+   "max_mean_abs_diff": 0.07138824462890625,
+   "ssim_min": 0.9986826777458191,
+   "max_exceeded_pixels": 77,
+   "max_exceeded_channels": 231,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9987)"
+  },
+  "synth__newton__poi__triplePoint3": {
+   "max_abs_diff": 167.0,
+   "max_mean_abs_diff": 0.00304412841796875,
+   "ssim_min": 0.9999459981918335,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "synth__newton__relaxation__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.340118408203125,
+   "ssim_min": 0.9941293597221375,
+   "max_exceeded_pixels": 334,
+   "max_exceeded_channels": 1002,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9941)"
+  },
+  "synth__newton__rotation__mid": {
+   "max_abs_diff": 225.0,
+   "max_mean_abs_diff": 0.15117645263671875,
+   "ssim_min": 0.9975941181182861,
+   "max_exceeded_pixels": 168,
+   "max_exceeded_channels": 504,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9976)"
+  },
+  "synth__reactionDiffusion__sourceF__blue": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.021411895751953125,
+   "ssim_min": 0.9999943971633911,
+   "max_exceeded_pixels": 172,
+   "max_exceeded_channels": 516,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceF__brightness": {
+   "max_abs_diff": 15.0,
+   "max_mean_abs_diff": 0.0291595458984375,
+   "ssim_min": 0.9999722838401794,
+   "max_exceeded_pixels": 310,
+   "max_exceeded_channels": 930,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceF__darkness": {
+   "max_abs_diff": 14.0,
+   "max_mean_abs_diff": 0.036712646484375,
+   "ssim_min": 0.9999687075614929,
+   "max_exceeded_pixels": 463,
+   "max_exceeded_channels": 1389,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceF__green": {
+   "max_abs_diff": 17.0,
+   "max_mean_abs_diff": 0.0349273681640625,
+   "ssim_min": 0.999963641166687,
+   "max_exceeded_pixels": 453,
+   "max_exceeded_channels": 1359,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceF__red": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.021617889404296875,
+   "ssim_min": 0.9999896287918091,
+   "max_exceeded_pixels": 287,
+   "max_exceeded_channels": 861,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceK__blue": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.010517120361328125,
+   "ssim_min": 0.9999979138374329,
+   "max_exceeded_pixels": 108,
+   "max_exceeded_channels": 324,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceK__brightness": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.010700225830078125,
+   "ssim_min": 0.9999967813491821,
+   "max_exceeded_pixels": 150,
+   "max_exceeded_channels": 450,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceK__darkness": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.01398468017578125,
+   "ssim_min": 0.9999966025352478,
+   "max_exceeded_pixels": 187,
+   "max_exceeded_channels": 561,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceK__green": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.0142822265625,
+   "ssim_min": 0.9999948740005493,
+   "max_exceeded_pixels": 231,
+   "max_exceeded_channels": 693,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceK__red": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.009601593017578125,
+   "ssim_min": 0.999998152256012,
+   "max_exceeded_pixels": 75,
+   "max_exceeded_channels": 225,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceR1__blue": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.01435089111328125,
+   "ssim_min": 0.9999963045120239,
+   "max_exceeded_pixels": 165,
+   "max_exceeded_channels": 495,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceR1__darkness": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.011386871337890625,
+   "ssim_min": 0.9999957084655762,
+   "max_exceeded_pixels": 173,
+   "max_exceeded_channels": 519,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceR2__blue": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.020050048828125,
+   "ssim_min": 0.9999905824661255,
+   "max_exceeded_pixels": 254,
+   "max_exceeded_channels": 762,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceR2__brightness": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.0115814208984375,
+   "ssim_min": 0.9999938607215881,
+   "max_exceeded_pixels": 66,
+   "max_exceeded_channels": 198,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceR2__darkness": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.043888092041015625,
+   "ssim_min": 0.9999662637710571,
+   "max_exceeded_pixels": 916,
+   "max_exceeded_channels": 2748,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__sourceR2__green": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.01737213134765625,
+   "ssim_min": 0.9999892115592957,
+   "max_exceeded_pixels": 223,
+   "max_exceeded_channels": 669,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__reactionDiffusion__zoom__x4": {
+   "max_abs_diff": 172.0,
+   "max_mean_abs_diff": 0.5982856750488281,
+   "ssim_min": 0.9869780540466309,
+   "max_exceeded_pixels": 1557,
+   "max_exceeded_channels": 4671,
+   "mechanism": "measured float32 divergence; corr(gold,cand)=0.987"
+  },
+  "synth__testPattern__pattern__gridLines": {
+   "max_abs_diff": 73.0,
+   "max_mean_abs_diff": 3.0087890625,
+   "ssim_min": 0.9340327382087708,
+   "max_exceeded_pixels": 7936,
+   "max_exceeded_channels": 23808,
+   "mechanism": "measured float32 divergence; corr(gold,cand)=0.9827"
+  }
+ }
+}

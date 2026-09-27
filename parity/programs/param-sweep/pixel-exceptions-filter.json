@@ -1,0 +1,1517 @@
+{
+ "schema_version": 1,
+ "cases": {
+  "filter__bloom__intensity__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.2191162109375,
+   "ssim_min": 0.9999815821647644,
+   "max_exceeded_pixels": 22,
+   "max_exceeded_channels": 22,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__bulge__antialias__false": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.002918243408203125,
+   "ssim_min": 0.9999695420265198,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__celShading__antialias__true": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 9.918212890625e-05,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 7,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__chrome__detail__mid": {
+   "max_abs_diff": 42.0,
+   "max_mean_abs_diff": 0.0015106201171875,
+   "ssim_min": 0.9999973177909851,
+   "max_exceeded_pixels": 7,
+   "max_exceeded_channels": 21,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__chrome__distortion__mid": {
+   "max_abs_diff": 76.0,
+   "max_mean_abs_diff": 0.0034332275390625,
+   "ssim_min": 0.9999920129776001,
+   "max_exceeded_pixels": 19,
+   "max_exceeded_channels": 52,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__chrome__smoothness__mid": {
+   "max_abs_diff": 87.0,
+   "max_mean_abs_diff": 0.006519317626953125,
+   "ssim_min": 0.9999770522117615,
+   "max_exceeded_pixels": 23,
+   "max_exceeded_channels": 69,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__convolutionFeedback__blurRadius__mid": {
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 0.015472412109375,
+   "ssim_min": 0.9999964833259583,
+   "max_exceeded_pixels": 748,
+   "max_exceeded_channels": 751,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__convolutionFeedback__intensity__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00510406494140625,
+   "ssim_min": 0.9999992847442627,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 5,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__convolutionFeedback__sharpenAmount__mid": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.00553131103515625,
+   "ssim_min": 0.9999994039535522,
+   "max_exceeded_pixels": 61,
+   "max_exceeded_channels": 61,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__convolutionFeedback__sharpenRadius__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.01094818115234375,
+   "ssim_min": 0.9999982714653015,
+   "max_exceeded_pixels": 504,
+   "max_exceeded_channels": 504,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__corrupt__bits__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.000217437744140625,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__craquelure__brightness__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.012409210205078125,
+   "ssim_min": 0.9999977350234985,
+   "max_exceeded_pixels": 20,
+   "max_exceeded_channels": 23,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__craquelure__depth__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.0232391357421875,
+   "ssim_min": 0.9999960064888,
+   "max_exceeded_pixels": 60,
+   "max_exceeded_channels": 74,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__craquelure__seed__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.017913818359375,
+   "ssim_min": 0.9999964833259583,
+   "max_exceeded_pixels": 35,
+   "max_exceeded_channels": 43,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__craquelure__spacing__mid": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.020572662353515625,
+   "ssim_min": 0.999995768070221,
+   "max_exceeded_pixels": 60,
+   "max_exceeded_channels": 75,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__crt__alpha__mid": {
+   "max_abs_diff": 48.0,
+   "max_mean_abs_diff": 0.043148040771484375,
+   "ssim_min": 0.9999688267707825,
+   "max_exceeded_pixels": 949,
+   "max_exceeded_channels": 1365,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__crt__seed__mid": {
+   "max_abs_diff": 29.0,
+   "max_mean_abs_diff": 0.017223358154296875,
+   "ssim_min": 0.9999843835830688,
+   "max_exceeded_pixels": 444,
+   "max_exceeded_channels": 732,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__crt__speed__mid": {
+   "max_abs_diff": 28.0,
+   "max_mean_abs_diff": 0.021739959716796875,
+   "ssim_min": 0.9999878406524658,
+   "max_exceeded_pixels": 829,
+   "max_exceeded_channels": 1023,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__degauss__direction__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.004970550537109375,
+   "ssim_min": 0.9999998211860657,
+   "max_exceeded_pixels": 206,
+   "max_exceeded_channels": 206,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__degauss__displacement__mid": {
+   "max_abs_diff": 17.0,
+   "max_mean_abs_diff": 0.009586334228515625,
+   "ssim_min": 0.9999991059303284,
+   "max_exceeded_pixels": 495,
+   "max_exceeded_channels": 495,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__degauss__seed__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.5297279357910156,
+   "ssim_min": 0.9994404315948486,
+   "max_exceeded_pixels": 6924,
+   "max_exceeded_channels": 7526,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9994)"
+  },
+  "filter__degauss__speed__mid": {
+   "max_abs_diff": 14.0,
+   "max_mean_abs_diff": 0.008937835693359375,
+   "ssim_min": 0.9999994039535522,
+   "max_exceeded_pixels": 507,
+   "max_exceeded_channels": 507,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__dither__levels__mid": {
+   "max_abs_diff": 32.0,
+   "max_mean_abs_diff": 0.0001220703125,
+   "ssim_min": 0.9999996423721313,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__dither__palette__cgaPalette1": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.00194549560546875,
+   "ssim_min": 0.9999774098396301,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__dither__palette__dotMatrixGreen": {
+   "max_abs_diff": 92.0,
+   "max_mean_abs_diff": 0.000759124755859375,
+   "ssim_min": 0.9999808073043823,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__dither__palette__ega": {
+   "max_abs_diff": 85.0,
+   "max_mean_abs_diff": 0.00194549560546875,
+   "ssim_min": 0.9999768733978271,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 6,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__dither__type__dot": {
+   "max_abs_diff": 85.0,
+   "max_mean_abs_diff": 0.00064849853515625,
+   "ssim_min": 0.9999960660934448,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__dither__type__errorDiffusion": {
+   "max_abs_diff": 85.0,
+   "max_mean_abs_diff": 0.05123138427734375,
+   "ssim_min": 0.99952632188797,
+   "max_exceeded_pixels": 158,
+   "max_exceeded_channels": 158,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9995)"
+  },
+  "filter__edge__amount__mid": {
+   "max_abs_diff": 15.0,
+   "max_mean_abs_diff": 0.006420135498046875,
+   "ssim_min": 0.9999975562095642,
+   "max_exceeded_pixels": 107,
+   "max_exceeded_channels": 107,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__add": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.00231170654296875,
+   "ssim_min": 0.9999993443489075,
+   "max_exceeded_pixels": 70,
+   "max_exceeded_channels": 70,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__darken": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.003826141357421875,
+   "ssim_min": 0.9999987483024597,
+   "max_exceeded_pixels": 96,
+   "max_exceeded_channels": 96,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__difference": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.00457763671875,
+   "ssim_min": 0.9999979734420776,
+   "max_exceeded_pixels": 123,
+   "max_exceeded_channels": 123,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__dodge": {
+   "max_abs_diff": 10.0,
+   "max_mean_abs_diff": 0.001850128173828125,
+   "ssim_min": 0.9999994039535522,
+   "max_exceeded_pixels": 50,
+   "max_exceeded_channels": 50,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__lighten": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.00095367431640625,
+   "ssim_min": 0.9999997019767761,
+   "max_exceeded_pixels": 25,
+   "max_exceeded_channels": 25,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__multiply": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.00290679931640625,
+   "ssim_min": 0.9999991655349731,
+   "max_exceeded_pixels": 77,
+   "max_exceeded_channels": 77,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__overlay": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.002422332763671875,
+   "ssim_min": 0.9999995827674866,
+   "max_exceeded_pixels": 92,
+   "max_exceeded_channels": 92,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__blend__screen": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.00164794921875,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 70,
+   "max_exceeded_channels": 70,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__channel__luminance": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.004978179931640625,
+   "ssim_min": 0.9999991655349731,
+   "max_exceeded_pixels": 45,
+   "max_exceeded_channels": 135,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__invert__on": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.004467010498046875,
+   "ssim_min": 0.9999988675117493,
+   "max_exceeded_pixels": 117,
+   "max_exceeded_channels": 117,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__kernel__fine": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.002323150634765625,
+   "ssim_min": 0.9999991059303284,
+   "max_exceeded_pixels": 117,
+   "max_exceeded_channels": 117,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__mix__mid": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.002197265625,
+   "ssim_min": 0.9999995231628418,
+   "max_exceeded_pixels": 93,
+   "max_exceeded_channels": 93,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__size__kernel7x7": {
+   "max_abs_diff": 13.0,
+   "max_mean_abs_diff": 0.003368377685546875,
+   "ssim_min": 0.9999992847442627,
+   "max_exceeded_pixels": 57,
+   "max_exceeded_channels": 57,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__edge__threshold__mid": {
+   "max_abs_diff": 21.0,
+   "max_mean_abs_diff": 0.001987457275390625,
+   "ssim_min": 0.9999982118606567,
+   "max_exceeded_pixels": 51,
+   "max_exceeded_channels": 68,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__feedback__refractAAmt__mid": {
+   "max_abs_diff": 247.0,
+   "max_mean_abs_diff": 0.8641433715820312,
+   "ssim_min": 0.9874027967453003,
+   "max_exceeded_pixels": 1628,
+   "max_exceeded_channels": 4641,
+   "mechanism": "iterated feedback-buffer float32 chaos (corr(gold,cand)=0.9871)"
+  },
+  "filter__grade__preset__neon": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.000370025634765625,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 4,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__grade__preset__posterize": {
+   "max_abs_diff": 62.0,
+   "max_mean_abs_diff": 0.00070953369140625,
+   "ssim_min": 0.9999893307685852,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__grade__preset__psychedelic": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.000774383544921875,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 9,
+   "max_exceeded_channels": 10,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__grade__preset__solarize": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.00079345703125,
+   "ssim_min": 0.9999999403953552,
+   "max_exceeded_pixels": 20,
+   "max_exceeded_channels": 21,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__grade__preset__technicolor": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.000301361083984375,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 4,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__halftone__cyanAngle__mid": {
+   "max_abs_diff": 55.0,
+   "max_mean_abs_diff": 0.00225830078125,
+   "ssim_min": 0.9999971985816956,
+   "max_exceeded_pixels": 17,
+   "max_exceeded_channels": 29,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__halftone__magentaAngle__mid": {
+   "max_abs_diff": 55.0,
+   "max_mean_abs_diff": 0.00243377685546875,
+   "ssim_min": 0.9999966025352478,
+   "max_exceeded_pixels": 17,
+   "max_exceeded_channels": 30,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__halftone__mode__mono": {
+   "max_abs_diff": 55.0,
+   "max_mean_abs_diff": 0.01758575439453125,
+   "ssim_min": 0.9999620914459229,
+   "max_exceeded_pixels": 82,
+   "max_exceeded_channels": 240,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__halftone__sharpness__mid": {
+   "max_abs_diff": 43.0,
+   "max_mean_abs_diff": 0.00665283203125,
+   "ssim_min": 0.9999895691871643,
+   "max_exceeded_pixels": 64,
+   "max_exceeded_channels": 139,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__halftone__yellowAngle__mid": {
+   "max_abs_diff": 55.0,
+   "max_mean_abs_diff": 0.00231170654296875,
+   "ssim_min": 0.9999971389770508,
+   "max_exceeded_pixels": 17,
+   "max_exceeded_channels": 28,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__hatch__balance__mid": {
+   "max_abs_diff": 220.0,
+   "max_mean_abs_diff": 0.00241851806640625,
+   "ssim_min": 0.9997804164886475,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
+  },
+  "filter__hatch__direction__horizontal": {
+   "max_abs_diff": 220.0,
+   "max_mean_abs_diff": 0.00241851806640625,
+   "ssim_min": 0.9999688267707825,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__hatch__direction__leftDiag": {
+   "max_abs_diff": 220.0,
+   "max_mean_abs_diff": 0.0048370361328125,
+   "ssim_min": 0.9999374747276306,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 6,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__hatch__direction__vertical": {
+   "max_abs_diff": 220.0,
+   "max_mean_abs_diff": 0.009674072265625,
+   "ssim_min": 0.9998746514320374,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__hatch__mode__chalkCharcoal": {
+   "max_abs_diff": 110.0,
+   "max_mean_abs_diff": 0.0048370361328125,
+   "ssim_min": 0.9999536871910095,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__hatch__mode__charcoal": {
+   "max_abs_diff": 170.0,
+   "max_mean_abs_diff": 0.00186920166015625,
+   "ssim_min": 0.9999502897262573,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__hatch__mode__coloredPencil": {
+   "max_abs_diff": 238.0,
+   "max_mean_abs_diff": 0.0682525634765625,
+   "ssim_min": 0.9988029599189758,
+   "max_exceeded_pixels": 62,
+   "max_exceeded_channels": 184,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9988)"
+  },
+  "filter__hatch__mode__conte": {
+   "max_abs_diff": 41.0,
+   "max_mean_abs_diff": 0.051998138427734375,
+   "ssim_min": 0.9999253749847412,
+   "max_exceeded_pixels": 531,
+   "max_exceeded_channels": 1503,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__hatch__pressure__mid": {
+   "max_abs_diff": 220.0,
+   "max_mean_abs_diff": 0.00725555419921875,
+   "ssim_min": 0.9999046325683594,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 9,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__hatch__strokeLength__mid": {
+   "max_abs_diff": 220.0,
+   "max_mean_abs_diff": 0.0048370361328125,
+   "ssim_min": 0.999937117099762,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 6,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__historicPalette__offset__mid": {
+   "max_abs_diff": 232.0,
+   "max_mean_abs_diff": 0.003910064697265625,
+   "ssim_min": 0.9999608993530273,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 6,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__historicPalette__repeat__mid": {
+   "max_abs_diff": 232.0,
+   "max_mean_abs_diff": 0.00640106201171875,
+   "ssim_min": 0.9999305605888367,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__historicPalette__smoothness__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00096893310546875,
+   "ssim_min": 0.9999999403953552,
+   "max_exceeded_pixels": 25,
+   "max_exceeded_channels": 29,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__lensWarp__displacement__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.00025177001953125,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 5,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__lighting__reflection__mid": {
+   "max_abs_diff": 26.0,
+   "max_mean_abs_diff": 0.007503509521484375,
+   "ssim_min": 0.9999886751174927,
+   "max_exceeded_pixels": 127,
+   "max_exceeded_channels": 279,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__lighting__refraction__mid": {
+   "max_abs_diff": 32.0,
+   "max_mean_abs_diff": 0.010028839111328125,
+   "ssim_min": 0.9999862313270569,
+   "max_exceeded_pixels": 180,
+   "max_exceeded_channels": 407,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__lighting__specularIntensity__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.001598358154296875,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__median__radius__mid": {
+   "max_abs_diff": 60.0,
+   "max_mean_abs_diff": 0.004547119140625,
+   "ssim_min": 0.9999913573265076,
+   "max_exceeded_pixels": 30,
+   "max_exceeded_channels": 83,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__mosaicTiles__groutWidth__mid": {
+   "max_abs_diff": 51.0,
+   "max_mean_abs_diff": 0.001697540283203125,
+   "ssim_min": 0.9999948740005493,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 8,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__mosaicTiles__relief__mid": {
+   "max_abs_diff": 51.0,
+   "max_mean_abs_diff": 0.003376007080078125,
+   "ssim_min": 0.9999967217445374,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 8,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__mosaicTiles__seed__mid": {
+   "max_abs_diff": 75.0,
+   "max_mean_abs_diff": 0.003879547119140625,
+   "ssim_min": 0.999999463558197,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__antialias__false": {
+   "max_abs_diff": 41.0,
+   "max_mean_abs_diff": 0.000972747802734375,
+   "ssim_min": 0.9999975562095642,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__displacement__mid": {
+   "max_abs_diff": 10.0,
+   "max_mean_abs_diff": 0.001232147216796875,
+   "ssim_min": 0.9999994039535522,
+   "max_exceeded_pixels": 44,
+   "max_exceeded_channels": 69,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__freq__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.000453948974609375,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 10,
+   "max_exceeded_channels": 16,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__octaves__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.0008544921875,
+   "ssim_min": 0.9999995827674866,
+   "max_exceeded_pixels": 25,
+   "max_exceeded_channels": 38,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__seed__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.0003814697265625,
+   "ssim_min": 0.9999999403953552,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__speed__mid": {
+   "max_abs_diff": 11.0,
+   "max_mean_abs_diff": 0.0008544921875,
+   "ssim_min": 0.9999996423721313,
+   "max_exceeded_pixels": 21,
+   "max_exceeded_channels": 39,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__wrap__clamp": {
+   "max_abs_diff": 17.0,
+   "max_mean_abs_diff": 0.000522613525390625,
+   "ssim_min": 0.9999995827674866,
+   "max_exceeded_pixels": 9,
+   "max_exceeded_channels": 15,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__octaveWarp__wrap__repeat": {
+   "max_abs_diff": 17.0,
+   "max_mean_abs_diff": 0.00049591064453125,
+   "ssim_min": 0.9999995231628418,
+   "max_exceeded_pixels": 9,
+   "max_exceeded_channels": 15,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__detail__mid": {
+   "max_abs_diff": 205.0,
+   "max_mean_abs_diff": 0.01270294189453125,
+   "ssim_min": 0.9999524354934692,
+   "max_exceeded_pixels": 94,
+   "max_exceeded_channels": 168,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__mode__dryBrush": {
+   "max_abs_diff": 73.0,
+   "max_mean_abs_diff": 0.0031890869140625,
+   "ssim_min": 0.9999880194664001,
+   "max_exceeded_pixels": 30,
+   "max_exceeded_channels": 63,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__mode__facet": {
+   "max_abs_diff": 64.0,
+   "max_mean_abs_diff": 0.003467559814453125,
+   "ssim_min": 0.9999910593032837,
+   "max_exceeded_pixels": 15,
+   "max_exceeded_channels": 42,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__mode__fresco": {
+   "max_abs_diff": 80.0,
+   "max_mean_abs_diff": 0.005451202392578125,
+   "ssim_min": 0.9999874830245972,
+   "max_exceeded_pixels": 50,
+   "max_exceeded_channels": 111,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__mode__knife": {
+   "max_abs_diff": 48.0,
+   "max_mean_abs_diff": 0.0023956298828125,
+   "ssim_min": 0.9999983906745911,
+   "max_exceeded_pixels": 37,
+   "max_exceeded_channels": 75,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__mode__sponge": {
+   "max_abs_diff": 77.0,
+   "max_mean_abs_diff": 0.003490447998046875,
+   "ssim_min": 0.9999962449073792,
+   "max_exceeded_pixels": 9,
+   "max_exceeded_channels": 21,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__size__mid": {
+   "max_abs_diff": 177.0,
+   "max_mean_abs_diff": 0.0062103271484375,
+   "ssim_min": 0.9999548196792603,
+   "max_exceeded_pixels": 90,
+   "max_exceeded_channels": 145,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__oilPaint__texture__mid": {
+   "max_abs_diff": 159.0,
+   "max_mean_abs_diff": 0.00830841064453125,
+   "ssim_min": 0.9999769926071167,
+   "max_exceeded_pixels": 91,
+   "max_exceeded_channels": 160,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__palette__repeat__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00211334228515625,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 31,
+   "max_exceeded_channels": 34,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__parallax__pivot__mid": {
+   "max_abs_diff": 20.0,
+   "max_mean_abs_diff": 0.000431060791015625,
+   "ssim_min": 0.9999987483024597,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__photocopy__darkness__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.002246856689453125,
+   "ssim_min": 0.9999989867210388,
+   "max_exceeded_pixels": 17,
+   "max_exceeded_channels": 50,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__photocopy__detail__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.00157928466796875,
+   "ssim_min": 0.9999987483024597,
+   "max_exceeded_pixels": 17,
+   "max_exceeded_channels": 36,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pinch__rotation__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.0004119873046875,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 8,
+   "max_exceeded_channels": 14,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pinch__strength__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.000476837158203125,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 7,
+   "max_exceeded_channels": 12,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pinch__wrap__repeat": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.000247955322265625,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pixelSort__angled__mid": {
+   "max_abs_diff": 111.0,
+   "max_mean_abs_diff": 0.010181427001953125,
+   "ssim_min": 0.9998859763145447,
+   "max_exceeded_pixels": 24,
+   "max_exceeded_channels": 59,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__plasticWrap__detail__mid": {
+   "max_abs_diff": 21.0,
+   "max_mean_abs_diff": 0.004055023193359375,
+   "ssim_min": 0.9999935030937195,
+   "max_exceeded_pixels": 85,
+   "max_exceeded_channels": 180,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__plasticWrap__highlight__mid": {
+   "max_abs_diff": 16.0,
+   "max_mean_abs_diff": 0.0018310546875,
+   "ssim_min": 0.9999971985816956,
+   "max_exceeded_pixels": 34,
+   "max_exceeded_channels": 66,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__plasticWrap__smoothness__mid": {
+   "max_abs_diff": 19.0,
+   "max_mean_abs_diff": 0.00214385986328125,
+   "ssim_min": 0.9999960064888,
+   "max_exceeded_pixels": 35,
+   "max_exceeded_channels": 71,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__polar__antialias__false": {
+   "max_abs_diff": 66.0,
+   "max_mean_abs_diff": 0.0379791259765625,
+   "ssim_min": 0.9998796582221985,
+   "max_exceeded_pixels": 312,
+   "max_exceeded_channels": 850,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__polar__rotation__mid": {
+   "max_abs_diff": 18.0,
+   "max_mean_abs_diff": 0.00273895263671875,
+   "ssim_min": 0.9999973773956299,
+   "max_exceeded_pixels": 66,
+   "max_exceeded_channels": 140,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__polar__scale__mid": {
+   "max_abs_diff": 15.0,
+   "max_mean_abs_diff": 0.002376556396484375,
+   "ssim_min": 0.9999987483024597,
+   "max_exceeded_pixels": 66,
+   "max_exceeded_channels": 130,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__polar__speed__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.0016937255859375,
+   "ssim_min": 0.9999990463256836,
+   "max_exceeded_pixels": 62,
+   "max_exceeded_channels": 109,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pondRipples__amount__mid": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.000263214111328125,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pondRipples__antialias__false": {
+   "max_abs_diff": 17.0,
+   "max_mean_abs_diff": 0.000499725341796875,
+   "ssim_min": 0.9999996423721313,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 10,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pondRipples__ridges__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.000438690185546875,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 5,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pondRipples__speed__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.000690460205078125,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 13,
+   "max_exceeded_channels": 28,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pondRipples__style__aroundCenter": {
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 0.0006256103515625,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 18,
+   "max_exceeded_channels": 33,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pondRipples__style__outFromCenter": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.000324249267578125,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 4,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pondRipples__wrap__repeat": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.000324249267578125,
+   "ssim_min": 0.9999999403953552,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 7,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__posterize__antialias__false": {
+   "max_abs_diff": 28.0,
+   "max_mean_abs_diff": 0.0001068115234375,
+   "ssim_min": 0.9999996423721313,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__posterize__gamma__mid": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.00023651123046875,
+   "ssim_min": 0.9999998211860657,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__posterize__levels__mid": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.000225067138671875,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__reindex__displacement__mid": {
+   "max_abs_diff": 155.0,
+   "max_mean_abs_diff": 0.003353118896484375,
+   "ssim_min": 0.9999821186065674,
+   "max_exceeded_pixels": 16,
+   "max_exceeded_channels": 42,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__relief__detail__mid": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.002048492431640625,
+   "ssim_min": 0.9999977946281433,
+   "max_exceeded_pixels": 41,
+   "max_exceeded_channels": 121,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__relief__lightAngle__mid": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.00148773193359375,
+   "ssim_min": 0.9999971985816956,
+   "max_exceeded_pixels": 32,
+   "max_exceeded_channels": 94,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__relief__mode__notePaper": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.00012969970703125,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 6,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__relief__mode__plaster": {
+   "max_abs_diff": 14.0,
+   "max_mean_abs_diff": 0.000759124755859375,
+   "ssim_min": 0.9999980330467224,
+   "max_exceeded_pixels": 15,
+   "max_exceeded_channels": 41,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__relief__smoothness__mid": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.001094818115234375,
+   "ssim_min": 0.9999978542327881,
+   "max_exceeded_pixels": 26,
+   "max_exceeded_channels": 74,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__rotate__speed__mid": {
+   "max_abs_diff": 25.0,
+   "max_mean_abs_diff": 0.004581451416015625,
+   "ssim_min": 0.9999879598617554,
+   "max_exceeded_pixels": 45,
+   "max_exceeded_channels": 119,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__rotate__wrap__clamp": {
+   "max_abs_diff": 25.0,
+   "max_mean_abs_diff": 0.00391387939453125,
+   "ssim_min": 0.999994695186615,
+   "max_exceeded_pixels": 27,
+   "max_exceeded_channels": 71,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__rotate__wrap__mirror": {
+   "max_abs_diff": 34.0,
+   "max_mean_abs_diff": 0.0126495361328125,
+   "ssim_min": 0.9999767541885376,
+   "max_exceeded_pixels": 112,
+   "max_exceeded_channels": 299,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__scanlineError__distortion__mid": {
+   "max_abs_diff": 235.0,
+   "max_mean_abs_diff": 0.020374298095703125,
+   "ssim_min": 0.9994860291481018,
+   "max_exceeded_pixels": 27,
+   "max_exceeded_channels": 79,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9995)"
+  },
+  "filter__scanlineError__noise__mid": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.01895904541015625,
+   "ssim_min": 0.9994502067565918,
+   "max_exceeded_pixels": 12,
+   "max_exceeded_channels": 36,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9994)"
+  },
+  "filter__scanlineError__speed__mid": {
+   "max_abs_diff": 249.0,
+   "max_mean_abs_diff": 0.036479949951171875,
+   "ssim_min": 0.9988871216773987,
+   "max_exceeded_pixels": 35,
+   "max_exceeded_channels": 105,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9989)"
+  },
+  "filter__scanlineError__timeOffset__mid": {
+   "max_abs_diff": 222.0,
+   "max_mean_abs_diff": 0.020538330078125,
+   "ssim_min": 0.999337375164032,
+   "max_exceeded_pixels": 19,
+   "max_exceeded_channels": 57,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9993)"
+  },
+  "filter__scatter__mode__anisotropic": {
+   "max_abs_diff": 34.0,
+   "max_mean_abs_diff": 0.003814697265625,
+   "ssim_min": 0.9999911785125732,
+   "max_exceeded_pixels": 31,
+   "max_exceeded_channels": 81,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__snow__alpha__mid": {
+   "max_abs_diff": 138.0,
+   "max_mean_abs_diff": 6.0345611572265625,
+   "ssim_min": 0.9861010909080505,
+   "max_exceeded_pixels": 58681,
+   "max_exceeded_channels": 154881,
+   "mechanism": "snow cos-ULP\u2192fract-hash decorrelation family (established at base parameters); corr(gold,cand)=0.986"
+  },
+  "filter__snow__density__mid": {
+   "max_abs_diff": 58.0,
+   "max_mean_abs_diff": 2.668292999267578,
+   "ssim_min": 0.9918028712272644,
+   "max_exceeded_pixels": 46134,
+   "max_exceeded_channels": 109446,
+   "mechanism": "snow cos-ULP\u2192fract-hash decorrelation family (established at base parameters); corr(gold,cand)=0.9917"
+  },
+  "filter__snow__pause__true": {
+   "max_abs_diff": 127.0,
+   "max_mean_abs_diff": 0.9392814636230469,
+   "ssim_min": 0.9813557267189026,
+   "max_exceeded_pixels": 6912,
+   "max_exceeded_channels": 12228,
+   "mechanism": "snow cos-ULP\u2192fract-hash decorrelation family (established at base parameters); corr(gold,cand)=0.981"
+  },
+  "filter__spiral__antialias__false": {
+   "max_abs_diff": 45.0,
+   "max_mean_abs_diff": 0.00478363037109375,
+   "ssim_min": 0.9999889731407166,
+   "max_exceeded_pixels": 46,
+   "max_exceeded_channels": 120,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__spiral__rotation__mid": {
+   "max_abs_diff": 15.0,
+   "max_mean_abs_diff": 0.006725311279296875,
+   "ssim_min": 0.9999963641166687,
+   "max_exceeded_pixels": 234,
+   "max_exceeded_channels": 434,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__spiral__speed__mid": {
+   "max_abs_diff": 15.0,
+   "max_mean_abs_diff": 0.006748199462890625,
+   "ssim_min": 0.9999964833259583,
+   "max_exceeded_pixels": 236,
+   "max_exceeded_channels": 436,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__spiral__wrap__clamp": {
+   "max_abs_diff": 15.0,
+   "max_mean_abs_diff": 0.006256103515625,
+   "ssim_min": 0.9999966621398926,
+   "max_exceeded_pixels": 220,
+   "max_exceeded_channels": 398,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__spiral__wrap__repeat": {
+   "max_abs_diff": 15.0,
+   "max_mean_abs_diff": 0.00640869140625,
+   "ssim_min": 0.9999969005584717,
+   "max_exceeded_pixels": 230,
+   "max_exceeded_channels": 417,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__stamp__roughness__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.00127410888671875,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 8,
+   "max_exceeded_channels": 20,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__stamp__smoothness__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 7.62939453125e-05,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__step__threshold__mid": {
+   "max_abs_diff": 18.0,
+   "max_mean_abs_diff": 0.000400543212890625,
+   "ssim_min": 0.9999932050704956,
+   "max_exceeded_pixels": 24,
+   "max_exceeded_channels": 24,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__strokes__balance__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.000530242919921875,
+   "ssim_min": 0.9999997019767761,
+   "max_exceeded_pixels": 43,
+   "max_exceeded_channels": 43,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__strokes__length__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.000560760498046875,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 39,
+   "max_exceeded_channels": 39,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__strokes__mode__dark": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00040435791015625,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 33,
+   "max_exceeded_channels": 33,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__strokes__mode__smudge": {
+   "max_abs_diff": 54.0,
+   "max_mean_abs_diff": 0.07011032104492188,
+   "ssim_min": 0.999930202960968,
+   "max_exceeded_pixels": 2393,
+   "max_exceeded_channels": 3559,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__strokes__mode__sprayed": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00133514404296875,
+   "ssim_min": 0.9999995827674866,
+   "max_exceeded_pixels": 93,
+   "max_exceeded_channels": 96,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__strokes__mode__sumiE": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.0004730224609375,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 30,
+   "max_exceeded_channels": 30,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__strokes__sharpness__mid": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.000736236572265625,
+   "ssim_min": 0.9999997615814209,
+   "max_exceeded_pixels": 58,
+   "max_exceeded_channels": 58,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraColorArray__alpha__mid": {
+   "max_abs_diff": 127.0,
+   "max_mean_abs_diff": 0.0005035400390625,
+   "ssim_min": 0.9999740123748779,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraColorArray__offset__mid": {
+   "max_abs_diff": 212.0,
+   "max_mean_abs_diff": 0.001216888427734375,
+   "ssim_min": 0.999981164932251,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraColorArray__positionMode__manual": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.00194549560546875,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraColorArray__repeat__mid": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.000972747802734375,
+   "ssim_min": 0.9999471306800842,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__tetraColorArray__rotation__back": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.00194549560546875,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraColorArray__rotation__fwd": {
+   "max_abs_diff": 128.0,
+   "max_mean_abs_diff": 0.00048828125,
+   "ssim_min": 0.9999853372573853,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraColorArray__smoothness__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00017547607421875,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraCosine__repeat__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00086212158203125,
+   "ssim_min": 0.9999964833259583,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
+  },
+  "filter__tile__angle__mid": {
+   "max_abs_diff": 48.0,
+   "max_mean_abs_diff": 0.14622116088867188,
+   "ssim_min": 0.9997087121009827,
+   "max_exceeded_pixels": 1585,
+   "max_exceeded_channels": 4110,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9997)"
+  },
+  "filter__tile__symmetry__rotate2": {
+   "max_abs_diff": 74.0,
+   "max_mean_abs_diff": 5.017364501953125,
+   "ssim_min": 0.9895949363708496,
+   "max_exceeded_pixels": 47388,
+   "max_exceeded_channels": 122856,
+   "mechanism": "rotationally symmetric tiling hash ties (corr(gold,cand)=0.9895)"
+  },
+  "filter__tile__symmetry__rotate4": {
+   "max_abs_diff": 62.0,
+   "max_mean_abs_diff": 4.7161865234375,
+   "ssim_min": 0.9903608560562134,
+   "max_exceeded_pixels": 47628,
+   "max_exceeded_channels": 121316,
+   "mechanism": "rotationally symmetric tiling hash ties (corr(gold,cand)=0.9902)"
+  },
+  "filter__tile__symmetry__rotate6": {
+   "max_abs_diff": 59.0,
+   "max_mean_abs_diff": 0.9494094848632812,
+   "ssim_min": 0.9981746077537537,
+   "max_exceeded_pixels": 11448,
+   "max_exceeded_channels": 28434,
+   "mechanism": "rotationally symmetric tiling hash ties (corr(gold,cand)=0.9981)"
+  },
+  "filter__tunnel__antialias__false": {
+   "max_abs_diff": 34.0,
+   "max_mean_abs_diff": 0.015247344970703125,
+   "ssim_min": 0.9999783039093018,
+   "max_exceeded_pixels": 186,
+   "max_exceeded_channels": 498,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__center__mid": {
+   "max_abs_diff": 13.0,
+   "max_mean_abs_diff": 0.004726409912109375,
+   "ssim_min": 0.9999960064888,
+   "max_exceeded_pixels": 156,
+   "max_exceeded_channels": 286,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__rotation__mid": {
+   "max_abs_diff": 13.0,
+   "max_mean_abs_diff": 0.004055023193359375,
+   "ssim_min": 0.9999973773956299,
+   "max_exceeded_pixels": 143,
+   "max_exceeded_channels": 248,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__scale__mid": {
+   "max_abs_diff": 7.0,
+   "max_mean_abs_diff": 0.0022430419921875,
+   "ssim_min": 0.9999990463256836,
+   "max_exceeded_pixels": 82,
+   "max_exceeded_channels": 121,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__shape__hexagon": {
+   "max_abs_diff": 13.0,
+   "max_mean_abs_diff": 0.00803375244140625,
+   "ssim_min": 0.9999948143959045,
+   "max_exceeded_pixels": 257,
+   "max_exceeded_channels": 451,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__shape__octagon": {
+   "max_abs_diff": 14.0,
+   "max_mean_abs_diff": 0.008052825927734375,
+   "ssim_min": 0.9999971985816956,
+   "max_exceeded_pixels": 299,
+   "max_exceeded_channels": 513,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__shape__roundedRect": {
+   "max_abs_diff": 10.0,
+   "max_mean_abs_diff": 0.00347900390625,
+   "ssim_min": 0.9999984502792358,
+   "max_exceeded_pixels": 134,
+   "max_exceeded_channels": 227,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__shape__square": {
+   "max_abs_diff": 14.0,
+   "max_mean_abs_diff": 0.018711090087890625,
+   "ssim_min": 0.999987781047821,
+   "max_exceeded_pixels": 501,
+   "max_exceeded_channels": 1008,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__shape__triangle": {
+   "max_abs_diff": 13.0,
+   "max_mean_abs_diff": 0.01187896728515625,
+   "ssim_min": 0.9999932050704956,
+   "max_exceeded_pixels": 363,
+   "max_exceeded_channels": 646,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__speed__mid": {
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 0.003192901611328125,
+   "ssim_min": 0.9999991059303284,
+   "max_exceeded_pixels": 132,
+   "max_exceeded_channels": 220,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__unsharpMask__amount__mid": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.00109100341796875,
+   "ssim_min": 0.9999997019767761,
+   "max_exceeded_pixels": 54,
+   "max_exceeded_channels": 55,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__unsharpMask__radius__mid": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.0004730224609375,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 24,
+   "max_exceeded_channels": 24,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__warp__antialias__false": {
+   "max_abs_diff": 19.0,
+   "max_mean_abs_diff": 0.00054168701171875,
+   "ssim_min": 0.9999995827674866,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 8,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__warp__scale__mid": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.0005340576171875,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 12,
+   "max_exceeded_channels": 25,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__warp__seed__mid": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.00041961669921875,
+   "ssim_min": 0.9999998211860657,
+   "max_exceeded_pixels": 8,
+   "max_exceeded_channels": 16,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__warp__speed__mid": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.000354766845703125,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 7,
+   "max_exceeded_channels": 13,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__warp__strength__mid": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.00045013427734375,
+   "ssim_min": 0.9999999403953552,
+   "max_exceeded_pixels": 11,
+   "max_exceeded_channels": 20,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__warp__wrap__clamp": {
+   "max_abs_diff": 3.0,
+   "max_mean_abs_diff": 0.00037384033203125,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__warp__wrap__repeat": {
+   "max_abs_diff": 5.0,
+   "max_mean_abs_diff": 0.000354766845703125,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__waves__rotation__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.0002288818359375,
+   "ssim_min": 0.9999999403953552,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__waves__strength__mid": {
+   "max_abs_diff": 9.0,
+   "max_mean_abs_diff": 0.0037994384765625,
+   "ssim_min": 0.9999979734420776,
+   "max_exceeded_pixels": 115,
+   "max_exceeded_channels": 247,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__wind__method__stagger": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.000370025634765625,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__wind__threshold__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.00042724609375,
+   "ssim_min": 0.9999998807907104,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 2,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__wormhole__alpha__mid": {
+   "max_abs_diff": 99.0,
+   "max_mean_abs_diff": 0.2028961181640625,
+   "ssim_min": 0.9971230030059814,
+   "max_exceeded_pixels": 477,
+   "max_exceeded_channels": 1351,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9971)"
+  },
+  "filter__wormhole__kink__mid": {
+   "max_abs_diff": 202.0,
+   "max_mean_abs_diff": 0.7647514343261719,
+   "ssim_min": 0.9936817288398743,
+   "max_exceeded_pixels": 813,
+   "max_exceeded_channels": 2369,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9937)"
+  },
+  "filter__wormhole__rotation__mid": {
+   "max_abs_diff": 245.0,
+   "max_mean_abs_diff": 0.475616455078125,
+   "ssim_min": 0.9957054257392883,
+   "max_exceeded_pixels": 488,
+   "max_exceeded_channels": 1410,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9957)"
+  },
+  "filter__wormhole__stride__mid": {
+   "max_abs_diff": 200.0,
+   "max_mean_abs_diff": 0.5884437561035156,
+   "ssim_min": 0.9942826628684998,
+   "max_exceeded_pixels": 683,
+   "max_exceeded_channels": 1990,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9943)"
+  },
+  "filter__wormhole__wrap__clamp": {
+   "max_abs_diff": 22.0,
+   "max_mean_abs_diff": 0.00030517578125,
+   "ssim_min": 0.9999967813491821,
+   "max_exceeded_pixels": 6,
+   "max_exceeded_channels": 8,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__wormhole__wrap__mirror": {
+   "max_abs_diff": 198.0,
+   "max_mean_abs_diff": 0.4031181335449219,
+   "ssim_min": 0.996291995048523,
+   "max_exceeded_pixels": 476,
+   "max_exceeded_channels": 1379,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9963)"
+  }
+ }
+}
