@@ -2,8 +2,8 @@
 
 ## 1. Source and authority revisions
 
-Audit pass: 2026-09-26 (pass 21). Audited source: [`7d8178d1785efc2dea0cad98db9e1d8c7f2762bc`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/7d8178d1785efc2dea0cad98db9e1d8c7f2762bc). Local `main` was clean and matched `origin/main` before and after the checks.
-Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates stay **unverified on this automation host** and carry unchanged from passes 2–14. No release approval or new closure follows from this pass.
+Audit pass: 2026-09-27 (pass 28). Audited source: [`c0709389bb4f52211666511d70070f5aa51b19d6`](https://github.com/noisefactorllc/noisemaker-for-unity/commit/c0709389bb4f52211666511d70070f5aa51b19d6). Local `main` was clean and matched `origin/main` before and after the checks.
+Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates for the four declared native parity cases (`nm_adjust_test`, `nm_grade_test`, `nm_invert_test`, `nm_tint_test`) passed fresh on the licensed Unity 6000.3.16f1 macOS host at this source (thresholds max-abs-diff ≤ 2, SSIM ≥ 0.98; supervisor native-check receipt 2026-09-27T08:47:50Z). No release approval or new closure follows from this pass.
 Current upstream head: `e73a44a3` (`e73a44a37f0c99bd3779c5fb26c7bba65a46a379`), audited in §3 pass 28. Beyond the previously audited `noisemaker@7dc0f5640534855d73f8c812ca071fe6b1e09197` (and the previously audited `403c2a4bf2cb` base), the delivered range (`403c2a4b..e73a44a3`, force-push flag audited — the declared delivery end `7443f6e61803` and the observed ranges `7dc0f564..7443f6e`, `132d1bf9..c2252f0`, `c2252f0..e73a44a` are all on `origin/main`, with `7443f6e` an ancestor of the `e73a44a3` tip; raw transcript in [`parity/evidence/2026-09-27-pass28-range-audit.txt`](../parity/evidence/2026-09-27-pass28-range-audit.txt)) adds only: GAP-012 `7443f6e` (`shaders/tests/frame-readback.js` + regressions — harness WebGPU render-surface readback pinning), GAP-015 `c2252f0` (`shaders/tests/image-metrics.js` + regressions — metric interchangeability mirror), GAP-014 `e73a44a` (`shaders/tests/frame-warmup.js` + regressions — warm-up frames before explicit-time render requests), GAP-011 `7dc0f564` and GAP-010 `9f85687d` (uniforms-reporting modules, already audited in pass 27), plus upstream documentation passes and test-runner flag registrations. All of it is JS test-harness code under `shaders/tests/` only; this Unity port has no uniforms-reporting/readback/warmup/metrics harness surface, so no Unity change follows. Effect catalog and runtime are unchanged: `git diff --stat 403c2a4bf2cb..e73a44a37f0c -- shaders/effects shaders/glsl shaders/wgsl shaders/src shaders/scripts` → 0 files changed; the effect manifest stays 210 IDs and remains byte-identical (sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
 Beyond the previously synced `noisemaker@8eeb7b5ac14e`, upstream held 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. As of pass 22 the GAP-006 row (`6113da0`+`9574362`) is delivered (§3 pass 22); `f83a427` is a JS-backend diagnostic-union change with no Unity-renderer equivalent and needs no port.
 The observations below retain their original source and authority identities. They do not qualify later updates.
@@ -801,6 +801,17 @@ assumed), reference checked out detached by SHA at `e73a44a37f0c`, which is the
   byte-identical (210 IDs, sha256
   `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`); no WGSL/GLSL→HLSL translation is touched by this
   range, so no translation cross-check arises.
+- Export kit workflow trigger audit (`.github/workflows/export-kit.yml`): the
+  push range this pass published, `9e1f0e8..c070938`, has an **empty** diff
+  under every trigger path (`git diff --stat 9e1f0e8..c070938 -- unity/
+  export-kit/ LICENSE .github/` → 0 files changed) — the audited `Reverb.hlsl`
+  clamp fix IS commit `9e1f0e8` itself, published by the prior pass-27 push
+  and inside this pass's base, not inside the published delta. GitHub's
+  push-path filter therefore correctly runs no Export kit dispatch at
+  `26c52ab`/`c070938`; an absent run there is the trigger's designed behavior,
+  not a failed or skipped gate. Kit release remains dispatch-driven from the
+  `9e1f0e8` render change; the served kit `0.1.25` (source `ebd3e7b`) predates
+  it and no kit deployment is declared in this job's deployment scope.
 
 Gate evidence (pass 28, current source, Linux audit host, .NET SDK 8.0.412,
 numpy 2.5.3 / pillow 12.3.0; raw command transcript appended to
