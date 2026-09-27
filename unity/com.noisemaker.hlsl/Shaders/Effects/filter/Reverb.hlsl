@@ -30,7 +30,22 @@
 //  * uv = fragCoord / inputTex dimensions (WGSL divides by textureDimensions NOT
 //    fullResolution). Mirrored with NM_FragCoord(i) / GetDimensions.
 //  * ridges is an int uniform; test != 0 (matches WGSL: ridges != 0).
-//  * wrap int uniform: 0=mirror, 1=repeat, 2=clamp. Use [branch].
+//  * wrap int uniform: 0=mirror 1=repeat 2=clamp. Use [branch].
+//  * GOLDEN AUTHORITY NOTE: the pixel gates' goldens come from the reference
+//    WEBGL2 backend (parity/batch-golden.mjs --backend webgl2), whose GLSL
+//    (reverb.glsl) runs the tiled pipeline math
+//    sampledLocalUV = fract((wrappedGlobalUV * fullResolution - tileOffset)/dims).
+//    With no tiling (fullResolution == dims, tileOffset == 0) that is
+//    fract(applyWrap(uv * scale)) — an extra fract AFTER the wrap. It is a
+//    no-op for mirror/repeat (both already land in [0,1)) but maps the CLAMP
+//    branch's exact 1.0 back to 0.0, so clamped samples hit texel 0, not the
+//    last texel. The checked-in wgsl/reverb.wgsl lacks that trailing fract;
+//    the clamp branch below therefore applies frac() to match the measured
+//    webgl2 golden behavior (measured 2026-09-27: regenerating the
+//    wrap__clamp golden with batch-golden --backend webgl2 and rendering the
+//    port on the licensed Unity 6000.3.16f1 host diverged at max 93 /
+//    SSIM 0.812 without the frac — exactly the recorded unresolved row — and
+//    measures max 1 / SSIM 0.99997 with it; see docs/COMPATIBILITY.md §3).
 //  * applyWrap mirror mode: literal verbatim from WGSL (manual mirror formula,
 //    NOT the fmod-style abs(mod) from GLSL — WGSL is canonical).
 //  * nm_mod NOT used here (no float mod needed; applyWrap mirror uses floor arithmetic).
@@ -67,7 +82,9 @@ float2 applyWrap(float2 uv)
     } else if (wrap == 1) {
         return frac(uv);  // WGSL fract -> HLSL frac
     }
-    return clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
+    // clamp: the reference webgl2 GLSL applies fract AFTER the wrap (tiled
+    // pipeline path); frac() is a no-op except at exactly 1.0 -> 0.0.
+    return frac(clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0)));
 }
 
 // -----------------------------------------------------------------------------

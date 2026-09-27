@@ -722,3 +722,35 @@ numpy 2.5.3 / pillow 12.3.0; raw command transcript appended to
 Carried, not re-run (Unity editor required, license-blocked): the 245-fixture
 pixel gates, the 316-program Unity graph gate, the Windows/Linux platform
 matrix, and the 6000.0 minimum floor — unchanged from passes 17/18.
+
+### filter/reverb wrap=clamp resolution, 2026-09-27 (pass 28)
+
+The `filter__reverb__wrap__clamp` pixel-unresolved divergence from pass 27 is
+attributed and fixed. Root cause: the pixel gates' goldens come from the
+reference WEBGL2 backend, whose GLSL reverb runs the tiled pipeline math
+`sampledLocalUV = fract((wrappedGlobalUV * fullResolution - tileOffset) / dims)`
+— with no tiling that is `fract(applyWrap(uv * scale))`, an extra fract AFTER
+the wrap. It is a no-op for mirror/repeat but maps the CLAMP branch's exact
+1.0 back to 0.0 (clamped samples hit texel 0, not the last texel). The port
+had implemented the checked-in `wgsl/reverb.wgsl` verbatim, which lacks that
+trailing fract — hence only `wrap=clamp` diverged (the graph JSON, the `wrap: 2`
+binding, and the other reverb variants were already correct).
+
+Fix: the clamp branch of `Shaders/Effects/filter/Reverb.hlsl` now applies
+`frac()` to the clamped UV (no-op except at exactly 1.0 → 0.0), matching the
+measured webgl2 golden behavior; mirror/repeat branches are unchanged.
+
+Evidence (raw transcript:
+[`parity/evidence/2026-09-27-reverb-clamp-resolution.txt`](../parity/evidence/2026-09-27-reverb-clamp-resolution.txt)):
+single-iteration probes on the licensed Unity 6000.3.16f1 host isolated the
+clamped-sample texel choice; after the fix the full variant re-rendered against
+a freshly regenerated `noisemaker@403c2a4b` webgl2 golden measures
+`max-abs-diff=1.000 ssim=0.99997` under the filter-group policy
+(tol 1 / SSIM ≥ 0.98) — previously max 93 / SSIM 0.812 — and
+`filter__reverb__wrap__repeat` is unchanged (max 1). Suites at this source:
+compiler contract tests PASS (0 failures); comparator suite `Ran 46 tests … OK`.
+`parity/programs/param-sweep/pixel-unresolved.tsv` drops the reverb row
+(17 measured divergences remain: 16 `synth/shape` loop-offset modes and
+`synth3d/cell3d` seed — untouched by this change). The full 1803-variant pixel
+sweep was NOT re-run end-to-end this pass; the recorded per-variant verdict for
+this row is the compare.py measurement above under the gate's own filter policy.

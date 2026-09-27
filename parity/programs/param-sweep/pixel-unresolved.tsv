@@ -1,6 +1,5 @@
 # Unattributed measured divergences: the gate FAILS closed on these.
 # name	ssim	max_abs_diff	mean_abs_diff	note
-filter__reverb__wrap__clamp	0.812387	93	21.082	unattributed port-vs-reference divergence; reference is cross-backend deterministic (webgpu==webgl2, corr 1.0) so this is not chaos; parameter-to-graph binding verified; needs port/authority shader investigation
 synth3d__cell3d__seed__mid	0.902489	216	5.092	unattributed port-vs-reference divergence; reference is cross-backend deterministic (webgpu==webgl2, corr 1.0) so this is not chaos; parameter-to-graph binding verified; needs port/authority shader investigation
 synth__shape__loopAOffset__noiseBSpline3x3	0.621165	119	30.460	unattributed port-vs-reference divergence; reference is cross-backend deterministic (webgpu==webgl2, corr 1.0) so this is not chaos; parameter-to-graph binding verified; needs port/authority shader investigation
 synth__shape__loopAOffset__noiseBSpline4x4	0.659553	113	26.868	unattributed port-vs-reference divergence; reference is cross-backend deterministic (webgpu==webgl2, corr 1.0) so this is not chaos; parameter-to-graph binding verified; needs port/authority shader investigation

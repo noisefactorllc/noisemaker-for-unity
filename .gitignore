@@ -27,6 +27,9 @@ parity/golden/
 parity/**/*.png
 *.report.json
 
+# local Unity parity project (created on demand by param-sweep-pixel-verify.sh)
+.parity-unity/
+
 # generated parity sweep/corpus outputs (regenerable via export-graph / batch-golden)
 parity/corpus-out/
 parity/out/
