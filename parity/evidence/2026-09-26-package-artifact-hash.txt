@@ -21,3 +21,10 @@ recomputation at the pass-29 GAP-002-closure candidate (2026-09-27):
     Shaders/Effects/filter/Reverb.hlsl (9e1f0e8, pass-28 wrap=clamp golden-authority fix)
   clean tree at the candidate (package tree identical 12a4be3..d3b1ad9 — the pass-29 commit is docs+evidence only), same command re-run (1683 files):
 1b99b187afc97694c2948a0a1a92bda4232002e2cd701fe215fa44145ad7ed11  -
+
+recomputation at the pass-30 GAP-016 preflight-port candidate (2026-09-27):
+  the package tree changed after the pass-29 re-bind: git diff 12a4be35957e7d0b4533841b7894c8587f8d3e82 <pass-30 candidate> --name-only -- unity/com.noisemaker.hlsl ->
+    CHANGELOG.md, Compiler/Graph/GraphPreflight.cs(.meta), Runtime/Pipeline/NMPipeline.cs
+  clean tree at the working candidate, same command re-run (1685 files):
+48faab8e039a2e8d0259b267a46131756bbad8657ea440e32a4b69d54b8ef90a  -
+(note: hash taken at the final package tree, after the CHANGELOG.md entry landed)

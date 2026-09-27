@@ -141,6 +141,17 @@ namespace Noisemaker.Hlsl
             Resize(width, height);
         }
 
+        // GAP-016 (noisemaker@12b4d74f) — upstream Pipeline.preflight(): a
+        // static, read-only report of the device-limit format changes this
+        // pipeline's Init will perform (predicted MRT demotions + volumeSize
+        // clamps), before anything is applied. No per-backend authorability in
+        // this port (single HLSL backend — see GraphPreflight.cs).
+        public GraphPreflightReport Preflight()
+        {
+            return GraphPreflight.Preflight(Graph, SystemInfo.maxTextureSize,
+                DetectMrtFormatBudget());
+        }
+
         private static int DetectMrtFormatBudget()
         {
             // Apple2/Apple3 mobile GPUs permit only 32 bytes per sample across
@@ -170,16 +181,11 @@ namespace Noisemaker.Hlsl
 
         private double ClampVolumeSize(double value)
         {
-            if (_maxTextureSize <= 0 || value * value <= _maxTextureSize)
-                return value;
-
-            int clamped = 16;
-            while ((clamped * 2) * (clamped * 2) <= _maxTextureSize &&
-                clamped * 2 < value)
-                clamped *= 2;
-
-            string warningKey = value + "->" + clamped;
-            if (_warnedVolumeClamps.Add(warningKey))
+            // Numeric core shared with the static preflight (GAP-016
+            // noisemaker@12b4d74f) so prediction and runtime stay in lockstep.
+            double clamped = GraphPreflight.ClampVolumeSizeValue(
+                _maxTextureSize, value);
+            if (clamped != value && _warnedVolumeClamps.Add(value + "->" + clamped))
             {
                 Debug.LogWarning("[Noisemaker] Capping volumeSize from " + value +
                     " to " + clamped + ": the " + value + "x" + (value * value) +
@@ -207,47 +213,32 @@ namespace Noisemaker.Hlsl
             }
         }
 
+        // GAP-016 (noisemaker@12b4d74f): the byte table and the demotion walk
+        // live in GraphPreflight so prediction and runtime stay in lockstep by
+        // construction (upstream shares mrtFormatBytes() the same way).
         private static int MrtFormatBytes(string format)
         {
-            if (format == "rgba32f" || format == "rgba32float") return 16;
-            if (format == "rgba8" || format == "rgba8unorm") return 4;
-            return 8;
+            return GraphPreflight.MrtFormatBytes(format);
         }
 
         private void ApplyMrtFormatBudget(int budget)
         {
             if (budget <= 0) return;
-            foreach (Pass pass in Graph.Passes)
+            // The demotion walk itself is GraphPreflight.PredictMrtDemotions
+            // (shared with the static preflight); this applies its predictions
+            // to the graph and reports them.
+            var demotions = new List<GraphPreflightFormatChange>();
+            GraphPreflight.PredictMrtDemotions(Graph, budget, demotions);
+            foreach (GraphPreflightFormatChange demotion in demotions)
             {
-                int count = pass.Outputs.Count;
-                if (count <= 1) continue;
-
-                var specs = new TextureSpec[count];
-                var texIds = new string[count];
-                int total = 0;
-                for (int i = 0; i < count; i++)
-                {
-                    string texId = pass.Outputs.EntryAt(i).Value;
-                    TextureSpec spec;
-                    Graph.Textures.TryGetValue(texId, out spec);
-                    texIds[i] = texId;
-                    specs[i] = spec;
-                    total += MrtFormatBytes(spec != null ? spec.Format : null);
-                }
-                if (total <= budget) continue;
-
-                for (int i = count - 1; i >= 0 && total > budget; i--)
-                {
-                    TextureSpec spec = specs[i];
-                    if (spec == null ||
-                        (spec.Format != "rgba32f" && spec.Format != "rgba32float"))
-                        continue;
-                    Debug.LogWarning("[Noisemaker] Demoting MRT attachment " + texIds[i] +
-                        " from " + spec.Format + " to rgba16f: pass " + pass.Id +
-                        " needs " + total + " bytes/sample, device allows " + budget + ".");
-                    spec.Format = "rgba16f";
-                    total -= 8;
-                }
+                TextureSpec spec;
+                Graph.Textures.TryGetValue(demotion.Texture, out spec);
+                if (spec == null) continue;
+                Debug.LogWarning("[Noisemaker] Demoting MRT attachment " + demotion.Texture +
+                    " from " + spec.Format + " to rgba16f: pass " + demotion.Pass +
+                    " needs " + demotion.Total + " bytes/sample, device allows " +
+                    demotion.Budget + ".");
+                spec.Format = demotion.To;
             }
         }
 

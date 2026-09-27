@@ -1,0 +1,123 @@
+# Upstream range audit transcript — noisemaker 7443f6e61803..296e0138 (tearoff job 9825253d, 2026-09-27, pass 30)
+
+## reference clone state
+$ git -C /state/scratch/noisemaker rev-parse HEAD
+296e0138c4744ed485b2e95de3eeb466c17629ee
+$ git -C /state/scratch/noisemaker status --short
+(clean, detached at 296e0138)
+
+## ancestry
+$ git merge-base --is-ancestor 7443f6e61803 296e0138c474 && echo ok
+exit 0 (declared start 7443f6e is an ancestor of the audited tip)
+$ git merge-base --is-ancestor 7443f6e61803 12b4d74fb4f2 && echo ok
+exit 0 (declared start is an ancestor of the declared end 12b4d74f)
+$ git merge-base --is-ancestor 12b4d74fb4f2 296e0138c474 && echo ok
+exit 0 (declared end 12b4d74f is an ancestor of the audited tip)
+$ git merge-base --is-ancestor e73a44a37f0c origin/main && git merge-base --is-ancestor 12b4d74fb4f2 origin/main && git merge-base --is-ancestor e73a44a37f0c 12b4d74fb4f2 && echo ok
+exit 0 (e73a44a37f0c..12b4d74fb4f2 on origin/main)
+$ git merge-base --is-ancestor 8fe3ccaf2cc8 origin/main && git merge-base --is-ancestor 93229933b102 origin/main && git merge-base --is-ancestor 8fe3ccaf2cc8 93229933b102 && echo ok
+exit 0 (8fe3ccaf2cc8..93229933b102 on origin/main)
+$ git merge-base --is-ancestor 7c5f17658d8c origin/main && git merge-base --is-ancestor a912749fab5c origin/main && git merge-base --is-ancestor 7c5f17658d8c a912749fab5c && echo ok
+exit 0 (7c5f17658d8c..a912749fab5c on origin/main)
+$ git merge-base --is-ancestor 11d7c69922f3 origin/main && git merge-base --is-ancestor 296e0138c474 origin/main && git merge-base --is-ancestor 11d7c69922f3 296e0138c474 && echo ok
+exit 0 (11d7c69922f3..296e0138c474 on origin/main)
+$ git log --oneline origin/main -1
+296e0138 feat(harness): report requested-vs-returned frame resolution on every renderEffectFrame result (GAP-021)
+$ git log --oneline 296e0138c474..origin/main | cat
+(empty: 296e0138 is the origin/main tip)
+
+## observed delivery ranges from the trigger
+7443f6e..12b4d74fb4f2 (declared; force-push flag); e73a44a..12b4d74f; 8fe3ccaf..93229933; 7c5f1765..a912749f; 11d7c699..296e0138 (delivery order is not ancestry order)
+
+## full range, 7443f6e..296e0138
+$ git log --oneline 7443f6e61803..296e0138c474
+296e0138 feat(harness): report requested-vs-returned frame resolution on every renderEffectFrame result (GAP-021)
+11d7c699 docs: narrow GAP-020 — shared MCP domain error envelope lives in the Shade repository, which noisemaker cannot write; nothing of the tool-result wrapper is vendored and no noisemaker module consumes the MCP envelope, so no repository-side surface exists
+a912749f feat(harness): true input-passthrough probe with a live write-blit control (GAP-019)
+7c5f1765 docs: advance AI development contract checkpoint through 9322993 (GAP-017 verified pair audit)
+93229933 feat(harness): complete, lossless definition-schema introspection with an upstream-loss audit (GAP-017)
+8fe3ccaf docs: record post-publication deployed-contract evidence and correct the open-gap enumeration
+ec457c2e docs: advance AI development contract checkpoint through 12b4d74 (GAP-014/015/016 verified pair audit)
+12b4d74f feat(runtime): static effect preflight for per-backend authorability and device-limit format changes (GAP-016)
+e73a44a3 test(harness): warm up frames before pausing for explicit-time render requests (GAP-014)
+c2252f0c test(metrics): auditable GAP-015 metric interchangeability mirror
+132d1bf9 docs: advance AI development contract checkpoint through 7443f6e (GAP-011/012 verified pair audit)
+
+## commits touching shaders/ across 7443f6e..296e0138
+$ git log --stat --oneline 7443f6e61803..296e0138c474 -- shaders/
+296e0138 feat(harness): report requested-vs-returned frame resolution on every renderEffectFrame result (GAP-021)
+ shaders/tests/frame-resolution.js      |  95 +++++++++++++++++
+ shaders/tests/test-harness.js          |  34 +++++-
+ shaders/tests/test_frame_resolution.js | 189 +++++++++++++++++++++++++++++++++
+ 3 files changed, 317 insertions(+), 1 deletion(-)
+a912749f feat(harness): true input-passthrough probe with a live write-blit control (GAP-019)
+ shaders/tests/passthrough-input.js      | 489 ++++++++++++++++++++++++++++++++
+ shaders/tests/test-harness.js           |  70 +++++
+ shaders/tests/test_passthrough_input.js | 259 +++++++++++++++++
+ 3 files changed, 818 insertions(+)
+93229933 feat(harness): complete, lossless definition-schema introspection with an upstream-loss audit (GAP-017)
+ shaders/tests/definition-schema.js      | 220 ++++++++++++++++++++++++++++++++
+ shaders/tests/test-harness.js           |  60 ++++++++-
+ shaders/tests/test_definition_schema.js | 161 +++++++++++++++++++++++
+ 3 files changed, 439 insertions(+), 2 deletions(-)
+12b4d74f feat(runtime): static effect preflight for per-backend authorability and device-limit format changes (GAP-016)
+ shaders/src/runtime/pipeline.js  |  40 ++++--
+ shaders/src/runtime/preflight.js | 191 ++++++++++++++++++++++++++++
+ shaders/tests/test_preflight.js  | 267 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 488 insertions(+), 10 deletions(-)
+e73a44a3 test(harness): warm up frames before pausing for explicit-time render requests (GAP-014)
+ shaders/tests/frame-warmup.js      |  61 ++++++++++++++++
+ shaders/tests/test-harness.js      |  26 ++++---
+ shaders/tests/test_frame_warmup.js | 144 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 223 insertions(+), 8 deletions(-)
+c2252f0c test(metrics): auditable GAP-015 metric interchangeability mirror
+ shaders/tests/image-metrics.js      | 283 ++++++++++++++++++++++++++++++++++++
+ shaders/tests/test_image_metrics.js | 164 +++++++++++++++++++++
+ 2 files changed, 447 insertions(+)
+
+## shaders/ code delta (effect defs, glsl, wgsl, src, scripts)
+$ git diff --stat 7443f6e61803..296e0138c474 -- shaders/effects shaders/glsl shaders/wgsl shaders/src shaders/scripts
+ shaders/src/runtime/pipeline.js  |  40 ++++++--
+ shaders/src/runtime/preflight.js | 191 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 221 insertions(+), 10 deletions(-)
+(above = the GAP-016 runtime preflight commit 12b4d74f only)
+
+## effect manifest parity
+$ sha256sum shaders/effects/manifest.json (at 296e0138)
+05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e  shaders/effects/manifest.json
+expected (byte-identical since 1.0.176): 05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e
+$ git diff --stat 7443f6e61803..296e0138c474 -- shaders/effects | cat
+(empty: 0 files changed — 0 new / 0 changed / 0 removed effects)
+
+## no equivalent Unity surface for the harness-only commits
+$ grep -rlnE "frame-readback|image-metrics|frame-warmup|definition-schema|frame-resolution|passthrough-input" unity/
+(no matches — GAP-012/014/015 harness modules were already audited "no port" in pass 28; GAP-017/019/021 are new `shaders/tests/` harness modules only, no engine behavior)
+$ git diff --stat 7443f6e61803..296e0138c474 -- shaders/tests | cat
+ (harness modules + regressions only; no shaders/src beyond 12b4d74f)
+
+## gate evidence (pass 30, current source, pinned reference 296e0138)
+$ dotnet --version
+8.0.412
+$ PATH=/state/scratch/dotnet:$PATH DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet run --project tools/compiler-contract-tests
+compiler contract tests: PASS (0 failures)
+exit: 0
+(new GAP-016 contract: GraphPreflight.Preflight / PredictMrtDemotions / MrtFormatBytes / ClampVolumeSizeValue; red-before: with GraphPreflight.cs removed the suite fails at compile time — 20 error CS diagnostics, file restored afterwards)
+
+$ /state/scratch/venv/bin/python -m unittest discover -s parity/tests -p "test_*.py"
+Ran 46 tests in 58.293s
+
+OK
+exit: 0
+
+## param sweep transcript (NM_REFERENCE_ROOT=/state/scratch/noisemaker detached at 296e0138)
+$ PATH=/state/scratch/dotnet:$PATH DOTNET_CLI_TELEMETRY_OPTOUT=1 NM_REFERENCE_ROOT=/state/scratch/noisemaker bash parity/param-sweep-verify.sh /state/scratch/param-sweep-pass30
+=== [1/4] regenerate corpus ===
+emitted 1900 variants; 3 effects without base program; 0 emit failures; 391 exclusions
+corpus matches committed fixtures: 1900 variants
+=== [2/4] oracle graphs (reference compiler) ===
+oracle ok: 1900, failed: 0
+=== [3/4] C# live-compiler graphs (graphdump, no Unity) ===
+graph-dump batch done: 1900 ok, 0 fail
+=== [4/4] structural diff (fail-closed) ===
+param sweep: 1900 graph-clean, 0 FAIL, 0 missing, of 1900 variants
+exit: 0

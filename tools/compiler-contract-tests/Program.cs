@@ -52,6 +52,7 @@ namespace CompilerContractTests
             TestGap004TexturePolicyContract();
             TestGap005PassFieldsContract();
             TestGap006TexturePoolability();
+            TestGap016GraphPreflight();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -2401,6 +2402,112 @@ namespace CompilerContractTests
                 "\"program\":\"diagFilter\",\"inputs\":{\"source\":\"inputTex\"},\"outputs\":{" +
                 "\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
             return reg;
+        }
+
+        // GAP-016 static effect preflight (noisemaker@12b4d74f): GraphPreflight
+        // reports, before any pipeline init, the device-limit format changes the
+        // runtime will perform — predicted ApplyMrtFormatBudget demotions
+        // (sharing the byte table and walk with the pipeline) and predicted
+        // volumeSize clamps (this port's maxTextureSize enforcement) — without
+        // mutating the graph or throwing on malformed input. Upstream's
+        // per-backend authorability has no Unity equivalent (single HLSL
+        // backend; ValidatePrograms already refuses unresolvable programs).
+        private static void TestGap016GraphPreflight()
+        {
+            // Byte table parity with the pipeline's budget accounting.
+            Check(GraphPreflight.MrtFormatBytes("rgba32f") == 16, "GAP-016 rgba32f costs 16");
+            Check(GraphPreflight.MrtFormatBytes("rgba32float") == 16, "GAP-016 rgba32float costs 16");
+            Check(GraphPreflight.MrtFormatBytes("rgba8") == 4, "GAP-016 rgba8 costs 4");
+            Check(GraphPreflight.MrtFormatBytes("rgba8unorm") == 4, "GAP-016 rgba8unorm costs 4");
+            Check(GraphPreflight.MrtFormatBytes(null) == 8, "GAP-016 unlisted format costs 8");
+            Check(GraphPreflight.MrtFormatBytes("rgba16f") == 8, "GAP-016 rgba16f costs 8");
+
+            const string mrtPasses = "[{\"id\":\"mrt0\",\"passType\":\"effect\"," +
+                "\"progName\":\"probe\",\"program\":\"probe\",\"inputs\":{}," +
+                "\"outputs\":{\"fragColor\":\"_a\",\"color1\":\"_b\"}}]";
+            const string mrtTextures = "{\"_a\":{\"width\":32,\"height\":32," +
+                "\"format\":\"rgba32f\"},\"_b\":{\"width\":32,\"height\":32," +
+                "\"format\":\"rgba32f\"}}";
+
+            // 32 bytes/sample > 24 budget: exactly the TRAILING attachment is
+            // demoted, and the prediction never mutates the graph.
+            RenderGraph mrt = PoolGraph(mrtPasses, mrtTextures, "{}");
+            var report = GraphPreflight.Preflight(mrt, 0, 24);
+            Check(report.FormatChanges.Count == 1, "GAP-016 trailing-only demotion count");
+            GraphPreflightFormatChange change = report.FormatChanges[0];
+            Check(change.Texture == "_b" && change.From == "rgba32f" &&
+                change.To == "rgba16f" && change.Budget == 24 && change.Total == 32 &&
+                change.Pass == "mrt0", "GAP-016 trailing demotion record");
+            Check(mrt.Textures["_a"].Format == "rgba32f" &&
+                mrt.Textures["_b"].Format == "rgba32f", "GAP-016 preflight is read-only");
+            // Applying the predictions reproduces the runtime's final formats
+            // exactly, and a re-prediction over the applied graph is empty
+            // (prediction and runtime stay in lockstep by construction).
+            mrt.Textures["_b"].Format = change.To;
+            Check(GraphPreflight.Preflight(mrt, 0, 24).FormatChanges.Count == 0,
+                "GAP-016 applied graph re-predicts clean");
+
+            // 32 > 16: both attachments demoted (walk from the trailing end).
+            var both = GraphPreflight.Preflight(PoolGraph(mrtPasses, mrtTextures, "{}"), 0, 16);
+            Check(both.FormatChanges.Count == 2 &&
+                both.FormatChanges[0].Texture == "_b" &&
+                both.FormatChanges[1].Texture == "_a" &&
+                both.FormatChanges[1].Total == 24, "GAP-016 both trailing demotions");
+
+            // Under budget: no changes.
+            Check(GraphPreflight.Preflight(PoolGraph(mrtPasses, mrtTextures, "{}"),
+                0, 32).FormatChanges.Count == 0, "GAP-016 under-budget pass unchanged");
+            // No budget (0 = no device limit): nothing predicted.
+            Check(GraphPreflight.Preflight(PoolGraph(mrtPasses, mrtTextures, "{}"),
+                0, 0).FormatChanges.Count == 0, "GAP-016 absent budget predicts nothing");
+
+            // Single-attachment pass: never demoted.
+            Check(GraphPreflight.Preflight(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\"," +
+                "\"program\":\"probe\",\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32,\"format\":\"rgba32f\"}}", "{}"),
+                0, 8).FormatChanges.Count == 0, "GAP-016 single-attachment pass never demoted");
+
+            // Malformed input: missing texture spec and missing pass list are
+            // skipped / empty, never thrown.
+            GraphPreflight.Preflight(PoolGraph(
+                "[{\"id\":\"p0\",\"passType\":\"effect\",\"progName\":\"probe\"," +
+                "\"program\":\"probe\",\"inputs\":{},\"outputs\":{\"fragColor\":\"_x\"}}]",
+                "{}", "{}"), 0, 8);
+            GraphPreflight.Preflight(null, 4096, 32);
+
+            // Predicted volumeSize clamps (this port's maxTextureSize
+            // enforcement): 5000x5000 under a 4096 limit clamps to 64
+            // (64x64 = 4096); named/non-volume/boolean uniforms are not clamps.
+            var clamps = GraphPreflight.Preflight(PoolGraph(
+                "[{\"id\":\"v0\",\"passType\":\"effect\",\"progName\":\"probe\"," +
+                "\"program\":\"probe\",\"inputs\":{}," +
+                "\"outputs\":{\"fragColor\":\"_a\"}," +
+                "\"uniforms\":{\"volumeSize\":5000,\"volumeSize_node_3\":5000," +
+                "\"screenScale\":5000,\"other\":\"x\"}}]",
+                "{\"_a\":{\"width\":32,\"height\":32}}", "{}"), 4096, 0);
+            Check(clamps.Clamps.Count == 2 &&
+                clamps.Clamps[0].Field == "volumeSize" &&
+                clamps.Clamps[0].Requested == 5000 && clamps.Clamps[0].Limit == 4096 &&
+                clamps.Clamps[0].Pass == "v0" &&
+                clamps.Clamps[1].Field == "volumeSize_node_3", "GAP-016 volumeSize clamps");
+            Check(GraphPreflight.ClampVolumeSizeValue(4096, 5000) == 64,
+                "GAP-016 clamp walk picks the largest fitting power of two");
+            Check(GraphPreflight.ClampVolumeSizeValue(4096, 64) == 64,
+                "GAP-016 fitting value is untouched");
+            Check(GraphPreflight.ClampVolumeSizeValue(0, 5000) == 5000,
+                "GAP-016 unknown max texture size clamps nothing");
+
+            // Clamp prediction agrees with the runtime's numeric core and
+            // leaves the uniform values untouched.
+            RenderGraph vgraph = PoolGraph(
+                "[{\"id\":\"v0\",\"passType\":\"effect\",\"progName\":\"probe\"," +
+                "\"program\":\"probe\",\"inputs\":{},\"outputs\":{\"fragColor\":\"_a\"}," +
+                "\"uniforms\":{\"volumeSize\":5000}}]",
+                "{\"_a\":{\"width\":32,\"height\":32}}", "{}");
+            GraphPreflight.Preflight(vgraph, 4096, 0);
+            Check(vgraph.Passes[0].Uniforms["volumeSize"].Number == 5000,
+                "GAP-016 clamp prediction does not mutate uniforms");
         }
 
         private static void CheckApprox(double actual, double expected, double tolerance, string label)

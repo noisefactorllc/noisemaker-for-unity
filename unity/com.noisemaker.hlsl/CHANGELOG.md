@@ -8,6 +8,16 @@ development (pre-1.0); APIs may change.
 ## [Unreleased]
 
 ### Added
+- **Static effect preflight** (upstream `noisemaker@12b4d74f`, GAP-016, delivered in the
+  range `7443f6e61803..296e0138c474`): `NMPipeline.Preflight()` statically reports, before
+  any pipeline initialization, the device-limit format changes `Init` will perform —
+  predicted MRT `rgba32f → rgba16f` demotions under the per-sample color-byte budget
+  (sharing the byte table and demotion walk with `ApplyMrtFormatBudget`, so prediction and
+  runtime stay in lockstep) and predicted `volumeSize` square-atlas clamps under the
+  device's max texture size (sharing the clamp walk with `ClampVolumeSize`). The report is
+  read-only and never throws on malformed input. Upstream's per-backend authorability
+  verdicts (WebGL2 needs GLSL, WebGPU needs WGSL) have no Unity equivalent — this port
+  compiles a single HLSL backend and already refuses unresolvable programs at init.
 - 3D cubemap renderers `render/renderCubemap3d` and `render/renderCubemapSurface`, plus an
   `NMPipeline.RenderCubemap(faceSize, surface, time)` → Unity `TextureCube` driver
   (`NMCubeCamera` 6-face basis; per-face GL→D3D orientation reconciliation).
