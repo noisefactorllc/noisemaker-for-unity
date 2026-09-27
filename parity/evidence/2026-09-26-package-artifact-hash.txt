@@ -14,3 +14,10 @@ recomputation at current default branch (2026-09-26, commit 448eca7a329c912de34f
   (git diff 2e7f75cf9bf64d5242a3e7cc27e1d11d2cd527cc 448eca7 --name-only -- unity/com.noisemaker.hlsl)
   clean tree, same command re-run (1683 files now):
 79ba4b6cc26ee5a9418183cbfddb37b3b5e87ccabf62478d1e69461eb40627bd  -
+
+recomputation at the pass-29 GAP-002-closure candidate (2026-09-27):
+  the package tree changed after the pass-22 re-bind: git diff 448eca7a329c912de34ffbbb79abe60c0b512474 12a4be35957e7d0b4533841b7894c8587f8d3e82 --name-only -- unity/com.noisemaker.hlsl -> 2 files
+    Compiler/Graph/TexturePoolability.cs (7eb0a58, GAP-006 review follow-up)
+    Shaders/Effects/filter/Reverb.hlsl (9e1f0e8, pass-28 wrap=clamp golden-authority fix)
+  clean tree at the candidate (package tree identical 12a4be3..d3b1ad9 — the pass-29 commit is docs+evidence only), same command re-run (1683 files):
+1b99b187afc97694c2948a0a1a92bda4232002e2cd701fe215fa44145ad7ed11  -

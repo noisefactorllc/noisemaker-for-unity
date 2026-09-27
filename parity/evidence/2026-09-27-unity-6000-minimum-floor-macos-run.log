@@ -1,0 +1,1335 @@
+GAP-002 minimum-host-floor qualification — Unity 6000.0.84f1 on the licensed macOS host (2026-09-27)
+
+Purpose: re-verify the GAP-002 recorded blocker after a harness change (the fleet now offers a
+licensed Unity host). The package's declared minimum host version is Unity 6000.0 (`unity: "6000.0"`
+in unity/com.noisemaker.hlsl/package.json); this run exercises that floor first-hand on a licensed
+editor, which the 2026-09-26 passes 17/18 could not (their Linux editors exited 198 with 0 entitlements).
+
+Host: macOS 26.6.2 (Build 25G83), Darwin 25.6.0, ARM64 (Apple Silicon), 32 GB.
+License: machine-wide `/Library/Application Support/Unity/Unity_lic.ulf` (pre-existing on the host;
+  automation performed no activation). The 6000.3.16f1 editor on the same host uses the same license.
+Editor: Unity 6000.0.84f1, changeset 78ab6fc243d5 (the same release the pass-18 Linux floor run used).
+  Source: official https://download.unity3d.com/download_unity/78ab6fc243d5/MacEditorInstaller/Unity.pkg
+  sha256 3df66b594b3acbe5938cec52d12f8eeaf41df6e8049c3ff1e9b395dda244870b (4,989,558,815 bytes).
+  Installed unattended WITHOUT admin rights: `pkgutil --expand-full Unity.pkg expanded` (no `installer`,
+  no root); the app runs from the extracted path. The editor binary is x86_64 and runs under Rosetta on
+  this ARM64 host (editor's own log header: "Architecture: x86_64 / Running under Rosetta: YES").
+Package under test: unity/com.noisemaker.hlsl embedded from this repository at source
+  12a4be35957e7d0b4533841b7894c8587f8d3e82 (current main, clean, matches origin/main).
+
+Legs (exact commands, verbatim exit codes):
+
+1) Fresh project: $UNITY -batchmode -quit -createProject /tmp/u6000/proj -logFile create.log  -> exit 0
+2) Color space per Quick Start README: ProjectSettings.asset m_ActiveColorSpace: 0 -> 1 (Linear);
+   grep confirms: m_ActiveColorSpace: 1
+3) Embedded package + Quick Start sample copied (Packages/com.noisemaker.hlsl, Assets/QuickStart).
+   Import: $UNITY -batchmode -quit -projectPath /tmp/u6000/proj -logFile import.log -> exit 0;
+   `grep -c "error CS"` -> 0 (no compile errors).
+4) Runtime harness: $UNITY -batchmode -quit -projectPath /tmp/u6000/proj -executeMethod
+   Noisemaker.Hlsl.Editor.NMOutputRuntimeTests.VerifyFromCommandLine -logFile tests.log -> exit 0;
+   log ends "Exiting batchmode successfully now!". Full log appended below.
+5) Quick Start render leg: $UNITY -batchmode -quit -projectPath /tmp/u6000/proj -executeMethod
+   Noisemaker.Hlsl.Editor.NMParityRunner.RenderFromCommandLine -nmGraph
+   /tmp/u6000/proj/Assets/QuickStart/NoiseGraph.json -nmOut /tmp/u6000/qs6000.png -nmSize 512
+   -nmTime 0.25 -logFile render.log
+   The render SUCCEEDED: log records "[NMParity] registered 212/212 package shaders by name." and
+   "[NMParity] wrote /tmp/u6000/qs6000.png (512x512, time=0.25)". The editor process then crashed
+   during -quit shutdown (shell exit code 139, SIGSEGV) — reproduced identically on a second run
+   (render2.log): same write line, byte-identical output
+   qs6000.png / qs6000-r2.png sha256 0da6bc7599f89859f75515f4edbb6d48bbf6f688619962b9c57c86f49bc294b7
+   (444,389 bytes each). The crash is after EditorApplication.Exit(0) is invoked and after the output
+   was written and flushed; it is recorded truthfully as a 6000.0.84f1 shutdown artifact of this
+   extracted-editor configuration, not a package failure (to be re-checked if this editor or
+   configuration is exercised on other hosts). Rendered PNG measured locally:
+   512x512 RGBA, mean 111.47, 234 distinct gray levels, 100% non-black pixels — meaningful output.
+
+Verbatim host transcripts follow (create/import excerpted, tests + both render logs in full).
+====================================================================================================
+
+### create.log (head 40, license/args section, tail 5)
+Unity Editor version:    6000.0.84f1 (78ab6fc243d5)
+Branch:                  6000.0/staging
+Build type:              Release
+Batch mode:              YES
+macOS version:           Version 26.6.2 (Build 25G83)
+Darwin version:          25.6.0
+Architecture:            x86_64
+Running under Rosetta:   YES
+Available memory:        32768 MB
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-alex doesn't exist
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Frameworks/UnityLicensingClient.app/Contents/MacOS/Unity.Licensing.Client
+[Licensing::Module] Successfully launched the LicensingClient (PId: 92681)
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/PackageManager/Server/UnityPackageManager
+
+COMMAND LINE ARGUMENTS:
+/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MacOS/Unity
+-batchmode
+-quit
+-createProject
+/tmp/u6000/proj
+-logFile
+/tmp/u6000/create.log
+/private/tmp/u6000/proj
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+...
+Cleanup mono
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+Exiting batchmode successfully now!
+[Package Manager] Server process was shutdown
+====================================================================================================
+### import.log (head 45, tail 12; full file was 1355 lines, 225,100 bytes; grep -c "error CS" -> 0)
+Unity Editor version:    6000.0.84f1 (78ab6fc243d5)
+Branch:                  6000.0/staging
+Build type:              Release
+Batch mode:              YES
+macOS version:           Version 26.6.2 (Build 25G83)
+Darwin version:          25.6.0
+Architecture:            x86_64
+Running under Rosetta:   YES
+Available memory:        32768 MB
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-alex doesn't exist
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Frameworks/UnityLicensingClient.app/Contents/MacOS/Unity.Licensing.Client
+[Licensing::Module] Successfully launched the LicensingClient (PId: 92892)
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/PackageManager/Server/UnityPackageManager
+
+COMMAND LINE ARGUMENTS:
+/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MacOS/Unity
+-batchmode
+-quit
+-projectPath
+/tmp/u6000/proj
+-logFile
+/tmp/u6000/import.log
+Successfully changed project path to: /tmp/u6000/proj
+/private/tmp/u6000/proj
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+...
+Input System polling thread exited.
+Input System module state changed to: Shutdown.
+[Physics::Module] Cleanup current backned.
+[Physics::Module] Id: 0xf2b8ea05
+[Licensing::IpcConnector] LicenseClient-alex-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-alex channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+Exiting batchmode successfully now!
+[Package Manager] Server process was shutdown
+====================================================================================================
+### tests.log (full)
+Unity Editor version:    6000.0.84f1 (78ab6fc243d5)
+Branch:                  6000.0/staging
+Build type:              Release
+Batch mode:              YES
+macOS version:           Version 26.6.2 (Build 25G83)
+Darwin version:          25.6.0
+Architecture:            x86_64
+Running under Rosetta:   YES
+Available memory:        32768 MB
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-alex doesn't exist
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Frameworks/UnityLicensingClient.app/Contents/MacOS/Unity.Licensing.Client
+[Licensing::Module] Successfully launched the LicensingClient (PId: 92971)
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/PackageManager/Server/UnityPackageManager
+
+COMMAND LINE ARGUMENTS:
+/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MacOS/Unity
+-batchmode
+-quit
+-projectPath
+/tmp/u6000/proj
+-executeMethod
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests.VerifyFromCommandLine
+-logFile
+/tmp/u6000/tests.log
+Successfully changed project path to: /tmp/u6000/proj
+/private/tmp/u6000/proj
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gfx=262144"
+Failed to start primary listening socket at (0.0.0.0:55504-55512).
+Failed to start secondary listening socket at (0.0.0.0:34999).
+Player connection [8716463680]  Target information:
+
+Player connection [8716463680]  * "[IP] 192.168.86.23 [Port] 55511 [Flags] 2 [Guid] 3767725963 [EditorId] 3767725963 [Version] 1048832 [Id] OSXEditor(0,zig.local) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
+
+Unable to join player connection multicast group (err: 1).
+Unable to join player connection alternative multicast group (err: 1).
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-92970" after 0.2 seconds.
+Library Redirect Path: Library/
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+CSSM_ModuleLoad(): One or more parameters passed to a function were not valid.
+Refreshing native plugins compatible for Editor in 0.00 ms, found 0 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Initialize engine version: 6000.0.84f1 (78ab6fc243d5)
+[Subsystems] Discovering subsystems at path /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path /private/tmp/u6000/proj/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+ preferred device: Apple M4 (high power)
+Metal devices available: 1
+0: Apple M4 (high power)
+Using device Apple M4 (high power)
+Initializing Metal device caps: Apple M4
+Initialize mono
+Mono path[0] = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Managed'
+Mono path[1] = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MonoBleedingEdge/lib/mono/unityjit-macos'
+Mono config path = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56970
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alex" at "2026-09-27T09:40:34.440998Z"
+Registering precompiled unity dll's ...
+Register platform support module: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/PlaybackEngines/MacStandaloneSupport/UnityEditor.OSXStandalone.Extensions.dll
+Registered in 0.000667 seconds.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              82bf77b52be149a8b62cb88f76e29d9e
+  Correlation Id:          1ba4200fe9353b1c0cac615b6cf91c7d
+  External correlation Id: 7260777947283688749
+  Machine Id:              6oxHx8JZ+dnWEy69ve2XLsnG+Ls=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-alex" (connect: 0.59s, validation: 0.07s, handshake: 0.19s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alex-notifications" at "2026-09-27T09:40:34.704284Z"
+[Licensing::Module] Connected to LicensingClient (PId: 92971, launch time: 0.00, total connection time: 0.85s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-NCAV-B48X-7TC3-CHPV-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+- Loaded All Assemblies, in  0.417 seconds
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.88s
+Native extension for OSXStandalone target not found
+Package Manager log level set to [2]
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  1.087 seconds
+Domain Reload Profiling: 1505ms
+	BeginReloadAssembly (128ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (3ms)
+	RebuildCommonClasses (32ms)
+	RebuildNativeTypeToScriptingClass (9ms)
+	initialDomainReloadingComplete (142ms)
+	LoadAllAssembliesAndSetupDomain (106ms)
+		LoadAssemblies (125ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (101ms)
+			TypeCache.Refresh (99ms)
+				TypeCache.ScanAssembly (89ms)
+			BuildScriptInfoCaches (0ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (1088ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (1025ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (115ms)
+			SetLoadedEditorAssemblies (10ms)
+			BeforeProcessingInitializeOnLoad (302ms)
+			ProcessInitializeOnLoadAttributes (434ms)
+			ProcessInitializeOnLoadMethodAttributes (164ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (1ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 36 packages:
+  Built-in packages:
+    com.unity.multiplayer.center@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.multiplayer.center@f3fb577b3546)
+    com.unity.modules.accessibility@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.accessibility)
+    com.unity.modules.ai@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.audio)
+    com.unity.modules.cloth@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.cloth)
+    com.unity.modules.director@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.physics2d)
+    com.unity.modules.screencapture@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.terrainphysics)
+    com.unity.modules.tilemap@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.tilemap)
+    com.unity.modules.ui@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vehicles@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.vehicles)
+    com.unity.modules.video@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.video)
+    com.unity.modules.vr@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.vr)
+    com.unity.modules.wind@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.wind)
+    com.unity.modules.xr@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.hierarchycore)
+  Embedded packages:
+    com.noisemaker.hlsl@file:/private/tmp/u6000/proj/Packages/com.noisemaker.hlsl (location: /private/tmp/u6000/proj/Packages/com.noisemaker.hlsl)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.01 seconds
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://unix:/tmp/ilpp.sock-8a23c92e8e03d68c4960ea2c39cc992b
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Content root path: /private/tmp/u6000/proj/
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 104.3149ms
+Starting: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/bee_backend --ipc --defer-dag-verification --dagfile="Library/Bee/200b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: /private/tmp/u6000/proj
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 0s197ms
+*** Tundra build success (0.13 seconds), 0 items updated, 176 evaluated
+AssetDatabase: script compilation time: 1.180481s
+Begin MonoManager ReloadAssembly
+- Loaded All Assemblies, in  0.327 seconds
+Refreshing native plugins compatible for Editor in 0.00 ms, found 0 plugins.
+Native extension for OSXStandalone target not found
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  1.188 seconds
+Domain Reload Profiling: 1516ms
+	BeginReloadAssembly (237ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (56ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (27ms)
+	RebuildCommonClasses (24ms)
+	RebuildNativeTypeToScriptingClass (8ms)
+	initialDomainReloadingComplete (39ms)
+	LoadAllAssembliesAndSetupDomain (18ms)
+		LoadAssemblies (101ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (11ms)
+			TypeCache.Refresh (6ms)
+				TypeCache.ScanAssembly (3ms)
+			BuildScriptInfoCaches (4ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (1189ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (867ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (48ms)
+			SetLoadedEditorAssemblies (10ms)
+			BeforeProcessingInitializeOnLoad (376ms)
+			ProcessInitializeOnLoadAttributes (365ms)
+			ProcessInitializeOnLoadMethodAttributes (68ms)
+			AfterProcessingInitializeOnLoad (1ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (21ms)
+Asset Pipeline Refresh (id=3a802de97ab184760b91845963cf9340): Total: 3.021 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=1439 ms
+		Asset DB Callback time: managed=50 ms, native=12 ms
+		Scripting: domain reloads=1, domain reload time=327 ms, compile time=1183 ms, other=7 ms
+		Project Asset Count: scripts=145, non-scripts=856
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 1
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 13.929ms
+	ApplyChangesToAssetFolders: 0.149ms
+	Scan: 48.812ms
+	OnSourceAssetsModified: 0.002ms
+	CategorizeAssetsWithTransientArtifact: 0.375ms
+	ProcessAssetsWithTransientArtifactChanges: 1.007ms
+	CategorizeAssets: 6.548ms
+	ImportOutOfDateAssets: 1192.275ms (7.907ms without children)
+		CompileScripts: 1183.038ms
+		ReloadNativeAssets: 0.000ms
+		UnloadImportedAssets: 0.208ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.104ms
+		InitializingProgressBar: 0.104ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.000ms
+		OnDemandSchedulerStart: 0.912ms
+	PostProcessAllAssets: 50.976ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.009ms
+	UnloadStreamsBegin: 0.469ms
+	PersistCurrentRevisions: 0.024ms
+	UnloadStreamsEnd: 0.001ms
+	GenerateScriptTypeHashes: 0.156ms
+	Untracked: 1706.839ms
+
+Application.AssetDatabase Initial Refresh End
+Scanning for USB devices : 0.060ms
+Initializing Unity extensions:
+CreateDirectory '/../../Unity' failed: Read-only file system (current dir: /private/tmp/u6000/proj)
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-proj
+CreateDirectory '/../../Unity' failed: Read-only file system (current dir: /private/tmp/u6000/proj)
+Unloading 215 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 336 unused Assets / (5.5 MB). Loaded Objects now: 628.
+Memory consumption went from 146.5 MB to 141.0 MB.
+Total: 5.471209 ms (FindLiveObjects: 0.077166 ms CreateObjectMapping: 0.007625 ms MarkObjects: 3.212042 ms  DeleteObjects: 2.173708 ms)
+
+[Noisemaker] Capping volumeSize from 128 to 64: the 128x16384 volume atlas exceeds this device's max texture size (8192).
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:LogWarning (object)
+Noisemaker.Hlsl.NMPipeline:ClampVolumeSize (double) (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:184)
+Noisemaker.Hlsl.NMPipeline:ClampGraphVolumeSizes () (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:203)
+Noisemaker.Hlsl.NMPipeline:ApplyDeviceLimits (int,int) (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:160)
+System.Reflection.RuntimeMethodInfo:Invoke (object,System.Reflection.BindingFlags,System.Reflection.Binder,object[],System.Globalization.CultureInfo)
+System.Reflection.MethodBase:Invoke (object,object[])
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:ApplyDeviceLimits (Noisemaker.Hlsl.NMPipeline,int,int) (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:388)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:TestDeviceLimitPolicy () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:302)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:VerifyFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:136)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs Line: 184)
+
+[Noisemaker] Demoting MRT attachment vel from rgba32f to rgba16f: pass device-limits needs 36 bytes/sample, device allows 32.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:LogWarning (object)
+Noisemaker.Hlsl.NMPipeline:ApplyMrtFormatBudget (int) (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:245)
+Noisemaker.Hlsl.NMPipeline:ApplyDeviceLimits (int,int) (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:161)
+System.Reflection.RuntimeMethodInfo:Invoke (object,System.Reflection.BindingFlags,System.Reflection.Binder,object[],System.Globalization.CultureInfo)
+System.Reflection.MethodBase:Invoke (object,object[])
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:ApplyDeviceLimits (Noisemaker.Hlsl.NMPipeline,int,int) (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:388)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:TestDeviceLimitPolicy () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:302)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:VerifyFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:136)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs Line: 245)
+
+[Noisemaker] Capping volumeSize from 128 to 32: the 128x16384 volume atlas exceeds this device's max texture size (2048).
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:LogWarning (object)
+Noisemaker.Hlsl.NMPipeline:ClampVolumeSize (double) (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:184)
+Noisemaker.Hlsl.NMPipeline:ClampGraphVolumeSizes () (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:203)
+Noisemaker.Hlsl.NMPipeline:ApplyDeviceLimits (int,int) (at ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs:160)
+System.Reflection.RuntimeMethodInfo:Invoke (object,System.Reflection.BindingFlags,System.Reflection.Binder,object[],System.Globalization.CultureInfo)
+System.Reflection.MethodBase:Invoke (object,object[])
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:ApplyDeviceLimits (Noisemaker.Hlsl.NMPipeline,int,int) (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:388)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:TestDeviceLimitPolicy () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:352)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:VerifyFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:136)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Runtime/Pipeline/NMPipeline.cs Line: 184)
+
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Tools/UnityShaderCompiler
+Launched and connected shader compiler UnityShaderCompiler after 0.07 seconds
+[NMParity] registry loaded 210 effect defs.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+Noisemaker.Hlsl.Editor.NMParityRunner:LoadRegistryFromPackage () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:614)
+System.Reflection.RuntimeMethodInfo:Invoke (object,System.Reflection.BindingFlags,System.Reflection.Binder,object[],System.Globalization.CultureInfo)
+System.Reflection.MethodBase:Invoke (object,object[])
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:LoadEffectRegistry () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:568)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:TestMeshChainScopeResolution () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:415)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:VerifyFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:138)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs Line: 614)
+
+[NMParity] registry loaded 210 effect defs.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+Noisemaker.Hlsl.Editor.NMParityRunner:LoadRegistryFromPackage () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:614)
+System.Reflection.RuntimeMethodInfo:Invoke (object,System.Reflection.BindingFlags,System.Reflection.Binder,object[],System.Globalization.CultureInfo)
+System.Reflection.MethodBase:Invoke (object,object[])
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:LoadEffectRegistry () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:568)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:TestMeshRenderShadedOutput () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:450)
+Noisemaker.Hlsl.Editor.NMOutputRuntimeTests:VerifyFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMOutputRuntimeTests.cs:139)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs Line: 614)
+
+Batchmode quit successfully invoked - shutting down!
+Releasing render texture that is set to be RenderTexture.active!
+Input System module state changed to: ShutdownInProgress.
+Input System polling thread exited.
+Input System module state changed to: Shutdown.
+[Physics::Module] Cleanup current backned.
+[Physics::Module] Id: 0xf2b8ea05
+[Licensing::IpcConnector] LicenseClient-alex-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-alex channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+Exiting batchmode successfully now!
+[Package Manager] Server process was shutdown
+====================================================================================================
+### render.log (full, first QuickStart render)
+Unity Editor version:    6000.0.84f1 (78ab6fc243d5)
+Branch:                  6000.0/staging
+Build type:              Release
+Batch mode:              YES
+macOS version:           Version 26.6.2 (Build 25G83)
+Darwin version:          25.6.0
+Architecture:            x86_64
+Running under Rosetta:   YES
+Available memory:        32768 MB
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-alex doesn't exist
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Frameworks/UnityLicensingClient.app/Contents/MacOS/Unity.Licensing.Client
+[Licensing::Module] Successfully launched the LicensingClient (PId: 92984)
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/PackageManager/Server/UnityPackageManager
+
+COMMAND LINE ARGUMENTS:
+/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MacOS/Unity
+-batchmode
+-quit
+-projectPath
+/tmp/u6000/proj
+-executeMethod
+Noisemaker.Hlsl.Editor.NMParityRunner.RenderFromCommandLine
+-nmGraph
+/tmp/u6000/proj/Assets/QuickStart/NoiseGraph.json
+-nmOut
+/tmp/u6000/qs6000.png
+-nmSize
+512
+-nmTime
+0.25
+-logFile
+/tmp/u6000/render.log
+Successfully changed project path to: /tmp/u6000/proj
+/private/tmp/u6000/proj
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gfx=262144"
+Failed to start primary listening socket at (0.0.0.0:55504-55512).
+Failed to start secondary listening socket at (0.0.0.0:34999).
+Player connection [8784637504]  Target information:
+
+Player connection [8784637504]  * "[IP] 192.168.86.23 [Port] 55511 [Flags] 2 [Guid] 2406641335 [EditorId] 2406641335 [Version] 1048832 [Id] OSXEditor(0,zig.local) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
+
+Unable to join player connection multicast group (err: 1).
+Unable to join player connection alternative multicast group (err: 1).
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-92983" after 0.2 seconds.
+Library Redirect Path: Library/
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Refreshing native plugins compatible for Editor in 0.00 ms, found 0 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Initialize engine version: 6000.0.84f1 (78ab6fc243d5)
+[Subsystems] Discovering subsystems at path /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path /private/tmp/u6000/proj/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+ preferred device: Apple M4 (high power)
+Metal devices available: 1
+0: Apple M4 (high power)
+Using device Apple M4 (high power)
+Initializing Metal device caps: Apple M4
+Initialize mono
+Mono path[0] = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Managed'
+Mono path[1] = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MonoBleedingEdge/lib/mono/unityjit-macos'
+Mono config path = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56983
+CSSM_ModuleLoad(): One or more parameters passed to a function were not valid.
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alex" at "2026-09-27T09:40:40.70888Z"
+Registering precompiled unity dll's ...
+Register platform support module: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/PlaybackEngines/MacStandaloneSupport/UnityEditor.OSXStandalone.Extensions.dll
+Registered in 0.000631 seconds.
+- Loaded All Assemblies, in  0.405 seconds
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              35da28e88b9a4b75a5039f326d6b6a86
+  Correlation Id:          9dbd2def7d3e2879f8b7300b817ac549
+  External correlation Id: 2232800050643419254
+  Machine Id:              6oxHx8JZ+dnWEy69ve2XLsnG+Ls=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-alex" (connect: 0.58s, validation: 0.09s, handshake: 0.17s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alex-notifications" at "2026-09-27T09:40:40.969654Z"
+[Licensing::Module] Connected to LicensingClient (PId: 92984, launch time: 0.00, total connection time: 0.84s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-NCAV-B48X-7TC3-CHPV-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.88s
+Native extension for OSXStandalone target not found
+Package Manager log level set to [2]
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  1.051 seconds
+Domain Reload Profiling: 1457ms
+	BeginReloadAssembly (122ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (3ms)
+	RebuildCommonClasses (25ms)
+	RebuildNativeTypeToScriptingClass (9ms)
+	initialDomainReloadingComplete (128ms)
+	LoadAllAssembliesAndSetupDomain (120ms)
+		LoadAssemblies (119ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (110ms)
+			TypeCache.Refresh (108ms)
+				TypeCache.ScanAssembly (98ms)
+			BuildScriptInfoCaches (0ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (1052ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (993ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (114ms)
+			SetLoadedEditorAssemblies (10ms)
+			BeforeProcessingInitializeOnLoad (291ms)
+			ProcessInitializeOnLoadAttributes (422ms)
+			ProcessInitializeOnLoadMethodAttributes (156ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 36 packages:
+  Built-in packages:
+    com.unity.multiplayer.center@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.multiplayer.center@f3fb577b3546)
+    com.unity.modules.accessibility@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.accessibility)
+    com.unity.modules.ai@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.audio)
+    com.unity.modules.cloth@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.cloth)
+    com.unity.modules.director@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.physics2d)
+    com.unity.modules.screencapture@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.terrainphysics)
+    com.unity.modules.tilemap@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.tilemap)
+    com.unity.modules.ui@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vehicles@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.vehicles)
+    com.unity.modules.video@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.video)
+    com.unity.modules.vr@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.vr)
+    com.unity.modules.wind@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.wind)
+    com.unity.modules.xr@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.hierarchycore)
+  Embedded packages:
+    com.noisemaker.hlsl@file:/private/tmp/u6000/proj/Packages/com.noisemaker.hlsl (location: /private/tmp/u6000/proj/Packages/com.noisemaker.hlsl)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.01 seconds
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://unix:/tmp/ilpp.sock-8a23c92e8e03d68c4960ea2c39cc992b
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Content root path: /private/tmp/u6000/proj/
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 100.1137ms
+Starting: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/bee_backend --ipc --defer-dag-verification --dagfile="Library/Bee/200b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: /private/tmp/u6000/proj
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 0s191ms
+*** Tundra build success (0.13 seconds), 0 items updated, 176 evaluated
+AssetDatabase: script compilation time: 1.221419s
+Begin MonoManager ReloadAssembly
+- Loaded All Assemblies, in  0.329 seconds
+Refreshing native plugins compatible for Editor in 0.00 ms, found 0 plugins.
+Native extension for OSXStandalone target not found
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  1.156 seconds
+Domain Reload Profiling: 1487ms
+	BeginReloadAssembly (242ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (65ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (27ms)
+	RebuildCommonClasses (24ms)
+	RebuildNativeTypeToScriptingClass (8ms)
+	initialDomainReloadingComplete (39ms)
+	LoadAllAssembliesAndSetupDomain (16ms)
+		LoadAssemblies (94ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (11ms)
+			TypeCache.Refresh (6ms)
+				TypeCache.ScanAssembly (3ms)
+			BuildScriptInfoCaches (4ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (1158ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (854ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (46ms)
+			SetLoadedEditorAssemblies (9ms)
+			BeforeProcessingInitializeOnLoad (357ms)
+			ProcessInitializeOnLoadAttributes (377ms)
+			ProcessInitializeOnLoadMethodAttributes (64ms)
+			AfterProcessingInitializeOnLoad (1ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (17ms)
+Asset Pipeline Refresh (id=f5c97288e4aaa4a549e56f185d470c33): Total: 3.033 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=1407 ms
+		Asset DB Callback time: managed=49 ms, native=13 ms
+		Scripting: domain reloads=1, domain reload time=330 ms, compile time=1224 ms, other=8 ms
+		Project Asset Count: scripts=145, non-scripts=856
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 1
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 14.276ms
+	ApplyChangesToAssetFolders: 0.147ms
+	Scan: 49.033ms
+	OnSourceAssetsModified: 0.008ms
+	CategorizeAssetsWithTransientArtifact: 0.364ms
+	ProcessAssetsWithTransientArtifactChanges: 0.986ms
+	CategorizeAssets: 6.381ms
+	ImportOutOfDateAssets: 1160.533ms (-64.556ms without children)
+		CompileScripts: 1224.216ms
+		ReloadNativeAssets: 0.000ms
+		UnloadImportedAssets: 0.159ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.097ms
+		InitializingProgressBar: 0.151ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.000ms
+		OnDemandSchedulerStart: 0.464ms
+	PostProcessAllAssets: 49.161ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.011ms
+	UnloadStreamsBegin: 0.432ms
+	PersistCurrentRevisions: 0.024ms
+	UnloadStreamsEnd: 0.001ms
+	GenerateScriptTypeHashes: 0.167ms
+	Untracked: 1751.187ms
+
+Application.AssetDatabase Initial Refresh End
+Scanning for USB devices : 0.944ms
+Initializing Unity extensions:
+CreateDirectory '/../../Unity' failed: Read-only file system (current dir: /private/tmp/u6000/proj)
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-proj
+CreateDirectory '/../../Unity' failed: Read-only file system (current dir: /private/tmp/u6000/proj)
+Unloading 215 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 336 unused Assets / (5.5 MB). Loaded Objects now: 628.
+Memory consumption went from 146.5 MB to 141.0 MB.
+Total: 5.487458 ms (FindLiveObjects: 0.077250 ms CreateObjectMapping: 0.008000 ms MarkObjects: 3.246542 ms  DeleteObjects: 2.155041 ms)
+
+[NMParity] registered 212/212 package shaders by name.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+Noisemaker.Hlsl.Editor.NMParityRunner:PreloadPackageShaders () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:697)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderToPng (string,string,int,single) (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:296)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:81)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs Line: 697)
+
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Tools/UnityShaderCompiler
+Launched and connected shader compiler UnityShaderCompiler after 0.08 seconds
+Releasing render texture that is set to be RenderTexture.active!
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.RenderTexture:Release ()
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderToPng (string,string,int,single) (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:349)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:81)
+
+[./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs line 349]
+
+[NMParity] wrote /tmp/u6000/qs6000.png (512x512, time=0.25)
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:82)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs Line: 82)
+
+Input System module state changed to: ShutdownInProgress.
+Input System polling thread exited.
+Input System module state changed to: Shutdown.
+[Physics::Module] Cleanup current backned.
+[Physics::Module] Id: 0xf2b8ea05
+[Licensing::IpcConnector] LicenseClient-alex-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-alex channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+[Package Manager] Server process was shutdown
+====================================================================================================
+### render2.log (full, reproduction run)
+Unity Editor version:    6000.0.84f1 (78ab6fc243d5)
+Branch:                  6000.0/staging
+Build type:              Release
+Batch mode:              YES
+macOS version:           Version 26.6.2 (Build 25G83)
+Darwin version:          25.6.0
+Architecture:            x86_64
+Running under Rosetta:   YES
+Available memory:        32768 MB
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-alex doesn't exist
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Frameworks/UnityLicensingClient.app/Contents/MacOS/Unity.Licensing.Client
+[Licensing::Module] Successfully launched the LicensingClient (PId: 93050)
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/PackageManager/Server/UnityPackageManager
+
+COMMAND LINE ARGUMENTS:
+/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MacOS/Unity
+-batchmode
+-quit
+-projectPath
+/tmp/u6000/proj
+-executeMethod
+Noisemaker.Hlsl.Editor.NMParityRunner.RenderFromCommandLine
+-nmGraph
+/tmp/u6000/proj/Assets/QuickStart/NoiseGraph.json
+-nmOut
+/tmp/u6000/qs6000-r2.png
+-nmSize
+512
+-nmTime
+0.25
+-logFile
+/tmp/u6000/render2.log
+Successfully changed project path to: /tmp/u6000/proj
+/private/tmp/u6000/proj
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gfx=262144"
+Failed to start primary listening socket at (0.0.0.0:55504-55512).
+Failed to start secondary listening socket at (0.0.0.0:34999).
+Player connection [8751267392]  Target information:
+
+Player connection [8751267392]  * "[IP] 192.168.86.23 [Port] 55511 [Flags] 2 [Guid] 1614751672 [EditorId] 1614751672 [Version] 1048832 [Id] OSXEditor(0,zig.local) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
+
+Unable to join player connection multicast group (err: 1).
+Unable to join player connection alternative multicast group (err: 1).
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-93049" after 0.2 seconds.
+Library Redirect Path: Library/
+CSSM_ModuleLoad(): One or more parameters passed to a function were not valid.
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Refreshing native plugins compatible for Editor in 0.00 ms, found 0 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Initialize engine version: 6000.0.84f1 (78ab6fc243d5)
+[Subsystems] Discovering subsystems at path /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path /private/tmp/u6000/proj/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+ preferred device: Apple M4 (high power)
+Metal devices available: 1
+0: Apple M4 (high power)
+Using device Apple M4 (high power)
+Initializing Metal device caps: Apple M4
+Initialize mono
+Mono path[0] = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Managed'
+Mono path[1] = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MonoBleedingEdge/lib/mono/unityjit-macos'
+Mono config path = '/tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56049
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alex" at "2026-09-27T09:41:11.014576Z"
+Registering precompiled unity dll's ...
+Register platform support module: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/PlaybackEngines/MacStandaloneSupport/UnityEditor.OSXStandalone.Extensions.dll
+Registered in 0.000634 seconds.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              9851ae2eb4b645299b4f1aa072e4a06d
+  Correlation Id:          61e8c781db3f09e4717dca940d9413f3
+  External correlation Id: 1001657436738843242
+  Machine Id:              6oxHx8JZ+dnWEy69ve2XLsnG+Ls=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-alex" (connect: 0.58s, validation: 0.08s, handshake: 0.21s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alex-notifications" at "2026-09-27T09:41:11.305513Z"
+[Licensing::Module] Connected to LicensingClient (PId: 93050, launch time: 0.00, total connection time: 0.88s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-NCAV-B48X-7TC3-CHPV-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+- Loaded All Assemblies, in  0.429 seconds
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.92s
+Native extension for OSXStandalone target not found
+Package Manager log level set to [2]
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  1.060 seconds
+Domain Reload Profiling: 1490ms
+	BeginReloadAssembly (132ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (3ms)
+	RebuildCommonClasses (27ms)
+	RebuildNativeTypeToScriptingClass (9ms)
+	initialDomainReloadingComplete (136ms)
+	LoadAllAssembliesAndSetupDomain (125ms)
+		LoadAssemblies (129ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (118ms)
+			TypeCache.Refresh (115ms)
+				TypeCache.ScanAssembly (105ms)
+			BuildScriptInfoCaches (0ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (1061ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (997ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (118ms)
+			SetLoadedEditorAssemblies (12ms)
+			BeforeProcessingInitializeOnLoad (291ms)
+			ProcessInitializeOnLoadAttributes (417ms)
+			ProcessInitializeOnLoadMethodAttributes (158ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (1ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 36 packages:
+  Built-in packages:
+    com.unity.multiplayer.center@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.multiplayer.center@f3fb577b3546)
+    com.unity.modules.accessibility@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.accessibility)
+    com.unity.modules.ai@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.audio)
+    com.unity.modules.cloth@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.cloth)
+    com.unity.modules.director@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.physics2d)
+    com.unity.modules.screencapture@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.terrainphysics)
+    com.unity.modules.tilemap@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.tilemap)
+    com.unity.modules.ui@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vehicles@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.vehicles)
+    com.unity.modules.video@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.video)
+    com.unity.modules.vr@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.vr)
+    com.unity.modules.wind@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.wind)
+    com.unity.modules.xr@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: /private/tmp/u6000/proj/Library/PackageCache/com.unity.modules.hierarchycore)
+  Embedded packages:
+    com.noisemaker.hlsl@file:/private/tmp/u6000/proj/Packages/com.noisemaker.hlsl (location: /private/tmp/u6000/proj/Packages/com.noisemaker.hlsl)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.01 seconds
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://unix:/tmp/ilpp.sock-8a23c92e8e03d68c4960ea2c39cc992b
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Content root path: /private/tmp/u6000/proj/
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+[40m[32minfo[39m[22m[49m: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 102.2437ms
+Starting: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/bee_backend --ipc --defer-dag-verification --dagfile="Library/Bee/200b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: /private/tmp/u6000/proj
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 0s186ms
+*** Tundra build success (0.12 seconds), 0 items updated, 176 evaluated
+AssetDatabase: script compilation time: 1.205993s
+Begin MonoManager ReloadAssembly
+- Loaded All Assemblies, in  0.293 seconds
+Refreshing native plugins compatible for Editor in 0.00 ms, found 0 plugins.
+Native extension for OSXStandalone target not found
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  1.179 seconds
+Domain Reload Profiling: 1474ms
+	BeginReloadAssembly (207ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (31ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (29ms)
+	RebuildCommonClasses (24ms)
+	RebuildNativeTypeToScriptingClass (8ms)
+	initialDomainReloadingComplete (38ms)
+	LoadAllAssembliesAndSetupDomain (17ms)
+		LoadAssemblies (92ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (11ms)
+			TypeCache.Refresh (6ms)
+				TypeCache.ScanAssembly (3ms)
+			BuildScriptInfoCaches (4ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (1181ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (862ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (50ms)
+			SetLoadedEditorAssemblies (11ms)
+			BeforeProcessingInitializeOnLoad (358ms)
+			ProcessInitializeOnLoadAttributes (377ms)
+			ProcessInitializeOnLoadMethodAttributes (65ms)
+			AfterProcessingInitializeOnLoad (1ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (20ms)
+Asset Pipeline Refresh (id=ef280ebbb4b4f47f7ae2f28849d5a6d3): Total: 3.000 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=1426 ms
+		Asset DB Callback time: managed=50 ms, native=12 ms
+		Scripting: domain reloads=1, domain reload time=293 ms, compile time=1208 ms, other=8 ms
+		Project Asset Count: scripts=145, non-scripts=856
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 1
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 13.787ms
+	ApplyChangesToAssetFolders: 0.157ms
+	Scan: 49.398ms
+	OnSourceAssetsModified: 0.003ms
+	CategorizeAssetsWithTransientArtifact: 0.819ms
+	ProcessAssetsWithTransientArtifactChanges: 0.992ms
+	CategorizeAssets: 6.568ms
+	ImportOutOfDateAssets: 1184.144ms (-25.599ms without children)
+		CompileScripts: 1208.339ms
+		ReloadNativeAssets: 0.000ms
+		UnloadImportedAssets: 0.208ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.106ms
+		InitializingProgressBar: 0.070ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.000ms
+		OnDemandSchedulerStart: 1.022ms
+	PostProcessAllAssets: 50.125ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.008ms
+	UnloadStreamsBegin: 0.423ms
+	PersistCurrentRevisions: 0.024ms
+	UnloadStreamsEnd: 0.001ms
+	GenerateScriptTypeHashes: 0.155ms
+	Untracked: 1693.263ms
+
+Application.AssetDatabase Initial Refresh End
+Scanning for USB devices : 0.580ms
+Initializing Unity extensions:
+CreateDirectory '/../../Unity' failed: Read-only file system (current dir: /private/tmp/u6000/proj)
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-proj
+CreateDirectory '/../../Unity' failed: Read-only file system (current dir: /private/tmp/u6000/proj)
+Unloading 215 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 336 unused Assets / (5.5 MB). Loaded Objects now: 628.
+Memory consumption went from 146.5 MB to 141.0 MB.
+Total: 5.199917 ms (FindLiveObjects: 0.050917 ms CreateObjectMapping: 0.007708 ms MarkObjects: 3.131750 ms  DeleteObjects: 2.008500 ms)
+
+[NMParity] registered 212/212 package shaders by name.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+Noisemaker.Hlsl.Editor.NMParityRunner:PreloadPackageShaders () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:697)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderToPng (string,string,int,single) (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:296)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:81)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs Line: 697)
+
+Launching external process: /tmp/u6000/expanded/Unity.pkg.tmp/Payload/Unity/Unity.app/Contents/Tools/UnityShaderCompiler
+Launched and connected shader compiler UnityShaderCompiler after 0.07 seconds
+Releasing render texture that is set to be RenderTexture.active!
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.RenderTexture:Release ()
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderToPng (string,string,int,single) (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:349)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:81)
+
+[./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs line 349]
+
+[NMParity] wrote /tmp/u6000/qs6000-r2.png (512x512, time=0.25)
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:35)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+Noisemaker.Hlsl.Editor.NMParityRunner:RenderFromCommandLine () (at ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs:82)
+
+(Filename: ./Packages/com.noisemaker.hlsl/Editor/NMParityRunner.cs Line: 82)
+
+Input System module state changed to: ShutdownInProgress.
+Input System polling thread exited.
+Input System module state changed to: Shutdown.
+[Physics::Module] Cleanup current backned.
+[Physics::Module] Id: 0xf2b8ea05
+[Licensing::IpcConnector] LicenseClient-alex-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-alex channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+[40m[32minfo[39m[22m[49m: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+[Package Manager] Server process was shutdown
+====================================================================================================
+### Gateway host list at run time (GET http://gateway:5039/host); verbatim response:
+{"engines":{"unity":"6000.3.16f1","blender":"4.2.21"},"commands":["unity","blender","python","node","npm","npx"],"running":false,"ports":[43117,43118,43119,43120,43121,43122,43123,43124,43125,43126],"browsers":true,"network":"filtering proxy"}
+The gateway list names no OS/architecture; the darwin/arm64 macOS attribution is from this job's
+first-hand host probes on the same host (python: sys.platform 'darwin', platform.machine 'arm64';
+Unity's own log headers in this transcript: "macOS version: Version 26.6.2", "Architecture: x86_64 /
+Running under Rosetta: YES") and from the pre-existing /Applications/Unity/Hub/Editor inventory.
+The fleet offers exactly one licensed Unity host (macOS, Unity 6000.3.16f1); no
+Windows host and no licensed Linux host exists in this automation — recorded explicitly per the
+GAP-002 required checks. The pass-17/18 Linux exit-198 logs remain the first-hand Linux evidence.
+
+### Installed-package manifest hash re-bound at this candidate (2026-09-27, closure prerequisite)
+command: cd unity/com.noisemaker.hlsl && find . -type f ! -name '.DS_Store' -print0 | sort -z | xargs -0 sha256sum | sha256sum
+package tree identical 12a4be3..d3b1ad9 (pass-29 commit is docs+evidence only); 1683 files:
+1b99b187afc97694c2948a0a1a92bda4232002e2cd701fe215fa44145ad7ed11  -
+(the delta since the pass-22 re-bind and the appended recomputation record live in
+parity/evidence/2026-09-26-package-artifact-hash.txt)
