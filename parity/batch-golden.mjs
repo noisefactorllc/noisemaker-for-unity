@@ -53,7 +53,8 @@ function parseArgs (argv) {
 }
 
 // Drive the demo to load one DSL and read back o0 as linear-quantised RGBA8 top-down.
-async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null, meshText = null) {
+export async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null, meshText = null, expectedBackend = 'webgl2') {
+  if (veltex && expectedBackend !== 'webgl2') throw new Error('raw velocity readback requires WebGL2')
   const baselineId = lastId
   await page.evaluate((src) => {
     const ed = document.getElementById('dsl-editor'); const run = document.getElementById('dsl-run-btn')
@@ -172,9 +173,19 @@ async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 
     // normalized=(Time.time/dur)%1); ts=0 keeps the fixed-time deterministic render.
     for (let i = 0; i < frames; i++) { const tt = ts > 0 ? (t + i * ts) % 1 : t; if (p && p.render) p.render(tt); else if (r && r.render) r.render(tt) }
   }, { t: time, frames, ts: timestep, region, meshText })
-  const result = await page.evaluate(() => {
+  const result = await page.evaluate(async (expectedBackend) => {
     const pipeline = window.__noisemakerRenderingPipeline
-    const gl = pipeline?.backend?.gl
+    const backend = pipeline?.backend
+    const actual = backend?.getName?.().toLowerCase()
+    if (actual !== expectedBackend) throw new Error(`requested ${expectedBackend}, active ${actual || 'unknown'}`)
+    if (actual === 'webgpu') {
+      const surface = pipeline.surfaces?.get(pipeline.graph?.renderSurface || 'o0')
+      if (!surface) throw new Error('no WebGPU surface')
+      await backend.device.queue.onSubmittedWorkDone()
+      const { width, height, data } = await backend.readPixels(surface.read)
+      return { width, height, pixels: Array.from(data), graphId: pipeline.graph.id }
+    }
+    const gl = backend?.gl
     const surface = pipeline?.surfaces?.get(pipeline?.graph?.renderSurface || 'o0')
     if (!gl || !surface) return { error: 'no GL surface' }
     const info = pipeline.backend.textures?.get(surface.read)
@@ -190,7 +201,7 @@ async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 
     else { const buf = new Uint8Array(width*height*4); gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,buf); rgba8 = Array.from(buf) }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fbo)
     return { width, height, pixels: rgba8, graphId: pipeline.graph.id }
-  })
+  }, expectedBackend)
   if (result.error) throw new Error('readback: ' + result.error)
   const { width, height, pixels } = result
   const topDown = Buffer.alloc(width*height*4)
@@ -222,9 +233,19 @@ async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 
   return { png: encodePng(width, height, topDown), graphId: result.graphId, vel }
 }
 
+export async function prepareReferencePage (session, options, reload = false) {
+  const page = session.page
+  if (reload) await page.reload({ waitUntil: 'load' })
+  await page.waitForFunction(() => !!window.__noisemakerRenderingPipeline && !!document.getElementById('dsl-editor'), null, { timeout: STATUS_TIMEOUT })
+  await session.setBackend(options.backend)
+  await page.setViewportSize({ width: options.size, height: options.size })
+  return page.evaluate(() => window.__noisemakerRenderingPipeline?.graph?.id ?? null)
+}
+
 async function main () {
   const o = parseArgs(process.argv.slice(2))
   if (!o.manifest || !o.outDir) { process.stderr.write('usage: node batch-golden.mjs <manifest> <outDir> [--size N] [--time T]\n'); process.exit(2) }
+  if (!['webgl2', 'webgpu'].includes(o.backend)) throw new Error('--backend must be webgl2 or webgpu')
   if ((o.fullWidth > 0) !== (o.fullHeight > 0)) throw new Error('--full-width and --full-height must be provided together')
   if (o.renderScale <= 0) throw new Error('--render-scale must be positive')
   const region = o.fullWidth > 0
@@ -245,10 +266,9 @@ async function main () {
   const session = new BrowserSession({ backend: o.backend })
   let ok = 0, fail = 0
   try {
-    await session.setup(); const page = session.page; await session.setBackend(o.backend)
-    await page.setViewportSize({ width: o.size, height: o.size })
-    await page.waitForFunction(() => !!window.__noisemakerRenderingPipeline && !!document.getElementById('dsl-editor'), { timeout: STATUS_TIMEOUT })
-    let lastId = await page.evaluate(() => window.__noisemakerRenderingPipeline?.graph?.id ?? null)
+    await session.setup()
+    const page = session.page
+    let lastId = await prepareReferencePage(session, o)
     let firstItem = true
     for (const it of items) {
       try {
@@ -262,10 +282,7 @@ async function main () {
         // isolation (NMParityRunner renders each graph fresh). The first effect
         // already starts clean from session.setup, so only reload thereafter.
         if (!firstItem) {
-          await page.reload({ waitUntil: 'load' })
-          await page.waitForFunction(() => !!window.__noisemakerRenderingPipeline && !!document.getElementById('dsl-editor'), { timeout: STATUS_TIMEOUT })
-          await page.setViewportSize({ width: o.size, height: o.size })
-          lastId = await page.evaluate(() => window.__noisemakerRenderingPipeline?.graph?.id ?? null)
+          lastId = await prepareReferencePage(session, o, true)
         }
         firstItem = false
         const dsl = readFileSync(it.dslPath, 'utf8')
@@ -273,11 +290,11 @@ async function main () {
         // graph.json (no browser needed; uses the reference compiler).
         try { const g = await exportGraph(dsl); writeFileSync(join(o.outDir, `${it.name}.graph.json`), JSON.stringify(g, null, 2) + '\n') }
         catch (e) { process.stderr.write(`[batch] ${it.name} GRAPH-FAIL ${e?.message || e}\n`); fail++; continue }
-        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region, meshText)
+        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region, meshText, o.backend)
         lastId = graphId
         writeFileSync(join(o.outDir, `${it.name}.golden.png`), png)
         if (vel) {
-          if (vel.error) process.stderr.write(`[batch] ${it.name} VEL-FAIL ${vel.error}\n`)
+          if (vel.error) throw new Error('velocity readback: ' + vel.error)
           else {
             process.stdout.write(`[vel] ${it.name} ${vel.width}x${vel.height} maxVelMag=${vel.maxMag.toPrecision(6)} meanVelMag=${vel.meanMag.toPrecision(6)}\n`)
             if (o.veldump) { const f = new Float32Array(vel.floats); writeFileSync(o.veldump, Buffer.from(f.buffer)) }
@@ -288,5 +305,6 @@ async function main () {
     }
   } finally { await session.teardown() }
   process.stdout.write(`[batch-golden] ${ok} ok, ${fail} fail\n`)
+  if (fail > 0) process.exitCode = 1
 }
-main().catch(e => { process.stderr.write(`[batch-golden] FATAL ${e?.stack || e}\n`); process.exit(1) })
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(e => { process.stderr.write(`[batch-golden] FATAL ${e?.stack || e}\n`); process.exit(1) })

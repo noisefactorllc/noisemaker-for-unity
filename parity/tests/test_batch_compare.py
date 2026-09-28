@@ -1625,5 +1625,14 @@ class EffectDefinitionSpecificationTests(unittest.TestCase):
                         )
 
 
+class BatchGoldenBackendTests(unittest.TestCase):
+    def test_backend_readback_reload_and_failure_exit(self):
+        result = subprocess.run(
+            ["node", "--test", str(ROOT / "parity/tests/batch-golden.test.mjs")],
+            capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
