@@ -1,0 +1,299 @@
+#!/usr/bin/env bash
+# scripts/test — the engine-free test entrypoint for noisemaker-for-unity.
+#
+# Runs every suite that needs neither the Unity editor nor a GPU, fail-closed:
+#   1. node       parity/tests/*.test.mjs (node --test)
+#   2. python     parity/tests/test_*.py (unittest; numpy + pillow in a private venv)
+#   3. contract   tools/compiler-contract-tests (.NET 8, pure C# Compiler/)
+#   4. graph      C# live DSL compiler (tools/graphdump) vs the reference oracle
+#                 (tools/export-graph.mjs) for the --selftest corpus and every
+#                 parity/programs fixture outside param-sweep/; graph-diff.py, 0 deltas
+#   5. sweep      parity/param-sweep-verify.sh (committed corpus must regenerate
+#                 byte-identically; every variant graph-clean)
+#
+# Not run here (they need the Unity editor, a GPU, or headless Chromium): the pixel
+# gates (root/3d/classic/synth/mixer/points/filter/render-verify.sh,
+# param-sweep-pixel-verify.sh), graph-verify.sh (Unity session), and the golden
+# renderers (export-and-render.mjs, batch-golden.mjs, gen-demo-dsl.mjs).
+#
+# Needs node and python3 (3.11+) on PATH, plus git, tar and network access. A pinned,
+# checksum-verified .NET 8 SDK and the reference authority (fetched by commit SHA)
+# are cached under NM_TEST_CACHE (default: ${TMPDIR:-/tmp}/noisemaker-for-unity-test-cache).
+# Python packages go into a fresh venv under ${TMPDIR:-/tmp}; nothing is installed globally.
+# Nothing in the checkout is rewritten except ignored .NET build output (bin/, obj/).
+set -euo pipefail
+
+# Reference authority: noisemaker v1.0.176, the pinned authority the committed
+# parity corpora and parity/programs/param-sweep/results.tsv are recorded against.
+REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
+REFERENCE_SHA="c9ee8a049b2b63cd300da67c01ee40baf29dc288"
+
+DOTNET_SDK_VERSION="8.0.425"
+NUMPY_VERSION="2.4.6"
+PILLOW_VERSION="12.3.0"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_BASE="${TMPDIR:-/tmp}"
+TMP_BASE="${TMP_BASE%/}"
+CACHE="${NM_TEST_CACHE:-$TMP_BASE/noisemaker-for-unity-test-cache}"
+PYTHON="${PYTHON:-python3}"
+
+mkdir -p "$CACHE"
+WORK="$(mktemp -d "$TMP_BASE/noisemaker-for-unity-test.XXXXXX")"
+STATUS=1
+cleanup() {
+  if [ "$STATUS" -eq 0 ]; then
+    rm -rf "$WORK"
+  else
+    echo "scripts/test: FAILED; logs kept in $WORK" >&2
+  fi
+}
+trap cleanup EXIT
+
+START_TS=$SECONDS
+SUMMARY=()
+
+log() { printf '\n=== %s ===\n' "$*"; }
+die() { echo "scripts/test: $*" >&2; exit 1; }
+
+sha512_of() {
+  if command -v sha512sum >/dev/null 2>&1; then
+    sha512sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 512 "$1" | cut -d' ' -f1
+  fi
+}
+
+download() { # url dest
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"
+  else
+    # shellcheck disable=SC2016 # JavaScript source, not shell expansions
+    node -e '
+      const [url, dest] = process.argv.slice(1)
+      const { createWriteStream } = require("node:fs")
+      const { Readable } = require("node:stream")
+      const { pipeline } = require("node:stream/promises")
+      fetch(url).then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`)
+        await pipeline(Readable.fromWeb(r.body), createWriteStream(dest))
+      }).catch((e) => { console.error(e.message); process.exit(1) })
+    ' "$1" "$2"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Toolchain checks
+# ---------------------------------------------------------------------------
+command -v node >/dev/null 2>&1 || die "node is required on PATH"
+command -v git >/dev/null 2>&1 || die "git is required on PATH"
+command -v tar >/dev/null 2>&1 || die "tar is required on PATH"
+command -v "$PYTHON" >/dev/null 2>&1 || die "$PYTHON is required on PATH"
+"$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' \
+  || die "$PYTHON must be Python 3.11 or newer (found $("$PYTHON" -V 2>&1))"
+echo "node $(node --version); $("$PYTHON" -V 2>&1); $(git --version)"
+
+# ---------------------------------------------------------------------------
+# Pinned .NET 8 SDK (sha512 from the official 8.0 release metadata)
+# ---------------------------------------------------------------------------
+case "$(uname -s)" in
+  Linux) dn_os=linux ;;
+  Darwin) dn_os=osx ;;
+  *) die "unsupported OS $(uname -s)" ;;
+esac
+case "$(uname -m)" in
+  x86_64 | amd64) dn_arch=x64 ;;
+  aarch64 | arm64) dn_arch=arm64 ;;
+  *) die "unsupported CPU $(uname -m)" ;;
+esac
+case "$dn_os-$dn_arch" in
+  linux-x64) dn_sha512=934b8060a7190e5909ad1fd0785db542f487b3bbf6cdd14826b02095fdd0d0394298b1634085eff302928fccc33f7c1a7253e9b87df555fc36fce819bcd2e798 ;;
+  linux-arm64) dn_sha512=84a4d017d74d7aa842e981679d1b044e6be1f35b9b2b214021e30bc40871d016d29611cca373d8502ad5c890e3ad360ee698f9cf2d7a4d5a9fba102d88ba310f ;;
+  osx-x64) dn_sha512=3b27552358905f1bde600dd0315a23051ef1cbd055a50eb64c675ee25a04e658c2ed735177125436c5bec38dfcd958fee338299611348299cd34a9bea8b8011f ;;
+  osx-arm64) dn_sha512=d42156be70b489236479a415536013a89a9fd6eaca57d5716a7017612fcc65bdb459068973d7cffd6fe710f2799af8bee95b2046ba032762d47df176f5c4a7d6 ;;
+esac
+DOTNET_DIR="$CACHE/dotnet-sdk-$DOTNET_SDK_VERSION-$dn_os-$dn_arch"
+if [ ! -f "$DOTNET_DIR/.sha512-verified" ] || [ "$(cat "$DOTNET_DIR/.sha512-verified")" != "$dn_sha512" ]; then
+  log "install .NET SDK $DOTNET_SDK_VERSION ($dn_os-$dn_arch)"
+  tgz="$WORK/dotnet-sdk.tar.gz"
+  download "https://builds.dotnet.microsoft.com/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-$dn_os-$dn_arch.tar.gz" "$tgz"
+  got="$(sha512_of "$tgz")"
+  [ "$got" = "$dn_sha512" ] || die ".NET SDK checksum mismatch: got $got"
+  staging="$(mktemp -d "$CACHE/.dotnet-staging.XXXXXX")"
+  tar -xzf "$tgz" -C "$staging"
+  printf '%s\n' "$dn_sha512" > "$staging/.sha512-verified"
+  rm -rf "$DOTNET_DIR"
+  mv "$staging" "$DOTNET_DIR"
+  rm -f "$tgz"
+fi
+export DOTNET_ROOT="$DOTNET_DIR"
+export DOTNET="$DOTNET_DIR/dotnet"
+export DOTNET_CLI_HOME="$CACHE/dotnet-home"
+export NUGET_PACKAGES="$CACHE/nuget-packages"
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export DOTNET_NOLOGO=1
+export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+export DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE=1
+export DOTNET_MULTILEVEL_LOOKUP=0
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+[ "$("$DOTNET" --version)" = "$DOTNET_SDK_VERSION" ] || die "cached .NET SDK does not report $DOTNET_SDK_VERSION"
+
+# ---------------------------------------------------------------------------
+# Reference authority at the pinned commit (git verifies the content by SHA)
+# ---------------------------------------------------------------------------
+REF_DIR="$CACHE/noisemaker-$REFERENCE_SHA"
+if [ ! -d "$REF_DIR/.git" ] \
+  || [ "$(git -C "$REF_DIR" rev-parse HEAD 2>/dev/null)" != "$REFERENCE_SHA" ] \
+  || [ -n "$(git -C "$REF_DIR" status --porcelain --untracked-files=all 2>/dev/null || echo dirty)" ]; then
+  log "fetch reference noisemaker@$REFERENCE_SHA"
+  staging="$(mktemp -d "$CACHE/.reference-staging.XXXXXX")"
+  git -C "$staging" init -q
+  git -C "$staging" remote add origin "$REFERENCE_REPO"
+  git -C "$staging" fetch -q --depth 1 origin "$REFERENCE_SHA"
+  git -C "$staging" -c advice.detachedHead=false checkout -q FETCH_HEAD
+  [ "$(git -C "$staging" rev-parse HEAD)" = "$REFERENCE_SHA" ] || die "reference checkout is not $REFERENCE_SHA"
+  rm -rf "$REF_DIR"
+  mv "$staging" "$REF_DIR"
+fi
+export NM_REFERENCE_ROOT="$REF_DIR"
+echo "reference: noisemaker@$(git -C "$REF_DIR" rev-parse HEAD) at $REF_DIR"
+
+# ---------------------------------------------------------------------------
+# Python venv with pinned numpy + pillow (never installed globally)
+# ---------------------------------------------------------------------------
+log "create Python venv (numpy $NUMPY_VERSION, pillow $PILLOW_VERSION)"
+VENV="$WORK/venv"
+if "$PYTHON" -m venv "$VENV" >"$WORK/venv.log" 2>&1 && [ -x "$VENV/bin/python" ] \
+  && "$VENV/bin/python" -m pip --version >/dev/null 2>&1; then
+  "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --no-input \
+    --only-binary=:all: "numpy==$NUMPY_VERSION" "pillow==$PILLOW_VERSION"
+elif command -v uv >/dev/null 2>&1; then
+  rm -rf "$VENV"
+  uv venv --quiet --python "$(command -v "$PYTHON")" "$VENV"
+  uv pip install --quiet --python "$VENV/bin/python" --only-binary :all: \
+    "numpy==$NUMPY_VERSION" "pillow==$PILLOW_VERSION"
+else
+  cat "$WORK/venv.log" >&2
+  die "$PYTHON -m venv failed and uv is not available (on Debian install python3-venv)"
+fi
+# Every python3 the suites spawn (param-sweep-verify.sh, the unittest subprocesses)
+# resolves to this venv.
+export PATH="$VENV/bin:$PATH"
+export PYTHONDONTWRITEBYTECODE=1
+python3 -c 'import numpy, PIL; print("numpy", numpy.__version__, "pillow", PIL.__version__)'
+
+cd "$ROOT"
+
+# ---------------------------------------------------------------------------
+# 1. Node unit tests
+# ---------------------------------------------------------------------------
+log "1/5 node --test parity/tests"
+node_tests=()
+while IFS= read -r f; do node_tests+=("$f"); done < <(find parity/tests -maxdepth 1 -name '*.test.mjs' | LC_ALL=C sort)
+[ "${#node_tests[@]}" -gt 0 ] || die "no Node test files found"
+node --test --test-reporter=spec "${node_tests[@]}" 2>&1 | tee "$WORK/node-test.log"
+node_pass="$(sed -n 's/^ℹ pass //p' "$WORK/node-test.log")"
+node_fail="$(sed -n 's/^ℹ fail //p' "$WORK/node-test.log")"
+node_skip="$(sed -n 's/^ℹ skipped //p' "$WORK/node-test.log")"
+node_todo="$(sed -n 's/^ℹ todo //p' "$WORK/node-test.log")"
+node_cancel="$(sed -n 's/^ℹ cancelled //p' "$WORK/node-test.log")"
+[ "$node_fail" = 0 ] && [ "$node_skip" = 0 ] && [ "$node_todo" = 0 ] && [ "$node_cancel" = 0 ] \
+  && [ -n "$node_pass" ] && [ "$node_pass" -gt 0 ] \
+  || die "node tests: pass=$node_pass fail=$node_fail skipped=$node_skip todo=$node_todo cancelled=$node_cancel"
+SUMMARY+=("node      $node_pass passed, 0 failed, 0 skipped")
+
+# ---------------------------------------------------------------------------
+# 2. Python unit tests
+# ---------------------------------------------------------------------------
+log "2/5 python -m unittest discover -s parity/tests"
+python3 -m unittest discover -s parity/tests -p 'test_*.py' 2>&1 | tee "$WORK/python-test.log"
+py_ran="$(sed -n 's/^Ran \([0-9]*\) tests\{0,1\} in .*/\1/p' "$WORK/python-test.log")"
+py_result="$(tail -n 1 "$WORK/python-test.log")"
+[ "$py_result" = "OK" ] && [ -n "$py_ran" ] && [ "$py_ran" -gt 0 ] \
+  || die "python tests: ran=$py_ran result='$py_result' (skips, expected failures and unexpected successes are not accepted)"
+SUMMARY+=("python    $py_ran passed, 0 failed, 0 skipped")
+
+# ---------------------------------------------------------------------------
+# 3. Compiler contract tests (.NET 8, no Unity)
+# ---------------------------------------------------------------------------
+log "3/5 compiler contract tests"
+"$DOTNET" build -c Release tools/compiler-contract-tests > "$WORK/contract-build.log" 2>&1 \
+  || { cat "$WORK/contract-build.log"; die "compiler contract tests failed to build"; }
+"$DOTNET" tools/compiler-contract-tests/bin/Release/net8.0/compiler-contract-tests.dll 2>&1 | tee "$WORK/contract-test.log"
+grep -qx 'compiler contract tests: PASS (0 failures)' "$WORK/contract-test.log" \
+  || die "compiler contract tests did not report PASS (0 failures)"
+SUMMARY+=("contract  PASS (0 failures)")
+
+# ---------------------------------------------------------------------------
+# 4. Graph parity: C# live DSL compiler vs the reference oracle (no Unity)
+# ---------------------------------------------------------------------------
+log "4/5 graph parity (--selftest corpus + parity/programs fixtures)"
+GRAPH="$WORK/graph"
+mkdir -p "$GRAPH/ref" "$GRAPH/cs"
+{
+  find ./--selftest -maxdepth 1 -name '*.dsl' | LC_ALL=C sort
+  find parity/programs -name '*.dsl' -not -path 'parity/programs/param-sweep/*' | LC_ALL=C sort
+} | awk '{ sub(/^\.\//, ""); printf "g%04d\t%s\n", NR, $0 }' > "$GRAPH/programs.tsv"
+graph_total="$(wc -l < "$GRAPH/programs.tsv" | tr -d ' ')"
+[ "$graph_total" -gt 0 ] || die "no graph-parity programs found"
+selftest_total="$(grep -c $'\t--selftest/' "$GRAPH/programs.tsv" || true)"
+echo "programs: $graph_total ($selftest_total --selftest, $((graph_total - selftest_total)) fixtures)"
+
+oracle_fail=0
+while IFS=$'\t' read -r key dsl; do
+  if ! node tools/export-graph.mjs --file "$ROOT/$dsl" "$GRAPH/ref/$key.json" > "$GRAPH/ref/$key.log" 2>&1; then
+    echo "ORACLE FAIL $dsl: $(tail -n 1 "$GRAPH/ref/$key.log")"
+    oracle_fail=$((oracle_fail + 1))
+  fi
+done < "$GRAPH/programs.tsv"
+echo "oracle: $((graph_total - oracle_fail)) ok, $oracle_fail failed"
+
+"$DOTNET" build -c Release tools/graphdump > "$GRAPH/build.log" 2>&1 \
+  || { cat "$GRAPH/build.log"; die "tools/graphdump failed to build"; }
+awk -F'\t' -v root="$ROOT" -v out="$GRAPH/cs" '{ printf "%s/%s\t%s/%s.json\n", root, $2, out, $1 }' \
+  "$GRAPH/programs.tsv" > "$GRAPH/dump.tsv"
+cs_status=0
+"$DOTNET" tools/graphdump/bin/Release/net8.0/graphdump.dll unity/com.noisemaker.hlsl/Effects "$GRAPH/dump.tsv" \
+  2>&1 | tee "$GRAPH/dump.log" || cs_status=$?
+
+diff_status=0
+python3 - "$GRAPH" <<'PYEOF' || diff_status=$?
+import os, subprocess, sys
+graph = sys.argv[1]
+rows = [l.rstrip('\n').split('\t') for l in open(f'{graph}/programs.tsv')]
+ok = 0
+bad = []
+for key, dsl in rows:
+    ref, cs = f'{graph}/ref/{key}.json', f'{graph}/cs/{key}.json'
+    if not (os.path.exists(ref) and os.path.exists(cs)):
+        bad.append((dsl, 'missing graph'))
+        continue
+    r = subprocess.run([sys.executable, 'parity/graph-diff.py', ref, cs, f'--name={dsl}'],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        ok += 1
+    else:
+        bad.append((dsl, ' | '.join((r.stdout + r.stderr).strip().splitlines()[:3])))
+for dsl, msg in bad:
+    print(f'GRAPH FAIL {dsl}: {msg[:300]}')
+print(f'graph parity: {ok} graph-clean, {len(bad)} FAIL/missing, of {len(rows)} programs')
+sys.exit(1 if bad else 0)
+PYEOF
+[ "$oracle_fail" -eq 0 ] || die "graph parity: $oracle_fail reference oracle failures"
+[ "$cs_status" -eq 0 ] || die "graph parity: C# graphdump reported failures"
+[ "$diff_status" -eq 0 ] || die "graph parity: structural differences or missing graphs"
+SUMMARY+=("graph     $graph_total/$graph_total graph-clean ($selftest_total --selftest + $((graph_total - selftest_total)) fixtures)")
+
+# ---------------------------------------------------------------------------
+# 5. Parameter sweep: corpus regeneration drift check + graph parity per variant
+# ---------------------------------------------------------------------------
+log "5/5 parity/param-sweep-verify.sh"
+bash parity/param-sweep-verify.sh "$WORK/param-sweep" 2>&1 | tee "$WORK/param-sweep.log"
+sweep_line="$(grep -E '^param sweep: [0-9]+ graph-clean, 0 FAIL, 0 missing, of [0-9]+ variants$' "$WORK/param-sweep.log" || true)"
+[ -n "$sweep_line" ] || die "parameter sweep did not report a clean result"
+SUMMARY+=("sweep     ${sweep_line#param sweep: }")
+
+log "summary (reference noisemaker@$REFERENCE_SHA, $((SECONDS - START_TS))s)"
+printf '%s\n' "${SUMMARY[@]}"
+echo "scripts/test: PASS"
+STATUS=0

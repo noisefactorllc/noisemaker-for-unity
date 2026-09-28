@@ -1,0 +1,39 @@
+name: Tests
+
+# Engine-free suites only: scripts/test runs the Node and Python unit tests, the
+# .NET compiler contract tests, and C#-vs-reference graph parity (fixture corpus
+# plus the parameter sweep) against the pinned reference authority. The Unity
+# editor and GPU pixel gates need a licensed host and do not run here.
+# Public repo: GitHub-hosted runner, read-only token, no secrets.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Run the engine-free test suite
+        run: scripts/test
