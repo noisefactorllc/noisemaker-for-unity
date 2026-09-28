@@ -4,7 +4,7 @@
 # Runs every suite that needs neither the Unity editor nor a GPU, fail-closed:
 #   1. node       parity/tests/*.test.mjs (node --test)
 #   2. python     parity/tests/test_*.py (unittest; numpy + pillow in a private venv)
-#   3. contract   tools/compiler-contract-tests (.NET 8, pure C# Compiler/)
+#   3. contract   tools/compiler-contract-tests (pure C# Compiler/, no Unity)
 #   4. graph      C# live DSL compiler (tools/graphdump) vs the reference oracle
 #                 (tools/export-graph.mjs) for the --selftest corpus and every
 #                 parity/programs fixture outside param-sweep/; graph-diff.py, 0 deltas
@@ -17,7 +17,7 @@
 # renderers (export-and-render.mjs, batch-golden.mjs, gen-demo-dsl.mjs).
 #
 # Needs node and python3 (3.11+) on PATH, plus git, tar and network access. A pinned,
-# checksum-verified .NET 8 SDK and the reference authority (fetched by commit SHA)
+# checksum-verified .NET 10 LTS SDK and the reference authority (fetched by commit SHA)
 # are cached under NM_TEST_CACHE (default: ${TMPDIR:-/tmp}/noisemaker-for-unity-test-cache).
 # Python packages go into a fresh venv under ${TMPDIR:-/tmp}; nothing is installed globally.
 # Nothing in the checkout is rewritten except ignored .NET build output (bin/, obj/).
@@ -28,7 +28,7 @@ set -euo pipefail
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
 REFERENCE_SHA="c9ee8a049b2b63cd300da67c01ee40baf29dc288"
 
-DOTNET_SDK_VERSION="8.0.425"
+DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"
 PILLOW_VERSION="12.3.0"
 
@@ -94,7 +94,10 @@ command -v "$PYTHON" >/dev/null 2>&1 || die "$PYTHON is required on PATH"
 echo "node $(node --version); $("$PYTHON" -V 2>&1); $(git --version)"
 
 # ---------------------------------------------------------------------------
-# Pinned .NET 8 SDK (sha512 from the official 8.0 release metadata)
+# Pinned .NET 10 LTS SDK (sha512 from the official 10.0 release metadata).
+# The tools/ projects target net8.0: the SDK restores the net8.0 reference
+# pack from NuGet, and DOTNET_ROLL_FORWARD=Major runs the built assemblies
+# on the .NET 10 runtime, the only runtime this SDK ships.
 # ---------------------------------------------------------------------------
 case "$(uname -s)" in
   Linux) dn_os=linux ;;
@@ -107,10 +110,10 @@ case "$(uname -m)" in
   *) die "unsupported CPU $(uname -m)" ;;
 esac
 case "$dn_os-$dn_arch" in
-  linux-x64) dn_sha512=934b8060a7190e5909ad1fd0785db542f487b3bbf6cdd14826b02095fdd0d0394298b1634085eff302928fccc33f7c1a7253e9b87df555fc36fce819bcd2e798 ;;
-  linux-arm64) dn_sha512=84a4d017d74d7aa842e981679d1b044e6be1f35b9b2b214021e30bc40871d016d29611cca373d8502ad5c890e3ad360ee698f9cf2d7a4d5a9fba102d88ba310f ;;
-  osx-x64) dn_sha512=3b27552358905f1bde600dd0315a23051ef1cbd055a50eb64c675ee25a04e658c2ed735177125436c5bec38dfcd958fee338299611348299cd34a9bea8b8011f ;;
-  osx-arm64) dn_sha512=d42156be70b489236479a415536013a89a9fd6eaca57d5716a7017612fcc65bdb459068973d7cffd6fe710f2799af8bee95b2046ba032762d47df176f5c4a7d6 ;;
+  linux-x64) dn_sha512=51c8b999af9e8dd9998c9edc5944e19a90788862068acd38694e098889054ce8c23d4f0c5cccfa16bf187d044562359e5ee69a9f8ad0bbe913ba90311fbce25b ;;
+  linux-arm64) dn_sha512=58ace73ced6b4360754689a686bdfb8a317f4da6cb8bb416dbc7d0ba9f47e43e3c09f5eb1f1a1cfaacbd10df9558da4882bf2a5e195d6ab56a02c1f9f76102ed ;;
+  osx-x64) dn_sha512=33401b4a2da8554e3306db6072ea8569d9fcc608509c271e0aa4b39e7cc432da3631f14e7e1e2445d67d72550d18ce44a8bbd2382a756867ad2edab6b1c963c0 ;;
+  osx-arm64) dn_sha512=69f64eb00dc045398755c440b152225d544301a345a146a16e86a56a0c52b7c94b2c331520e976dbb821f18d31930aafbd25bb85961e3517e0665414ce0cbcff ;;
 esac
 DOTNET_DIR="$CACHE/dotnet-sdk-$DOTNET_SDK_VERSION-$dn_os-$dn_arch"
 if [ ! -f "$DOTNET_DIR/.sha512-verified" ] || [ "$(cat "$DOTNET_DIR/.sha512-verified")" != "$dn_sha512" ]; then
@@ -136,7 +139,9 @@ export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 export DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE=1
 export DOTNET_MULTILEVEL_LOOKUP=0
 export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+export DOTNET_ROLL_FORWARD=Major
 [ "$("$DOTNET" --version)" = "$DOTNET_SDK_VERSION" ] || die "cached .NET SDK does not report $DOTNET_SDK_VERSION"
+echo ".NET SDK $DOTNET_SDK_VERSION; runtimes: $("$DOTNET" --list-runtimes | cut -d' ' -f1-2 | paste -sd ',' -)"
 
 # ---------------------------------------------------------------------------
 # Reference authority at the pinned commit (git verifies the content by SHA)
@@ -214,7 +219,7 @@ py_result="$(tail -n 1 "$WORK/python-test.log")"
 SUMMARY+=("python    $py_ran passed, 0 failed, 0 skipped")
 
 # ---------------------------------------------------------------------------
-# 3. Compiler contract tests (.NET 8, no Unity)
+# 3. Compiler contract tests (no Unity)
 # ---------------------------------------------------------------------------
 log "3/5 compiler contract tests"
 "$DOTNET" build -c Release tools/compiler-contract-tests > "$WORK/contract-build.log" 2>&1 \
