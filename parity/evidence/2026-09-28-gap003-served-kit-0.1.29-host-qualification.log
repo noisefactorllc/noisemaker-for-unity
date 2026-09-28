@@ -1,0 +1,121 @@
+GAP-003 closing pass (2026-09-28): fresh Unity-host qualification of the CURRENT served
+distribution kit (0.1.29) on the fleet's licensed macOS host. All commands, verbatim outputs
+and checksums embedded below; fail-closed scripts kept as scratch (not committed); every step
+re-runnable from this transcript.
+
+1. Host (gateway broker, verbatim)
+
+GET http://gateway:5039/host (2026-09-27T21:xx UTC):
+{"engines":{"unity":"6000.3.16f1","blender":"4.2.21"},"read_paths":["/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/native-inputs","/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/native-input-hashes.json","/Users/alex/.local/state/scaffold-cloud/native/toolchain","/Users/alex/.local/state/scaffold-cloud/native/browsers","/Users/alex/.local/state/scaffold-cloud/native/browsers-real"],"commands":["unity","blender","python","node","npm","npx"],"running":false,"ports":[43117,43118,43119,43120,43121,43122,43123,43124,43125,43126],"browsers":true,"network":"filtering proxy"}
+
+Unity editor 6000.3.16f1 (a56f230f6470, darwin/arm64, per its own log headers in the
+committed host logs); licensed from the pre-existing machine Unity_lic.ulf (same host that
+qualified the GAP-002 6000.0 floor, pass 29).
+
+2. Served-kit identification and byte verification (fresh, 2026-09-28 00:2x UTC)
+
+kit.json/deployment-meta.json: version 0.1.29, source.sha = git_hash =
+557093f8263e9fbe1854c54ab394c08ecd1467a3 — the current origin/main HEAD of this repository
+(sync commit "port upstream GAP-016 static effect preflight"). The served kit thus ships the
+exact current source.
+
+Byte verification script (scratch .gap003/verify-kit-0.1.29.py; base URL
+https://kits.noisedeck.app/unity/0): every inventoried file fetched from the CDN and checked
+against kit.json manifest sha256+size (fail-closed); engine payload files then cross-checked
+byte-identical to `git show 557093f:<mapped source path>`. Observed output (exit 0):
+
+deployment-meta.json: {"git_hash": "557093f8263e9fbe1854c54ab394c08ecd1467a3", "date": 1790542223, "version": "0.1.29"}
+kit.json version=0.1.29 source.sha=557093f8263e9fbe1854c54ab394c08ecd1467a3
+inventory entries: 2111
+CDN byte check: 2111 fetched, 0 bad (sha256+size, fail-closed)
+source cross-check vs 557093f: 2109 compared, 0 bad
+
+Staging of the engine payload for the host run (scratch .gap003/stage-payload.py, same
+manifest sha256+size checks): "staged 1685 files, sha-verified".
+
+Intermediate note recorded truthfully: during this job the served kit advanced 0.1.28
+(source 9e1f0e8) → 0.1.29 (source 557093f). The 0.1.28 payload had already been fully
+qualified on this host earlier in the session (byte check 2109/2109, 0 bad; cross-check
+2107/2107 vs 9e1f0e8, 0 bad; import/harness/inclusion/render/player legs all OK). After the
+CDN moved, all legs below were re-run against the CURRENT 0.1.29 payload; the results below
+are the 0.1.29 run.
+
+3. Upgrade-path availability re-check (2026-09-27T23:1x UTC)
+
+GET https://kits.noisedeck.app/unity/1 → HTTP 404 (curl: (22) The requested URL returned
+error: 404; "unity/1 HTTP 404"). The series still serves a single kit version per slot; the
+upgrade path remains not exercisable. Removal → reinstall remains the qualified lifecycle
+(pass 4).
+
+4. Fresh consumer import and qualification legs (licensed macOS host, Unity 6000.3.16f1)
+
+Driver: scratch .gap003/host-steps.py (steps setup/checks/player; fail-closed, appends to
+.gap003/host/summary.txt). Unity invoked batchmode with the sample's documented Linear color
+space. Verbatim summary.txt (final 0.1.29 run; the stale FAIL rows above are the recorded
+0.1.28-attempt history, all superseded by the final OK rows):
+
+createProject	OK	exit 0
+stage	OK	LICENSE.md=present; CHANGELOG.md=present; LICENSES/noisemaker-MIT.txt=present; LICENSES/noisemaker-for-unity-LICENSE.txt=present
+import	OK	exit 0, error CS 0
+runtime-harness	OK	exit 0
+shader-inclusion-selftest	OK	[NMShaderInclusion] always-included 7 -> 218 (added 211); allPresent=True | [NMShaderInclusion] restored -> 7 | [NMShaderInclusion] PASS
+quickstart-render	OK	exit 0, png 444389
+player-build	OK	exit 0
+headless-player	OK	exit 0; stats: size=512x512 png_bytes=446759 mean=0.43068 std=0.22805 nonblack_pct=100.0 distinct_levels=255
+
+Leg detail:
+- createProject: fresh isolated consumer project; Linear color space set per the Quick Start
+  README (m_ActiveColorSpace: 1).
+- stage: served 0.1.29 engine payload embedded under Packages/com.noisemaker.hlsl; Quick
+  Start sample imported into Assets; package LICENSE.md/CHANGELOG.md and both kit-level
+  LICENSES/ notices (vendored upstream noisemaker-MIT.txt + noisemaker-for-unity-LICENSE.txt)
+  present at the staged layout.
+- import: -batchmode import exit 0 with 0 "error CS".
+- runtime-harness: NMOutputRuntimeTests.VerifyFromCommandLine exit 0 with
+  "[NMOutputRuntimeTests] PASS" (harness runs via EditorApplication.update and self-exits —
+  invoked without -quit).
+- shader-inclusion-selftest: NMShaderInclusionBuildStep.VerifyFromCommandLine — the Always
+  Included Shaders list grows 7 -> 218 (all 211 Noisemaker shaders added, allPresent=True)
+  and is restored to 7 afterwards; PASS.
+- quickstart-render (editor, sample graph): 512x512, 444389 bytes,
+  sha256 0da6bc7599f89859f75515f4edbb6d48bbf6f688619962b9c57c86f49bc294b7 — byte-identical
+  to the pass-29 Quick Start render at this same graph (same authority, deterministic).
+
+5. Player build with shader inclusion + headless player run
+
+- macOS StandaloneOSX player built via BuildPipeline.BuildPlayer from a bootstrap scene
+  running the Quick Start workflow; build exit 0 ("[Gap003Build] result=Succeeded ... errors=0").
+- Host sandbox note (truthful, reproducible): the first two build attempts looped forever on
+  "Failed to create GICache directory at the default location:
+  /Users/alex/Library/Caches/com.unity3d.UnityEditor/GiCache." — the gateway host run cannot
+  write the operator home. Resolved with Unity's -giCustomCacheLocation pointing inside the
+  checkout scratch (the harness document now documents this requirement); no package change.
+- The package's automatic NMShaderInclusionBuildStep ran during the build; the built bundle
+  contains the Noisemaker shaders (strings counts, Contents/Resources/Data/):
+  globalgamemanagers: 211 "Noisemaker/" shader-name strings (28 "synth/" effect-ID strings);
+  globalgamemanagers.assets: 296 "Noisemaker" strings (28 "synth/").
+- Headless player run (the player reproduces the Quick Start workflow: loads the bundled
+  QuickStartGraph resource, renders 512x512, writes PNG + stats): exit 0, player log ends
+  "[Gap003Player] PASS ..."; stats: size=512x512 png_bytes=446759 mean=0.43068 std=0.22805
+  nonblack_pct=100.0 distinct_levels=255; output sha256
+  b501def8ae814ee58ea79dc64a3f0e56c26e5642d8b253efb00a32f333a32eba. The player log emits one
+  benign ordering warning ("[Noisemaker] NMRenderer: no graph source (assign GraphJson or
+  Dsl).") from the component's initial state before the driver assigns GraphJson; the render
+  and stats above are the actual measured output. Rendered content matches the Quick Start
+  expectation (mean 0.43068 x 255 = 109.8 vs the pass-29 editor render mean 111.47/255 =
+  0.437; 255 distinct levels, 100% non-black — player pipeline/compression differs from the
+  editor PNG path, hence the different byte size/sha).
+
+6. Platform matrix
+
+The fleet's only licensed Unity host is macOS (gateway host list above; re-verified in the
+pass-29 floor transcript). Windows: no host exists in this automation. Linux: editor remains
+unlicensable by automation (first-hand exit-198 raw logs, passes 17/18). Platform promises
+remain macOS-qualified; Windows/Linux stay recorded as unavailable, under GAP-001/GAP-002 as
+before.
+
+7. Exact-source CI
+
+The served kit's source (557093f) is the current default branch head; the Export kit CI run
+at this SHA is checked during the supervisor's verification pass against the exact-source
+requirement (the 0.1.28 export run at 9e1f0e8 reported success earlier in the session).
