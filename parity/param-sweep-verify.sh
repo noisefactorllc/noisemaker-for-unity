@@ -37,12 +37,24 @@ echo "corpus matches committed fixtures: $(wc -l < "$OUT/manifest.tsv") variants
 echo "=== [2/4] oracle graphs (reference compiler) ==="
 python3 - "$OUT" "$ROOT" <<'PYEOF'
 import subprocess, sys
+from concurrent.futures import ThreadPoolExecutor
+import os
 out, root = sys.argv[1], sys.argv[2]
 lines = [l.rstrip('\n').split('\t') for l in open(f'{out}/manifest.tsv')]
-bad = []
-for name, rel in lines:
+
+def oracle(job):
+    name, rel = job
     dsl = f'{out}/{rel}'
     r = subprocess.run(['node', f'{root}/tools/export-graph.mjs', '--file', dsl, f'{out}/ref/{name}.ref.json'], capture_output=True, text=True)
+    return name, r
+
+# Same per-variant oracle command and fail-closed aggregation as before; the
+# 1900 node spawns are independent, so run them concurrently to keep the whole
+# gate inside CI time budgets (coverage and verdicts are unchanged).
+with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:
+    results = list(pool.map(oracle, lines))
+bad = []
+for name, r in results:
     if r.returncode != 0:
         bad.append((name, (r.stderr or r.stdout).strip().splitlines()[-1][:200] if (r.stderr or r.stdout).strip() else '?'))
 with open(f'{out}/oracle-fails.tsv', 'w') as f:
@@ -61,20 +73,36 @@ awk -F'\t' -v out="$OUT" '{printf "%s/%s\t%s/cs/%s.cs.json\n", out, $2, out, $1}
 echo "=== [4/4] structural diff (fail-closed) ==="
 python3 - "$OUT" <<'PYEOF'
 import os, subprocess, sys
+from concurrent.futures import ThreadPoolExecutor
 out = sys.argv[1]
 lines = [l.rstrip('\n').split('\t') for l in open(f'{out}/manifest.tsv')]
-ok = fail = missing = 0
-fails = []
-for name, rel in lines:
+
+def diff(job):
+    name, rel = job
     ref, cs = f'{out}/ref/{name}.ref.json', f'{out}/cs/{name}.cs.json'
     if not os.path.exists(ref) or not os.path.exists(cs):
-        missing += 1; fails.append((name, 'missing graph')); continue
+        return name, 'missing graph'
     r = subprocess.run(['python3', 'parity/graph-diff.py', ref, cs], capture_output=True, text=True)
-    if r.returncode == 0: ok += 1
+    if r.returncode == 0:
+        return name, None
+    msg = (r.stdout + r.stderr).strip().splitlines()
+    return name, (msg[1][:200] if len(msg) > 1 else 'delta')
+
+# Same per-variant diff command and fail-closed aggregation as before; the
+# 1900 python spawns are independent, so run them concurrently (verdicts and
+# outputs are unchanged).
+with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:
+    outcomes = list(pool.map(diff, lines))
+ok = fail = missing = 0
+fails = []
+for (name, _), (n2, status) in zip(lines, outcomes):
+    if status is None:
+        ok += 1
+    elif status == 'missing graph':
+        missing += 1; fails.append((name, 'missing graph'))
     else:
         fail += 1
-        msg = (r.stdout + r.stderr).strip().splitlines()
-        fails.append((name, msg[1][:200] if len(msg) > 1 else 'delta'))
+        fails.append((name, status))
 fail_names = {n for n, _ in fails}
 with open(f'{out}/results.tsv', 'w') as f:
     f.write(f'# param-sweep per-variant results (fail-closed gate)\n'

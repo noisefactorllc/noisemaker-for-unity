@@ -47,7 +47,7 @@ The matrix below retains the earlier measured scope. A historical verified row i
 | Invalid input and recovery | verified | Documented `no graph source` error path; corrupt graph JSON raises `FormatException` (raised, not swallowed); valid input afterwards renders normally. Public entry point only. |
 | Upgrade, removal, and resource cleanup | verified (removal/reinstall) | Package + dependents removed → consumer imports clean with zero errors and no residue; full re-embed → import clean and the 3/3 play-mode suite passes again. Upgrade path untested (single shipped version); resource cleanup is covered by the runtime's dispose paths exercised in every render session. |
 | Accessibility of provided controls | unverified | Keyboard, focus, labels, and diagnostics need host observations where applicable. |
-| Release readiness | open (GAP-001) | Installation, host, and artifact evidence are qualified (GAP-002/GAP-003 closed, passes 29/30, verified 2026-09-28). Rendered parity remains incomplete: cell3d seed, 97 variants without a faithful reference render, and the 245-fixture re-run at the current authority. |
+| Release readiness | open (GAP-001) | Installation, host, and artifact evidence are qualified (GAP-002/GAP-003 closed, passes 29/30, verified 2026-09-28). Rendered parity remains incomplete: 16 pixel-unresolved `synth/shape` rows (cell3d seed resolved pass 31), 97 variants without a faithful reference render, and the 245-fixture re-run at the current authority. |
 
 ## 3. Parity coverage
 
@@ -339,9 +339,23 @@ Same-machine staged gate `parity/param-sweep-pixel-verify.sh` (`--stage goldens|
 | points (tol 1, SSIM floor 0) | 84 | 17 | 67 | 0 |
 | Total | 1803 | 1354 | 431 | 18 |
 
-- Group SSIM floors are measured envelopes for this corpus: the reference's own two backends (WebGPU Metal vs WebGL2/ANGLE, measured per case) diverge to SSIM ≈ 0 on parameter-variant point simulations (both engines self-deterministic), and the established snow / mandelbrot hash-chaos families measure down to 0.98/0.91 at variant parameters. PASS remains byte tolerance; every `ALLOWED_NEAR` is pinned by an exact per-case exception budget (max delta, mean delta, SSIM floor, exceeded pixel/channel counts) with its mechanism in `parity/programs/param-sweep/pixel-exceptions-*.json` (431 cases), including the measured reference backend self-divergence for each point-simulation case.
+Pass 31 (2026-09-28): `synth3d/cell3d` seed resolved — Metal fp contraction in
+`Cell3d.hlsl` `hash3` (fma with unrounded product; exact-product int convert)
+fixed with `precise` two-step rounding; 3d group becomes 94 PASS / 26
+ALLOWED_NEAR / 0 FAIL (total 1354 / 432 / 17). Seed__mid measures max 6, SSIM
+0.99999978 vs both reference backends (1 sparse-tie pixel, sibling mechanism
+class, budget pinned in `pixel-exceptions-3d.json`). New reference-internal
+finding: at `volumeSize: x128` the reference's own WebGL2 vs WebGPU goldens
+diverge (max 215, SSIM 0.9177); the port matches WebGL2 (max 1), the grading
+authority. Same latent contraction pattern remains in `Noise3d.hlsl`
+`n3d_hash4`; its corpus pixel cases (including `seed: 51`) pass. Raw pass-31
+run output: Worker Elves job `d1363dc5-3cf4-48a7-b863-e45a7cf03d1a` evidence
+archive — host goldens (`corpus-gold-webgl2`/`-webgpu`, 10 ok each), Unity
+Metal candidates (10 ok), grade JSON (per-case max/mean/SSIM above).
+
+- Group SSIM floors are measured envelopes for this corpus: the reference's own two backends (WebGPU Metal vs WebGL2/ANGLE, measured per case) diverge to SSIM ≈ 0 on parameter-variant point simulations (both engines self-deterministic), and the established snow / mandelbrot hash-chaos families measure down to 0.98/0.91 at variant parameters. PASS remains byte tolerance; every `ALLOWED_NEAR` is pinned by an exact per-case exception budget (max delta, mean delta, SSIM floor, exceeded pixel/channel counts) with its mechanism in `parity/programs/param-sweep/pixel-exceptions-*.json` (432 cases), including the measured reference backend self-divergence for each point-simulation case.
 - 97 variants have no faithful reference render and are recorded with their measured proof in `parity/programs/param-sweep/pixel-reference-blocked.tsv`: 89 where the reference demo renders its effect's default output byte-identically (golden == the default-program render) because the demo path does not apply the variant parameter (e.g. every `classicNoisedeck/effects` flip/offset/rotation/scale variant); 7 where the reference's shipped WGSL source and its actual demo behavior disagree (both reference backends agree with each other, corr ≈ 1.0, while the port renders the WGSL-faithful result: glitch/lensDistortion `vignetteAmt` formula parenthesization, the `effects` kernel `cga/derivDivide/edge/litEdge` unguarded GLSL division by a zero kernel weight, and the `meshRender` wireframe flat color); and 1 reference renderer crash (`filter__adjust__mode__hsv`, reproduced 2× on macOS Metal and 2× on Linux SwiftShader, neighboring parameter values fine). Parameter-to-graph binding for all of these is verified 1900/1900 by the graph gate above.
-- 18 variants remain FAIL by design in `parity/programs/param-sweep/pixel-unresolved.tsv` (16 `synth/shape` loopA/BOffset noise-interpolated displacement modes, `filter/reverb` wrap=clamp, `synth3d/cell3d` seed): measured divergences (SSIM 0.45-0.90) where the reference is cross-backend deterministic, so this is not chaos; the port follows the audited WGSL structure, so the residual cause needs port/authority shader-level investigation. The gate fails closed on them.
+- 16 variants remain FAIL by design in `parity/programs/param-sweep/pixel-unresolved.tsv` (16 `synth/shape` loopA/BOffset noise-interpolated displacement modes; `filter/reverb` wrap=clamp was resolved pass 28 and `synth3d/cell3d` seed was resolved pass 31 — Metal fp contraction fixed with `precise` two-step rounding): measured divergences (SSIM 0.45-0.90) where the reference is cross-backend deterministic, so this is not chaos; the port follows the audited WGSL structure, so the residual cause needs port/authority shader-level investigation. The gate fails closed on them.
 
 Raw grade log: [`parity/evidence/2026-09-27-param-sweep-pixel-grade.log`](../parity/evidence/2026-09-27-param-sweep-pixel-grade.log). Platform matrix (Windows/Linux) and the declared `6000.0` minimum floor remain unavailable (see the pass-17/18 recording below).
 

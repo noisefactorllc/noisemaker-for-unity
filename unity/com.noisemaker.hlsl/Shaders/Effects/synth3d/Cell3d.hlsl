@@ -80,8 +80,16 @@ uint3 cell3d_pcg3d(uint3 v_in)
 
 float3 cell3d_hash3(float3 p)
 {
-    float3 ps = p + (float)seed * 0.1;
-    int3   ti = (int3)(ps * 1000.0) + 65536;   // float->int trunc, then +65536
+    // Reference WGSL computes f32(seed)*0.1 with rounding BEFORE the add, and
+    // rounds ps*1000 to f32 BEFORE the int cast. Metal fuses mul+add into an
+    // fma with an unrounded product and folds the multiply into the int
+    // convert (exact product); at exact-integer boundaries both shift
+    // int(ps*1000) by one and reroll the pcg3d input, which measured as the
+    // synth3d cell3d seed-divergence pixel failure. `precise` restores the
+    // reference's two-step rounding on Metal (no effect on other targets).
+    precise float3 ps = p + (float)seed * 0.1;
+    precise float3 t1000 = ps * 1000.0;
+    int3   ti = (int3)t1000 + 65536;   // float->int trunc, then +65536
     uint3  q  = cell3d_pcg3d((uint3)ti);        // two's-complement int->uint
     return (float3)q / 4294967295.0;
 }

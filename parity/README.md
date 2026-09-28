@@ -332,9 +332,9 @@ runtime/platform combination.
   variants (`--stage goldens|unity|grade`; reference Chromium WebGL2 goldens,
   licensed-Unity Metal candidates, fail-closed grading with per-group policies
   and exact per-case budgets). `programs/param-sweep/pixel-exceptions-*.json`
-  pin every `ALLOWED_NEAR` (431, each with its measured mechanism);
+  pin every `ALLOWED_NEAR` (432, each with its measured mechanism);
   `pixel-reference-blocked.tsv` records the 97 variants with no faithful
-  reference render and the measured proof; `pixel-unresolved.tsv` lists the 18
+  reference render and the measured proof; `pixel-unresolved.tsv` lists the 16
   variants the gate FAILS closed on (unattributed port-vs-reference
   divergences; reference cross-backend deterministic).
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).

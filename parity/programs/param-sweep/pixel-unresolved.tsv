@@ -1,8 +1,11 @@
 # Historical WebGL2 divergences retained below; the WebGL2 gate still fails on these.
 # 2026-09-28: verified WebGPU/WGSL follow-up, authority 296e0138c4744ed485b2e95de3eeb466c17629ee.
 # Unity 6000.5.5f1 / Apple M4 Metal; Chromium 151; 256x256, time 0.25, 8 clean frames.
+# 2026-09-28 pass 31: synth3d__cell3d__seed__mid resolved (Metal fp contraction in
+# Cell3d.hlsl hash3; fixed with `precise` two-step rounding). Row removed; the case
+# is now graded under its measured budget in pixel-exceptions-3d.json (max 6,
+# SSIM 0.99999978, 1 sparse-tie pixel, same mechanism class as its siblings).
 # name	webgl2_ssim	webgl2_max_abs_diff	webgl2_mean_abs_diff	note	wgsl_max_abs_diff	wgsl_ssim	wgsl_candidate_sha256	wgsl_golden_sha256
-synth3d__cell3d__seed__mid	0.902489	216	5.092	unresolved cell3d seed divergence also reproduced against WGSL; port/authority shader investigation remains	216	0.902489245	1608eded44a7c99d5dcb2fffbab19569d92f7208b5c4246d37505c2a4de93673	24a9a9b1816138ec4c96754b2b55aaff7fc7a42c2c7a5a7435e23cf27b578b76
 synth__shape__loopAOffset__noiseBSpline3x3	0.621165	119	30.460	attributed authority mismatch: HLSL follows canonical WGSL; GLSL uses a different lattice hash; prior cross-backend equivalence claim invalid because batch-golden lost WebGPU after reload	0	1.000000000	d7f3ad8673e860b4c531c4701a4826d97e5ed7652c287c95058faf68c9ab1878	c7f5e11158528b509ce9535888fc331bf49f1c8d5423ddc458c205843ef8a3fc
 synth__shape__loopAOffset__noiseBSpline4x4	0.659553	113	26.868	attributed authority mismatch: HLSL follows canonical WGSL; GLSL uses a different lattice hash; prior cross-backend equivalence claim invalid because batch-golden lost WebGPU after reload	1	0.999999881	c0d6ef7d2abbffb5b3fed9fafe5b25000f8c17571700b6cf39e142d9ef9214c0	68deb9daaa2408d3c6e18588ff7578864e3b1abc35a2b32ad58bd623fdebdcf9
 synth__shape__loopAOffset__noiseCatmullRom3x3	0.513865	128	38.104	attributed authority mismatch: HLSL follows canonical WGSL; GLSL uses a different lattice hash; prior cross-backend equivalence claim invalid because batch-golden lost WebGPU after reload	0	1.000000000	4ac2895c71f8421d4ba36b25b6238d7c4abc17763f0d6d6950c1d97f4366adfc	712e9c4657ae04611c9903e027d07915e41e0d14c45c81c9530f5b47d3f4e712

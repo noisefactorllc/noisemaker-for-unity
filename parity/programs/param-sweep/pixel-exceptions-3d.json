@@ -193,6 +193,14 @@
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "synth3d__cell3d__seed__mid": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.00009,
+   "ssim_min": 0.99999978,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0); pass 31 fixed the Metal fp contraction in Cell3d.hlsl hash3, residual is the same sparse-tie class as its siblings"
+  },
   "synth3d__shape3d__loopAOffset__tetrahedron": {
    "max_abs_diff": 7.0,
    "max_mean_abs_diff": 0.000263214111328125,
