@@ -2,12 +2,12 @@
 
 ## 1. Source and authority revisions
 
-Audit pass: 2026-09-27 (pass 30). Audited source: this pass's delivery commit (see the §3 pass-30 section and [`parity/evidence/2026-09-27-pass30-range-audit.txt`](../parity/evidence/2026-09-27-pass30-range-audit.txt)). Local `main` was clean and matched `origin/main` before the checks.
+Audit pass: 2026-09-28 (pass 31). Audited source: this pass's delivery commit (see the §3 pass-31 section; raw upstream-audit transcript archived as Worker Elves evidence `2026-09-28-pass31-range-audit.txt`). Local `main` was clean and matched `origin/main` before the checks.
 Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates for the four declared native parity cases (`nm_adjust_test`, `nm_grade_test`, `nm_invert_test`, `nm_tint_test`) passed fresh on the licensed Unity 6000.3.16f1 macOS host at source `d3b1ad9`/pass 29 (thresholds max-abs-diff ≤ 2, SSIM ≥ 0.98; supervisor native-check receipt 2026-09-27T08:47:50Z) and are re-queued at this pass's delivery commit. No release approval or new closure follows from this pass.
 Daily review 2026-09-28 at `04e7e94204509f83fdf2f2c0ddc0d266636f6900` (`origin/main` HEAD): the GAP-002 and GAP-003 closures were independently verified (kit `0.1.29` sample byte-checks, licensed-host import, runtime harness, Quick Start render byte-identical `0da6bc75…`); the `unity/` package tree is unchanged `557093f..04e7e94`. Exact-source CI: `Tests` run `36378117400` success at `04e7e94`, `Export kit` run `36349467053` success at `557093f`. See the daily-review section in [completion gaps](COMPLETION_GAPS.md).
-Current upstream head: `296e0138` (`296e0138c4744ed485b2e95de3eeb466c17629ee`), audited in §3 pass 30. Beyond the previously audited `noisemaker@403c2a4bf2cb..e73a44a3` (pass 28), the delivered range (`7443f6e61803..296e0138c474`, force-push flag audited — the declared end `12b4d74fb4f2` and all four observed ranges `e73a44a..12b4d74f`, `8fe3ccaf..93229933`, `7c5f1765..a912749f`, `11d7c699..296e0138` lie on `origin/main`, with `7443f6e` an ancestor of both the declared end and the `296e0138` tip; raw transcript in [`parity/evidence/2026-09-27-pass30-range-audit.txt`](../parity/evidence/2026-09-27-pass30-range-audit.txt)) adds exactly one `shaders/src` change — GAP-016 `12b4d74f` (static effect preflight: `preflightEffect()` + `Pipeline.preflight()`), PORTED to this repo as `Compiler/Graph/GraphPreflight.cs` + `NMPipeline.Preflight()` (see §3 pass 30) — plus GAP-017 `93229933`, GAP-019 `a912749f`, GAP-021 `296e0138` (new `shaders/tests/` harness modules only, no engine behavior; no Unity change follows, same ruling as the pass-28 harness modules) and upstream documentation passes (`132d1bf9`, `ec457c2e`, `8fe3ccaf`, `7c5f1765`, `11d7c699`). Effect catalog unchanged: `git diff --stat 7443f6e..296e0138 -- shaders/effects` → 0 files changed; the manifest stays 210 IDs and remains byte-identical (sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
+Current upstream head: `73c15be0` (`73c15be00d6888f4b5d2835d8e242ee9e840df45`), audited in §3 pass 31. Beyond the previously audited `noisemaker@7443f6e61803..296e0138c474` (pass 30), the delivered range (`12b4d74fb4f2..73c15be00d68`, force-push flag audited — the declared start `12b4d74f` is the already-ported GAP-016 commit and an ancestor of the declared end; all three observed ranges `04e8582..c28e8fdb`, `c28e8fdb..7aff843a`, `7aff843a..73c15be0` lie on `origin/main`; eleven commits total, of which three are the pass-30-audited harness commits (GAP-017/019/021) and five are upstream documentation passes). The range adds exactly three new non-documentation deltas, none of which has a Unity surface, so no port follows (rulings in §3 pass 31): `c28e8fdb` (WebGL2 mesh-target rebind after depth allocation), GAP-024 `7aff843a` (`shaders/tests/session-identity.js` harness module) and GAP-026 `73c15be0` (production onInit/onUpdate/onDestroy lifecycle hooks in `pipeline.js`/`compiler.js`). Effect catalog unchanged: `git diff --stat 12b4d74f..73c15be0 -- shaders/effects shaders/glsl shaders/wgsl` → 0 files changed; the manifest stays 210 IDs and remains byte-identical (sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
 Beyond the previously synced `noisemaker@8eeb7b5ac14e`, upstream held 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. As of pass 22 the GAP-006 row (`6113da0`+`9574362`) is delivered (§3 pass 22); `f83a427` is a JS-backend diagnostic-union change with no Unity-renderer equivalent and needs no port.
-2026-09-28 review observation: upstream advanced `296e0138..73c15be0` — `c28e8fdb` (WebGL2 mesh-target fix), `7aff843a` (harness GAP-024), and `73c15be0` (runtime onInit/onUpdate/onDestroy lifecycle hooks, GAP-026). Files: `shaders/src/runtime/**` and tests only. Effect catalog unchanged (`git diff --stat 296e0138..73c15be0 -- shaders/effects shaders/glsl shaders/wgsl shaders/src/definition.js` → 0 files). The GAP-026 delta is undelivered. Delivery and parity belong to the separate implementation job.
+2026-09-28 review observation: upstream advanced `296e0138..73c15be0` — `c28e8fdb` (WebGL2 mesh-target fix), `7aff843a` (harness GAP-024), and `73c15be0` (runtime onInit/onUpdate/onDestroy lifecycle hooks, GAP-026). Files: `shaders/src/runtime/**` and tests only. Effect catalog unchanged (`git diff --stat 296e0138..73c15be0 -- shaders/effects shaders/glsl shaders/wgsl shaders/src/definition.js` → 0 files). Audited and ruled in §3 pass 31: no Unity surface for any of the three deltas, no port follows.
 The observations below retain their original source and authority identities. They do not qualify later updates.
 Current served kit: `0.1.29`, source `557093f8263e9fbe1854c54ab394c08ecd1467a3`, byte-verified in pass 30 (2026-09-28): 2111/2111 CDN files checked against the manifest, source cross-check 2109/2109, exit 0. The 2026-09-28 review re-verified it: stratified sample 212/212 byte-checked (0 bad) and engine-payload cross-check 21/21 against `557093f` (0 bad). [Deployment metadata](https://kits.noisedeck.app/unity/0/deployment-meta.json). Artifact identity does not establish host qualification.
 
@@ -920,3 +920,65 @@ numpy 2.5.3 / pillow 12.3.0; raw command transcript appended to
   corpus at the new upstream code head — corpus regenerates byte-identically
   (1900 variants, 391 exclusions), oracle and C# live-compiler graphs 1900 ok,
   structural diff 1900 graph-clean, exit 0.
+
+### Delivered-range audit, 2026-09-28 (pass 31)
+
+Upstream range `noisemaker@12b4d74fb4f28d5f00bb1dde107fa8673814d8b9..73c15be00d6888f4b5d2835d8e242ee9e840df45`
+(force-push-flagged trigger with three observed delivery ranges; audited, not
+assumed), reference cloned fresh and pinned by SHA; audit transcript archived
+as Worker Elves evidence `2026-09-28-pass31-range-audit.txt`:
+
+- Ancestry audited first: the declared start `12b4d74f` is the GAP-016 commit
+  already ported in pass 30 and is an ancestor of the declared end; the
+  `73c15be0` end is an ancestor of `origin/main` at audit time; all three
+  observed ranges (`04e8582..c28e8fdb`, `c28e8fdb..7aff843a`,
+  `7aff843a..73c15be0`) lie on the same linear history. Eleven commits total:
+  three pass-30-audited harness commits (GAP-017 `93229933`, GAP-019
+  `a912749f`, GAP-021 `296e0138`), five upstream documentation passes
+  (`ec457c2e`, `8fe3ccaf`, `7c5f1765`, `11d7c699`, `04e8582c`), and three new
+  non-documentation deltas.
+- NOT ported — `c28e8fdb` (WebGL2 mesh-target rebind): upstream's
+  `ensureDepthBuffer()` leaves the framebuffer unbound after initial depth
+  allocation, so webgl2.js now re-binds the FBO before the mesh draw. This
+  port has no equivalent surface: `NMRenderBackend` is a Unity
+  `CommandBuffer` recorder that resolves the depth pool RT
+  (`DepthBuffer(primary.width, primary.height)`) and then binds color+depth
+  explicitly with `cmd.SetRenderTarget(...)` in the same pass — no render
+  target binding survives a depth allocation, so the bug class upstream fixes
+  cannot occur here. No Unity change follows.
+- NOT ported — GAP-024 `7aff843a`: `shaders/tests/session-identity.js` plus
+  test-harness browser-readiness/backend-identity plumbing only; no engine
+  behavior and no Unity surface, same ruling as the pass-28/30 harness
+  modules.
+- NOT ported — GAP-026 `73c15be0` (production lifecycle hooks): upstream adds
+  `Pipeline.initLifecycleEffects()`/`_invokeUpdateHooks()`/`_withRuntimeUniforms()`
+  and dispose-time `onDestroy` walks over JS effect-definition callbacks
+  (`onInit`/`onUpdate`/`onDestroy`, detected via `_configOn*` or a subclass
+  override), plus the `recompile()` re-invocation site. This port executes no
+  effect-definition code: effects are data-only HLSL (`reference/07`: "all
+  behavior is in the shader + uniform packing"), the registry has no hook
+  surface (`grep -rn "onUpdate|_configOn|hasLifecycleHook" unity/ tools/
+  parity/ --include=*.cs --include=*.mjs` matches nothing), and the port
+  already scope-notes the sibling CPU-side effect behavior
+  (`initAsyncEffects`) as not ported (NMPipeline.cs:299). The one shipped
+  upstream effect with hooks (`synth/media`) returns an `imageSize` fallback
+  only for pass keys the pass does not resolve; this port binds the
+  definition's authored `imageSize` default (1024×1024) through
+  `UniformBinder` instead and executes no hook — behavior pinned by the port's
+  pixel gates. No Unity change follows.
+- Effect-catalog parity: 0 new / 0 changed / 0 removed;
+  `git diff --stat 12b4d74f..73c15be0 -- shaders/effects shaders/glsl
+  shaders/wgsl` → 0 files changed; no WGSL/GLSL→HLSL translation is touched
+  by this range, so no translation cross-check arises.
+
+Gate evidence (pass 31, current source, Linux audit host, .NET SDK 10.0.401,
+numpy 2.4.6 / pillow 12.3.0, reference `noisemaker@c9ee8a04`; raw transcript
+archived as Worker Elves evidence `2026-09-28-pass31-range-audit.txt`):
+
+- `bash scripts/test` PASS (2064 s): node 5 passed / 0 failed / 0 skipped;
+  python `Ran 47 tests` OK; compiler contract tests `PASS (0 failures)`;
+  graph parity 316/316 graph-clean (207 `--selftest` + 109 fixtures, oracle
+  316 ok); param sweep 1900 graph-clean, 0 FAIL, 0 missing, corpus
+  byte-identical (1900 variants, 391 exclusions).
+- Native Unity-host pixel gates for the four declared cases are re-queued by
+  the supervisor at this pass's delivery commit.
