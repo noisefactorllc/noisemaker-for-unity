@@ -2,12 +2,13 @@
 
 ## 1. Source and authority revisions
 
-Audit pass: 2026-09-28 (pass 31). Audited source: this pass's delivery commit (see the §3 pass-31 section; raw upstream-audit transcript archived as Worker Elves evidence `2026-09-28-pass31-range-audit.txt`). Local `main` was clean and matched `origin/main` before the checks.
+Audit pass: 2026-09-29 (pass 32). Audited source: this pass's delivery commit (see the §3 pass-32 section; raw upstream-audit transcript archived as Worker Elves evidence `2026-09-29-pass32-range-audit.txt`). Local `main` was clean and matched `origin/main` before the checks.
 Automation-completable gates re-verified fresh at this source (see §3 gate evidence). Unity-host pixel gates for the four declared native parity cases (`nm_adjust_test`, `nm_grade_test`, `nm_invert_test`, `nm_tint_test`) passed fresh on the licensed Unity 6000.3.16f1 macOS host at source `d3b1ad9`/pass 29 (thresholds max-abs-diff ≤ 2, SSIM ≥ 0.98; supervisor native-check receipt 2026-09-27T08:47:50Z) and are re-queued at this pass's delivery commit. No release approval or new closure follows from this pass.
 Daily review 2026-09-28 at `04e7e94204509f83fdf2f2c0ddc0d266636f6900` (`origin/main` HEAD): the GAP-002 and GAP-003 closures were independently verified (kit `0.1.29` sample byte-checks, licensed-host import, runtime harness, Quick Start render byte-identical `0da6bc75…`); the `unity/` package tree is unchanged `557093f..04e7e94`. Exact-source CI: `Tests` run `36378117400` success at `04e7e94`, `Export kit` run `36349467053` success at `557093f`. See the daily-review section in [completion gaps](COMPLETION_GAPS.md).
-Current upstream head: `73c15be0` (`73c15be00d6888f4b5d2835d8e242ee9e840df45`), audited in §3 pass 31. Beyond the previously audited `noisemaker@7443f6e61803..296e0138c474` (pass 30), the delivered range (`12b4d74fb4f2..73c15be00d68`, force-push flag audited — the declared start `12b4d74f` is the already-ported GAP-016 commit and an ancestor of the declared end; all three observed ranges `04e8582..c28e8fdb`, `c28e8fdb..7aff843a`, `7aff843a..73c15be0` lie on `origin/main`; eleven commits total, of which three are the pass-30-audited harness commits (GAP-017/019/021) and five are upstream documentation passes). The range adds exactly three new non-documentation deltas, none of which has a Unity surface, so no port follows (rulings in §3 pass 31): `c28e8fdb` (WebGL2 mesh-target rebind after depth allocation), GAP-024 `7aff843a` (`shaders/tests/session-identity.js` harness module) and GAP-026 `73c15be0` (production onInit/onUpdate/onDestroy lifecycle hooks in `pipeline.js`/`compiler.js`). Effect catalog unchanged: `git diff --stat 12b4d74f..73c15be0 -- shaders/effects shaders/glsl shaders/wgsl` → 0 files changed; the manifest stays 210 IDs and remains byte-identical (sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
+Current upstream head: `4f5e0d28` (`4f5e0d28bdc155700393c314e9a5aafcc4da91fd`), audited in §3 pass 32. Beyond the previously audited `noisemaker@12b4d74fb4f2..73c15be00d68` (pass 31), the delivered range (`73c15be00d68..682739066d3b`, force-push flag audited — the declared start `73c15be0` is the already-audited pass-31 end and an ancestor of the declared end; all four observed ranges `3e21906..a5059106`, `a5059106..68273906`, `c4606d1..4d47b3fd`, `4d47b3fd..4f5e0d28` lie on `origin/main`, with the last window extending past the declared end, so the audited span is the union `73c15be0..4f5e0d28`, fourteen commits on one linear history) adds exactly one new `shaders/` surface — GAP-032 `a5059106` + `68273906` + follow-ups `4d47b3fd` + `4f5e0d28`, all confined to `shaders/src/runtime/external-input.js`'s `AudioInputManager` class plus its `shaders/tests/test_external_input.js` harness — which has no Unity surface, so no port follows (ruling in §3 pass 32). The remaining ten commits are upstream documentation/ledger passes (`53398923`, `cdb60cfc`, `d95d0c8c`, `3e21906e`, `bff453e9`, `8fec3d05`, `42843597`, `c4606d11`) and dependency bumps (`6b05a270` eslint, `a50c90bc` ruff). Effect catalog unchanged: `git diff --stat 73c15be0..4f5e0d28 -- shaders/effects shaders/glsl shaders/wgsl shaders/src/definition.js` → 0 files changed; the manifest stays 210 IDs and remains byte-identical (sha256 `05c4d7b7744837ae90a3bb4c89e5403ff09448a74d9d7e824abb3d719ad3314e`).
 Beyond the previously synced `noisemaker@8eeb7b5ac14e`, upstream held 3 runtime-only commits (`f83a427`, `9574362`, `6113da0`: backend diagnostics, texture-pooling, GAP-006 resource plan) in `shaders/src/runtime/**` and tests. As of pass 22 the GAP-006 row (`6113da0`+`9574362`) is delivered (§3 pass 22); `f83a427` is a JS-backend diagnostic-union change with no Unity-renderer equivalent and needs no port.
 2026-09-28 review observation: upstream advanced `296e0138..73c15be0` — `c28e8fdb` (WebGL2 mesh-target fix), `7aff843a` (harness GAP-024), and `73c15be0` (runtime onInit/onUpdate/onDestroy lifecycle hooks, GAP-026). Files: `shaders/src/runtime/**` and tests only. Effect catalog unchanged (`git diff --stat 296e0138..73c15be0 -- shaders/effects shaders/glsl shaders/wgsl shaders/src/definition.js` → 0 files). Audited and ruled in §3 pass 31: no Unity surface for any of the three deltas, no port follows.
+2026-09-29 audit observation: upstream advanced `73c15be0..4f5e0d28` — four GAP-032 audio-capture commits (`a5059106`, `68273906`, `4d47b3fd`, `4f5e0d28`) confined to `shaders/src/runtime/external-input.js`'s `AudioInputManager` class + `shaders/tests/test_external_input.js` (the follow-up pair also adds upstream's own `scripts/test` entrypoint), plus documentation, ledger and dependency-bump commits. Effect catalog unchanged (`git diff --stat 73c15be0..4f5e0d28 -- shaders/effects shaders/glsl shaders/wgsl shaders/src/definition.js` → 0 files). Audited and ruled in §3 pass 32: no Unity surface, no port follows.
 The observations below retain their original source and authority identities. They do not qualify later updates.
 Current served kit: `0.1.29`, source `557093f8263e9fbe1854c54ab394c08ecd1467a3`, byte-verified in pass 30 (2026-09-28): 2111/2111 CDN files checked against the manifest, source cross-check 2109/2109, exit 0. The 2026-09-28 review re-verified it: stratified sample 212/212 byte-checked (0 bad) and engine-payload cross-check 21/21 against `557093f` (0 bad). [Deployment metadata](https://kits.noisedeck.app/unity/0/deployment-meta.json). Artifact identity does not establish host qualification.
 
@@ -990,6 +991,73 @@ numpy 2.4.6 / pillow 12.3.0, reference `noisemaker@c9ee8a04`; raw transcript
 archived as Worker Elves evidence `2026-09-28-pass31-range-audit.txt`):
 
 - `bash scripts/test` PASS (2064 s): node 5 passed / 0 failed / 0 skipped;
+  python `Ran 47 tests` OK; compiler contract tests `PASS (0 failures)`;
+  graph parity 316/316 graph-clean (207 `--selftest` + 109 fixtures, oracle
+  316 ok); param sweep 1900 graph-clean, 0 FAIL, 0 missing, corpus
+  byte-identical (1900 variants, 391 exclusions).
+- Native Unity-host pixel gates for the four declared cases are re-queued by
+  the supervisor at this pass's delivery commit.
+
+### Delivered-range audit, 2026-09-29 (pass 32)
+
+Upstream range `noisemaker@73c15be00d6888f4b5d2835d8e242ee9e840df45..682739066d3b74962febbdcdae85b5aa4d2e19f3`
+(force-push-flagged trigger with four observed delivery ranges; audited, not
+assumed), reference cloned fresh and pinned by SHA; audit transcript archived
+as Worker Elves evidence `2026-09-29-pass32-range-audit.txt`:
+
+- Ancestry audited first: the declared start `73c15be0` is the pass-31 audited
+  end and an ancestor of the declared end `68273906`; the `68273906` end is in
+  turn an ancestor of the newest observed window end `4f5e0d28`, so the audit
+  covers the union span `73c15be0..4f5e0d28`; all four observed windows
+  (`3e21906..a5059106`, `a5059106..68273906`, `c4606d1..4d47b3fd`,
+  `4d47b3fd..4f5e0d28`) lie on the same linear `origin/main` history inside
+  that span. Fourteen commits total: eight upstream documentation/ledger/contract
+  passes (`53398923`, `cdb60cfc`, `d95d0c8c`, `3e21906e`, `bff453e9`,
+  `8fec3d05`, `42843597`, `c4606d11`), two dependency bumps (`6b05a270`
+  eslint 10.11.0, `a50c90bc` ruff >=0.16.9), and four GAP-032 audio commits
+  (`a5059106`, `68273906`, `4d47b3fd`, `4f5e0d28`; the follow-up pair also
+  adds upstream's own `scripts/test` entrypoint and its header fix).
+- The range's entire `shaders/` delta is two files: `shaders/src/runtime/external-input.js`
+  (+310/−2) and `shaders/tests/test_external_input.js` (+394). Every diff hunk
+  header in `external-input.js` names `export class AudioInputManager` — the
+  `AudioState`/`MidiState` data-model classes and everything above line 1237
+  are untouched. Non-`shaders/` deltas are `LEDGER.md`, `llms-full.txt`,
+  `package.json`/`package-lock.json`, `pyproject.toml` and `scripts/test`
+  (upstream's own repository bookkeeping; the `scripts/test` entrypoint and
+  header edits belong to the `4d47b3fd`/`4f5e0d28` GAP-032 follow-up commits
+  themselves).
+- NOT ported — GAP-032 `a5059106` + `68273906` + `4d47b3fd` + `4f5e0d28`
+  (browser audio capture): upstream's `AudioInputManager` is the web runtime's
+  capture orchestration layer — it resolves `Pipeline.getAudioInputRequirements()`
+  (pre-existing API, introduced in `4f0b2448` "feat(audio): add per-device
+  input automation", before this range and unchanged by it), registers the
+  browser-selected capture device (`AudioState.registerDevice`) and default
+  channels (`registerDefaultChannels`), opens one `getUserMedia` stream per
+  selected-device requirement, wires `ChannelSplitterNode`/`AnalyserNode`
+  per channel, marks per-channel `rawReady`, tears captures down on
+  `disable()`, and warns on channel shortfalls and uncapturable bindings.
+  This port implements no `AudioInputManager` (no such class exists under
+  `unity/` — grep confirms; browser media APIs have no Unity equivalent):
+  its `ExternalInput.cs` carries only the `MidiState`/`AudioState` data
+  models that a host feeds via `NMRenderer.SetMidiState`/`SetAudioState`,
+  MIDI/audio automation remains scope-staged (ARCHITECTURE.md "Still out of
+  scope / staged: MIDI/audio automation"), and the requirements API
+  upstream's capture manager consumes is already mirrored here
+  (`Automation.GetAudioInputRequirements` + `NMPipeline.GetAudioInputRequirements()`
+  + `NMRenderer.GetAudioInputRequirements()`, unchanged by this range) so a
+  host can learn what to feed. The `AudioState` contract the port implements
+  is untouched. No Unity change follows.
+- Effect-catalog parity: 0 new / 0 changed / 0 removed;
+  `git diff --stat 73c15be0..4f5e0d28 -- shaders/effects shaders/glsl
+  shaders/wgsl shaders/src/definition.js` → 0 files changed; no
+  WGSL/GLSL→HLSL translation is touched by this range, so no translation
+  cross-check arises.
+
+Gate evidence (pass 32, current source, Linux audit host, .NET SDK 10.0.401,
+numpy 2.4.6 / pillow 12.3.0, reference `noisemaker@c9ee8a04`; raw transcript
+archived as Worker Elves evidence `2026-09-29-pass32-range-audit.txt`):
+
+- `bash scripts/test` PASS (~1520 s): node 5 passed / 0 failed / 0 skipped;
   python `Ran 47 tests` OK; compiler contract tests `PASS (0 failures)`;
   graph parity 316/316 graph-clean (207 `--selftest` + 109 fixtures, oracle
   316 ok); param sweep 1900 graph-clean, 0 FAIL, 0 missing, corpus
