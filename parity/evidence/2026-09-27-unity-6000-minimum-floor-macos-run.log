@@ -222,7 +222,7 @@ Failed to start primary listening socket at (0.0.0.0:55504-55512).
 Failed to start secondary listening socket at (0.0.0.0:34999).
 Player connection [8716463680]  Target information:
 
-Player connection [8716463680]  * "[IP] 192.168.86.23 [Port] 55511 [Flags] 2 [Guid] 3767725963 [EditorId] 3767725963 [Version] 1048832 [Id] OSXEditor(0,zig.local) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
+Player connection [8716463680]  * "[IP] <redacted> [Port] 55511 [Flags] 2 [Guid] 3767725963 [EditorId] 3767725963 [Version] 1048832 [Id] OSXEditor(0,<redacted>) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
 
 Unable to join player connection multicast group (err: 1).
 Unable to join player connection alternative multicast group (err: 1).
@@ -649,7 +649,7 @@ Failed to start primary listening socket at (0.0.0.0:55504-55512).
 Failed to start secondary listening socket at (0.0.0.0:34999).
 Player connection [8784637504]  Target information:
 
-Player connection [8784637504]  * "[IP] 192.168.86.23 [Port] 55511 [Flags] 2 [Guid] 2406641335 [EditorId] 2406641335 [Version] 1048832 [Id] OSXEditor(0,zig.local) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
+Player connection [8784637504]  * "[IP] <redacted> [Port] 55511 [Flags] 2 [Guid] 2406641335 [EditorId] 2406641335 [Version] 1048832 [Id] OSXEditor(0,<redacted>) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
 
 Unable to join player connection multicast group (err: 1).
 Unable to join player connection alternative multicast group (err: 1).
@@ -1021,7 +1021,7 @@ Failed to start primary listening socket at (0.0.0.0:55504-55512).
 Failed to start secondary listening socket at (0.0.0.0:34999).
 Player connection [8751267392]  Target information:
 
-Player connection [8751267392]  * "[IP] 192.168.86.23 [Port] 55511 [Flags] 2 [Guid] 1614751672 [EditorId] 1614751672 [Version] 1048832 [Id] OSXEditor(0,zig.local) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
+Player connection [8751267392]  * "[IP] <redacted> [Port] 55511 [Flags] 2 [Guid] 1614751672 [EditorId] 1614751672 [Version] 1048832 [Id] OSXEditor(0,<redacted>) [Debug] 1 [PackageName] OSXEditor [ProjectName] Editor" 
 
 Unable to join player connection multicast group (err: 1).
 Unable to join player connection alternative multicast group (err: 1).

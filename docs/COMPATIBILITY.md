@@ -54,7 +54,7 @@ The matrix below retains the earlier measured scope. A historical verified row i
 
 ### Daily review, 2026-09-25
 
-The report of 245 fixtures contains 197 tolerance-based PASS results and 48 bounded differences, with three unported current effect IDs. It is not full parity. This review independently ran Unity 6000.5.5f1 on the current package: solid is exact. Noise differs in 30 channels with maximum 1. Heightmap3d_landscape differs in five channels with maximum 3. These three comparisons use retained historical goldens. The 6000.0 minimum, full player workflow, and later 245-case claim remain incompletely reviewed. [Raw evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json).
+The report of 245 fixtures contains 197 tolerance-based PASS results and 48 bounded differences, with three unported current effect IDs. It is not full parity. This review independently ran Unity 6000.5.5f1 on the current package: solid is exact. Noise differs in 30 channels with maximum 1. Heightmap3d_landscape differs in five channels with maximum 3. These three comparisons use retained historical goldens. The 6000.0 minimum, full player workflow, and later 245-case claim remain incompletely reviewed. Raw evidence (audit evidence `review-20260925-053200/current-native-comparisons.json`).
 
 The current full case denominator remains incomplete. Missing parameters, hosts, external inputs, and stateful sequences remain qualification gaps. No skip or tolerated difference counts as exact parity.
 
@@ -395,30 +395,30 @@ Existing tolerance-based acceptance remains separate. No tolerance or golden cha
 |---|---|---|---|---|---|---|
 | Tracked program files | 109 | 19 | 4 | 15 | 90 | unverified |
 
-Every unexecuted fixture remains visible in the [fixture inventory](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-fixture-inventory.json).
+Every unexecuted fixture remains visible in the fixture inventory (audit evidence `evidence-20260924-remaining-gap-documents/unity-fixture-inventory.json`).
 Fixture counts do not prove coverage of every current effect, parameter, or stateful workflow.
 
 | Case | Exact result | Measurement | Evidence |
 |---|---|---|---|
-| `blendMode` | failed | [FAIL] blendMode: max-abs-diff=1.000 mean-abs-diff=0.0004 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-blendMode-comparison-command.json) |
-| `blur` | failed | [FAIL] blur: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-blur-comparison-command.json) |
-| `cell` | verified | [PASS] cell: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-cell-comparison-command.json) |
-| `gradient` | failed | [FAIL] gradient: max-abs-diff=1.000 mean-abs-diff=0.0002 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-gradient-comparison-command.json) |
-| `heightGrid_billboard` | failed | [FAIL] heightGrid_billboard: max-abs-diff=2.000 mean-abs-diff=0.0002 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-heightGrid_billboard-comparison-command.json) |
-| `heightGrid_billboard_alpha` | failed | [FAIL] heightGrid_billboard_alpha: max-abs-diff=1.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-heightGrid_billboard_alpha-comparison-command.json) |
-| `heightGrid_pointsRender_perspective` | verified | [PASS] heightGrid_pointsRender_perspective: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-heightGrid_pointsRender_perspective-comparison-command.json) |
-| `heightmap3d_landscape` | failed | [FAIL] heightmap3d_landscape: max-abs-diff=3.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-heightmap3d_landscape-comparison-command.json) |
-| `nm_adjust_test` | failed | [FAIL] nm_adjust_test: max-abs-diff=1.000 mean-abs-diff=0.0003 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-nm_adjust_test-comparison-command.json) |
-| `nm_alphaMask_test` | failed | [FAIL] nm_alphaMask_test: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-nm_alphaMask_test-comparison-command.json) |
-| `nm_chrome_test` | failed | [FAIL] nm_chrome_test: max-abs-diff=41.000 mean-abs-diff=0.0022 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-nm_chrome_test-comparison-command.json) |
-| `nm_grade_test` | failed | [FAIL] nm_grade_test: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-nm_grade_test-comparison-command.json) |
-| `nm_invert_test` | failed | [FAIL] nm_invert_test: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-nm_invert_test-comparison-command.json) |
-| `nm_tint_test` | failed | [FAIL] nm_tint_test: max-abs-diff=1.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-nm_tint_test-comparison-command.json) |
-| `noise` | failed | [FAIL] noise: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-noise-comparison-command.json) |
-| `osc2d` | verified | [PASS] osc2d: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-osc2d-comparison-command.json) |
-| `remap_zones` | failed | [FAIL] remap_zones: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-remap_zones-comparison-command.json) |
-| `shape` | failed | [FAIL] shape: max-abs-diff=1.000 mean-abs-diff=0.0035 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-shape-comparison-command.json) |
-| `solid` | verified | [PASS] solid: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | [Raw command](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-solid-comparison-command.json) |
+| `blendMode` | failed | [FAIL] blendMode: max-abs-diff=1.000 mean-abs-diff=0.0004 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-blendMode-comparison-command.json`) |
+| `blur` | failed | [FAIL] blur: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-blur-comparison-command.json`) |
+| `cell` | verified | [PASS] cell: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-cell-comparison-command.json`) |
+| `gradient` | failed | [FAIL] gradient: max-abs-diff=1.000 mean-abs-diff=0.0002 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-gradient-comparison-command.json`) |
+| `heightGrid_billboard` | failed | [FAIL] heightGrid_billboard: max-abs-diff=2.000 mean-abs-diff=0.0002 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-heightGrid_billboard-comparison-command.json`) |
+| `heightGrid_billboard_alpha` | failed | [FAIL] heightGrid_billboard_alpha: max-abs-diff=1.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-heightGrid_billboard_alpha-comparison-command.json`) |
+| `heightGrid_pointsRender_perspective` | verified | [PASS] heightGrid_pointsRender_perspective: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-heightGrid_pointsRender_perspective-comparison-command.json`) |
+| `heightmap3d_landscape` | failed | [FAIL] heightmap3d_landscape: max-abs-diff=3.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-heightmap3d_landscape-comparison-command.json`) |
+| `nm_adjust_test` | failed | [FAIL] nm_adjust_test: max-abs-diff=1.000 mean-abs-diff=0.0003 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-nm_adjust_test-comparison-command.json`) |
+| `nm_alphaMask_test` | failed | [FAIL] nm_alphaMask_test: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-nm_alphaMask_test-comparison-command.json`) |
+| `nm_chrome_test` | failed | [FAIL] nm_chrome_test: max-abs-diff=41.000 mean-abs-diff=0.0022 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-nm_chrome_test-comparison-command.json`) |
+| `nm_grade_test` | failed | [FAIL] nm_grade_test: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-nm_grade_test-comparison-command.json`) |
+| `nm_invert_test` | failed | [FAIL] nm_invert_test: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-nm_invert_test-comparison-command.json`) |
+| `nm_tint_test` | failed | [FAIL] nm_tint_test: max-abs-diff=1.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-nm_tint_test-comparison-command.json`) |
+| `noise` | failed | [FAIL] noise: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-noise-comparison-command.json`) |
+| `osc2d` | verified | [PASS] osc2d: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-osc2d-comparison-command.json`) |
+| `remap_zones` | failed | [FAIL] remap_zones: max-abs-diff=1.000 mean-abs-diff=0.0001 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-remap_zones-comparison-command.json`) |
+| `shape` | failed | [FAIL] shape: max-abs-diff=1.000 mean-abs-diff=0.0035 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-shape-comparison-command.json`) |
+| `solid` | verified | [PASS] solid: max-abs-diff=0.000 mean-abs-diff=0.0000 ssim=1.00000 (tol=0.0, ssim_min=0.98) | Raw command (audit evidence `evidence-20260924-remaining-gap-documents/unity-solid-comparison-command.json`) |
 
 ### Delivered-range audit, 2026-09-26 (pass 16)
 
@@ -508,10 +508,10 @@ platform matrix and the 6000.0 minimum floor stay blocked.
 
 ## 4. Evidence
 
-Review CI boundary: Exact-source runs: Export kit. A passing export dispatch does not qualify rendered parity. Current complete-render enforcement remains an open verification requirement. [Exact-source responses and workflows](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/noisemaker-for-unity-remote-evidence.json).
+Review CI boundary: Exact-source runs: Export kit. A passing export dispatch does not qualify rendered parity. Current complete-render enforcement remains an open verification requirement. Exact-source responses and workflows (audit evidence `review-20260925-053200/noisemaker-for-unity-remote-evidence.json`).
 
-[Bounded test evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/unity-tests-retry.json). [Exact-source Actions](https://github.com/noisefactorllc/noisemaker-for-unity/actions?query=head_sha%3Ad48de74c806213789bf1ed8d79ebd8e918437c57).
-[This run evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents) retains commands, exit codes, source identities, and distribution metadata.
+Bounded test evidence (audit evidence `evidence-20260924-remaining-gap-documents/unity-tests-retry.json`). [Exact-source Actions](https://github.com/noisefactorllc/noisemaker-for-unity/actions?query=head_sha%3Ad48de74c806213789bf1ed8d79ebd8e918437c57).
+This run evidence (audit evidence `evidence-20260924-remaining-gap-documents`) retains commands, exit codes, source identities, and distribution metadata.
 Official ecosystem reference: [Unity 6.0 manual, accessed 2026-09-24](https://docs.unity3d.com/6000.0/Documentation/Manual/upm-ui-local.html).
 Source CI, export dispatch, artifact delivery, and rendered parity are separate evidence dimensions.
 A successful dispatch or unit-test summary does not establish a full rendered gate.
@@ -533,7 +533,7 @@ Implementation corrections remain with the separate job. This report does not ad
 
 ## 6. History
 
-2026-09-25 daily review at `a2642d834335d0fb30d98d3e6c0245e109930cf7`: source freshness and bounded evidence reviewed. Open qualification limits retained. [Retained review evidence](/Users/alex/.codex/automations/noisemaker-port-completion-audit/review-20260925-053200/current-native-comparisons.json). No new closure claimed.
+2026-09-25 daily review at `a2642d834335d0fb30d98d3e6c0245e109930cf7`: source freshness and bounded evidence reviewed. Open qualification limits retained. Retained review evidence (audit evidence `review-20260925-053200/current-native-comparisons.json`). No new closure claimed.
 
 | Date | Source | Result | Change |
 |---|---|---|---|

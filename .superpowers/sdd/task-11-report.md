@@ -32,7 +32,7 @@ positive while retaining permanent focused coverage.
 - Focused graph parity: 2/2 pass; combined with the unchanged reviewed 302-case
   evidence, canonical coverage is 304/304.
 - `git diff --check` passes.
-- `/Users/alex/source/noisemaker` and `/Users/alex/nmhlsl-unity` were not modified.
+- `../noisemaker` and `~/nmhlsl-unity` were not modified.
 - All new artifacts and logs are under `/private/tmp/noisemaker-task9`.
 
 ## Reproduction commands and durable artifact index
@@ -41,7 +41,7 @@ Focused reference goldens and graphs:
 
 ```bash
 PATH=/tmp/nm-node.SoOIaC/nodeenv/bin:$PATH \
-NM_REFERENCE_ROOT=/Users/alex/source/noisemaker SHADE_HEADLESS=1 \
+NM_REFERENCE_ROOT=../noisemaker SHADE_HEADLESS=1 \
 node parity/batch-golden.mjs \
   /private/tmp/noisemaker-task9/speed/manifest.tsv \
   /private/tmp/noisemaker-task9/speed/golden \

@@ -6,7 +6,7 @@ re-runnable from this transcript.
 1. Host (gateway broker, verbatim)
 
 GET http://gateway:5039/host (2026-09-27T21:xx UTC):
-{"engines":{"unity":"6000.3.16f1","blender":"4.2.21"},"read_paths":["/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/native-inputs","/Users/alex/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/native-input-hashes.json","/Users/alex/.local/state/scaffold-cloud/native/toolchain","/Users/alex/.local/state/scaffold-cloud/native/browsers","/Users/alex/.local/state/scaffold-cloud/native/browsers-real"],"commands":["unity","blender","python","node","npm","npx"],"running":false,"ports":[43117,43118,43119,43120,43121,43122,43123,43124,43125,43126],"browsers":true,"network":"filtering proxy"}
+{"engines":{"unity":"6000.3.16f1","blender":"4.2.21"},"read_paths":["~/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/native-inputs","~/.codex/automations/noisemaker-port-completion-audit/evidence-20260924-remaining-gap-documents/native-input-hashes.json","~/.local/state/scaffold-cloud/native/toolchain","~/.local/state/scaffold-cloud/native/browsers","~/.local/state/scaffold-cloud/native/browsers-real"],"commands":["unity","blender","python","node","npm","npx"],"running":false,"ports":[43117,43118,43119,43120,43121,43122,43123,43124,43125,43126],"browsers":true,"network":"filtering proxy"}
 
 Unity editor 6000.3.16f1 (a56f230f6470, darwin/arm64, per its own log headers in the
 committed host logs); licensed from the pre-existing machine Unity_lic.ulf (same host that
@@ -87,7 +87,7 @@ Leg detail:
   running the Quick Start workflow; build exit 0 ("[Gap003Build] result=Succeeded ... errors=0").
 - Host sandbox note (truthful, reproducible): the first two build attempts looped forever on
   "Failed to create GICache directory at the default location:
-  /Users/alex/Library/Caches/com.unity3d.UnityEditor/GiCache." — the gateway host run cannot
+  ~/Library/Caches/com.unity3d.UnityEditor/GiCache." — the gateway host run cannot
   write the operator home. Resolved with Unity's -giCustomCacheLocation pointing inside the
   checkout scratch (the harness document now documents this requirement); no package change.
 - The package's automatic NMShaderInclusionBuildStep ran during the build; the built bundle

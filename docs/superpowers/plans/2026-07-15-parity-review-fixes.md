@@ -10,15 +10,15 @@
 
 ## Global Constraints
 
-- Work only in the detached worktree `/Users/alex/source/.codex-worktrees/noisemaker-for-unity-v104`; do not create a branch.
-- Treat `/Users/alex/source/noisemaker` at `755071128ba6112753b9e976dc0ebbb8e55449b5` as authoritative and read-only.
+- Work only in the detached worktree `../.codex-worktrees/noisemaker-for-unity-v104`; do not create a branch.
+- Treat `../noisemaker` at `755071128ba6112753b9e976dc0ebbb8e55449b5` as authoritative and read-only.
 - Work local only: no push, pull request, remote mutation, or surviving feature branch.
 - Preserve exact `uint8` byte-difference measurement and the existing RGB-luminance global SSIM formula.
 - Only a same-size case that passes global `--ssim-min` and is otherwise `NEAR` may be allowlisted. `FAIL`, missing, mismatched, and empty inputs always fail.
 - Exception budgets are case-specific and must check maximum difference, SSIM floor, exceeded-pixel count, exceeded-channel count, and exact coordinates where declared.
 - Casts for actual selectors/enums remain; only the three reviewed speed-floor expressions change.
 - Generated PNGs, graphs, logs, manifests containing absolute paths, and Unity `Library`/`Temp` output remain outside git.
-- Use `/tmp/nmhlsl-unity-v104.HKAHvK` for Unity verification; never modify `/Users/alex/nmhlsl-unity`.
+- Use `/tmp/nmhlsl-unity-v104.HKAHvK` for Unity verification; never modify `~/nmhlsl-unity`.
 - No completion claim before focused RED/GREEN evidence, all full gates, a fresh code review, and verification of the fast-forwarded local `main`.
 
 ## File Map
@@ -274,7 +274,7 @@ Create `/private/tmp/noisemaker-task9/speed/manifest.tsv` by selecting the two n
 ```bash
 mkdir -p /private/tmp/noisemaker-task9/speed/{golden,candidate-red,candidate-green,graph-cs}
 rg 'negative_fractional_speed' parity/programs/v104/manifest.tsv > /private/tmp/noisemaker-task9/speed/manifest.tsv
-PATH=/tmp/nm-node.SoOIaC/nodeenv/bin:$PATH NM_REFERENCE_ROOT=/Users/alex/source/noisemaker SHADE_HEADLESS=1 \
+PATH=/tmp/nm-node.SoOIaC/nodeenv/bin:$PATH NM_REFERENCE_ROOT=../noisemaker SHADE_HEADLESS=1 \
   node parity/batch-golden.mjs /private/tmp/noisemaker-task9/speed/manifest.tsv \
   /private/tmp/noisemaker-task9/speed/golden --size 127 --time 0.25 --backend webgl2
 awk -F'\t' -v gold=/private/tmp/noisemaker-task9/speed/golden \
@@ -397,7 +397,7 @@ Run the converter into a temporary output directory and diff that projection aga
 ```bash
 rm -rf /private/tmp/noisemaker-task9/definitions
 PATH=/tmp/nm-node.SoOIaC/nodeenv/bin:$PATH \
-  NM_REFERENCE_ROOT=/Users/alex/source/noisemaker \
+  NM_REFERENCE_ROOT=../noisemaker \
   NM_OUT_DIR=/private/tmp/noisemaker-task9/definitions \
   node tools/convert-definitions.mjs
 diff -ru --exclude='*.meta' /private/tmp/noisemaker-task9/definitions \
@@ -472,7 +472,7 @@ git commit -m "docs: record fail-closed parity verification"
 **Interfaces:**
 
 - Consumes: merge base `2ab966e9d7c39e5e2704f345f09ced460dcf7cab`, detached verified HEAD, all Task 11 evidence.
-- Produces: clean reviewed local `main` in `/Users/alex/source/noisemaker-for-unity` and removal of the detached worktree.
+- Produces: clean reviewed local `main` in the primary checkout (`$MAIN_CHECKOUT`) and removal of the detached worktree.
 
 - [ ] **Step 1: Request a fresh read-only code review**
 
@@ -484,7 +484,7 @@ For each finding, reproduce it with the narrowest test, apply the minimal fix, r
 
 - [ ] **Step 3: Run verification-before-completion on detached HEAD**
 
-Re-run at minimum unit tests, Python/Node syntax, .NET build, `git diff --check`, `git status --short --branch`, exception-backed saved full reports, and cleanliness checks for `/Users/alex/source/noisemaker`, `/Users/alex/source/noisemaker-for-unity`, and `/Users/alex/nmhlsl-unity`. Record detached HEAD SHA.
+Re-run at minimum unit tests, Python/Node syntax, .NET build, `git diff --check`, `git status --short --branch`, exception-backed saved full reports, and cleanliness checks for `../noisemaker`, `$MAIN_CHECKOUT`, and `~/nmhlsl-unity`. Record detached HEAD SHA.
 
 - [ ] **Step 4: Finalize the durable evidence and implementation status**
 
@@ -496,11 +496,11 @@ Require original target checkout clean and still at the expected ancestor, then:
 
 ```bash
 FINAL_SHA=$(git rev-parse HEAD)
-git -C /Users/alex/source/noisemaker-for-unity merge --ff-only "$FINAL_SHA"
-test "$(git -C /Users/alex/source/noisemaker-for-unity rev-parse HEAD)" = "$FINAL_SHA"
-test "$(git -C /Users/alex/source/noisemaker-for-unity branch --show-current)" = main
-git -C /Users/alex/source/noisemaker-for-unity status --short
-git -C /Users/alex/source/noisemaker-for-unity branch --list
+git -C "$MAIN_CHECKOUT" merge --ff-only "$FINAL_SHA"
+test "$(git -C "$MAIN_CHECKOUT" rev-parse HEAD)" = "$FINAL_SHA"
+test "$(git -C "$MAIN_CHECKOUT" branch --show-current)" = main
+git -C "$MAIN_CHECKOUT" status --short
+git -C "$MAIN_CHECKOUT" branch --list
 ```
 
 Expected: fast-forward succeeds, local `main` equals the reviewed SHA, status is clean, and only pre-existing local branches (in this task, just `main`) exist.
@@ -510,11 +510,11 @@ Expected: fast-forward succeeds, local `main` equals the reviewed SHA, status is
 From outside the worktree:
 
 ```bash
-git -C /Users/alex/source/noisemaker-for-unity worktree remove /Users/alex/source/.codex-worktrees/noisemaker-for-unity-v104
-git -C /Users/alex/source/noisemaker-for-unity worktree prune
-git -C /Users/alex/source/noisemaker-for-unity worktree list
-git -C /Users/alex/source/noisemaker-for-unity status --short --branch
-git -C /Users/alex/source/noisemaker-for-unity log -1 --oneline
+git -C "$MAIN_CHECKOUT" worktree remove ../.codex-worktrees/noisemaker-for-unity-v104
+git -C "$MAIN_CHECKOUT" worktree prune
+git -C "$MAIN_CHECKOUT" worktree list
+git -C "$MAIN_CHECKOUT" status --short --branch
+git -C "$MAIN_CHECKOUT" log -1 --oneline
 ```
 
 Expected: only the original checkout remains, on clean local `main` at the reviewed SHA. Do not push or create a PR.
