@@ -215,6 +215,16 @@ namespace Noisemaker.Hlsl.Compiler
             return (node != null && node.HasValue) ? (double?)node.Value : null;
         }
 
+        private bool IsOwnChoice(ParamDef def, string name)
+        {
+            double value;
+            if (def.Choices != null && def.Choices.TryGetValue(name, out value)) return true;
+            List<string> prefix = EnumPaths.NormalizeMemberPath(def.EnumPath ?? def.Enum);
+            if (prefix == null) return false;
+            List<string> path = EnumPaths.ApplyEnumPrefix(new List<string> { name }, prefix);
+            return ResolveEnumNumber(path).HasValue;
+        }
+
         private bool CanResolveOpName(string name)
         {
             foreach (string ns in _searchOrder)
@@ -974,7 +984,7 @@ namespace Noisemaker.Hlsl.Compiler
             if (node is MemberNode mn) path = EnumPaths.NormalizeMemberPath(mn.Path);
             else if (node is NumberNode nn) { args.Set(argKey, ArgValue.Of(nn.Value)); return; }
             else if (node is BooleanNode bn) { args.Set(argKey, ArgValue.Of(bn.Value ? 1 : 0)); return; }
-            else if (node is IdentNode iv && StateValues.Contains(iv.Name))
+            else if (node is IdentNode iv && StateValues.Contains(iv.Name) && !IsOwnChoice(def, iv.Name))
                 throw new NotImplementedException("state-value member params are not implemented in the first-cut DSL frontend (reference/02 §6.6).");
             else if (node is IdentNode id2) path = new List<string> { id2.Name };
 
@@ -1091,7 +1101,7 @@ namespace Noisemaker.Hlsl.Compiler
                 else { PushDiag("S001", node, "Cannot resolve enum value for '" + def.Name + "': '" + string.Join(".", mn.Path) + "'"); args.Set(argKey, DefaultArg(def)); }
                 return;
             }
-            if (node is IdentNode idn && StateValues.Contains(idn.Name))
+            if (node is IdentNode idn && StateValues.Contains(idn.Name) && !IsOwnChoice(def, idn.Name))
                 throw new NotImplementedException("state-value numeric params (time/frame/...) are not implemented in the first-cut DSL frontend (reference/02 §6.10).");
             if (node is IdentNode ie && def.Enum != null)
             {

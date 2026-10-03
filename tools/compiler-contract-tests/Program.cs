@@ -20,6 +20,7 @@ namespace CompilerContractTests
             TestOrdinaryCallStillRejectsMixedArguments();
             TestUnknownKeywordOrder();
             TestRawEnum();
+            TestOwnChoicePrecedence();
             TestMidiExpressionCompiler();
             TestMidiExpressionRuntime();
             TestDefaultAudioChannels();
@@ -271,6 +272,24 @@ namespace CompilerContractTests
         {
             EnumNode raw = Enums.Std.Get("audioBand").Children.Get("raw");
             Check(raw != null && raw.HasValue && raw.Value == 4, "audioBand.raw == 4");
+        }
+
+        private static void TestOwnChoicePrecedence()
+        {
+            var registry = ProbeRegistry();
+            registry.Register(JsonValue.Parse(
+                "{\"name\":\"Choice Probe\",\"namespace\":\"synth\",\"func\":\"choiceProbe\",\"starter\":true," +
+                "\"globals\":{\"geometry\":{\"type\":\"int\",\"default\":0,\"uniform\":\"geometry\",\"choices\":{\"seed\":4}}," +
+                "\"channel\":{\"type\":\"member\",\"default\":\"channel.r\",\"uniform\":\"channel\",\"enum\":\"channel\"}}," +
+                "\"passes\":[{\"name\":\"render\",\"program\":\"choiceProbe\",\"inputs\":{},\"outputs\":{\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+            try
+            {
+                RenderGraph graph = DslCompiler.Compile(
+                    "search synth\nchoiceProbe(geometry: seed, channel: a).write(o0)\nrender(o0)\n", registry);
+                Check(graph.Passes[0].Uniforms["geometry"].Number == 4, "own inline choice seed wins over state seed");
+                Check(graph.Passes[0].Uniforms["channel"].Number == 3, "own enum choice a wins over state a");
+            }
+            catch (Exception e) { Check(false, "own choice precedence: " + e.Message); }
         }
 
         private static void TestClonePreservesSelectors()
