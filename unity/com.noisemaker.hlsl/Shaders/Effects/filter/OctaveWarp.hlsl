@@ -53,18 +53,17 @@ static const float TAU = 6.28318530717959;
 
 // -----------------------------------------------------------------------------
 // hash21 — WGSL:
-//   pcg(vec3<u32>( u32(select(-p.x*2+1, p.x*2, p.x>=0)),
-//                  u32(select(-p.y*2+1, p.y*2, p.y>=0)),
-//                  u32(uniforms.seed) )).x / f32(0xffffffffu)
-// select(a,b,c) returns a when c is false, b when c is true -> ternary c ? b : a.
+//   pcg(vec3<u32>( u32(abs(p.x)*2)+select(1u,0u,p.x>=0),
+//                  u32(abs(p.y)*2)+select(1u,0u,p.y>=0),
+//                  u32(abs(uniforms.seed)) )).x / f32(0xffffffffu)
 // float->uint via (uint) truncation (matches WGSL u32). Uses shared nm_pcg.
 // -----------------------------------------------------------------------------
 float nm_octaveWarp_hash21(float2 p)
 {
     uint3 v = uint3(
-        (uint)(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
-        (uint)(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
-        (uint)seed
+        (uint)(abs(p.x) * 2.0) + (p.x >= 0.0 ? 0u : 1u),
+        (uint)(abs(p.y) * 2.0) + (p.y >= 0.0 ? 0u : 1u),
+        (uint)abs(seed)
     );
     return (float)(nm_pcg(v).x) / (float)(0xffffffffu);
 }

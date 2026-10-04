@@ -15,8 +15,8 @@
 //  * Named uniforms match definition.js globals[*].uniform exactly:
 //      float displacement, float direction, int seed, float speed
 //  * time comes from NMFullscreen's `time` alias.
-//  * width/height come from the actual input texture dimensions (inputTex.GetDimensions),
-//    matching WGSL's use of params.dims0.x/y — NOT fullResolution.
+//  * The input texture dimensions are tile-local; fullResolution and tileOffset
+//    place the noise field and displacement in global pixel space.
 //  * WGSL seed: f32(i32(params.dims1.y)) * 73.0 — seed is declared int, cast to
 //    float with (float)seed, matching the i32→f32 path.
 //  * All helpers ported verbatim (simplex_noise, freq_for_shape, etc. are effect-
@@ -316,6 +316,8 @@ float nm_warped_channel_value(
     float2 base_pos,
     float  width,
     float  height,
+    float  tile_width,
+    float  tile_height,
     float2 freq,
     float  disp,
     float  mask,
@@ -333,7 +335,7 @@ float nm_warped_channel_value(
     float ds = sin(dirRad);
     offset = float2(offset.x * dc - offset.y * ds, offset.x * ds + offset.y * dc);
 
-    float4 s = nm_sample_bilinear(base_pos + offset, width, height);
+    float4 s = nm_sample_bilinear(base_pos + offset, tile_width, tile_height);
 
     if (channel == 0u) return nm_clamp01(s.x);
     if (channel == 1u) return nm_clamp01(s.y);
@@ -343,7 +345,7 @@ float nm_warped_channel_value(
 // =============================================================================
 // nm_degauss — full per-pixel evaluation.
 // pixel: integer pixel coordinate (floor of fragCoord), matching WGSL gid.xy.
-// width/height: input texture dimensions.
+// width/height: tile-local input texture dimensions.
 // =============================================================================
 
 float4 nm_degauss(uint2 pixel, float width, float height)
@@ -354,22 +356,31 @@ float4 nm_degauss(uint2 pixel, float width, float height)
     if (displacement == 0.0)
         return original;
 
-    float width_f  = width;
-    float height_f = height;
-    float2 uv = (float2((float)pixel.x, (float)pixel.y) + float2(0.5, 0.5))
+    float2 full_res = fullResolution.x > 0.0 ? fullResolution : float2(width, height);
+    float width_f  = full_res.x;
+    float height_f = full_res.y;
+    float2 global_px = float2((float)pixel.x, (float)pixel.y) + tileOffset;
+    float2 uv = (global_px + float2(0.5, 0.5))
                 / float2(max(width_f, 1.0), max(height_f, 1.0));
 
     float mask = nm_singularity_mask(uv, width_f, height_f);
     if (mask <= 0.0)
         return original;
 
+    bool is_tiling = width_f / max(width, 1.0) > 1.01;
+    float max_offset_pixels = is_tiling ? 256.0 : max(width, height);
+    float max_allowed_displacement = is_tiling
+        ? max_offset_pixels / max(width_f, height_f)
+        : max_offset_pixels / max(width, 1.0);
+    float clamped_displacement = min(displacement, max_allowed_displacement);
+
     float2 freq     = nm_freq_for_shape(2.0, width_f, height_f);
     float2 base_pos = float2((float)pixel.x, (float)pixel.y);
-    uint2  coord    = pixel;
+    uint2  coord    = (uint2)global_px;
 
-    float red   = nm_warped_channel_value(0u, coord, base_pos, width_f, height_f, freq, displacement, mask, time, speed);
-    float green = nm_warped_channel_value(1u, coord, base_pos, width_f, height_f, freq, displacement, mask, time, speed);
-    float blue  = nm_warped_channel_value(2u, coord, base_pos, width_f, height_f, freq, displacement, mask, time, speed);
+    float red   = nm_warped_channel_value(0u, coord, base_pos, width_f, height_f, width, height, freq, clamped_displacement, mask, time, speed);
+    float green = nm_warped_channel_value(1u, coord, base_pos, width_f, height_f, width, height, freq, clamped_displacement, mask, time, speed);
+    float blue  = nm_warped_channel_value(2u, coord, base_pos, width_f, height_f, width, height, freq, clamped_displacement, mask, time, speed);
     float alpha = nm_clamp01(original.w);
 
     return float4(red, green, blue, alpha);
