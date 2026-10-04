@@ -332,11 +332,14 @@ runtime/platform combination.
   variants (`--stage goldens|unity|grade`; reference Chromium WebGL2 goldens,
   licensed-Unity Metal candidates, fail-closed grading with per-group policies
   and exact per-case budgets). `programs/param-sweep/pixel-exceptions-*.json`
-  pin every `ALLOWED_NEAR` (432, each with its measured mechanism);
-  `pixel-reference-blocked.tsv` records the 97 variants with no faithful
-  reference render and the measured proof; `pixel-unresolved.tsv` lists the 16
-  variants the gate FAILS closed on (unattributed port-vs-reference
-  divergences; reference cross-backend deterministic).
+  pin every `ALLOWED_NEAR` (430, each with its measured mechanism);
+  `pixel-reference-blocked.tsv` records the 113 variants with no faithful
+  reference render and the measured proof (including the 16 `synth/shape`
+  loop-offset noise rows, resolved 2026-10-04 as a reference-internal
+  divergence: the authority's own WebGL2 and WebGPU backends implement different
+  lattice hashes for `synth/shape`, and the port byte-matches the reference
+  WebGPU golden); `pixel-unresolved.tsv` is retained as historical provenance
+  and lists no open rows.
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).

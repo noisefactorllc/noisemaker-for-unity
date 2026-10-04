@@ -9,29 +9,13 @@
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "synth3d__cell3d__colorMode__mono": {
-   "max_abs_diff": 63.0,
-   "max_mean_abs_diff": 0.000904083251953125,
-   "ssim_min": 0.999992311000824,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "synth3d__cell3d__variation__mid": {
    "max_abs_diff": 8.0,
    "max_mean_abs_diff": 0.000225067138671875,
-   "ssim_min": 0.9999998807907104,
+   "ssim_min": 0.9999997615814209,
    "max_exceeded_pixels": 1,
    "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "synth3d__cell3d__volumeSize__x16": {
-   "max_abs_diff": 50.0,
-   "max_mean_abs_diff": 0.000949859619140625,
-   "ssim_min": 0.9999947547912598,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 9,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0); single tie pixel [119,63], re-pinned at the 2026-10-04 fresh full-corpus re-render (reference webgl2-vs-webgpu agree within 1 at this case; the Unity candidate is byte-identical to its pass-31 render)"
   },
   "synth3d__cellularAutomata3d__ruleIndex__rule678": {
    "max_abs_diff": 165.0,
