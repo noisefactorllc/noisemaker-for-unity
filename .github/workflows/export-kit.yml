@@ -16,6 +16,8 @@ on:
       - "LICENSE"
       - "unity/com.noisemaker.hlsl/**"
 
+permissions: {}
+
 concurrency:
   group: export-kit-${{ github.ref }}
   cancel-in-progress: false
