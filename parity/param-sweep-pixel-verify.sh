@@ -268,7 +268,7 @@ case "$STAGE" in
       echo "param-sweep pixel gate: FAIL (unmatched cases above; see per-group reports)" >&2
       exit 1
     fi
-    echo "param-sweep pixel gate: PASS (all $TOTAL variants graded, exit 0)"
+    echo "param-sweep pixel gate: PASS ($((MAIN_N + POINTS_N + MESH_N)) variants graded, $BLOCKED_N reference-renderer blocked, exit 0)"
     ;;
   *)
     echo "=== golden + Unity render: main ($MAIN_N, 8 frames) ==="
@@ -293,6 +293,6 @@ case "$STAGE" in
     grade_group synth 1 0.90
     grade_group 3d 2 0.98
     grade_group points 1 0
-    echo "param-sweep pixel gate: PASS (all $TOTAL variants graded, exit 0)"
+    echo "param-sweep pixel gate: PASS ($((MAIN_N + POINTS_N + MESH_N)) variants graded, $BLOCKED_N reference-renderer blocked, exit 0)"
     ;;
 esac
