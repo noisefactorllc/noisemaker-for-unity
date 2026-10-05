@@ -3,10 +3,16 @@
 # parameter sweep (complements the graph-level param-sweep-verify.sh).
 #
 # Renders EVERY parameter-variant program in parity/programs/param-sweep/ with
-# the reference WebGL2 engine (golden, pinned authority worktree) and the
+# the reference engine (golden, pinned authority worktree) and the
 # Unity/HLSL port (candidate, licensed Unity editor), then grades every variant
 # fail-closed with parity/batch-compare.py under the same per-corpus tolerance
-# policy the declared pixel gates use:
+# policy the declared pixel gates use. The reference golden is the WebGL2
+# rendering (batch-golden --backend webgl2) except for the committed
+# pixel-oracle-wgsl.tsv rows, whose reference oracle is the WGSL rendering
+# (batch-golden --backend webgpu) because the authority's own GLSL and WGSL
+# paths render different content for them (per-row measured proof committed);
+# variants the reference cannot render faithfully at all are excluded from
+# grading via pixel-reference-blocked.tsv, never silently.
 #
 #   strict  (classicNoisedeck, mixer, render)   tol 1 / SSIM >= 0.9999
 #   filter  (filter)                            tol 1 / SSIM >= 0.99
@@ -98,6 +104,31 @@ BLOCKED_N=0
 if [ -f "$CORPUS/pixel-reference-blocked.tsv" ]; then
   BLOCKED_N=$(grep -cv -e '^#' -e '^$' "$CORPUS/pixel-reference-blocked.tsv" || true)
 fi
+# Reference-WGSL-oracle variants (optional, committed, "<name><TAB>reason"): the
+# pinned authority renders these programs differently per backend (source-level
+# different GLSL vs WGSL constructions), so the reference's own WebGL2 golden
+# contradicts its canonical WGSL behavior — the behavior this port targets. The
+# rows are rendered and graded with every other variant; only their reference
+# golden is taken from the reference WGSL path (batch-golden --backend webgpu).
+# The per-row reason records the measured reference-internal divergence — the
+# coverage is never silently reduced. Fail closed on unknown/blocked names and
+# on any count mismatch.
+OVERRIDE="$CORPUS/pixel-oracle-wgsl.tsv"
+OVERRIDE_N=0
+if [ -f "$OVERRIDE" ]; then
+  OVERRIDE_N=$(grep -cv -e '^#' -e '^$' "$OVERRIDE" || true)
+  while IFS=$'\t' read -r name reason; do
+    case "$name" in ''|\#*) continue ;; esac
+    if ! grep -qE "^${name}$(printf '\t')" "$MANIFEST"; then
+      echo "pixel-oracle-wgsl.tsv names unknown corpus variant: $name" >&2
+      exit 2
+    fi
+    if [ -f "$BLOCKED" ] && grep -qE "^${name}$(printf '\t')" "$BLOCKED"; then
+      echo "pixel-oracle-wgsl.tsv row is also reference-renderer blocked: $name" >&2
+      exit 2
+    fi
+  done < "$OVERRIDE"
+fi
 
 # render batches (Unity invocation is keyed by frames + mesh flags):
 #   b-main    frames 8            everything except points/* and mesh fixtures
@@ -131,7 +162,7 @@ if [ "$((MAIN_N + POINTS_N + MESH_N + BLOCKED_N))" -ne "$TOTAL" ]; then
   echo "batch split does not cover the corpus ($MAIN_N + $POINTS_N + $MESH_N + $BLOCKED_N blocked != $TOTAL)" >&2
   exit 2
 fi
-echo "corpus: $TOTAL variants (main $MAIN_N, points $POINTS_N, mesh $MESH_N, reference-renderer blocked $BLOCKED_N)"
+echo "corpus: $TOTAL variants (main $MAIN_N, points $POINTS_N, mesh $MESH_N, reference-renderer blocked $BLOCKED_N, reference-WGSL oracle $OVERRIDE_N)"
 
 # grade groups (policy mirrors the declared per-corpus gates)
 if [ -f "$BLOCKED" ]; then
@@ -161,18 +192,32 @@ else
   ' "$MANIFEST"
 fi
 
-golden_batch () { # <batch> <goldenDir> <extraGoldenArgs...>
+golden_batch () { # <batch> <goldenDir> <extraGoldenArgs...>   backend: NB_BACKEND (default webgl2); NB_NOCHUNK=1 renders the whole batch regardless of NMC_CHUNKS
   local batch="$1" goldDir="$2"; shift 2
   mkdir -p "$goldDir"
   local src="$WORK/$batch"
-  if [ "${NMC_CHUNKS:-1}" -gt 1 ]; then
+  if [ "${NMC_CHUNKS:-1}" -gt 1 ] && [ -z "${NB_NOCHUNK:-}" ]; then
     src="$WORK/$batch.chunk${NMC_CHUNK}"
     awk -v c="$NMC_CHUNK" -v n="$NMC_CHUNKS" 'NR % n == c' "$WORK/$batch" > "$src"
     echo "chunk $NMC_CHUNK/$NMC_CHUNKS of $batch: $(wc -l < "$src" | tr -d ' ') variants"
   fi
   "$NODE" "$HERE/batch-golden.mjs" "$src" "$goldDir" \
-    --size 256 --time 0.25 --backend webgl2 "$@"
+    --size 256 --time 0.25 --backend "${NB_BACKEND:-webgl2}" "$@"
 }
+
+# Golden manifests for the WGSL-oracle rows: one ungrouped batch, rendered with
+# the reference WGSL (WebGPU) backend after the WebGL2 batches so the oracle
+# rows' goldens in $GOLD are always the WGSL renderings. DSL paths join from
+# the corpus manifest; the count must cover every override row.
+if [ "$OVERRIDE_N" -gt 0 ]; then
+  awk -F'\t' -v corpus="$CORPUS" '
+    NR == FNR { if ($0 !~ /^#/ && $0 != "") want[$1] = 1; next }
+    NF >= 2 && ($1 in want) { print $1 "\t" corpus "/" $2 }' "$OVERRIDE" "$MANIFEST" > "$WORK/ov.tsv"
+  if [ "$(wc -l < "$WORK/ov.tsv" | tr -d ' ')" -ne "$OVERRIDE_N" ]; then
+    echo "ov.tsv covers $OVERRIDE_N override rows, expected $OVERRIDE_N" >&2
+    exit 2
+  fi
+fi
 
 unity_batch () { # <batch> <candDir> <unityLog> <extraUnityArgs...>
   local batch="$1" candDir="$2" ulog="$3"; shift 3
@@ -231,6 +276,10 @@ case "$STAGE" in
       echo "=== goldens: mesh ($MESH_N, shared sphere.obj) ==="
       golden_batch b-mesh.tsv "$GOLD" --mesh "$MESH_OBJ"
     fi
+    if [ "$OVERRIDE_N" -gt 0 ]; then
+      echo "=== goldens: reference-WGSL oracle ($OVERRIDE_N, webgpu backend) ==="
+      NB_NOCHUNK=1 NB_BACKEND=webgpu golden_batch ov.tsv "$GOLD"
+    fi
     echo "golden stage complete: $(ls "$GOLD" | wc -l | tr -d ' ') goldens in $GOLD"
     ;;
   unity)
@@ -286,6 +335,10 @@ case "$STAGE" in
         echo "Unity mesh batch did not load the shared OBJ (or loaded zero vertices)" >&2
         exit 1
       fi
+    fi
+    if [ "$OVERRIDE_N" -gt 0 ]; then
+      echo "=== golden (reference-WGSL oracle: $OVERRIDE_N, webgpu backend) ==="
+      NB_NOCHUNK=1 NB_BACKEND=webgpu golden_batch ov.tsv "$GOLD"
     fi
     echo "=== grading (fail-closed, per-corpus tolerance policy) ==="
     grade_group strict 1 0.99
