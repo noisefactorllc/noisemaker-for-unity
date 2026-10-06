@@ -169,7 +169,7 @@ The per-effect port path is documented in [PORTING-GUIDE.md](PORTING-GUIDE.md).
 
 ## Contributing
 
-Issues and pull requests are welcome. Please review the [Code of Conduct](CODE_OF_CONDUCT.md) before opening changes.
+Contributions follow the Noise Factor [contributing policy](https://github.com/noisefactorllc/.github/blob/main/CONTRIBUTING.md) and [Code of Conduct](https://github.com/noisefactorllc/.github/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
