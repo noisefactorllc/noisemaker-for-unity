@@ -9,7 +9,8 @@
 #                 (tools/export-graph.mjs) for the --selftest corpus and every
 #                 parity/programs fixture outside param-sweep/; graph-diff.py, 0 deltas
 #   5. sweep      parity/param-sweep-verify.sh (committed corpus must regenerate
-#                 byte-identically; every variant graph-clean)
+#                 byte-identically; every variant graph-clean). `--skip-sweep`
+#                 leaves it out: the push gate skips it, the weekly run does not.
 #
 # Not run here (they need the Unity editor, a GPU, or headless Chromium): the pixel
 # gates (root/3d/classic/synth/mixer/points/filter/render-verify.sh,
@@ -22,6 +23,14 @@
 # Python packages go into a fresh venv under ${TMPDIR:-/tmp}; nothing is installed globally.
 # Nothing in the checkout is rewritten except ignored .NET build output (bin/, obj/).
 set -euo pipefail
+
+SKIP_SWEEP=0
+for arg in "$@"; do
+  case "$arg" in
+    --skip-sweep) SKIP_SWEEP=1 ;;
+    *) echo "usage: scripts/test [--skip-sweep]" >&2; exit 2 ;;
+  esac
+done
 
 # Reference authority: noisemaker 15c9114e (v1.0.265 plus the synth/shape WGSL
 # lattice fix), the pinned authority the committed parity corpora are recorded against.
@@ -66,7 +75,7 @@ sha512_of() {
 
 download() { # url dest
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"
+    curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --max-time 900 -o "$2" "$1"
   else
     # shellcheck disable=SC2016 # JavaScript source, not shell expansions
     node -e '
@@ -154,7 +163,9 @@ if [ ! -d "$REF_DIR/.git" ] \
   staging="$(mktemp -d "$CACHE/.reference-staging.XXXXXX")"
   git -C "$staging" init -q
   git -C "$staging" remote add origin "$REFERENCE_REPO"
-  git -C "$staging" fetch -q --depth 1 origin "$REFERENCE_SHA"
+  # A stalled transfer aborts after 60 s below 1 KB/s instead of hanging.
+  git -C "$staging" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 \
+    fetch -q --depth 1 origin "$REFERENCE_SHA"
   git -C "$staging" -c advice.detachedHead=false checkout -q FETCH_HEAD
   [ "$(git -C "$staging" rev-parse HEAD)" = "$REFERENCE_SHA" ] || die "reference checkout is not $REFERENCE_SHA"
   rm -rf "$REF_DIR"
@@ -292,11 +303,16 @@ SUMMARY+=("graph     $graph_total/$graph_total graph-clean ($selftest_total --se
 # ---------------------------------------------------------------------------
 # 5. Parameter sweep: corpus regeneration drift check + graph parity per variant
 # ---------------------------------------------------------------------------
-log "5/5 parity/param-sweep-verify.sh"
-bash parity/param-sweep-verify.sh "$WORK/param-sweep" 2>&1 | tee "$WORK/param-sweep.log"
-sweep_line="$(grep -E '^param sweep: [0-9]+ graph-clean, 0 FAIL, 0 missing, of [0-9]+ variants$' "$WORK/param-sweep.log" || true)"
-[ -n "$sweep_line" ] || die "parameter sweep did not report a clean result"
-SUMMARY+=("sweep     ${sweep_line#param sweep: }")
+if [ "$SKIP_SWEEP" -eq 1 ]; then
+  log "5/5 parity/param-sweep-verify.sh: skipped (--skip-sweep)"
+  SUMMARY+=("sweep     skipped (--skip-sweep)")
+else
+  log "5/5 parity/param-sweep-verify.sh"
+  bash parity/param-sweep-verify.sh "$WORK/param-sweep" 2>&1 | tee "$WORK/param-sweep.log"
+  sweep_line="$(grep -E '^param sweep: [0-9]+ graph-clean, 0 FAIL, 0 missing, of [0-9]+ variants$' "$WORK/param-sweep.log" || true)"
+  [ -n "$sweep_line" ] || die "parameter sweep did not report a clean result"
+  SUMMARY+=("sweep     ${sweep_line#param sweep: }")
+fi
 
 log "summary (reference noisemaker@$REFERENCE_SHA, $((SECONDS - START_TS))s)"
 printf '%s\n' "${SUMMARY[@]}"

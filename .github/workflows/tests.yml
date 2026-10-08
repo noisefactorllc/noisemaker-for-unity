@@ -1,9 +1,11 @@
 name: Tests
 
 # Engine-free suites only: scripts/test runs the Node and Python unit tests, the
-# .NET compiler contract tests, and C#-vs-reference graph parity (fixture corpus
-# plus the parameter sweep) against the pinned reference authority. The Unity
-# editor and GPU pixel gates need a licensed host and do not run here.
+# .NET compiler contract tests, and C#-vs-reference graph parity against the
+# pinned reference authority. On push it skips the 1900-variant parameter sweep
+# (`--skip-sweep`); the weekly and manual runs include it. The pinned .NET SDK and
+# reference checkout are cached, so a push downloads neither. The Unity editor and
+# GPU pixel gates need a licensed host and do not run here.
 # Public repo: GitHub-hosted runner, read-only token, no secrets.
 
 on:
@@ -24,12 +26,14 @@ on:
       - '.github/dependabot.yml'
       - '.editorconfig'
     branches: [main]
+  schedule:
+    - cron: '17 8 * * 1'
 
 permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.ref }}
+  group: tests-${{ github.ref }}-${{ github.event_name == 'push' && 'gate' || 'full' }}
   cancel-in-progress: false
 
 jobs:
@@ -49,5 +53,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/noisemaker-for-unity-test-cache
+          key: unity-test-cache-${{ runner.os }}-${{ hashFiles('scripts/test') }}
+
       - name: Run the engine-free test suite
-        run: scripts/test
+        env:
+          NM_TEST_CACHE: ${{ runner.temp }}/noisemaker-for-unity-test-cache
+          SWEEP_FLAG: ${{ github.event_name == 'push' && '--skip-sweep' || '' }}
+        run: scripts/test $SWEEP_FLAG
