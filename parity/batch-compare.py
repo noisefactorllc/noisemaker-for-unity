@@ -37,9 +37,15 @@ def load_rgba(path):
     return np.asarray(Image.open(path).convert("RGBA"), dtype=np.uint8)
 
 
+# Pinned ssim_min floors are compared against this value. It is computed in
+# float64 and rounded to SSIM_DECIMALS so that it does not depend on how a numpy
+# release orders float32 reductions (numpy 2.0 and 2.4 differed by up to 2e-7).
+SSIM_DECIMALS = 10
+
+
 def global_ssim(a, b):
-    a = a.astype(np.float32) / 255.0
-    b = b.astype(np.float32) / 255.0
+    a = a.astype(np.float64) / 255.0
+    b = b.astype(np.float64) / 255.0
     ya = a[..., :3].mean(axis=2)
     yb = b[..., :3].mean(axis=2)
     mu_a, mu_b = ya.mean(), yb.mean()
@@ -47,8 +53,8 @@ def global_ssim(a, b):
     cov = ((ya - mu_a) * (yb - mu_b)).mean()
     c1 = (0.01) ** 2
     c2 = (0.03) ** 2
-    return float(((2 * mu_a * mu_b + c1) * (2 * cov + c2)) /
-                 ((mu_a ** 2 + mu_b ** 2 + c1) * (va + vb + c2)))
+    return round(float(((2 * mu_a * mu_b + c1) * (2 * cov + c2)) /
+                       ((mu_a ** 2 + mu_b ** 2 + c1) * (va + vb + c2))), SSIM_DECIMALS)
 
 
 def load_manifest(path):

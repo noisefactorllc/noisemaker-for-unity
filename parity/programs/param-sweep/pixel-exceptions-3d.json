@@ -20,7 +20,7 @@
   "synth3d__cellularAutomata3d__ruleIndex__rule678": {
    "max_abs_diff": 165.0,
    "max_mean_abs_diff": 0.24707794189453125,
-   "ssim_min": 0.9982851147651672,
+   "ssim_min": 0.9982850823,
    "max_exceeded_pixels": 1638,
    "max_exceeded_channels": 4914,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9983)"
@@ -36,7 +36,7 @@
   "synth3d__flythrough3d__iterations__mid": {
    "max_abs_diff": 189.0,
    "max_mean_abs_diff": 0.7101058959960938,
-   "ssim_min": 0.9915567636489868,
+   "ssim_min": 0.9915565993,
    "max_exceeded_pixels": 5497,
    "max_exceeded_channels": 11911,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9914)"
@@ -44,7 +44,7 @@
   "synth3d__flythrough3d__power__mid": {
    "max_abs_diff": 165.0,
    "max_mean_abs_diff": 0.3933563232421875,
-   "ssim_min": 0.9958823919296265,
+   "ssim_min": 0.9958822961,
    "max_exceeded_pixels": 3655,
    "max_exceeded_channels": 7779,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9958)"
@@ -52,7 +52,7 @@
   "synth3d__flythrough3d__seed__mid": {
    "max_abs_diff": 189.0,
    "max_mean_abs_diff": 0.5591354370117188,
-   "ssim_min": 0.9943709373474121,
+   "ssim_min": 0.994370927,
    "max_exceeded_pixels": 4629,
    "max_exceeded_channels": 9678,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9943)"
@@ -60,7 +60,7 @@
   "synth3d__flythrough3d__speed__mid": {
    "max_abs_diff": 183.0,
    "max_mean_abs_diff": 0.5198097229003906,
-   "ssim_min": 0.9950968623161316,
+   "ssim_min": 0.995096857,
    "max_exceeded_pixels": 4706,
    "max_exceeded_channels": 9589,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.995)"
@@ -68,7 +68,7 @@
   "synth3d__flythrough3d__voiSize__mid": {
    "max_abs_diff": 160.0,
    "max_mean_abs_diff": 0.25730133056640625,
-   "ssim_min": 0.9964682459831238,
+   "ssim_min": 0.9964681849,
    "max_exceeded_pixels": 2331,
    "max_exceeded_channels": 4519,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9964)"
@@ -76,7 +76,7 @@
   "synth3d__flythrough3d__volumeSize__x128": {
    "max_abs_diff": 191.0,
    "max_mean_abs_diff": 0.9704856872558594,
-   "ssim_min": 0.9900928735733032,
+   "ssim_min": 0.9900928007,
    "max_exceeded_pixels": 7310,
    "max_exceeded_channels": 16435,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.99)"
@@ -84,7 +84,7 @@
   "synth3d__flythrough3d__volumeSize__x16": {
    "max_abs_diff": 156.0,
    "max_mean_abs_diff": 0.16760635375976562,
-   "ssim_min": 0.9979625344276428,
+   "ssim_min": 0.9979624946,
    "max_exceeded_pixels": 1645,
    "max_exceeded_channels": 2543,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9979)"
@@ -92,7 +92,7 @@
   "synth3d__flythrough3d__volumeSize__x32": {
    "max_abs_diff": 178.0,
    "max_mean_abs_diff": 0.29461669921875,
-   "ssim_min": 0.998007595539093,
+   "ssim_min": 0.9980075417,
    "max_exceeded_pixels": 3060,
    "max_exceeded_channels": 5758,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.998)"
@@ -124,7 +124,7 @@
   "synth3d__fractal3d__iterations__mid": {
    "max_abs_diff": 169.0,
    "max_mean_abs_diff": 0.03131103515625,
-   "ssim_min": 0.999480128288269,
+   "ssim_min": 0.9994801008,
    "max_exceeded_pixels": 145,
    "max_exceeded_channels": 435,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9995)"
@@ -140,7 +140,7 @@
   "synth3d__fractal3d__volumeSize__x128": {
    "max_abs_diff": 164.0,
    "max_mean_abs_diff": 0.06580352783203125,
-   "ssim_min": 0.9992130398750305,
+   "ssim_min": 0.9992130213,
    "max_exceeded_pixels": 329,
    "max_exceeded_channels": 987,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9992)"
@@ -148,7 +148,7 @@
   "synth3d__fractal3d__volumeSize__x16": {
    "max_abs_diff": 58.0,
    "max_mean_abs_diff": 0.001865386962890625,
-   "ssim_min": 0.9999775290489197,
+   "ssim_min": 0.9999774324,
    "max_exceeded_pixels": 3,
    "max_exceeded_channels": 9,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
@@ -172,7 +172,7 @@
   "synth3d__reactionDiffusion3d__volumeSize__x128": {
    "max_abs_diff": 5.0,
    "max_mean_abs_diff": 0.0001373291015625,
-   "ssim_min": 1.0,
+   "ssim_min": 0.9999999373,
    "max_exceeded_pixels": 1,
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"

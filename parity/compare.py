@@ -51,9 +51,10 @@ def global_ssim(a: np.ndarray, b: np.ndarray) -> float:
     Python toolchain.
     """
     # SSIM constants assume normalized samples; byte-delta gates above remain
-    # integer-exact so a one-byte difference cannot round to 1.0000075.
-    a = a.astype(np.float32) / 255.0
-    b = b.astype(np.float32) / 255.0
+    # integer-exact so a one-byte difference cannot round to 1.0000075. Computed
+    # in float64 so the value does not depend on numpy's float32 reduction order.
+    a = a.astype(np.float64) / 255.0
+    b = b.astype(np.float64) / 255.0
 
     # Rec. 601 luma, matching the harness's luma weighting.
     def luma(x):
@@ -67,7 +68,7 @@ def global_ssim(a: np.ndarray, b: np.ndarray) -> float:
     c2 = (0.03) ** 2
     num = (2 * mu_a * mu_b + c1) * (2 * cov + c2)
     den = (mu_a ** 2 + mu_b ** 2 + c1) * (var_a + var_b + c2)
-    return float(num / den) if den != 0 else 1.0
+    return round(float(num / den), 10) if den != 0 else 1.0
 
 
 def main() -> int:
