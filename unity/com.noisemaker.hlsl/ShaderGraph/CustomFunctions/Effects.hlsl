@@ -23,8 +23,8 @@
 // Self-contained (does NOT include NMFullscreen.hlsl / NMCore.hlsl) so it is
 // safe to drop into a Shader Graph Custom Function node. Helpers/core are
 // mirrored VERBATIM from Shaders/Effects/classicNoisedeck/Effects.hlsl,
-// name-prefixed `nmsg_cnd_`. PCG is inlined here (the runtime path uses NMCore
-// nm_prng, whose sign-fold is a no-op for the single all-positive prng call).
+// name-prefixed `nmsg_cnd_`. PCG is inlined here; prng is the runtime's
+// no-fold nm_cnd_prng (the effect's own prng has no sign-fold).
 // =============================================================================
 
 static const float NMSG_CND_PI  = 3.14159265359;
@@ -40,13 +40,10 @@ uint3 nmsg_cnd_pcg(uint3 v)
     return v;
 }
 
-// prng matches NMCore nm_prng (sign-fold). The only call uses all-positive args,
-// so the fold is a no-op and this is bit-identical to the WGSL prng there.
+// prng matches the runtime nm_cnd_prng and the GLSL/WGSL prng: NO sign-fold.
+// A fold would double positive args (12.9898 -> 25, not 12) and change zoomBlur.
 float3 nmsg_cnd_prng(float3 p)
 {
-    p.x = p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0;
-    p.y = p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0;
-    p.z = p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0;
     return float3(nmsg_cnd_pcg((uint3)p)) / 4294967295.0;
 }
 
@@ -70,7 +67,8 @@ float2 nmsg_cnd_rotate2D(float2 st_in, float rot, float2 res)
     st -= float2(0.5 * ar, 0.5);
     float c = cos(angle);
     float s = sin(angle);
-    st = float2(c * st.x - s * st.y, s * st.x + c * st.y);
+    // GLSL mat2(cos,-sin,sin,cos) * st; the WGSL matches since bb2e635c.
+    st = float2(c * st.x + s * st.y, -s * st.x + c * st.y);
     st += float2(0.5 * ar, 0.5);
     st.x /= ar;
     return st;
@@ -118,7 +116,9 @@ float3 nmsg_cnd_rgb2hsv(float3 rgb)
     float h = 0.0;
     if (delta != 0.0)
     {
-        if (maxC == rgb.r)      { h = fmod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
+        // GLSL floor-mod (== runtime nm_mod), not WGSL truncated `%`.
+        float hr = (rgb.g - rgb.b) / delta;
+        if (maxC == rgb.r)      { h = (hr - 6.0 * floor(hr / 6.0)) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else                    { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }

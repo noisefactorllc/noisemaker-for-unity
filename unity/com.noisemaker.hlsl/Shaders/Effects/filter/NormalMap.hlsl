@@ -7,8 +7,8 @@
 //
 // Normal map generation via a 3×3 Sobel filter. Each pixel reads 9 neighbours
 // with wrap-around addressing (textureLoad / integer coords), computes the
-// horizontal and vertical Sobel responses, and encodes them into RGB normal-map
-// channels with a stylised Z component.
+// horizontal and vertical Sobel derivatives of a reference value, and encodes
+// them into RGB with a Z component from their magnitude.
 //
 // PORTING NOTES:
 //  * The WGSL is a compute shader that writes to a storage buffer using
@@ -19,17 +19,18 @@
 //  * wrap_coord uses C-style truncate-toward-zero % — same as WGSL i32 %
 //    (HLSL % is also truncate-toward-zero for integers). Manual fix for
 //    negative remainders matches the WGSL verbatim.
-//  * ENCODING follows the GLSL, NOT the WGSL. The parity golden is the WebGL2
-//    (GLSL) backend, and here the two sources DIVERGE: GLSL uses scale 0.5, a
-//    non-inverted X, and z = clamp(1 - (|dx|+|dy|)*0.5); the WGSL uses 0.25, an
-//    inverted X, and a magnitude Z that is always >=1. We MUST match the GLSL to
-//    match the golden. (The Sobel/oklab value-map computation is identical in both.)
+//  * ENCODING: the WGSL now ports the GLSL math (upstream 27155c05), so the two
+//    backends agree: one loop accumulates dx/dy, then
+//    x = clamp01(dx*0.5+0.5), y = clamp01(dy*0.5+0.5),
+//    z = clamp01(1 - (|dx|+|dy|)*0.5). (The older WGSL used scale 0.25, an
+//    inverted X and a magnitude Z always >= 1; this port never followed it.)
 //  * No per-effect globals (definition.js globals: {}). No named uniforms.
-//  * channelCount = sanitize_channelCount(size.z). definition.js has no "size"
-//    global and the graph passes no size uniform, so size.z = 0 and the GLSL's
-//    sanitize_channelCount(0) returns 1 (the `count <= 1u` branch) — so the
-//    value-map is texel.x (RED channel), and oklab/srgb/cbrt are NOT used. We
-//    hard-wire channelCount = 1 to match. (See note at the channelCount decl.)
+//  * DIMS: width/height = the input's textureDimensions (WGSL dims, the GLSL's
+//    textureSize fallback when its unset `size` uniform reads 0).
+//  * channelCount: the WGSL now calls sanitize_channelCount(0.0) and the GLSL
+//    sanitize_channelCount(size.z) with size unset (0). Both return 1 (the
+//    `count <= 1u` branch), so the value-map is texel.x (RED channel) and
+//    oklab/srgb/cbrt are NOT used. We hard-wire channelCount = 1 to match.
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
@@ -137,53 +138,36 @@ float4 nm_normalMap(Texture2D inputTex, int2 fragCoord)
     int width_i  = (int)tw;
     int height_i = (int)th;
 
-    // channelCount comes from sanitize_channelCount(size.z). definition.js exposes
-    // no `size` global and the graph passes no `size` uniform, so size = (0,0,0,0)
-    // and size.z = 0. In the GLSL golden, sanitize_channelCount(0): as_u32(0)=0,
-    // and `if (count <= 1u) return 1u` -> channelCount = 1 (NOT 4 — a prior port
-    // misread this as the CHANNEL_CAP default). With channelCount == 1,
+    // WGSL: channelCount = sanitize_channelCount(0.0) (GLSL: size.z, unset = 0).
+    // as_u32(0)=0 and `if (count <= 1u) return 1u` -> channelCount = 1 (NOT 4 — a
+    // prior port misread this as the CHANNEL_CAP default). With channelCount == 1,
     // value_map_component returns texel.x (the RED channel) and the oklab/srgb/cbrt
     // path is never taken. Hard-wiring 4 ran the Sobel over oklab luminance instead
     // of the red channel -> wrong normal map (ssim 0.64).
     uint channelCount = 1u;
 
-    // Sobel X
-    float sobel_x = 0.0;
+    // Sobel derivatives of the reference value, as the GLSL computes them (WGSL:
+    // one loop accumulating dx and dy from compute_reference_value(coords)).
+    float dx = 0.0;
+    float dy = 0.0;
     [unroll]
     for (int i = 0; i < 9; i++)
     {
         int2 offset = SOBEL_OFFSETS[i];
-        int sx = nm_wrap_coord(fragCoord.x + offset.x, width_i);
-        int sy = nm_wrap_coord(fragCoord.y + offset.y, height_i);
-        float4 texel = inputTex.Load(int3(sx, sy, 0));
-        float sample_value = nm_value_map_component(texel, channelCount);
-        sobel_x += sample_value * SOBEL_X_KERNEL[i];
+        int2 coords = int2(nm_wrap_coord(fragCoord.x + offset.x, width_i),
+                           nm_wrap_coord(fragCoord.y + offset.y, height_i));
+        float value = nm_value_map_component(inputTex.Load(int3(coords, 0)), channelCount);
+        dx += value * SOBEL_X_KERNEL[i];
+        dy += value * SOBEL_Y_KERNEL[i];
     }
 
-    // Sobel Y
-    float sobel_y = 0.0;
-    [unroll]
-    for (int j = 0; j < 9; j++)
-    {
-        int2 offset = SOBEL_OFFSETS[j];
-        int sx = nm_wrap_coord(fragCoord.x + offset.x, width_i);
-        int sy = nm_wrap_coord(fragCoord.y + offset.y, height_i);
-        float4 texel = inputTex.Load(int3(sx, sy, 0));
-        float sample_value = nm_value_map_component(texel, channelCount);
-        sobel_y += sample_value * SOBEL_Y_KERNEL[j];
-    }
-
-    // ENCODING — match the GLSL, NOT the WGSL. The parity golden is rendered by the
-    // WebGL2 (GLSL) backend, and for normalMap the GLSL and WGSL DIVERGE: the WGSL
-    // uses sobel_scale 0.25, an inverted X (1.0 - ...), and a magnitude-based Z that
-    // is always >= 1 (would clamp to 255). The GLSL is what the golden actually runs:
-    //   x_value = clamp(dx * 0.5 + 0.5)            (scale 0.5, NOT inverted)
-    //   y_value = clamp(dy * 0.5 + 0.5)
-    //   z_value = clamp(1.0 - (|dx| + |dy|) * 0.5) (varies in [0,1])
-    // where dx = sobel_x, dy = sobel_y are the raw Sobel responses.
-    float x_value = nm_clamp01(sobel_x * 0.5 + 0.5);
-    float y_value = nm_clamp01(sobel_y * 0.5 + 0.5);
-    float z_value = nm_clamp01(1.0 - (abs(sobel_x) + abs(sobel_y)) * 0.5);
+    // WGSL and GLSL agree:
+    //   x_value = clamp01(dx * 0.5 + 0.5)
+    //   y_value = clamp01(dy * 0.5 + 0.5)
+    //   z_value = clamp01(1.0 - (abs(dx) + abs(dy)) * 0.5)
+    float x_value = nm_clamp01(dx * 0.5 + 0.5);
+    float y_value = nm_clamp01(dy * 0.5 + 0.5);
+    float z_value = nm_clamp01(1.0 - (abs(dx) + abs(dy)) * 0.5);
 
     // Alpha: original texel alpha (WGSL: texel.w)
     float4 orig = inputTex.Load(int3(fragCoord.x, fragCoord.y, 0));

@@ -18,7 +18,8 @@
 //    inputTex's OWN dimensions. Both refracted samples also use inputTex's dims
 //    as the coordinate space (st is derived from inputTex size). We follow WGSL.
 //  * fract(leftUV) / fract(rightUV): WGSL wraps with fract after adding refract
-//    offset. Rendered in HLSL as frac(leftUV) / frac(rightUV).
+//    offset, in cloak() and (since upstream bc3b9f53) in main(), as the GLSL
+//    does. Rendered in HLSL as frac(leftUV) / frac(rightUV).
 //  * nm_mod not used here (no floor-mod in this effect).
 //  * The WGSL `%` on f32 (line 86: `((h * 6.0) % 2.0)`) is WGSL float modulo
 //    which is floor-mod for positives. For h in [0,1), h*6 in [0,6) so the
@@ -199,10 +200,11 @@ float4 nm_coalesce_cloak(float2 st)
         right = rightReflected;
     } else {
         left  = leftReflected;
+        // As the GLSL, the reference: right stays the refracted right input.
         right = lerp(rightRefracted, rightRefracted, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
-    // NOTE: the WGSL cloak() right branch is lerp(rightRefracted, rightRefracted, ...) — verbatim.
-    // The GLSL version also has this (same expression both args). Ported literally. // TODO(verify)
+    // NOTE: the GLSL cloak() right branch is mix(rightRefracted, rightRefracted, ...);
+    // since upstream f7406c01 the WGSL writes the same expression. Ported literally.
 
     return lerp(left, right, m);
 }
@@ -385,12 +387,11 @@ float4 nm_coalesce(float2 st)
         rightUV.x = rightUV.x + cos(leftLen * NM_TAU) * rb;
         rightUV.y = rightUV.y + sin(leftLen * NM_TAU) * rb;
 
-        // GLSL golden wraps the refracted UVs with fract() before sampling
-        // (texture(inputTex, fract(leftLocalUV))). leftUV.x = st.x + cos(...)*ra can
-        // exceed [0,1] (here +0.0875 near the right edge); without frac the Clamp
-        // sampler repeats the edge column → horizontal banding instead of the
-        // wrapped sample. For an untiled render leftLocalUV == leftUV, so match GLSL
-        // with frac() here.
+        // Wrap refracted coordinates, as the GLSL does (texture(inputTex,
+        // fract(leftLocalUV))); the WGSL matches since upstream bc3b9f53.
+        // leftUV.x = st.x + cos(...)*ra can exceed [0,1]; without frac the Clamp
+        // sampler repeats the edge column instead of the wrapped sample. For an
+        // untiled render leftLocalUV == leftUV.
         float4 color1 = inputTex.Sample(sampler_inputTex, frac(leftUV));
         float4 color2 = tex.Sample(sampler_tex, frac(rightUV));
 

@@ -13,12 +13,14 @@
 // RGB is affected; alpha is passed through unchanged.
 //
 // PORTING-GUIDE notes / hazards handled:
-//  * COORDINATES: the WGSL uses `uv = input.uv` (the fullscreen 0..1 varying)
-//    for BOTH the inputTex sample AND all noise lookups, and
-//    `dims = max(resolution, vec2(1,1))` with `px = 1/dims`. We mirror exactly:
-//    uv = i.uv, dims = max(resolution, (1,1)). (The GLSL splits sample uv from a
-//    fullResolution-based globalUV/px; WGSL is canonical and uses a single uv,
-//    so we follow WGSL.) No per-effect Y flip (top-left origin, H8).
+//  * COORDINATES: the WGSL uses `uv = input.position.xy / dims` (frame
+//    coordinates, as the GLSL's gl_FragCoord / resolution; upstream 059c1dff
+//    replaced its bottom-left `input.uv`, which drew the image upside down)
+//    for BOTH the inputTex sample AND all noise lookups, with
+//    `dims = max(resolution, vec2(1,1))` and `px = 1/dims`. In Unity i.uv IS
+//    NM_FragCoord(i) / resolution in the stored orientation, so uv = i.uv is
+//    that coordinate with no flip (the old WGSL flip was never ported). The
+//    GLSL's tile-aware globalUV/px reduce to the same values untiled.
 //  * PRNG bit hazard (H-floatbits): hash21/hash31 feed `bitcast<u32>(p.*)` into
 //    pcg — a BIT REINTERPRET. In HLSL that is `asuint(...)`, NOT the `(uint3)`
 //    truncation cast used by NMCore's nm_prng. hash21's third lane is the
@@ -193,11 +195,14 @@ float nm_grime_refracted_exponential(float2 uv, float2 freq, float2 px, float di
 }
 
 // ---- Pass: "grime" (progName "grime") ---------------------------------------
-// Verbatim port of WGSL main(). uv = input.uv (i.uv); dims = max(resolution,1).
+// Verbatim port of WGSL main(). uv = input.position.xy / dims (i.uv);
+// dims = max(resolution,1).
 float4 NMFrag_grime(NMVaryings i) : SV_Target
 {
     float2 dims = max(resolution, float2(1.0, 1.0));
     float2 px = float2(1.0 / dims.x, 1.0 / dims.y);
+    // Frame coordinates as the GLSL's gl_FragCoord / resolution (WGSL:
+    // input.position.xy / dims); i.uv already is that coordinate in Unity.
     float2 uv = i.uv;
     float4 base_color = inputTex.Sample(sampler_inputTex, uv);
 

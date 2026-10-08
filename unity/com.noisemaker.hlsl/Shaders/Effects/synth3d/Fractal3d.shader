@@ -6,7 +6,8 @@ Shader "Noisemaker/synth3d/fractal3d"
     // encodes a volumeSize^3 voxel volume as stacked Z-slices (reference 04 §8,
     // reference 10 §3.7/§4.2). Atlas pixel (x,y) -> voxel (x, y%volSize,
     // y/volSize). MRT attachment order matches the WGSL FragOutput:
-    //   color  = SV_Target0 -> volumeCache (vol: r=dist g=trap b=iter a=1)
+    //   color  = SV_Target0 -> volumeCache (vol: colorMode 0 rgb=dist,
+    //                          else r=dist g=trap b=iter; a=1)
     //   geoOut = SV_Target1 -> geoBuffer   (geo: xyz=normal*0.5+0.5, w=dist)
     // The viewport is the ATLAS, not the screen (definition viewport =
     // volumeSize x volumeSize^2). The runtime sets the named uniforms via

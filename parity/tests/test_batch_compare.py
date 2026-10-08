@@ -770,15 +770,6 @@ class Repository3dPolicyContractTests(unittest.TestCase):
         self.assertEqual(1, policy["schema_version"])
         self.assertEqual(
             {
-                "synth3dCell3d": {
-                    "max_abs_diff": 91,
-                    "max_mean_abs_diff": 0.000847,
-                    "ssim_min": 0.999989,
-                    "max_exceeded_pixels": 1,
-                    "max_exceeded_channels": 3,
-                    "allowed_exceeded_pixels": [[204, 108]],
-                    "mechanism": "Sparse float32 nearest-cell boundary tie in the 3D cellular density field at one shared-surface pixel.",
-                },
                 "synth3dFlythrough3d": {
                     "max_abs_diff": 189,
                     "max_mean_abs_diff": 0.581727,
@@ -808,9 +799,7 @@ class Repository3dPolicyContractTests(unittest.TestCase):
             cand.mkdir()
             for name in THREE_D_FIXTURES:
                 changed = None
-                if name == "synth3dCell3d":
-                    changed = [(204, 108, (130, 127, 127, 255))]
-                elif name in {"synth3dFlythrough3d", "synth3dFractal3d"}:
+                if name in {"synth3dFlythrough3d", "synth3dFractal3d"}:
                     changed = [(0, 0, (130, 127, 127, 255))]
                 write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
                 write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
@@ -826,7 +815,7 @@ class Repository3dPolicyContractTests(unittest.TestCase):
             )
 
         self.assertEqual(0, completed.returncode, completed.stderr)
-        self.assertEqual({"PASS": 6, "ALLOWED_NEAR": 3}, report["counts"])
+        self.assertEqual({"PASS": 7, "ALLOWED_NEAR": 2}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

@@ -14,7 +14,9 @@
 //   mono -> Mono (float boolean, >0.5=true)             default true
 //   time  -> Time  (float, engine global; 0..1 normalized animation time)
 // InputTex/SS/UV provide the source surface. UV must be the fullscreen 0..1 UV
-// (the WGSL uses `in.uv` for both the sample and the height-field domain).
+// in the input's own orientation (the GLSL's v_texCoord; the WGSL's
+// vec2(in.uv.x, 1 - in.uv.y)), used for the sample, the height field and the
+// material edge mask in every mode.
 //
 // Single render pass — eligible for a Custom Function node (PORTING-GUIDE §1d).
 //
@@ -353,7 +355,8 @@ float nmsg_texture_shape_material(float raw, float intensityArg, float contrastA
 // then applies the texture shading. `Time` is the engine-provided normalized
 // animation time. `Mode` is the int dispatch (passed as float -> int).
 // SS is caller-provided. Use a point, clamp, non-sRGB sampler to mirror runtime
-// render surfaces; this Shader Graph path retains its own explicit Y flip.
+// render surfaces. No per-mode Y flip: upstream 059c1dff / 0b0f4560 dropped the
+// WGSL's modes-5..14-only source flip, and the GLSL never had one.
 void NM_Texture_float(
     UnityTexture2D InputTex,
     UnitySamplerState SS,
@@ -374,9 +377,7 @@ void NM_Texture_float(
     float2 dims = float2(texW, texH);
     float2 pixel_step = 1.0 / dims;
 
-    float2 sourceUV = UV;
-    [branch] if (mode >= 5) { sourceUV.y = 1.0 - sourceUV.y; }
-    float4 base_color = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, sourceUV);
+    float4 base_color = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, UV);
 
     float a = clamp(Alpha, 0.0, 1.0);
     if (a <= 0.0)
@@ -391,16 +392,16 @@ void NM_Texture_float(
         float2 globalPixel = UV * dims;
         float materialMotion = Time * (float)NMSG_TEX_Z_LOOP;
         float r = nmsg_texture_shape_material(nmsg_texture_material_value(
-            InputTex, SS, mode, Scale, globalPixel, dims, sourceUV, materialMotion,
+            InputTex, SS, mode, Scale, globalPixel, dims, UV, materialMotion,
             0x1234abcdu), Intensity, Contrast);
         float3 material = (float3)r;
         if (Mono <= 0.5)
         {
             material.g = nmsg_texture_shape_material(nmsg_texture_material_value(
-                InputTex, SS, mode, Scale, globalPixel, dims, sourceUV, materialMotion,
+                InputTex, SS, mode, Scale, globalPixel, dims, UV, materialMotion,
                 0x68bc21ebu), Intensity, Contrast);
             material.b = nmsg_texture_shape_material(nmsg_texture_material_value(
-                InputTex, SS, mode, Scale, globalPixel, dims, sourceUV, materialMotion,
+                InputTex, SS, mode, Scale, globalPixel, dims, UV, materialMotion,
                 0x02e5be93u), Intensity, Contrast);
         }
         Out = float4(clamp(lerp(base_color.xyz, material, a),

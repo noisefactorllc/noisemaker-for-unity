@@ -19,7 +19,8 @@
 //    fetch, point, no filtering.
 //  * imageTexel: native atlases and 2D surfaces use the SAME logical texel
 //    coordinates on both backends — reproduced verbatim, including the
-//    (column*2+1)*size / (volumeSize*2) half-texel-centered rescale.
+//    image-row flip (row volumeSize-1-z, so z = 0 is the image's top row) and
+//    the (image*2+1)*size / (volumeSize*2) half-texel-centered rescale.
 //  * int % and / on non-negative values match WGSL i32 trunc semantics.
 //  * any(lessThan(...))/any(greaterThanEqual(...)) -> HLSL any(a < b) / any(a >= b)
 //    (HLSL relational/any operate component-wise on vectors already).
@@ -43,9 +44,14 @@ struct Heightmap3dFragmentOutput
 
 // Native atlases and 2D surfaces use the same logical texel coordinates on
 // both backends (reference 0ed489ec, verbatim).
+// Volume z = 0 holds the image's top row, so a view from above along -Y,
+// screen right on +X, shows the image as authored rather than mirrored
+// (reference 8fa067f6; GLSL and WGSL agree). Texel row 0 is the image's bottom
+// row in the shared logical coordinates, so z = 0 samples the last texel row.
 int2 hm3d_imageTexel(int2 column, int2 size)
 {
-    return clamp(((column * 2 + 1) * size) / (volumeSize * 2), int2(0, 0), size - int2(1, 1));
+    int2 image = int2(column.x, volumeSize - 1 - column.y);
+    return clamp(((image * 2 + 1) * size) / (volumeSize * 2), int2(0, 0), size - int2(1, 1));
 }
 
 float hm3d_columnHeight(int2 column)

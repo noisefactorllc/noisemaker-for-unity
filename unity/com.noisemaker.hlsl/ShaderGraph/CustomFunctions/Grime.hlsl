@@ -9,7 +9,8 @@
 //   strength -> Strength (float, strength) [0,1]   default 0.5
 //   seed     -> Seed     (float, seed)     [1..100] default 1
 // InputTex/SS/UV provide the source surface. UV must be the input texture's own
-// 0..1 UV (the WGSL uses `input.uv` for BOTH the sample and all noise lookups).
+// 0..1 UV (the WGSL uses one frame-coordinate uv, input.position.xy / dims, as
+// the GLSL's gl_FragCoord / resolution, for BOTH the sample and all noise lookups).
 //
 // COORDINATE NOTE: the WGSL derives dims = max(resolution, 1) and px = 1/dims
 // from the render-target resolution uniform. Shader Graph has no resolution

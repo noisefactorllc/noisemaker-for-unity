@@ -30,11 +30,16 @@
 //  * Main UV: `uv = fragCoord.xy / u.resolution` => NM_FragCoord(i) / resolution.
 //    Top-left, +0.5 centered (WGSL @builtin(position) analog) — no per-effect
 //    Y flip (H8). All internal samples re-sample inputTex at the derived uv,
-//    same as the WGSL (which divides by u.resolution, NOT input dims).
+//    same as the WGSL (which divides by u.resolution, NOT input dims). Since
+//    upstream 326193cf the GLSL also samples the base color and pixellate's
+//    size<1 path at the transformed uv, mapped into the tile's input texture
+//    ((uv * fullResolution - tileOffset) / textureSize). For an untiled render
+//    that mapping is the identity, so sampling at uv matches the GLSL.
 //  * WGSL float `%` is truncated (sign of dividend, == HLSL `fmod`). GLSL `mod`
 //    is floored (sign of divisor, == nm_mod). For the ONE place this matters —
 //    rgb2hsv's `((rgb.g - rgb.b) / delta) % 6.0` where the dividend can be
-//    negative — we use `fmod` to match the CANONICAL WGSL. cga/subpixel `%`
+//    negative — the WGSL and GLSL still disagree at v1.0.265, and we use
+//    `nm_mod` to match the GLSL (WebGL2) reference. cga/subpixel `%`
 //    operate on non-negative floored coords where fmod==nm_mod==same result;
 //    we still use `fmod` there to mirror the WGSL `%` operator literally.
 //  * `select(0.0, delta/maxC, maxC != 0.0)` -> ternary `maxC != 0.0 ? d/m : 0`.
@@ -109,8 +114,8 @@ float2 nm_cnd_rotate2D(float2 st_in, float rot)
     float c = cos(angle);
     float s = sin(angle);
     // GLSL golden: mat2(cos,-sin,sin,cos) * st. GLSL mat2 is COLUMN-MAJOR, so it
-    // equals (c*st.x + s*st.y, -s*st.x + c*st.y) — opposite rotation direction from
-    // the WGSL transcription (c*x-s*y, s*x+c*y). Only diverges for nonzero rotation.
+    // equals (c*st.x + s*st.y, -s*st.x + c*st.y). Since upstream bb2e635c the
+    // WGSL writes the same expression, so both backends rotate the same way.
     st = float2(c * st.x + s * st.y, -s * st.x + c * st.y);
     st += float2(0.5 * nm_cnd_aspectRatio(), 0.5);
     st.x /= nm_cnd_aspectRatio();
@@ -160,8 +165,8 @@ float3 nm_cnd_hsv2rgb(float3 hsv)
     return rgb + float3(m, m, m);
 }
 
-// rgb2hsv — WGSL verbatim. The `% 6.0` here can have a NEGATIVE dividend, so it
-// must use WGSL truncated-remainder semantics (== HLSL fmod), NOT nm_mod.
+// rgb2hsv — WGSL structure. The `% 6.0` here can have a NEGATIVE dividend; the
+// WGSL truncates it (== HLSL fmod) but the GLSL floor-mods it, so use nm_mod.
 float3 nm_cnd_rgb2hsv(float3 rgb)
 {
     float maxC = max(rgb.r, max(rgb.g, rgb.b));
@@ -194,6 +199,7 @@ float3 nm_cnd_posterize(float3 color, float levIn)
 }
 
 // pixellate — WGSL verbatim. Samples inputTex at the floored coord (no flip).
+// size<1 samples at uv_in; the GLSL samples the same uv mapped into the tile.
 float3 nm_cnd_pixellate(float2 uv_in, float sizeIn)
 {
     float size = sizeIn;
@@ -472,6 +478,8 @@ float4 NMFrag_effects(NMVaryings i) : SV_Target
     else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
     else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
 
+    // Sample at the transformed uv (scale, rotation, offset, flip). The GLSL
+    // origcolor does the same since 326193cf (tile mapping is identity untiled).
     float4 color = inputTex.Sample(sampler_inputTex, uv);
 
     if (effectAmt != 0.0 && EFFECT != 0)

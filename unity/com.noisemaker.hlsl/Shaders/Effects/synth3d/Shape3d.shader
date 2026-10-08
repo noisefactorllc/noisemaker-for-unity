@@ -9,7 +9,7 @@ Shader "Noisemaker/synth3d/shape3d"
     // field), SV_Target1 -> geoBuffer (xyz=normal, w=field). No input texture.
     // The runtime binds the atlas viewport + the two MRT targets and sets the
     // named uniforms (loopAOffset/loopBOffset/loopAScale/loopBScale/speedA/
-    // speedB/volumeSize/colorMode) via MaterialPropertyBlock by reference name.
+    // speedB/volumeSize) via MaterialPropertyBlock by reference name.
     // The volume atlas is consumed downstream by render/render3d (raymarch).
     //
     // No display surface is produced here (outputTex3d=volumeCache,

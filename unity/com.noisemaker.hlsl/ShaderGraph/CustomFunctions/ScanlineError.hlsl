@@ -272,9 +272,10 @@ void NM_ScanlineError_float(
         float gradDest = sesg_vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
         float scanBase = floor(height_f * 0.5) + 1.0;
+        // GLSL mapping, NOT the WGSL select (they differ for non-square inputs).
         float2 scanFreq = (height_f < width_f)
-            ? float2(scanBase, scanBase * (width_f / height_f))
-            : float2(scanBase * (height_f / width_f), scanBase);
+            ? float2(scanBase * (height_f / width_f), scanBase)
+            : float2(scanBase, scanBase * (width_f / height_f));
 
         float scanDest = sesg_vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 

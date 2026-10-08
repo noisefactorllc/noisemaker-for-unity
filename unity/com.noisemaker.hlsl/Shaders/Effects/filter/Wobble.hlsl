@@ -18,10 +18,13 @@
 //    the WGSL select(...) expressions, NOT asuint.
 //  * WGSL select(false_val, true_val, cond) is REVERSED vs HLSL ternary — the
 //    select args are translated to `cond ? true_val : false_val` literally.
-//  * uv is the fullscreen pass UV (top-left, WGSL convention) — the WGSL samples
-//    `in.uv + offset`, NOT fragCoord/texSize. We pass i.uv straight through; no
-//    Y flip needed (ported from WGSL). offset uses speed*0.1 added to time and
-//    the offsetScale formula r*(0.01 + speed*0.02) verbatim.
+//  * uv: the WGSL samples `vec2(in.uv.x, 1 - in.uv.y) + offset`, the
+//    output-normalized coordinate with a top-left origin (as the GLSL's
+//    v_texCoord + offset; upstream 059c1dff / 0b0f4560 replaced the bottom-left
+//    `in.uv`, which drew the image upside down). In Unity i.uv already is that
+//    coordinate in the stored orientation, so we pass i.uv straight through
+//    with no flip. offset uses speed*0.1 added to time and the offsetScale
+//    formula r*(0.01 + speed*0.02) verbatim.
 //  * wrap: int uniform {mirror:0, repeat:1, clamp:2}. WGSL/GLSL branch chain
 //    reproduced with [branch]. Mirror uses the WGSL's explicit floor form, NOT
 //    nm_mod, to match the canonical source literally.
@@ -145,9 +148,11 @@ float2 applyWrap(float2 uv)
 //   let yRandom = simplexRandom(time + speed * 0.1, spd, Y_NOISE_SEED);
 //   let offsetScale = r * (0.01 + speed * 0.02);
 //   let offset = (vec2(xRandom, yRandom) - 0.5) * offsetScale;
-//   var sampleCoord = in.uv + offset; sampleCoord = applyWrap(sampleCoord);
+//   var sampleCoord = vec2(in.uv.x, 1.0 - in.uv.y) + offset;
+//   sampleCoord = applyWrap(sampleCoord);
 //   return textureSample(inputTex, u_sampler, sampleCoord);
-// `inUV` is the fullscreen-pass UV (in.uv), top-left, WGSL convention.
+// `inUV` is the output-normalized coordinate (the WGSL's flipped in.uv, the
+// GLSL's v_texCoord), which the runtime's i.uv already is.
 // -----------------------------------------------------------------------------
 float4 nm_wobble(Texture2D inputTex, SamplerState ss, float2 inUV)
 {

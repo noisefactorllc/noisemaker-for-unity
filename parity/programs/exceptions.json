@@ -14,9 +14,9 @@
     },
     "heightmap3d_landscape": {
       "max_abs_diff": 3,
-      "ssim_min": 0.9999999,
+      "ssim_min": 0.9999999917,
       "max_exceeded_pixels": 2,
-      "max_exceeded_channels": 3,
+      "max_exceeded_channels": 4,
       "allowed_exceeded_pixels": [
         [53, 131],
         [202, 131]

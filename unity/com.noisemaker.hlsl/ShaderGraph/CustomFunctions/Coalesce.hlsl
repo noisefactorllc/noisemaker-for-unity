@@ -25,11 +25,9 @@
 //   RefractADir : refractADir (-180..180), default 0
 //   RefractBDir : refractBDir (-180..180), default 0
 //
-// IMPORTANT: The cloak mode (blendMode==100) samples textures at derived UVs
-// computed from st (the UV passed in). The refract non-cloak path does NOT
-// frac() the refracted UV before sampling — it relies on the sampler's clamp
-// mode for out-of-range values (matching the WGSL, which passes raw leftUV /
-// rightUV to textureSample without frac in the non-cloak path). // TODO(verify)
+// IMPORTANT: Both the cloak mode (blendMode==100) and the non-cloak refract
+// path sample at derived UVs computed from st (the UV passed in), wrapped with
+// frac() before sampling, as the GLSL and (since upstream bc3b9f53) the WGSL do.
 // =============================================================================
 
 #include "../../Shaders/Effects/classicNoisedeck/Coalesce.hlsl"

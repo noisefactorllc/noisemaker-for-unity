@@ -25,9 +25,10 @@
 //    via plain HLSL ternaries with the WGSL truth value preserved.
 //  * (uint3)q is float->uint TRUNCATION toward zero (not asuint).
 //  * prng divisor 4294967295.0 (= float(0xffffffffu)), NOT 2^32.
-//  * snoise(p * scale + f32(seed)) adds a SCALAR to a float3 (broadcast).
-//  * `noiseScale` in the WGSL binds the definition.js global `scale` -> the
-//    HLSL uniform is named `scale` (matches definition.js globals[*].uniform).
+//  * snoise(p * scaleN + f32(seed)) adds a SCALAR to a float3 (broadcast).
+//  * The WGSL binds the definition.js global `scale` as `scale` (upstream
+//    27155c05; formerly `noiseScale`), as the GLSL does. The HLSL uniform is
+//    named `scale`; getDist()'s per-type local is `scaleN`, as in both sources.
 //  * speed is an int uniform (definition.js); cast to float as the WGSL does.
 // =============================================================================
 
@@ -39,7 +40,7 @@ int   NOISE_TYPE;   // global "type".define = "NOISE_TYPE" (enum; default 12)
 int   ridges;       // global "ridges" (bool as int; default 0)
 int   seed;         // global "seed"   (default 1)
 int   speed;        // global "speed"  (default 1)
-float scale;        // global "scale"  (WGSL `noiseScale`; default 25)
+float scale;        // global "scale"  (default 25)
 float offsetX;      // global "offsetX" (default 0)
 float offsetY;      // global "offsetY" (default 0)
 int   colorMode;    // global "colorMode" (default 6 = hsv)
@@ -457,43 +458,43 @@ float nm3_getDist(float3 p)
     [branch]
     if (NOISE_TYPE == 12) {
         // simplex
-        float sc = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
-        d = nm3_snoise(p * sc + (float)seed) * 0.5 + 0.5;
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = nm3_snoise(p * scaleN + (float)seed) * 0.5 + 0.5;
         d = nm3_smootherstep(d);
     } else if (NOISE_TYPE == 20) {
         // cell
-        float sc = nm3_map_value(scale, 1.0, 100.0, 0.1, 0.35);
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 0.1, 0.35);
         d = nm3_cellular(p * 0.1 + (float)seed).x;
-        d = smoothstep(sc, 0.5, d);
+        d = smoothstep(scaleN, 0.5, d);
     } else if (NOISE_TYPE == 21) {
         // cell v2
         d = nm3_voronoi3d(p * 0.1 + (float)seed).x;
-        float sc = nm3_map_value(scale, 1.0, 100.0, 0.1, 0.35);
-        d = smoothstep(sc, 0.5, d);
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 0.1, 0.35);
+        d = smoothstep(scaleN, 0.5, d);
     } else if (NOISE_TYPE == 30) {
         // sine
-        float sc = nm3_map_value(scale, 1.0, 100.0, 1.0, 0.1);
-        d = nm3_sine3D(p * sc);
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 1.0, 0.1);
+        d = nm3_sine3D(p * scaleN);
     } else if (NOISE_TYPE == 40) {
         d = nm3_spheres(p);
     } else if (NOISE_TYPE == 50) {
         d = nm3_cubes(p);
     } else if (NOISE_TYPE == 60) {
         // wavy planes both
-        float sc = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
-        d = -abs(p.y) + 4.0 + nm3_snoise(p * sc + (float)seed) * 0.75;
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = -abs(p.y) + 4.0 + nm3_snoise(p * scaleN + (float)seed) * 0.75;
     } else if (NOISE_TYPE == 61) {
         // wavy plane lower
-        float sc = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
-        d = p.y + 4.0 + nm3_snoise(p * sc + (float)seed) * 0.75;
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = p.y + 4.0 + nm3_snoise(p * scaleN + (float)seed) * 0.75;
     } else if (NOISE_TYPE == 62) {
         // wavy plane upper
-        float sc = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
-        d = -p.y + 2.0 + nm3_snoise(p * sc + (float)seed) * 0.75;
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = -p.y + 2.0 + nm3_snoise(p * scaleN + (float)seed) * 0.75;
     } else {
         // default to simplex
-        float sc = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
-        d = nm3_snoise(p * sc + (float)seed) * 0.5 + 0.5;
+        float scaleN = nm3_map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = nm3_snoise(p * scaleN + (float)seed) * 0.5 + 0.5;
         d = nm3_smootherstep(d);
     }
 

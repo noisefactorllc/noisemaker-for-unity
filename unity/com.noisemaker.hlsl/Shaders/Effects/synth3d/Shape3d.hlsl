@@ -62,9 +62,8 @@ float loopBScale;    // globals.loopBScale   default 1
 float speedA;        // globals.speedA       default 1   (WGSL f32, floor()ed)
 float speedB;        // globals.speedB       default 1   (WGSL f32, floor()ed)
 int   volumeSize;    // globals.volumeSize   default 64  (atlas slice edge)
-// colorMode (globals.colorMode) is declared in the definition but UNUSED by
-// the precompute shader (the scalar field is always written mono r=g=b=d).
-int   colorMode;     // globals.colorMode    default 0   (declared, unused here)
+// globals.colorMode has no uniform (noisemaker 050dcd89): the argument is
+// accepted and ignored, and the scalar field is always mono r=g=b=d.
 
 static const float SH3_PI  = 3.14159265359;
 static const float SH3_TAU = 6.28318530718;

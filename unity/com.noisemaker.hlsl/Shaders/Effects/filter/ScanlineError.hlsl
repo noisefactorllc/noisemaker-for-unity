@@ -32,9 +32,11 @@
 //    uses asuint(p) (bitcast<u32>, a BIT reinterpret — NOT (uint) truncation) to
 //    seed; the lattice floor coords feed valueNoise as floats. (H, float-bits.)
 //  * PCG divisor is 4294967295.0 = float(0xffffffffu), NOT 2^32 (H11).
-//  * select(a, b, cond) -> WGSL select(falseVal, trueVal, cond): scanFreq uses
-//    select(A, B, height_f < width_f) => result is B when height_f<width_f.
-//    Reproduced with HLSL ternary (cond ? B : A) keeping that exact mapping.
+//  * VHS scanFreq follows the GLSL, NOT the WGSL: for non-square inputs the
+//    WGSL select(A, B, height_f < width_f) returns the pair the GLSL's
+//    if/else assigns to the other branch. Square inputs agree. (See main.)
+//  * `noise` uniform: upstream 27155c05 renamed the WGSL's `noise_amount` to
+//    `noise`, the definition's uniform name, which this port already used.
 //  * nm_mod NOT used here; the WGSL uses integer % via wrap_coord — reproduced
 //    literally (the manual +limit fix, == nm_positiveModulo but kept inline to
 //    mirror the WGSL function shape exactly, incl. the limit<=0 -> 0 guard).
@@ -372,10 +374,13 @@ float4 NMFrag_scanlineError(NMVaryings i) : SV_Target
         float gradDest = se_vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
         float scanBase = floor(height_f * 0.5) + 1.0;
-        // WGSL: select(A, B, height_f < width_f) => B when (height_f < width_f).
+        // GLSL, NOT WGSL: the backends still DISAGREE for non-square inputs. GLSL:
+        //   if (height_f < width_f) (scanBase*(h/w), scanBase) else (scanBase, scanBase*(w/h))
+        // WGSL select(A, B, height_f < width_f) picks the opposite pair. Square
+        // inputs give (scanBase, scanBase) either way. Follow the WebGL2 golden.
         float2 scanFreq = (height_f < width_f)
-            ? float2(scanBase, scanBase * (width_f / height_f))
-            : float2(scanBase * (height_f / width_f), scanBase);
+            ? float2(scanBase * (height_f / width_f), scanBase)
+            : float2(scanBase, scanBase * (width_f / height_f));
 
         float scanDest = se_vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 

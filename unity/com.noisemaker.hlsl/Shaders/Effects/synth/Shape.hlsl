@@ -66,21 +66,71 @@ float nm_shape_periodicFunction(float p)
     return nm_map(sin(x), -1.0, 1.0, 0.0, 1.0);
 }
 
-// constant(st_in, freq, speed) — canonical WGSL lattice value generator.
-float nm_shape_constant(float2 st_in, float freq, float speed,
-                        float u_time, float u_seed, bool u_wrap)
+// positiveModulo(a, b): integer modulo wrapped into [0, b). Integer division
+// truncates toward zero in HLSL, GLSL and WGSL alike.
+int nm_shape_positiveModulo(int a, int b)
 {
-    float x = st_in.x * freq;
-    float y = st_in.y * freq;
+    int result = a - (a / b) * b;
+    if (result < 0) result = result + b;
+    return result;
+}
+
+// randomFromLatticeWithOffset(st, freq, xyOffset): the lattice hash both
+// reference backends use (glsl/shape.glsl, and wgsl/shape.wgsl since upstream
+// 15c9114e). pcg over the integer lattice cell (offset by xyOffset), the integer
+// seed and fixed jitter words, wrapped on an integer period when wrap is set.
+float3 nm_shape_randomFromLatticeWithOffset(float2 st, float freq, int2 xyOffset,
+                                            float u_seed, bool u_wrap)
+{
+    float2 scaled = st * freq;
+    int2 base = int2(floor(scaled)) + xyOffset;
+    float2 fracPart = frac(scaled);
+
+    int seedInt = (int)u_seed;
+    float seedFrac = 0.0;
+
+    float xCombined = fracPart.x + seedFrac;
+    int xi = base.x + seedInt + (int)floor(xCombined);
+    int yi = base.y;
+
     if (u_wrap)
     {
-        x = nm_mod(x, freq);
-        y = nm_mod(y, freq);
+        int freqInt = (int)(freq + 0.5);
+        if (freqInt > 0)
+        {
+            xi = nm_shape_positiveModulo(xi, freqInt);
+            yi = nm_shape_positiveModulo(yi, freqInt);
+        }
     }
-    x = x + u_seed;
-    float3 rand = nm_prng(float3(floor(float2(x, y)), u_seed));
-    float scaledTime = nm_shape_periodicFunction(rand.x - u_time)
+
+    uint xBits = asuint(xi);
+    uint yBits = asuint(yi);
+    uint seedBits = asuint(seedInt);
+    uint fracBits = 0u;
+
+    uint3 jitter = uint3(
+        (fracBits * 374761393u) ^ 0x9E3779B9u,
+        (fracBits * 668265263u) ^ 0x7F4A7C15u,
+        (fracBits * 2246822519u) ^ 0x94D049B4u);
+
+    uint3 state = uint3(xBits, yBits, seedBits) ^ jitter;
+    uint3 prngState = nm_pcg(state);
+    float denom = (float)0xffffffffu;
+    return float3((float)prngState.x / denom,
+                  (float)prngState.y / denom,
+                  (float)prngState.z / denom);
+}
+
+// constant(st, freq, speed) — lattice value generator. The time phase comes from
+// the cell at (40, 0), the value from the cell itself.
+float nm_shape_constant(float2 st, float freq, float speed,
+                        float u_time, float u_seed, bool u_wrap)
+{
+    float3 randTime = nm_shape_randomFromLatticeWithOffset(st, freq, int2(40, 0), u_seed, u_wrap);
+    float scaledTime = nm_shape_periodicFunction(randTime.x - u_time)
                      * nm_map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    float3 rand = nm_shape_randomFromLatticeWithOffset(st, freq, int2(0, 0), u_seed, u_wrap);
     return nm_shape_periodicFunction(rand.y - scaledTime);
 }
 
@@ -260,8 +310,8 @@ float nm_shape_sineNoise(float2 st_in, float freq, float s, float blend)
     float b = blend;
     float c = 1.0 - blend;
 
-    float3 r1 = nm_prng(float3(s, 0.0, 0.0)) * 0.75 + 0.125;
-    float3 r2 = nm_prng(float3(s + 10.0, 0.0, 0.0)) * 0.75 + 0.125;
+    float3 r1 = nm_prng(float3(s, s, s)) * 0.75 + 0.125;
+    float3 r2 = nm_prng(float3(s + 10.0, s + 10.0, s + 10.0)) * 0.75 + 0.125;
     float x = sin(r1.x * st.y + sin(r1.y * st.x + a) + sin(r1.z * st.x + b) + c);
     float y = sin(r2.x * st.x + sin(r2.y * st.y + b) + sin(r2.z * st.y + c) + a);
 

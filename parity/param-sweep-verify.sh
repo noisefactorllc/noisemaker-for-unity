@@ -28,7 +28,7 @@ node "$ROOT/parity/param-sweep.mjs" "$OUT" > "$OUT/generate.log"
 cat "$OUT/generate.log"
 
 # The committed corpus is the fixed input; regeneration must reproduce it.
-if ! diff -r --exclude=ref --exclude=cs --exclude='*.log' --exclude=drift.diff --exclude=dump.tsv --exclude=oracle-fails.tsv --exclude=report.txt --exclude=results.tsv --exclude='pixel-exceptions-*.json' --exclude='pixel-reference-blocked.tsv' --exclude='pixel-unresolved.tsv' --exclude='pixel-oracle-wgsl.tsv' "$CORPUS" "$OUT" > "$OUT/drift.diff"; then
+if ! diff -r --exclude=ref --exclude=cs --exclude='*.log' --exclude=drift.diff --exclude=dump.tsv --exclude=oracle-fails.tsv --exclude=report.txt --exclude=results.tsv --exclude='pixel-exceptions-*.json' --exclude='pixel-reference-blocked.tsv' "$CORPUS" "$OUT" > "$OUT/drift.diff"; then
   echo "CORPUS DRIFT: regenerated corpus differs from parity/programs/param-sweep/ (see $OUT/drift.diff)"
   exit 1
 fi

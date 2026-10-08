@@ -11,11 +11,12 @@
 // material textures with intensity/contrast/mono shaping.
 //
 // PORTING-GUIDE notes / hazards handled:
-//  * Sampling UV is the fullscreen 0..1 `uv` (WGSL `in.uv`), used directly for
-//    the textureSample AND as the height-field domain. Unity's stored runtime
-//    texture orientation already reconciles the WGSL modes 5..14 source-UV flip,
-//    so this path intentionally omits a second flip. Fresh directional pixel
-//    evidence covers this runtime-specific orientation choice.
+//  * Sampling UV: every mode now uses one `uv`, the output-normalized
+//    coordinate with a top-left origin (WGSL vec2(in.uv.x, 1 - in.uv.y), as
+//    the GLSL's v_texCoord; upstream 059c1dff / 0b0f4560 replaced the old
+//    modes-5..14-only flip). It feeds the textureSample, the height field and
+//    the material edge mask. In Unity i.uv already is that coordinate in the
+//    stored orientation, so uv = i.uv with no flip.
 //  * `dims = textureDimensions(inputTex)` is the INPUT TEXTURE size; `pixel_step
 //    = 1/dims` is the neighbor offset for the gradient. We mirror exactly.
 //  * MODE is a compile-time const in WGSL (definition.js globals.mode.define =
@@ -381,14 +382,13 @@ float nm_texture_shape_material(float raw)
 // ---- Pass: "texture" (progName "texture") -----------------------------------
 float4 NMFrag_texture(NMVaryings i) : SV_Target
 {
-    float2 uv = i.uv;
-    float2 sourceUV = uv;
-
-    float4 base_color = inputTex.Sample(sampler_inputTex, sourceUV);
-
+    // The output-normalized coordinate, as the GLSL's v_texCoord (WGSL:
+    // vec2(in.uv.x, 1.0 - in.uv.y)); i.uv already is that coordinate in Unity.
     uint w, h;
     inputTex.GetDimensions(w, h);
     float2 dims = float2((float)w, (float)h);
+    float2 uv = i.uv;
+    float4 base_color = inputTex.Sample(sampler_inputTex, uv);
     float2 pixel_step = 1.0 / dims;
 
     float a = clamp(alpha, 0.0, 1.0);
@@ -405,14 +405,14 @@ float4 NMFrag_texture(NMVaryings i) : SV_Target
         float2 globalPixel = floor(NM_FragCoord(i)) + 0.5 + tileOffset;
         float materialMotion = time * (float)Z_LOOP;
         float r = nm_texture_shape_material(nm_texture_material_value(
-            globalPixel, globalDims, sourceUV, materialMotion, 0x1234abcdu));
+            globalPixel, globalDims, uv, materialMotion, 0x1234abcdu));
         float3 material = (float3)r;
         if (mono <= 0.5)
         {
             material.g = nm_texture_shape_material(nm_texture_material_value(
-                globalPixel, globalDims, sourceUV, materialMotion, 0x68bc21ebu));
+                globalPixel, globalDims, uv, materialMotion, 0x68bc21ebu));
             material.b = nm_texture_shape_material(nm_texture_material_value(
-                globalPixel, globalDims, sourceUV, materialMotion, 0x02e5be93u));
+                globalPixel, globalDims, uv, materialMotion, 0x02e5be93u));
         }
         return float4(clamp(lerp(base_color.xyz, material, a),
             float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0)), base_color.w);

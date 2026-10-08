@@ -1,14 +1,6 @@
 {
  "schema_version": 1,
  "cases": {
-  "filter__bloom__intensity__mid": {
-   "max_abs_diff": 2.0,
-   "max_mean_abs_diff": 0.2191162109375,
-   "ssim_min": 0.9999815821647644,
-   "max_exceeded_pixels": 22,
-   "max_exceeded_channels": 22,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__bulge__antialias__false": {
    "max_abs_diff": 255.0,
    "max_mean_abs_diff": 0.002918243408203125,

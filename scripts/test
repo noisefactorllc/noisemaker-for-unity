@@ -23,10 +23,10 @@
 # Nothing in the checkout is rewritten except ignored .NET build output (bin/, obj/).
 set -euo pipefail
 
-# Reference authority: noisemaker v1.0.176, the pinned authority the committed
-# parity corpora and parity/programs/param-sweep/results.tsv are recorded against.
+# Reference authority: noisemaker 15c9114e (v1.0.265 plus the synth/shape WGSL
+# lattice fix), the pinned authority the committed parity corpora are recorded against.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="c9ee8a049b2b63cd300da67c01ee40baf29dc288"
+REFERENCE_SHA="15c9114e864fcc8cd2557669f2ac6d36f0ea080f"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"

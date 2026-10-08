@@ -10,7 +10,7 @@
 //
 // WGSL main() logic (verbatim translation):
 //   var st = position.xy / resolution;
-//   let center = vec2<f32>(-centerX, centerY);
+//   let center = vec2<f32>(centerX, centerY);
 //   st -= center;
 //   st.x *= aspect;
 //   st /= vec2<f32>(scaleX, scaleY);
@@ -26,7 +26,8 @@
 //  * uv = position.xy / resolution (render target size). WGSL uses `resolution`
 //    (the current tile/target size), NOT `fullResolution`. NM_FragCoord(i) divided
 //    by resolution exactly mirrors this.
-//  * center.x is negated in the WGSL: vec2<f32>(-centerX, centerY). Ported verbatim.
+//  * center = vec2<f32>(centerX, centerY): the scale pivots on centerX horizontally
+//    (upstream 6ae3d7a9 dropped the old -centerX negation on both backends).
 //  * WGSL float `%` is floor-based modulo (same as GLSL mod). Map to nm_mod (never fmod).
 //  * wrap is an i32 uniform. Declared as int; branch with [branch] exactly as the
 //    WGSL if/else chain.
@@ -60,8 +61,8 @@ float4 nm_scale(
     // WGSL: var st = position.xy / resolution;
     float2 st = fragCoord / res;
 
-    // WGSL: let center = vec2<f32>(-centerX, centerY);
-    float2 center = float2(-centerX, centerY);
+    // WGSL: let center = vec2<f32>(centerX, centerY);
+    float2 center = float2(centerX, centerY);
 
     // WGSL: st -= center;  st.x *= aspect;  st /= vec2(scaleX,scaleY);  st.x /= aspect;  st += center;
     st -= center;

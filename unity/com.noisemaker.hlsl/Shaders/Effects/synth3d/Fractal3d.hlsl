@@ -18,8 +18,9 @@
 // render/render3d or render/renderLit3d RAYMARCHES this atlas to a 2D image.
 //
 // MRT (drawBuffers:2):
-//   color  -> volumeCache (SV_Target0): rgba16f, .r=normalizedDist .g=trap
-//             .b=iterRatio .a=1. (the volume scalar field / "vol" surface)
+//   color  -> volumeCache (SV_Target0): rgba16f. colorMode 0 (mono, default):
+//             .rgb=normalizedDist; otherwise .r=normalizedDist .g=trap
+//             .b=iterRatio; .a=1. (the volume scalar field / "vol" surface)
 //   geoOut -> geoBuffer   (SV_Target1): rgba16f, xyz = normal*0.5+0.5,
 //             w = normalizedDist. (the geo surface: xyz=normal, w=depth/sdf)
 //
@@ -32,23 +33,20 @@
 // multi-pass / geometry per PORTING-GUIDE checklist + task spec).
 //
 // PORTING-GUIDE / parity notes:
-//  * Ported from WGSL, NOT GLSL. The GLSL precompute.glsl DIFFERS in three
-//    ways that we DO NOT follow (WGSL is canonical here):
+//  * Ported from WGSL. Since reference 27dccd6f the WGSL matches the GLSL
+//    (WebGL2) volume: it declares colorMode and writes grayscale for mono
+//    (colorMode 0), and its geo normal uses the outward SDF gradient,
+//    normalize(gradient + 0.000001) (GLSL: + 1e-6, the same value).
+//    One GLSL/WGSL difference remains, and we follow the WGSL:
 //      (1) GLSL applies tileOffset + renderScale to the atlas coordinate and
-//          scales volSize by renderScale; WGSL uses the raw fragment coord and
-//          volumeSize directly. We reproduce the WGSL: atlas pixel =
-//          int2(NM_FragCoord(i)), volSize = volumeSize (no renderScale). When
-//          the runtime does NOT tile a 64x4096 (or up to 64x16384) target the
-//          two are identical; this atlas is small enough to render untiled.
+//          scales volSize by renderScale (x = mod(x, scaledVolSize)); WGSL
+//          uses the raw fragment coord and volumeSize directly. We reproduce
+//          the WGSL: atlas pixel = int2(NM_FragCoord(i)), volSize = volumeSize
+//          (no renderScale). Untiled at renderScale 1 the two are identical
+//          (the atlas is volSize wide, so the GLSL x mod is a no-op); this
+//          atlas is small enough to render untiled.
 //          // TODO(verify) atlas is rendered untiled (tileOffset==0); if the
 //          // runtime tiles it, fold tileOffset in via NM_GlobalCoord.
-//      (2) GLSL branches the color output on colorMode (mono vs rgb); WGSL
-//          IGNORES colorMode and always writes vec4(normalizedDist, trap,
-//          iterRatio, 1.0). We follow WGSL. colorMode is still a declared
-//          uniform (carried for definition parity) but unused in the body.
-//      (3) GLSL normal = normalize(+gradient + 1e-6); WGSL normal =
-//          normalize(-gradient + 0.000001). We follow WGSL (negated gradient,
-//          magic add 0.000001).
 //  * Helpers (mandelbulb/juliaBulb/boxFold/sphereFold/mandelcube/juliaCube)
 //    ported verbatim, inline. NONE come from NMCore (no pcg/prng/random/nm_mod
 //    used by this effect). atan2 arg order copied literally: atan2(z.y, z.x).
@@ -71,7 +69,7 @@ float bailout;      // globals.bailout     default 2
 float juliaX;       // globals.juliaX      default 0
 float juliaY;       // globals.juliaY      default 0
 float juliaZ;       // globals.juliaZ      default 0
-int   colorMode;    // globals.colorMode   default 0    (declared; unused in WGSL body)
+int   colorMode;    // globals.colorMode   default 0    (0=mono 1=rgb)
 
 static const float PI = 3.141592653589793;
 
@@ -402,21 +400,14 @@ FractalOutput frag_precompute(NMVaryings i)
     }
 
     float3 gradient = float3(dx.x - dist, dy.x - dist, dz.x - dist) / eps;
-    float3 normal = normalize(-gradient + float3(0.000001, 0.000001, 0.000001));
+    float3 normal = normalize(gradient + float3(0.000001, 0.000001, 0.000001));  // SDF gradient points outward
 
-    // GLSL golden branches color output on colorMode (precompute.glsl):
-    //   colorMode 0 = mono  -> vec4(normalizedDist, normalizedDist, normalizedDist, 1)
-    //   colorMode != 0      -> vec4(normalizedDist, trap, iterRatio, 1)
-    // The prior WGSL-derived port ignored colorMode and always wrote RGB, which
-    // tinted the default (mono) volume — diverging from the gray golden.
-    float4 color;
+    // Output volume data based on colorMode
+    // colorMode 0 = mono (grayscale), 1 = rgb (distance, trap, iteration)
+    float4 color = float4(normalizedDist, trap, iterRatio, 1.0);
     if (colorMode == 0)
     {
         color = float4(normalizedDist, normalizedDist, normalizedDist, 1.0);
-    }
-    else
-    {
-        color = float4(normalizedDist, trap, iterRatio, 1.0);
     }
     float4 geoOut = float4(normal * 0.5 + 0.5, normalizedDist);
 

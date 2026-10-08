@@ -31,8 +31,9 @@ Shader "Noisemaker/filter/wobble"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // WGSL samples `in.uv + offset` (top-left fullscreen-pass UV),
-                // NOT fragCoord/texSize. Pass i.uv straight through.
+                // WGSL samples vec2(in.uv.x, 1 - in.uv.y) + offset, the
+                // output-normalized coordinate (GLSL v_texCoord), NOT
+                // fragCoord/texSize. i.uv is that coordinate; pass it through.
                 return nm_wobble(inputTex, sampler_inputTex, i.uv);
             }
             ENDHLSL
