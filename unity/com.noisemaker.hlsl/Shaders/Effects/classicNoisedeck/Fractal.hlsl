@@ -167,7 +167,8 @@ float3 nmf_linear_srgb_from_oklab(float3 c)
 // ---- pal: cosine palette ----------------------------------------------------
 float3 nmf_pal(float t0, float3 pOffset, float3 pAmp, float3 pFreq, float3 pPhase, int pMode)
 {
-    float3 color = pOffset + pAmp * cos(NMF_TAU * (pFreq * t0 + pPhase));
+    // GLSL golden: cos(6.28318 * (c * t + d)) -- the literal, not TAU.
+    float3 color = pOffset + pAmp * cos(6.28318 * (pFreq * t0 + pPhase));
     float3 col = color;
     [branch]
     if (pMode == 1)

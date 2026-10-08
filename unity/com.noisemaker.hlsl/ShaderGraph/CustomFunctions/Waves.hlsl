@@ -35,7 +35,9 @@ float2 nmsg_waves_rotate2D(float2 st, float rot, float ar)
     st = st - float2(0.5 * ar, 0.5);
     float c = cos(angle);
     float s = sin(angle);
-    st = float2(c * st.x - s * st.y, s * st.x + c * st.y);
+    // GLSL golden: mat2(cos,-sin,sin,cos) * st. GLSL mat2 is COLUMN-MAJOR:
+    // (c*st.x + s*st.y, -s*st.x + c*st.y).
+    st = float2(c * st.x + s * st.y, -s * st.x + c * st.y);
     st = st + float2(0.5 * ar, 0.5);
     st.x = st.x / ar;
     return st;
@@ -74,12 +76,12 @@ void NM_Waves_float(
     if (Wrap == 0)
     {
         // mirror
-        uv = abs(nmsg_waves_nm_mod(nmsg_waves_nm_mod(uv + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+        uv = abs(nmsg_waves_nm_mod(uv + 1.0, 2.0) - 1.0);
     }
     else if (Wrap == 1)
     {
         // repeat
-        uv = nmsg_waves_nm_mod(nmsg_waves_nm_mod(uv, 1.0) + 1.0, 1.0);
+        uv = nmsg_waves_nm_mod(uv, 1.0);
     }
     else
     {

@@ -195,16 +195,20 @@ float nm_grime_refracted_exponential(float2 uv, float2 freq, float2 px, float di
 }
 
 // ---- Pass: "grime" (progName "grime") ---------------------------------------
-// Verbatim port of WGSL main(). uv = input.position.xy / dims (i.uv);
-// dims = max(resolution,1).
+// Port of the GLSL main(): the noise is built from the full image. i.uv is the
+// GLSL's v_texCoord; uv below is the GLSL's globalUV and dims its fullResolution.
 float4 NMFrag_grime(NMVaryings i) : SV_Target
 {
-    float2 dims = max(resolution, float2(1.0, 1.0));
-    float2 px = float2(1.0 / dims.x, 1.0 / dims.y);
-    // Frame coordinates as the GLSL's gl_FragCoord / resolution (WGSL:
-    // input.position.xy / dims); i.uv already is that coordinate in Unity.
-    float2 uv = i.uv;
-    float4 base_color = inputTex.Sample(sampler_inputTex, uv);
+    // GLSL: globalCoord = v_texCoord * tileSize + tileOffset;
+    //       globalUV = globalCoord / fullResolution; px = 1.0 / fullResolution;
+    uint tileW, tileH;
+    inputTex.GetDimensions(tileW, tileH);
+    float2 tileSize = float2((float)tileW, (float)tileH);
+    float2 globalCoord = i.uv * tileSize + tileOffset;
+    float2 uv = globalCoord / fullResolution;
+    float2 px = 1.0 / fullResolution;
+    float2 dims = fullResolution;
+    float4 base_color = inputTex.Sample(sampler_inputTex, i.uv);
 
     float str = max(strength, 0.0);
     float s = seed;

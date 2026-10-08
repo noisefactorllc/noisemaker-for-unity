@@ -22,7 +22,8 @@
 //    HLSL ternary  (fullResolution.x > 0.0) ? fullResolution : resolution.
 //  * mat2x2<f32>(c,-s,s,c) is COLUMN-MAJOR in WGSL -> M*v = (c*x + s*y,
 //    -s*x + c*y). Written out by hand to avoid HLSL row-major mul() transpose.
-//  * atan2(y, x) argument order copied literally from WGSL.
+//  * atan2(y, x) argument order copied literally from WGSL; nm_atan2 (NMCore)
+//    keeps the angle as accurate as the reference's atan on the diagonals.
 //  * prng fold variant; divisor 4294967295.0 (NOT 2^32).
 //  * (uint3)p is float->uint TRUNCATION (not asuint).
 // =============================================================================
@@ -197,7 +198,7 @@ float4 nm_gradient(float2 globalCoord, float2 res, float2 fullRes_in, float time
         case 0:
         {
             // Conic / angular gradient
-            float a = atan2(rotatedCentered.y, rotatedCentered.x);
+            float a = nm_atan2(rotatedCentered.y, rotatedCentered.x);
             t = (a + NMG_PI) / NMG_TAU;
             t = frac(t * (float)repeat + timeOffset);
             color = nmg_blendColors(t);
@@ -265,7 +266,7 @@ float4 nm_gradient(float2 globalCoord, float2 res, float2 fullRes_in, float time
         case 6:
         {
             // Spiral gradient - angle + distance
-            float a = atan2(rotatedCentered.y, rotatedCentered.x);
+            float a = nm_atan2(rotatedCentered.y, rotatedCentered.x);
             float dist = length(centered);
             t = frac(a / NMG_TAU + dist * 2.0);
             t = frac(t * (float)repeat + timeOffset);

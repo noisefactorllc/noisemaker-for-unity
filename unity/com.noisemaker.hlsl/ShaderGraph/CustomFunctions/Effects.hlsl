@@ -96,7 +96,7 @@ float3 nmsg_cnd_hsv2rgb(float3 hsv)
     float s = hsv.y;
     float v = hsv.z;
     float c = v * s;
-    float x = c * (1.0 - abs(frac(h * 6.0) * 2.0 - 1.0));
+    float x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0));
     float m = v - c;
     float3 rgb;
     if (h < 1.0 / 6.0)      { rgb = float3(c, x, 0.0); }

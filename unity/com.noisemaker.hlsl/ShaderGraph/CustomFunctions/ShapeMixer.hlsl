@@ -85,6 +85,15 @@ void NM_ShapeMixer_float(
     repeatPalette = RepeatPalette;
     levels        = Levels;
 
+    // The core reads fullResolution/tileOffset (aspect, diamonds()); bind the
+    // untiled values, as Emboss/Bitwise do. diamonds() reads the fragment coord.
+    uint tw, th;
+    InputTex.tex.GetDimensions(tw, th);
+    float2 texSize = float2(tw, th);
+    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_FullResolution = float4(texSize, 0.0, 0.0);
+    sm_fragCoordXY = UV * texSize;
+
     float4 color1 = InputTex.Sample(SS, UV);
     float4 color2 = Tex.Sample(SS, UV);
     Out = nm_shapeMixer(color1, color2, UV);

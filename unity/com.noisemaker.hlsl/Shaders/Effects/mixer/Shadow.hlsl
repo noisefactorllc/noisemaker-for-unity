@@ -16,8 +16,8 @@
 //  * WGSL maskUV = uv - vec2(offsetX, offsetY) * 0.1  (factor 0.1 is literal).
 //  * Blur kernel: sigma = max(blur, 0.001); sigma2 = 2 * sigma * sigma;
 //    loop x in [-5,5], y in [-5,5]; offset = vec2(x,y) * blur / dims.
-//  * Wrap modes: hide(0), mirror(1), repeat(2), clamp(3). WGSL mirror uses
-//    abs(((sampleUV + 1.0) % 2.0 + 2.0) % 2.0 - 1.0); translated with nm_mod.
+//  * Wrap modes: hide(0), mirror(1), repeat(2), clamp(3). Mirror is the GLSL's
+//    abs(mod(uv + 1.0, 2.0) - 1.0) (one nm_mod); repeat is its fract (frac).
 //  * textureSampleLevel -> SampleLevel(ss, uv, 0) — required because sampling
 //    occurs inside a loop (non-uniform control flow; implicit derivatives illegal).
 //  * baseColor / fgSample sampling pattern follows WGSL exactly:
@@ -70,69 +70,76 @@ float4 nm_shadow(
     uint dw, dh;
     inputTex.GetDimensions(dw, dh);
     float2 dims = float2(dw, dh);
-    float2 uv = fragCoord / dims;
+    float2 st = fragCoord / dims;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution (global image UV).
+    float2 globalCoord = fragCoord + tileOffset;
+    float2 uv = globalCoord / fullResolution;
 
     // Base image is the non-mask source. Use SampleLevel throughout (non-uniform
     // control flow inside the blur loop disqualifies implicit-derivative Sample).
     float4 baseColor;
     if (maskSource == 0) {
-        baseColor = tex_.SampleLevel(sampler_tex, uv, 0.0);
+        baseColor = tex_.SampleLevel(sampler_tex, st, 0.0);
     } else {
-        baseColor = inputTex.SampleLevel(sampler_inputTex, uv, 0.0);
+        baseColor = inputTex.SampleLevel(sampler_inputTex, st, 0.0);
     }
 
-    // Mask UV shifted by shadow offset
-    float2 maskUV = uv - float2(offsetX, offsetY) * 0.1;
+    // Mask UV shifted by shadow offset, scaled for print resolution
+    float2 maskUV = uv - float2(offsetX, offsetY) * 0.1 * renderScale;
 
     // Gaussian blur of thresholded mask
     float shadowMask  = 0.0;
     float totalWeight = 0.0;
 
-    float sigma  = max(blur, 0.001);
+    // Scale blur by renderScale and cap at overlap
+    float blurPixels = min(blur * renderScale, 256.0);
+    float sigma  = max(blurPixels, 0.001);
     float sigma2 = 2.0 * sigma * sigma;
 
     for (int x = -5; x <= 5; x = x + 1)
     {
         for (int y = -5; y <= 5; y = y + 1)
         {
-            float2 sampleOffset = float2((float)x, (float)y) * blur / dims;
+            float2 sampleOffset = float2((float)x, (float)y) * blurPixels / resolution;
             float2 sampleUV     = maskUV + sampleOffset;
+
+            // Convert global UV to local UV for tile-local texture sampling
+            float2 localUV = (sampleUV * fullResolution - tileOffset) / dims;
 
             // Apply wrap mode to sample UVs
             float thresholded = 0.0;
             if (wrap == 0)
             {
                 // hide: treat out-of-bounds as empty
-                if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 &&
-                    sampleUV.y >= 0.0 && sampleUV.y <= 1.0)
+                if (localUV.x >= 0.0 && localUV.x <= 1.0 &&
+                    localUV.y >= 0.0 && localUV.y <= 1.0)
                 {
                     float4 maskSample;
                     if (maskSource == 0) {
-                        maskSample = inputTex.SampleLevel(sampler_inputTex, sampleUV, 0.0);
+                        maskSample = inputTex.SampleLevel(sampler_inputTex, localUV, 0.0);
                     } else {
-                        maskSample = tex_.SampleLevel(sampler_tex, sampleUV, 0.0);
+                        maskSample = tex_.SampleLevel(sampler_tex, localUV, 0.0);
                     }
                     thresholded = step(threshold, getChannel(maskSample, sourceChannel));
                 }
             }
             else
             {
-                float2 wrappedUV = sampleUV;
+                float2 wrappedUV = localUV;
                 if (wrap == 1)
                 {
-                    // mirror: abs(((sampleUV + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-                    // nm_mod for float modulo (never fmod)
-                    wrappedUV = abs(nm_mod(nm_mod(sampleUV + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+                    // mirror: GLSL abs(mod(localUV + 1.0, 2.0) - 1.0); nm_mod (never fmod)
+                    wrappedUV = abs(nm_mod(localUV + 1.0, 2.0) - 1.0);
                 }
                 else if (wrap == 2)
                 {
-                    // repeat
-                    wrappedUV = nm_mod(nm_mod(sampleUV, 1.0) + 1.0, 1.0);
+                    // repeat: GLSL fract(localUV)
+                    wrappedUV = frac(localUV);
                 }
                 else
                 {
                     // clamp
-                    wrappedUV = clamp(sampleUV, float2(0.0, 0.0), float2(1.0, 1.0));
+                    wrappedUV = clamp(localUV, float2(0.0, 0.0), float2(1.0, 1.0));
                 }
                 float4 maskSample;
                 if (maskSource == 0) {
@@ -161,9 +168,9 @@ float4 nm_shadow(
     // Composite mask source (foreground) on top of the shadow
     float4 fgSample;
     if (maskSource == 0) {
-        fgSample = inputTex.SampleLevel(sampler_inputTex, uv, 0.0);
+        fgSample = inputTex.SampleLevel(sampler_inputTex, st, 0.0);
     } else {
-        fgSample = tex_.SampleLevel(sampler_tex, uv, 0.0);
+        fgSample = tex_.SampleLevel(sampler_tex, st, 0.0);
     }
     float  fgMask  = step(threshold, getChannel(fgSample, sourceChannel));
     float3 result  = lerp(withShadow, fgSample.rgb, fgMask);

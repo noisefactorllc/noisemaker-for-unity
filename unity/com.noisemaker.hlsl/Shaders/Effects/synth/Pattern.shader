@@ -27,12 +27,9 @@ Shader "Noisemaker/synth/pattern"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // WGSL main() receives position.xy (pixel-centered, top-left).
-                // NM_FragCoord returns uv * resolution = pixel center coords.
-                // Pass as fragCoord; tileOffset excluded because WGSL uses plain
-                // position.xy (no tile offset in the original effect).
-                // TODO(verify): if tiling is required, switch to NM_GlobalCoord(i).
-                return nm_pattern(NM_FragCoord(i));
+                // GLSL: globalCoord = gl_FragCoord.xy + tileOffset, normalized by
+                // fullResolution inside nm_pattern. NM_GlobalCoord adds tileOffset.
+                return nm_pattern(NM_GlobalCoord(i));
             }
             ENDHLSL
         }

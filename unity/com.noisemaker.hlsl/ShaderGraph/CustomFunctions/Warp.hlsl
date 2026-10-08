@@ -116,11 +116,11 @@ void NM_Warp_float(
 
     if (Wrap == 0)
     {
-        uv = abs(nmsg_warp_mod(nmsg_warp_mod(uv + 1.0, float2(2.0, 2.0)) + 2.0, float2(2.0, 2.0)) - 1.0);
+        uv = abs(nmsg_warp_mod(uv + 1.0, float2(2.0, 2.0)) - 1.0);
     }
     else if (Wrap == 1)
     {
-        uv = nmsg_warp_mod(nmsg_warp_mod(uv, float2(1.0, 1.0)) + 1.0, float2(1.0, 1.0));
+        uv = nmsg_warp_mod(uv, float2(1.0, 1.0));
     }
     else
     {

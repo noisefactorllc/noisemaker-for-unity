@@ -78,7 +78,7 @@ float radiusY;  // globals.radiusY.uniform, [0,50] step 1, default 5
 // -----------------------------------------------------------------------------
 float4 nm_blur_gaussian(float2 uv, float2 texelSize, float radiusF, float2 axis)
 {
-    int radius = (int)radiusF;
+    int radius = (int)(radiusF * renderScale);
     if (radius <= 0)
     {
         return inputTex.Sample(sampler_inputTex, uv);

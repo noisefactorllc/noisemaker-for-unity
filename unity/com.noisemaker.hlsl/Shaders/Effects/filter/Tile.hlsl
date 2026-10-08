@@ -115,10 +115,10 @@ float2 nm_tile_rotationalFold(float2 uv, int n)
 // =============================================================================
 float4 nm_tile_frag(Texture2D inputTex, SamplerState samp, float2 fragCoord, float2 texSize)
 {
-    // WGSL: uv = position.xy / texSize
-    float2 uv = fragCoord / texSize;
-    // WGSL: asp = texSize.x / texSize.y
-    float asp = texSize.x / texSize.y;
+    // GLSL: globalUV = (gl_FragCoord.xy + tileOffset) / fullResolution
+    float2 uv = (fragCoord + tileOffset) / fullResolution;
+    // GLSL: aspect = fullResolution.x / fullResolution.y
+    float asp = fullResolution.x / fullResolution.y;
     bool doAspect = (aspectLens != 0);
 
     // Rotate in aspect-corrected space to avoid shearing on non-square canvases.
@@ -144,7 +144,7 @@ float4 nm_tile_frag(Texture2D inputTex, SamplerState samp, float2 fragCoord, flo
     else
     {
         // Square tiling.
-        st = nm_tile_fract2(st * rep);
+        st = frac(st * rep);
 
         // mirrorXY needs half the range so edges match at default scale.
         float effectiveScale = scale;
@@ -162,20 +162,20 @@ float4 nm_tile_frag(Texture2D inputTex, SamplerState samp, float2 fragCoord, flo
         else if (symmetry == 1)
         {
             // rotate2
-            st = nm_tile_rotationalFold(nm_tile_fract2(st), 2);
+            st = nm_tile_rotationalFold(frac(st), 2);
         }
         else
         {
             // rotate4
-            st = nm_tile_rotationalFold(nm_tile_fract2(st), 4);
+            st = nm_tile_rotationalFold(frac(st), 4);
         }
     }
 
-    // Clamp to valid texture range.
-    st = clamp(st, float2(0.0, 0.0), float2(1.0, 1.0));
+    // Wrap for seamless tiling across tile boundaries (GLSL: localUV = fract(st)).
+    float2 localUV = frac(st);
 
-    // WGSL: textureSampleLevel(inputTex, samp, st, 0.0).rgb, alpha = 1.0
-    return float4(inputTex.SampleLevel(samp, st, 0.0).rgb, 1.0);
+    // GLSL: texture(inputTex, localUV).rgb, alpha = 1.0
+    return float4(inputTex.SampleLevel(samp, localUV, 0.0).rgb, 1.0);
 }
 
 #endif // NM_TILE_INCLUDED

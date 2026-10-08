@@ -91,7 +91,7 @@ float2 nmsg_lensWarp_warpedUV(float2 pos, float2 frame, float2 originOffset, flo
     float noiseY = nmsg_lensWarp_perlinNoise(noiseCoord + 97.0, float2(2.0, 2.0), t, spd);
     uv.x = uv.x + (noiseX - 0.5) * disp * mask;
     uv.y = uv.y + (noiseY - 0.5) * disp * mask;
-    return abs(nmsg_lensWarp_mod(nmsg_lensWarp_mod(uv + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+    return abs(nmsg_lensWarp_mod(uv + 1.0, 2.0) - 1.0);
 }
 
 // NM_LensWarp_float — Shader Graph Custom Function entry.

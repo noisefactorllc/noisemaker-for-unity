@@ -138,8 +138,8 @@ float nms_shadeFromHash(float h)
 
 // =============================================================================
 // nm_subdivide — core per-pixel evaluation. Mirrors WGSL main() exactly.
-//   fragCoord : NM_FragCoord(i) (top-left, +0.5)        (= WGSL pos.xy)
-//   res       : the render resolution                   (= WGSL u.data[0].xy)
+//   fragCoord : NM_GlobalCoord(i) (fragCoord + tileOffset) (= GLSL globalCoord)
+//   res       : fullResolution                          (= GLSL fullResolution)
 //   timeVal   : normalized animation time               (= WGSL u.data[2].z)
 //   inputTex / ss : the input surface + sampler (sampled only when blend > 0)
 // Returns RGBA.
@@ -153,13 +153,13 @@ float4 nm_subdivide(float2 fragCoord, float2 res, float timeVal,
     int maxDepth = (int)depth;                       // WGSL i32(u.data[0].w)
     float dens = density / 100.0;                    // WGSL u.data[1].x / 100
     int fillType = (int)fill;                        // WGSL i32(u.data[1].z)
-    float outlineWidthX = outline / resolution.x;    // WGSL u.data[1].w / res.x
-    float outlineWidthY = outline / resolution.y;    // WGSL u.data[1].w / res.y
+    float outlineWidthX = outline * renderScale / res.x;    // GLSL outline * renderScale / fullResolution.x
+    float outlineWidthY = outline * renderScale / res.y;    // GLSL outline * renderScale / fullResolution.y
 
     float timeV = timeVal;                           // WGSL u.data[2].z
     float spd = floor((float)speed) * 2.0;           // WGSL floor(u.data[2].w)*2
 
-    float2 st = fragCoord / resolution;              // WGSL pos.xy / resolution
+    float2 st = fragCoord / res;                     // GLSL globalCoord / fullResolution
 
     // Subdivision loop
     float2 cellMin = float2(0.0, 0.0);
@@ -178,8 +178,8 @@ float4 nm_subdivide(float2 fragCoord, float2 res, float timeVal,
         if (h < dens)
         {
             // Skip splits that would create too-narrow cells (max 5:1 aspect)
-            float cellW = (cellMax.x - cellMin.x) * resolution.x;
-            float cellH = (cellMax.y - cellMin.y) * resolution.y;
+            float cellW = (cellMax.x - cellMin.x) * res.x;
+            float cellH = (cellMax.y - cellMin.y) * res.y;
             bool canSplitH = min(cellW, cellH * 0.5) / max(cellW, cellH * 0.5) >= 0.2;
             bool canSplitV = min(cellW * 0.5, cellH) / max(cellW * 0.5, cellH) >= 0.2;
 
@@ -235,8 +235,8 @@ float4 nm_subdivide(float2 fragCoord, float2 res, float timeVal,
     float2 cellUv = (st - cellMin) / cellSize;
 
     // 1:1 aspect-corrected coords, scaled to fit shorter side
-    float cellPixelW = cellSize.x * resolution.x;
-    float cellPixelH = cellSize.y * resolution.y;
+    float cellPixelW = cellSize.x * res.x;
+    float cellPixelH = cellSize.y * res.y;
     float minDim = min(cellPixelW, cellPixelH);
     float2 centered = cellUv - 0.5;
     centered.x = centered.x * (cellPixelW / minDim);
@@ -292,8 +292,8 @@ float4 nm_subdivide(float2 fragCoord, float2 res, float timeVal,
 
         float2 texUv = cellUv;
         // Correct for aspect ratio difference between cell and texture
-        float cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
-        float texAspect = resolution.x / resolution.y;
+        float cellAspect = (cellSize.x * res.x) / (cellSize.y * res.y);
+        float texAspect = res.x / res.y;
         float ratio = cellAspect / texAspect;
         if (ratio > 1.0)
         {

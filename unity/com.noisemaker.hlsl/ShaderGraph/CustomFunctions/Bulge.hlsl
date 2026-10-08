@@ -69,11 +69,11 @@ void NM_Bulge_float(
     [branch]
     if (Wrap == 0)
     {
-        uv = abs(nm_mod(nm_mod(uv + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+        uv = abs(nm_mod(uv + 1.0, 2.0) - 1.0);
     }
     else if (Wrap == 1)
     {
-        uv = nm_mod(nm_mod(uv, 1.0) + 1.0, 1.0);
+        uv = nm_mod(uv, 1.0);
     }
     else
     {

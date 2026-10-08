@@ -40,6 +40,10 @@ void NM_Skew_float(
     InputTex.tex.GetDimensions(tw, th);
     float2 fragCoord = UV * float2(tw, th);
 
+    // Untiled: seed the globals nm_skew reads (full image = the input texture).
+    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_FullResolution = float4((float)tw, (float)th, 0.0, 0.0);
+
     Out = nm_skew(fragCoord, InputTex.tex, SS.samplerstate);
 }
 

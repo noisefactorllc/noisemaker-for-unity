@@ -47,8 +47,11 @@ Shader "Noisemaker/mixer/centerMask"
                 float4 edgeColor   = inputTex.Sample(sampler_inputTex, st);
                 float4 centerColor = tex.Sample(sampler_tex, st);
 
-                float2 pos = NM_FragCoord(i);
-                return nm_centerMask(edgeColor, centerColor, pos, dims);
+                // GLSL: the mask is placed in the full image —
+                //   p = (gl_FragCoord.xy + tileOffset - 0.5 * fullResolution) / (0.5 * minRes),
+                //   minRes and corner from fullResolution.
+                float2 pos = NM_GlobalCoord(i);
+                return nm_centerMask(edgeColor, centerColor, pos, fullResolution);
             }
             ENDHLSL
         }

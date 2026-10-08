@@ -46,10 +46,12 @@ Shader "Noisemaker/mixer/shapeMask"
                 float4 colorA = inputTex.Sample(sampler_inputTex, st);
                 float4 colorB = tex.Sample(sampler_tex, st);
 
-                // Centered, aspect-correct coordinates.
-                // WGSL: aspect = dims.x / dims.y  (inputTex dims, NOT fullResolution)
-                float aspect = dims.x / dims.y;
-                float2 p = (st - float2(0.5, 0.5)) * 2.0;
+                // Centered, aspect-correct coordinates using full image dimensions
+                // (GLSL: fullRes = fullResolution.x > 0 ? fullResolution : resolution).
+                float2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+                float aspect = fullRes.x / fullRes.y;
+                float2 globalUV = NM_GlobalCoord(i) / fullRes;
+                float2 p = (globalUV - float2(0.5, 0.5)) * 2.0;
                 p.x = p.x * aspect;
 
                 // Apply position offset

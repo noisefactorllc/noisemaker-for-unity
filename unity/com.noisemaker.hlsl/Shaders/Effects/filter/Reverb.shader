@@ -39,9 +39,12 @@ Shader "Noisemaker/filter/reverb"
                 inputTex.GetDimensions(tw, th);
                 float2 dims = float2((float)tw, (float)th);
                 float2 uv   = NM_FragCoord(i) / dims;
+                // GLSL: globalUV = (gl_FragCoord.xy + tileOffset) / fullResolution
+                float2 fullDims = fullResolution.x > 0.0 ? fullResolution : dims;
+                float2 globalUV = (NM_FragCoord(i) + tileOffset) / fullDims;
 
                 float4 original = inputTex.Sample(sampler_inputTex, uv);
-                return nm_reverb(original, uv, inputTex, sampler_inputTex);
+                return nm_reverb(original, globalUV, inputTex, sampler_inputTex);
             }
             ENDHLSL
         }

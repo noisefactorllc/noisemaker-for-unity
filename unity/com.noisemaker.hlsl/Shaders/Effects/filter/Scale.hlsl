@@ -16,8 +16,8 @@
 //   st /= vec2<f32>(scaleX, scaleY);
 //   st.x /= aspect;
 //   st += center;
-//   if (wrap == 0) { st = abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0); }
-//   else if (wrap == 1) { st = (st % 1.0 + 1.0) % 1.0; }
+//   if (wrap == 0) { st = abs((st + 1.0) - 2.0 * floor((st + 1.0) / 2.0) - 1.0); }
+//   else if (wrap == 1) { st = fract(st); }
 //   else { st = clamp(st, vec2(0.0), vec2(1.0)); }
 //   return vec4<f32>(textureSample(inputTex, samp, st).rgb, 1.0);
 //
@@ -28,7 +28,7 @@
 //    by resolution exactly mirrors this.
 //  * center = vec2<f32>(centerX, centerY): the scale pivots on centerX horizontally
 //    (upstream 6ae3d7a9 dropped the old -centerX negation on both backends).
-//  * WGSL float `%` is floor-based modulo (same as GLSL mod). Map to nm_mod (never fmod).
+//  * Wrap is the GLSL's: mirror mod -> one nm_mod (never fmod); repeat fract -> frac.
 //  * wrap is an i32 uniform. Declared as int; branch with [branch] exactly as the
 //    WGSL if/else chain.
 //  * aspect alias = fullResolution.x / fullResolution.y (provided by NMFullscreen.hlsl).
@@ -58,8 +58,8 @@ float4 nm_scale(
     Texture2D    inputTex,
     SamplerState sampler_inputTex)
 {
-    // WGSL: var st = position.xy / resolution;
-    float2 st = fragCoord / res;
+    // GLSL: st = (gl_FragCoord.xy + tileOffset) / fullResolution;
+    float2 st = (fragCoord + tileOffset) / fullResolution;
 
     // WGSL: let center = vec2<f32>(centerX, centerY);
     float2 center = float2(centerX, centerY);
@@ -71,14 +71,18 @@ float4 nm_scale(
     st.x /= aspectRatio;
     st += center;
 
-    // WGSL wrap modes — float % is floor-based: map to nm_mod (never fmod).
+    // GLSL: localUV = (st * fullResolution - tileOffset) / resolution; the wrap
+    // mode applies to that tile-local UV.
+    st = (st * fullResolution - tileOffset) / res;
+
+    // Wrap modes — GLSL mod -> nm_mod (never fmod), GLSL fract -> frac.
     [branch]
     if (wrap == 0) {
-        // mirror: abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        st = abs(nm_mod(nm_mod(st + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+        // mirror: GLSL abs(mod(uv + 1.0, 2.0) - 1.0)
+        st = abs(nm_mod(st + 1.0, 2.0) - 1.0);
     } else if (wrap == 1) {
-        // repeat: (st % 1.0 + 1.0) % 1.0
-        st = nm_mod(nm_mod(st, 1.0) + 1.0, 1.0);
+        // repeat: GLSL fract(uv)
+        st = frac(st);
     } else {
         // clamp
         st = clamp(st, float2(0.0, 0.0), float2(1.0, 1.0));

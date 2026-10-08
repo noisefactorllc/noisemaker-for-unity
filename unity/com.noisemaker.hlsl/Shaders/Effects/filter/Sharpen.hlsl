@@ -35,14 +35,17 @@ float amount;
 // -----------------------------------------------------------------------------
 // nm_sharpen — core convolution. inputTex + sampler_inputTex must be in scope
 // (declared in the .shader pass that calls this function).
-// texSize : float2(inputTex.GetDimensions()), uv : fragCoord / texSize
+// texSize : float2(inputTex.GetDimensions()), fragCoord : NM_FragCoord(i)
 // -----------------------------------------------------------------------------
-float4 nm_sharpen(Texture2D inputTex, SamplerState sampler_inputTex, float2 uv, float2 texSize)
+float4 nm_sharpen(Texture2D inputTex, SamplerState sampler_inputTex, float2 fragCoord, float2 texSize)
 {
+    // GLSL: uv is the full-image uv of the global coordinate
+    float2 globalCoord = fragCoord + tileOffset;
+    float2 uv = globalCoord / fullResolution;
     float2 texelSize = 1.0 / texSize;
 
-    // WGSL: let origColor = textureSampleLevel(inputTex, inputSampler, uv, 0.0);
-    float4 origColor = inputTex.SampleLevel(sampler_inputTex, uv, 0);
+    // GLSL: origColor = texture(inputTex, gl_FragCoord.xy / textureSize(inputTex, 0));
+    float4 origColor = inputTex.SampleLevel(sampler_inputTex, fragCoord / texSize, 0);
 
     // WGSL: let kernel = array<f32, 9>(-1.0, 0.0, -1.0, 0.0, 5.0, 0.0, -1.0, 0.0, -1.0);
     float kernel[9];
@@ -72,7 +75,8 @@ float4 nm_sharpen(Texture2D inputTex, SamplerState sampler_inputTex, float2 uv, 
     [loop]
     for (int i = 0; i < 9; i = i + 1)
     {
-        float3 s = inputTex.SampleLevel(sampler_inputTex, uv + offsets[i] * amount, 0).rgb;
+        float3 s = inputTex.SampleLevel(sampler_inputTex,
+            ((uv + offsets[i] * amount * renderScale) * fullResolution - tileOffset) / texSize, 0).rgb;
         conv = conv + s * kernel[i];
     }
 

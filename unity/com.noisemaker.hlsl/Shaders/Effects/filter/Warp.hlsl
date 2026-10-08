@@ -22,7 +22,7 @@
 //    their bodies match this effect's pcg/prng verbatim.
 //  * `select(-p.x*2+1, p.x*2, p.x>=0)` -> the WGSL true value is the 2nd arg, so
 //    `p.x>=0 ? p.x*2 : -p.x*2+1` (handled inside nm_prng — identical here).
-//  * `mod` (WGSL `%` on floats) -> nm_mod (NEVER fmod, H6): mirror/repeat use it.
+//  * GLSL `mod` -> nm_mod (NEVER fmod, H6): mirror/repeat use one nm_mod each.
 //  * dpdx/dpdy -> ddx/ddy (screen-space derivatives in the fragment stage).
 //  * `f32(seed)` / `f32(speed)` are numeric int->float conversions -> (float).
 //  * Linear, clamp-to-edge, non-sRGB sampler (H7) — set on the SamplerState in
@@ -108,14 +108,12 @@ float nm_warp_perlinNoise(float2 st_in, float2 noiseScale, float t)
 // ---- Pass: "warp" (progName "warp") -----------------------------------------
 float4 NMFrag_warp(NMVaryings i) : SV_Target
 {
-    // WGSL: texSize = vec2<f32>(textureDimensions(inputTex));
-    //       aspectRatio = texSize.x / texSize.y;
-    //       uv = pos.xy / texSize;   (pos = @builtin(position), top-left)
-    uint w, h;
-    inputTex.GetDimensions(w, h);
-    float2 texSize = float2((float)w, (float)h);
-    float aspectRatioLocal = texSize.x / texSize.y;
-    float2 uv = NM_FragCoord(i) / texSize;
+    // GLSL: fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    //       aspectRatio = fullRes.x / fullRes.y;
+    //       uv = (gl_FragCoord.xy + tileOffset) / fullRes;
+    float2 fullRes = (fullResolution.x > 0.0) ? fullResolution : resolution;
+    float aspectRatioLocal = fullRes.x / fullRes.y;
+    float2 uv = NM_GlobalCoord(i) / fullRes;
 
     float t = time;
 
@@ -130,13 +128,13 @@ float4 NMFrag_warp(NMVaryings i) : SV_Target
     // Apply wrap mode.
     if (wrap == 0)
     {
-        // mirror: abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        uv = abs(nm_mod(nm_mod(uv + 1.0, float2(2.0, 2.0)) + 2.0, float2(2.0, 2.0)) - 1.0);
+        // mirror: GLSL abs(mod(uv + 1.0, 2.0) - 1.0)
+        uv = abs(nm_mod(uv + 1.0, float2(2.0, 2.0)) - 1.0);
     }
     else if (wrap == 1)
     {
-        // repeat: (uv % 1.0 + 1.0) % 1.0
-        uv = nm_mod(nm_mod(uv, float2(1.0, 1.0)) + 1.0, float2(1.0, 1.0));
+        // repeat: GLSL mod(uv, 1.0)
+        uv = nm_mod(uv, float2(1.0, 1.0));
     }
     else
     {

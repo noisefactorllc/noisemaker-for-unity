@@ -62,11 +62,11 @@ float4 nm_pond_ripples(Texture2D tex, SamplerState ss, float2 pos)
 
     if (WRAP == 0)
     {
-        uv = abs(nm_mod(nm_mod(uv + 1.0, float2(2.0, 2.0)) + 2.0, float2(2.0, 2.0)) - 1.0);
+        uv = abs(nm_mod(uv + 1.0, float2(2.0, 2.0)) - 1.0);
     }
     else if (WRAP == 1)
     {
-        uv = nm_mod(nm_mod(uv, float2(1.0, 1.0)) + 1.0, float2(1.0, 1.0));
+        uv = nm_mod(uv, float2(1.0, 1.0));
     }
     else
     {

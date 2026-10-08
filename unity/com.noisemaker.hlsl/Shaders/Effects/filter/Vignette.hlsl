@@ -105,11 +105,14 @@ float4 NMFrag_vignette(NMVaryings i) : SV_Target
     //       uv      = pos.xy / texSize;   (pos = @builtin(position), top-left)
     uint w, h;
     inputTex.GetDimensions(w, h);
-    float2 texSize = float2((float)w, (float)h);
-    float2 uv = NM_FragCoord(i) / texSize;
+    float2 tileDims = float2((float)w, (float)h);
+    // GLSL: the mask uses the global UV over fullResolution (tile size fallback)
+    float2 dims = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    float2 uv = NM_FragCoord(i) / tileDims;
+    float2 globalUV = (NM_FragCoord(i) + tileOffset) / dims;
 
     float4 texel = inputTex.Sample(sampler_inputTex, uv);
-    return nm_vignette(texel, uv, texSize);
+    return nm_vignette(texel, globalUV, dims);
 }
 
 #endif // NM_EFFECT_VIGNETTE_INCLUDED

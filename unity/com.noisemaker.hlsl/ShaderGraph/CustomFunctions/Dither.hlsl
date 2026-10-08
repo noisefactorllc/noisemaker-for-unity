@@ -58,6 +58,10 @@ void NM_Dither_float(
     levels      = (float)Levels;
     mixAmount   = Mix;
 
+    // The core now reads tileOffset/renderScale; a standalone node is untiled.
+    _NM_TileOffset  = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_RenderScale = 1.0;
+
     // Recover the raw pixel coordinate (WGSL pos.xy) the dither pattern expects.
     uint tw, th;
     InputTex.tex.GetDimensions(tw, th);

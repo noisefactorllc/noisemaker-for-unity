@@ -12,12 +12,14 @@
 // RGSS antialias), then applies an optional center vignette. Single pass.
 //
 // PORTING-GUIDE notes / hazards handled:
-//  * Sample coord uses textureDimensions(inputTex), i.e. NM_FragCoord(i) /
-//    float2(w,h) — NOT fullResolution. WGSL is canonical.
+//  * UV follows the GLSL (the parity authority): uv = (gl_FragCoord.xy +
+//    tileOffset) / fullRes, fullRes = fullResolution (or the input texture
+//    dims when unset). Untiled this is the WGSL's pos.xy / textureDimensions.
 //  * atan2(x,y) argument ORDER: WGSL polygonShape uses atan2(uv.x, uv.y) —
 //    reversed from HLSL atan2(y,x) convention. We replicate literally:
 //    atan2(uv.x, uv.y).  The main-body a uses atan2(centered.y, centered.x)
-//    (standard order) — also replicated literally.
+//    (standard order) — also replicated literally. Both use the accurate
+//    NMCore nm_atan2 (the intrinsic is low precision).
 //  * smod2 is per-effect (not in NMCore); copied verbatim.
 //  * polygonShape is per-effect; copied verbatim including the reversed atan2.
 //  * shape / antialias / aspectLens are boolean-style ints (int uniforms +
@@ -53,7 +55,7 @@ static const float NM_TUNNEL_TAU = 6.28318530718;
 //        return cos(floor(0.5 + a / r) * r - a) * length(uv);
 float nm_tunnel_polygonShape(float2 uv, int sides)
 {
-    float a = atan2(uv.x, uv.y) + NM_TUNNEL_PI;
+    float a = nm_atan2(uv.x, uv.y) + NM_TUNNEL_PI;
     float r = NM_TUNNEL_TAU / (float)sides;
     return cos(floor(0.5 + a / r) * r - a) * length(uv);
 }
@@ -71,12 +73,14 @@ float2 nm_tunnel_smod2(float2 v, float m)
 // =============================================================================
 float4 NMFrag_tunnel(NMVaryings i) : SV_Target
 {
-    // WGSL: let texSize = vec2<f32>(textureDimensions(inputTex));
-    //       let uv = pos.xy / texSize;
+    // GLSL: tileDims = textureSize(inputTex, 0);
+    //       fullRes  = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    //       uv       = (gl_FragCoord.xy + tileOffset) / fullRes;
     uint w, h;
     inputTex.GetDimensions(w, h);
     float2 texSize = float2((float)w, (float)h);
-    float2 uv = NM_FragCoord(i) / texSize;
+    float2 fullRes = (fullResolution.x > 0.0) ? fullResolution : texSize;
+    float2 uv = NM_GlobalCoord(i) / fullRes;
 
     // Center the coordinates
     float2 centered = uv - 0.5;
@@ -85,13 +89,13 @@ float4 NMFrag_tunnel(NMVaryings i) : SV_Target
     // NOTE: `aspectRatio` is a #define alias in NMFullscreen.hlsl, so we use a
     // distinct local name (tunnelAspect) to avoid the macro expanding into the
     // declaration / assignment l-value.
-    float tunnelAspect = texSize.x / texSize.y;
+    float tunnelAspect = fullRes.x / fullRes.y;
     [branch] if (aspectLens != 0)
     {
         centered.x = centered.x * tunnelAspect;
     }
 
-    float a = atan2(centered.y, centered.x);
+    float a = nm_atan2(centered.y, centered.x);
     float r;
 
     [branch] if (shape == 0)

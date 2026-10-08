@@ -74,8 +74,10 @@ NMVaryings NMVertFullscreen(uint vertexID : SV_VertexID)
 }
 
 // gl_FragCoord / WGSL position.xy analog: pixel-centered (+0.5) target coords.
-// uv*resolution at a pixel center = (px+0.5). Matches the reference exactly.
-float2 NM_FragCoord(NMVaryings i)  { return i.uv * _NM_Resolution.xy; }
+// uv*resolution at a pixel center is (px+0.5) only up to interpolation error, so
+// snap it to the exact pixel center the way gl_FragCoord reports it. Effects that
+// land exactly on texel boundaries (nearest-filtered surfaces) depend on this.
+float2 NM_FragCoord(NMVaryings i)  { return floor(i.uv * _NM_Resolution.xy) + 0.5; }
 
 // globalCoord = fragCoord + tileOffset (the reference's per-tile shift).
 float2 NM_GlobalCoord(NMVaryings i){ return NM_FragCoord(i) + _NM_TileOffset.xy; }

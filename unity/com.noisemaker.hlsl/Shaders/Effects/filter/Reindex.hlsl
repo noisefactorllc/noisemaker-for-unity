@@ -276,8 +276,12 @@ float4 frag_nmReindexApply(NMVaryings i) : SV_Target
 
     float mod_range = (float)min(dw, dh);
     float offset_value = normalized * uDisplacement * mod_range + normalized;
-    int sample_x = reindex_wrap_index(offset_value, (int)dw);
-    int sample_y = reindex_wrap_index(offset_value, (int)dh);
+    // GLSL: int(fract(offsetValue / float(texSize)) * float(texSize)), clamped
+    // to the last texel.
+    int sample_x = (int)(frac(offset_value / (float)dw) * (float)dw);
+    int sample_y = (int)(frac(offset_value / (float)dh) * (float)dh);
+    sample_x = min(sample_x, (int)dw - 1);
+    sample_y = min(sample_y, (int)dh - 1);
 
     return inputTex.Load(int3(sample_x, sample_y, 0));
 }

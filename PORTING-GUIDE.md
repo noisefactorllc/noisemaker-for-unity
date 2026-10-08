@@ -7,10 +7,12 @@ style preference.
 
 ## Golden rules
 
-1. **Port from the WGSL source, not the GLSL.** WGSL is top-left / D3D-oriented,
-   exactly like Unity HLSL. GLSL is bottom-left and reconciles Y elsewhere. Porting
-   from WGSL means **no per-effect Y flip** is needed. Use the GLSL only to
-   disambiguate when the WGSL is unclear.
+1. **Match the GLSL's semantics; use the WGSL for structure.** The goldens are the
+   reference GLSL rendered on WebGL2, so where the WGSL and GLSL compute different
+   things (WGSL `%` against GLSL `mod`, a negated rotation, a tile-local against a
+   global coordinate, a different `hsv2rgb`), port the GLSL's math. Since noisemaker
+   v1.0.271 the WGSL computes what the GLSL does, so its structure, bindings and
+   orientation remain a sound starting point, and **no per-effect Y flip** is needed.
 2. **Port helpers verbatim, per effect.** `pcg`/`prng`/`random` are the *only*
    shared primitives (in `NMCore.hlsl`). Everything else — `hsv2rgb`, `rgb2hsv`,
    `rotate2D`, distance metrics, `smin`, `shape` — is frequently **different**

@@ -26,10 +26,8 @@ Shader "Noisemaker/synth/scope"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // fragCoord: pixel-centered top-left coords (+0.5 centered).
-                // Scope uses NM_FragCoord (not NM_GlobalCoord) because WGSL
-                // uses position.xy directly (no tileOffset). // TODO(verify): confirm
-                // whether tileOffset should be added for tiled renders; WGSL has none.
+                // fragCoord: pixel-centered coords (+0.5), gl_FragCoord's frame.
+                // nm_scope adds tileOffset itself, as the GLSL does.
                 float2 fragCoord = NM_FragCoord(i);
                 return nm_scope(fragCoord);
             }

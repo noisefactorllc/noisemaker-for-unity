@@ -27,7 +27,6 @@ THREE_D_FIXTURES = {
 THREE_D_EXCEPTIONS_NAMES = {
     "synth3dCell3d",
     "synth3dFlythrough3d",
-    "synth3dFractal3d",
 }
 CLASSIC_MANIFEST = ROOT / "parity" / "programs" / "classic-manifest.tsv"
 CLASSIC_EXCEPTIONS = ROOT / "parity" / "programs" / "classic-exceptions.json"
@@ -196,18 +195,15 @@ FILTER_EXCEPTION_CASES = {
     "filter__lensWarp",
     "filter__octaveWarp",
     "filter__pinch",
-    "filter__polar",
     "filter__posterize",
     "filter__reindex",
     "filter__rotate",
     "filter__scanlineError",
-    "filter__snow",
     "filter__spiral",
     "filter__step",
     "filter__tetraColorArray",
     "filter__tunnel",
     "filter__warp",
-    "filter__waves",
     "filter__wormhole",
 }
 
@@ -778,14 +774,6 @@ class Repository3dPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 9851,
                     "mechanism": "Collision-avoidance camera-origin amplification of float32 transcendental and distance-estimator gradient drift; only 62 foreground-mask pixels flip.",
                 },
-                "synth3dFractal3d": {
-                    "max_abs_diff": 147,
-                    "max_mean_abs_diff": 0.021836,
-                    "ssim_min": 0.999845,
-                    "max_exceeded_pixels": 136,
-                    "max_exceeded_channels": 408,
-                    "mechanism": "Sparse float32 raymarch and iteration boundary ties in the transcendental fractal distance estimator.",
-                },
             },
             policy["cases"],
         )
@@ -799,7 +787,7 @@ class Repository3dPolicyContractTests(unittest.TestCase):
             cand.mkdir()
             for name in THREE_D_FIXTURES:
                 changed = None
-                if name in {"synth3dFlythrough3d", "synth3dFractal3d"}:
+                if name == "synth3dFlythrough3d":
                     changed = [(0, 0, (130, 127, 127, 255))]
                 write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
                 write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
@@ -815,7 +803,7 @@ class Repository3dPolicyContractTests(unittest.TestCase):
             )
 
         self.assertEqual(0, completed.returncode, completed.stderr)
-        self.assertEqual({"PASS": 7, "ALLOWED_NEAR": 2}, report["counts"])
+        self.assertEqual({"PASS": 8, "ALLOWED_NEAR": 1}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 
@@ -856,13 +844,6 @@ class RepositoryClassicPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 93,
                     "mechanism": "Complex-plane escape boundary iteration threshold tie (transcendental float32 precision).",
                 },
-                "classicNoisedeck__kaleido": {
-                    "max_abs_diff": 16,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 80,
-                    "max_exceeded_channels": 192,
-                    "mechanism": "Bilinear sampling / wrap coordinate tie at mirror-fold symmetry seams (transcendental float32 precision).",
-                },
             },
             policy["cases"],
         )
@@ -878,8 +859,6 @@ class RepositoryClassicPolicyContractTests(unittest.TestCase):
                 changed = None
                 if name == "classicNoisedeck__fractal":
                     changed = [(0, 0, (130, 127, 127, 255))]
-                elif name == "classicNoisedeck__kaleido":
-                    changed = [(1, 1, (130, 127, 127, 255))]
                 write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
                 write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
 
@@ -896,7 +875,7 @@ class RepositoryClassicPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 15, "ALLOWED_NEAR": 2}, report["counts"])
+        self.assertEqual({"PASS": 16, "ALLOWED_NEAR": 1}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 
@@ -1126,11 +1105,11 @@ class RepositoryPointsPolicyContractTests(unittest.TestCase):
                 },
                 "points__flock": {
                     "max_abs_diff": 253,
-                    "max_mean_abs_diff": 41.0,
+                    "max_mean_abs_diff": 41.1706,
                     "ssim_min": 0.50,
-                    "max_exceeded_pixels": 45000,
+                    "max_exceeded_pixels": 45041,
                     "max_exceeded_channels": 135000,
-                    "mechanism": "Boids flocking spatial grid-cell neighbor partition sensitivity; particles form identical flock density (mean 101.4 vs 96.7) with chaotic individual agent trajectories.",
+                    "mechanism": "Boids flocking spatial grid-cell neighbor partition sensitivity; particles form identical flock density (mean 99.3 vs 98.1) with chaotic individual agent trajectories.",
                 },
                 "points__flow": {
                     "max_abs_diff": 105,
@@ -1288,14 +1267,6 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 24,
                     "mechanism": "Radial pinch displacement bilinear resample UV ties near the pinch center (13 sparse flips).",
                 },
-                "filter__polar": {
-                    "max_abs_diff": 18,
-                    "max_mean_abs_diff": 0.003,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 65,
-                    "max_exceeded_channels": 142,
-                    "mechanism": "Polar remap bilinear resample ties at angle-wrap and radius boundaries (65 sparse flips).",
-                },
                 "filter__posterize": {
                     "max_abs_diff": 2,
                     "max_mean_abs_diff": 0.001,
@@ -1327,14 +1298,6 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_pixels": 12,
                     "max_exceeded_channels": 36,
                     "mechanism": "Scanline displacement floor() boundary tie: combined_error lands within 1 ULP of a shift-quantization boundary in 12 scattered rows, displacing the sampled texel by one pixel (all 3 channels).",
-                },
-                "filter__snow": {
-                    "max_abs_diff": 69,
-                    "max_mean_abs_diff": 3.1,
-                    "ssim_min": 0.991,
-                    "max_exceeded_pixels": 51000,
-                    "max_exceeded_channels": 125000,
-                    "mechanism": "Hash z-seed transcendental ULP divergence: cos(t*TAU) differs at 1 ULP between ANGLE and Metal, amplified through the fract hash and pow limiter so the static field decorrelates per-pixel while macro-structure matches (mean 165.36 both sides, 94% speck overlap, signed mean ~0).",
                 },
                 "filter__spiral": {
                     "max_abs_diff": 15,
@@ -1377,15 +1340,6 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 13,
                     "mechanism": "Domain-warp bilinear resample UV ties at warped-gradient crossing pixels (9 sparse flips).",
                 },
-                "filter__waves": {
-                    "max_abs_diff": 4,
-                    "max_mean_abs_diff": 0.001,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 1,
-                    "max_exceeded_channels": 2,
-                    "allowed_exceeded_pixels": [[124, 193]],
-                    "mechanism": "Wave displacement bilinear tie at exactly one crest-crossing pixel [124, 193].",
-                },
                 "filter__wormhole": {
                     "max_abs_diff": 197,
                     "max_mean_abs_diff": 0.41,
@@ -1406,14 +1360,13 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             gold.mkdir()
             cand.mkdir()
             for name in FILTER_FIXTURES:
-                # 55 strict fixtures stay byte-exact; the 19 exception cases carry
+                # 58 strict fixtures stay byte-exact; the 16 exception cases carry
                 # a single mad=2 pixel so every exception is exercised once (above
                 # the tol-1 PASS bound, inside each measured policy). Cases with
                 # allowed_exceeded_pixels pin the diff to their exact coordinate.
                 pinned = {
                     "filter__lensWarp": (178, 225),
                     "filter__tetraColorArray": (39, 119),
-                    "filter__waves": (124, 193),
                 }
                 if name in pinned:
                     x, y = pinned[name]
@@ -1440,7 +1393,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 55, "ALLOWED_NEAR": 19}, report["counts"])
+        self.assertEqual({"PASS": 58, "ALLOWED_NEAR": 16}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

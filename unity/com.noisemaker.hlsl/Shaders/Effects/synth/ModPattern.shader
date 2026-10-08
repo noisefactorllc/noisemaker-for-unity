@@ -27,12 +27,9 @@ Shader "Noisemaker/synth/modPattern"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // fragCoord = pixel center (+0.5), top-left origin (matches WGSL position.xy).
-                // NM_FragCoord does NOT add tileOffset; NM_GlobalCoord does.
-                // WGSL uses position.xy (local fragment coord), not global coord.
-                // modPattern normalizes by resolution, not fullResolution, so we
-                // pass the local fragment coord here. // TODO(verify) tiling behavior
-                float2 fragCoord = NM_FragCoord(i);
+                // GLSL: globalCoord = gl_FragCoord.xy + tileOffset, centred on
+                // fullResolution inside nm_modPattern. NM_GlobalCoord adds tileOffset.
+                float2 fragCoord = NM_GlobalCoord(i);
                 return nm_modPattern(fragCoord);
             }
             ENDHLSL

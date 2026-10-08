@@ -69,6 +69,7 @@ void NM_Subdivide_float(
     // WGSL: st = pos.xy / resolution. fragCoord = UV * Resolution (pixel-centered
     // when UV hits a texel center). tileOffset = 0 for standalone node usage.
     float2 fragCoord = UV * Resolution;
+    _NM_RenderScale = 1.0;   // core reads renderScale for the outline width
     Out = nm_subdivide(fragCoord, Resolution, Time, InputTex.tex, SS.samplerstate);
 }
 

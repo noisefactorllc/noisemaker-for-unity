@@ -16,9 +16,9 @@
 // PORTING-GUIDE notes / hazards handled:
 //  * st = (NM_GlobalCoord(i)) / fullResolution.y  -> DIVIDE BY HEIGHT (.y). WGSL
 //    main(): st = (pos.xy + tileOffset) / fullResolution.y. (H13)
-//  * texCoord = (pos.xy + tileOffset) / fullResolution (BOTH axes) — WGSL is
-//    canonical. The GLSL instead samples at gl_FragCoord.xy / textureSize(tex,0);
-//    we follow the WGSL literally. tileOffset IS included in the sample coord.
+//  * tex is sampled at NM_FragCoord(i) / textureSize(tex): the GLSL's
+//    gl_FragCoord.xy / textureSize(tex, 0), the tile's own coordinate with no
+//    tileOffset. aspect is fullResolution.x / fullResolution.y (GLSL aspectRatio).
 //  * Helpers (modulo, map, hsv2rgb, rgb2hsv, linearToSrgb, oklab fwd/inv, pal,
 //    luminance, polarShape, shape, wrapEdges, smin, cells) are this effect's OWN
 //    copies, ported VERBATIM inline. Only pcg/prng come from NMCore (nm_prng).
@@ -38,7 +38,7 @@
 //  * `shape` is BOTH a uniform (the metric enum) and a WGSL function name; the
 //    function is renamed nm_cn_shape here, the uniform stays `shape`.
 //  * `let speed = floor(speed);` shadows the param inside cells(); reproduced.
-//  * pal() uses TAU (6.28318530718) per WGSL (GLSL used the literal 6.28318).
+//  * pal() uses the GLSL literal 6.28318, not TAU (6.28318530718).
 //  * Full 32-bit float; PCG is bit-sensitive (no half/min16float).
 // =============================================================================
 
@@ -199,7 +199,7 @@ float3 nmcn_pal(float t0, float3 pOffset, float3 pAmp, float3 pFreq, float3 pPha
                 int pMode, float rotPalette, float repPalette)
 {
     float t = t0 * repPalette + rotPalette * 0.01;
-    float3 color = pOffset + pAmp * cos(NMCN_TAU * (pFreq * t + pPhase));
+    float3 color = pOffset + pAmp * cos(6.28318 * (pFreq * t + pPhase));
 
     if (pMode == 1) {
         color = nmcn_hsv2rgb(color);
@@ -309,7 +309,7 @@ float nmcn_cells(float2 st0, float freq, float cellSize, int metric, int seedV,
 // nm_cellNoise — core per-pixel evaluation. Mirrors WGSL main() exactly.
 //   globalCoord = NM_GlobalCoord(i) = pos.xy + tileOffset (top-left, +0.5).
 //   texel = already-sampled `tex` RGBA at texCoord (caller does the sample so the
-//           Shader Graph wrapper can supply it). texCoord = globalCoord/fullRes.
+//           Shader Graph wrapper can supply it). texCoord = fragCoord/texSize.
 // =============================================================================
 float4 nm_cellNoise(float2 globalCoord, float2 res, float2 fullRes, float timeV, float4 texel)
 {
@@ -326,7 +326,7 @@ float4 nm_cellNoise(float2 globalCoord, float2 res, float2 fullRes, float timeV,
     float texIntensityV = texIntensity;
     int   seedV         = seed;
 
-    float aspect = res.x / res.y;
+    float aspect = fullRes.x / fullRes.y;   // GLSL aspectRatio (full canvas)
 
     float4 color = float4(0.0, 0.0, 1.0, 1.0);
     float2 st = globalCoord / fullRes.y;   // DIVIDE BY HEIGHT
@@ -390,8 +390,10 @@ float4 nm_cellNoise(float2 globalCoord, float2 res, float2 fullRes, float timeV,
 float4 NMFrag_cellNoise(NMVaryings i) : SV_Target
 {
     float2 globalCoord = NM_GlobalCoord(i);
-    // WGSL: texCoord = (pos.xy + tileOffset) / fullResolution (both axes).
-    float2 texCoord = globalCoord / fullResolution;
+    // GLSL: texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0))).
+    uint texW, texH;
+    tex.GetDimensions(texW, texH);
+    float2 texCoord = NM_FragCoord(i) / float2((float)texW, (float)texH);
     float4 texel = tex.Sample(sampler_tex, texCoord);
     return nm_cellNoise(globalCoord, resolution, fullResolution, time, texel);
 }

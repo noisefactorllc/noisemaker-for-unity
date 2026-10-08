@@ -27,8 +27,10 @@
 //
 // PORTING-GUIDE notes:
 //  * Single render pass (definition.js passes[0].program = "reverb").
-//  * uv = fragCoord / inputTex dimensions (WGSL divides by textureDimensions NOT
-//    fullResolution). Mirrored with NM_FragCoord(i) / GetDimensions.
+//  * original is sampled at localUV = fragCoord / inputTex dimensions. The
+//    scaled copies follow the GLSL: globalUV = (fragCoord + tileOffset) /
+//    fullResolution, sampled at fract((applyWrap(globalUV * scale) *
+//    fullResolution - tileOffset) / dims).
 //  * ridges is an int uniform; test != 0 (matches WGSL: ridges != 0).
 //  * wrap int uniform: 0=mirror 1=repeat 2=clamp. Use [branch].
 //  * GOLDEN AUTHORITY NOTE: the pixel gates' goldens come from the reference
@@ -39,9 +41,8 @@
 //    fract(applyWrap(uv * scale)) — an extra fract AFTER the wrap. It is a
 //    no-op for mirror/repeat (both already land in [0,1)) but maps the CLAMP
 //    branch's exact 1.0 back to 0.0, so clamped samples hit texel 0, not the
-//    last texel. The checked-in wgsl/reverb.wgsl lacks that trailing fract;
-//    the clamp branch below therefore applies frac() to match the webgl2
-//    golden (without it the wrap__clamp sweep variant diverges at max 93).
+//    last texel. nm_reverb applies that fract to the sample coordinate, as
+//    the GLSL does (without it the wrap__clamp sweep variant diverges at max 93).
 //  * applyWrap mirror mode: literal verbatim from WGSL (manual mirror formula,
 //    NOT the fmod-style abs(mod) from GLSL — WGSL is canonical).
 //  * nm_mod NOT used here (no float mod needed; applyWrap mirror uses floor arithmetic).
@@ -78,9 +79,9 @@ float2 applyWrap(float2 uv)
     } else if (wrap == 1) {
         return frac(uv);  // WGSL fract -> HLSL frac
     }
-    // clamp: the reference webgl2 GLSL applies fract AFTER the wrap (tiled
-    // pipeline path); frac() is a no-op except at exactly 1.0 -> 0.0.
-    return frac(clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0)));
+    // clamp: GLSL clamp(uv, 0.0, 1.0); the caller applies the GLSL's fract to
+    // the tile-local sample coordinate after the wrap.
+    return clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
 }
 
 // -----------------------------------------------------------------------------
@@ -98,8 +99,15 @@ float4 ridge_transform(float4 color)
 // (needed for the inner loop re-samples). Returns the final blended RGBA.
 // Ported VERBATIM from reverb.wgsl main().
 // -----------------------------------------------------------------------------
+// `uv` is the GLSL globalUV = (gl_FragCoord.xy + tileOffset) / fullResolution
+// (equal to the local UV when untiled, as in a Shader Graph node).
 float4 nm_reverb(float4 original, float2 uv, Texture2D inputTex, SamplerState samplerinputTex)
 {
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    float2 dims = float2((float)tw, (float)th);
+    float2 fullDims = fullResolution.x > 0.0 ? fullResolution : dims;
+
     float4 current = original;
 
     // WGSL: let useRidges: bool = ridges != 0;
@@ -116,8 +124,11 @@ float4 nm_reverb(float4 original, float2 uv, Texture2D inputTex, SamplerState sa
     int iters = clamp(iterations, 1, 8);
     for (int i = 0; i < iters; i = i + 1)
     {
-        float2 scaledUV = applyWrap(uv * scale);
-        float4 scaled   = inputTex.Sample(samplerinputTex, scaledUV);
+        // GLSL: sampledLocalUV = fract((applyWrap(globalUV * scale) * fullResolution
+        //        - tileOffset) / dims)
+        float2 wrappedGlobalUV = applyWrap(uv * scale);
+        float2 sampledLocalUV  = frac((wrappedGlobalUV * fullDims - tileOffset) / dims);
+        float4 scaled   = inputTex.Sample(samplerinputTex, sampledLocalUV);
 
         if (useRidges) {
             scaled = ridge_transform(scaled);

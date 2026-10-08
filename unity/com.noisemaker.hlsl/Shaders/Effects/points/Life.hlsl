@@ -61,7 +61,7 @@
 //    DIFFERS from NMCore nm_pcg/nm_random; it is inlined verbatim per the rule.
 //  * GLSL mod(h, 2.0) in typeColor == WGSL h % 2.0 == HLSL nm_mod(h, 2.0) (the
 //    only NMCore helper used; nm_mod, never fmod — H6). All other helpers inline.
-//  * WGSL `%` on f32 in wrapPosition (`pos % 1.0`) is float remainder → nm_mod.
+//  * wrapPosition is the GLSL's mod(pos + 1.0, 1.0) → one nm_mod (NEVER fmod).
 //    WGSL `%` on i32 (cell wrap `(checkCell + GRID_SIZE) % GRID_SIZE`, sampleIdx
 //    `% stateSize.x`, etc.) is integer trunc-toward-zero → HLSL `%` (operands are
 //    made non-negative first by `+ GRID_SIZE`, matching the source).
@@ -243,11 +243,11 @@ float life_radialForce(float dist, float strength, float prefDist, float curveSh
 }
 
 // === VECTOR HELPERS ===
-// WGSL `(pos % 1.0 + 1.0) % 1.0` is float remainder; nm_mod reproduces it
-// (and additionally matches the GLSL `mod(pos + 1.0, 1.0)` exactly).
+// GLSL: mod(pos + 1.0, 1.0). The old WGSL `(pos % 1.0 + 1.0) % 1.0` rounds
+// differently, so this is a single nm_mod of pos + 1.0.
 float2 life_wrapPosition(float2 pos)
 {
-    return nm_mod(nm_mod(pos, float2(1.0, 1.0)) + float2(1.0, 1.0), float2(1.0, 1.0));
+    return nm_mod(pos + float2(1.0, 1.0), float2(1.0, 1.0));
 }
 
 float2 life_limitVec(float2 v, float maxLen)

@@ -69,11 +69,12 @@ float3 nm_zoomBlur_prng(float3 p)
 //   color = color / total;
 //   return vec4<f32>(color, 1.0);
 // =============================================================================
-float4 nm_zoomBlur(float2 uv, Texture2D inTex, SamplerState ss)
+float4 nm_zoomBlur(float2 uv, float2 globalUV, Texture2D inTex, SamplerState ss)
 {
     float3 color = float3(0.0, 0.0, 0.0);
     float total = 0.0;
-    float2 toCenter = uv - 0.5;
+    // GLSL: the blur direction points to the full image centre
+    float2 toCenter = globalUV - 0.5;
 
     // Randomize the lookup values to hide the fixed number of samples
     float offset = nm_zoomBlur_prng(float3(12.9898, 78.233, 151.7182)).x;
@@ -99,10 +100,12 @@ float4 NMFrag_zoomBlur(NMVaryings i) : SV_Target
     //       uv      = pos.xy / texSize;   (pos = @builtin(position), top-left)
     uint w, h;
     inputTex.GetDimensions(w, h);
-    float2 texSize = float2((float)w, (float)h);
-    float2 uv = NM_FragCoord(i) / texSize;
+    float2 tileDims = float2((float)w, (float)h);
+    float2 fullRes = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    float2 uv = NM_FragCoord(i) / tileDims;
+    float2 globalUV = (NM_FragCoord(i) + tileOffset) / fullRes;
 
-    return nm_zoomBlur(uv, inputTex, sampler_inputTex);
+    return nm_zoomBlur(uv, globalUV, inputTex, sampler_inputTex);
 }
 
 #endif // NM_EFFECT_ZOOMBLUR_INCLUDED

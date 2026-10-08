@@ -27,7 +27,9 @@ float2 nm_spin_blur_rotate_around(
     p -= c;
     float s = sin(angle);
     float co = cos(angle);
-    p = float2(co * p.x - s * p.y, s * p.x + co * p.y);
+    // GLSL golden: mat2(co, -s, s, co) * p. GLSL mat2 is COLUMN-MAJOR:
+    // (co*p.x + s*p.y, -s*p.x + co*p.y).
+    p = float2(co * p.x + s * p.y, -s * p.x + co * p.y);
     p += c;
     p.x /= aspect;
     return p;
@@ -50,7 +52,7 @@ float4 nm_spin_blur(Texture2D tex, SamplerState ss, float2 pos)
     float angularStep = arc / (float)(NM_SPIN_BLUR_TAPS - 1);
     float2 jitterCoord = float2(
         globalCoord.x, abs(globalCoord.y - fullDims.y * 0.5));
-    float jitter = -(nm_spin_blur_hash12(jitterCoord) - 0.5) * angularStep;
+    float jitter = (nm_spin_blur_hash12(jitterCoord) - 0.5) * angularStep;
 
     float4 sum = float4(0.0, 0.0, 0.0, 0.0);
     [unroll]

@@ -97,46 +97,6 @@
    "max_exceeded_channels": 5758,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.998)"
   },
-  "synth3d__fractal3d__bailout__mid": {
-   "max_abs_diff": 147.0,
-   "max_mean_abs_diff": 0.022121429443359375,
-   "ssim_min": 0.9998412132263184,
-   "max_exceeded_pixels": 138,
-   "max_exceeded_channels": 414,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
-  },
-  "synth3d__fractal3d__colorMode__iteration": {
-   "max_abs_diff": 164.0,
-   "max_mean_abs_diff": 0.025959014892578125,
-   "ssim_min": 0.9998151659965515,
-   "max_exceeded_pixels": 318,
-   "max_exceeded_channels": 528,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
-  },
-  "synth3d__fractal3d__colorMode__orbitTrap": {
-   "max_abs_diff": 164.0,
-   "max_mean_abs_diff": 0.025959014892578125,
-   "ssim_min": 0.9998151659965515,
-   "max_exceeded_pixels": 318,
-   "max_exceeded_channels": 528,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
-  },
-  "synth3d__fractal3d__iterations__mid": {
-   "max_abs_diff": 169.0,
-   "max_mean_abs_diff": 0.03131103515625,
-   "ssim_min": 0.9994801008,
-   "max_exceeded_pixels": 145,
-   "max_exceeded_channels": 435,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9995)"
-  },
-  "synth3d__fractal3d__power__mid": {
-   "max_abs_diff": 70.0,
-   "max_mean_abs_diff": 0.02492523193359375,
-   "ssim_min": 0.9998961091041565,
-   "max_exceeded_pixels": 163,
-   "max_exceeded_channels": 489,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
-  },
   "synth3d__fractal3d__volumeSize__x128": {
    "max_abs_diff": 164.0,
    "max_mean_abs_diff": 0.06580352783203125,
@@ -144,22 +104,6 @@
    "max_exceeded_pixels": 329,
    "max_exceeded_channels": 987,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9992)"
-  },
-  "synth3d__fractal3d__volumeSize__x16": {
-   "max_abs_diff": 58.0,
-   "max_mean_abs_diff": 0.001865386962890625,
-   "ssim_min": 0.9999774324,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 9,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "synth3d__fractal3d__volumeSize__x32": {
-   "max_abs_diff": 159.0,
-   "max_mean_abs_diff": 0.0104827880859375,
-   "ssim_min": 0.9998003840446472,
-   "max_exceeded_pixels": 16,
-   "max_exceeded_channels": 48,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9998)"
   },
   "synth3d__noise3d__scale__mid": {
    "max_abs_diff": 69.0,

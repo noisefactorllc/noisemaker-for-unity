@@ -2,31 +2,32 @@
 #define NM_SCROLL_INCLUDED
 
 // =============================================================================
-// Scroll.hlsl — filter/scroll, ported PIXEL-IDENTICALLY from the canonical WGSL:
-//   shaders/effects/filter/scroll/wgsl/scroll.wgsl
+// Scroll.hlsl — filter/scroll, ported PIXEL-IDENTICALLY from the reference GLSL:
+//   shaders/effects/filter/scroll/glsl/scroll.glsl
 //
 // Scrolls texture coordinates with wraparound (mirror / repeat / clamp).
 //
-// WGSL main():
-//   var st = position.xy / resolution;
-//   st.x *= aspect;
-//   var offset = vec2<f32>(-x + time * -speedX, y + time * speedY);
+// GLSL main():
+//   vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullResolution;
+//   globalUV.x *= aspect;
+//   vec2 offset = vec2(-x + time * -speedX, y + time * speedY);
 //   offset.x *= aspect;
-//   st += offset;
-//   st.x /= aspect;
-//   // apply wrap mode (% is WGSL positive-modulo = nm_mod equivalent)
-//   if (wrap == 0)  { st = abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0); }  // mirror
-//   else if (wrap == 1) { st = (st % 1.0 + 1.0) % 1.0; }                  // repeat
-//   else            { st = clamp(st, 0.0, 1.0); }                          // clamp
-//   return vec4<f32>(textureSampleLevel(inputTex, samp, st, 0.0).rgb, 1.0);
+//   globalUV += offset;
+//   globalUV.x /= aspect;
+//   vec2 localUV = (globalUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+//   // apply wrap mode to localUV
+//   if (wrap == 0)  { localUV = abs(mod(localUV + 1.0, 2.0) - 1.0); }  // mirror
+//   else if (wrap == 1) { localUV = fract(localUV); }                 // repeat
+//   else            { localUV = clamp(localUV, 0.0, 1.0); }           // clamp
+//   fragColor = vec4(texture(inputTex, localUV).rgb, 1.0);
 //
 // PORTING-GUIDE notes:
-//  * st is derived from position.xy / resolution (render-target size), not
-//    inputTex dimensions. `resolution` alias from NMFullscreen.hlsl = _NM_Resolution.xy.
+//  * The offset is applied in global (full-image) UV; the wrap applies to the
+//    tile-local UV. Untiled, the two are equal.
 //  * `aspect` in WGSL is a standalone uniform = fullResolution.x / fullResolution.y.
 //    NMFullscreen.hlsl provides `aspectRatio` as that same value.
-//  * WGSL `%` on floats is positive-remainder (equivalent to nm_mod). All three
-//    wrap-mode expressions use nm_mod exactly as written in the WGSL.
+//  * Wrap is the GLSL's: mirror abs(mod(uv + 1.0, 2.0) - 1.0) -> one nm_mod
+//    (never fmod); repeat fract(uv) -> frac.
 //  * `time` alias from NMFullscreen.hlsl = _NM_Time.
 //  * Offset sign conventions copied VERBATIM: x uses -(x) and -(speedX),
 //    y uses +(y) and +(speedY).
@@ -51,10 +52,12 @@ int   wrap;    // wrap mode:  0=mirror, 1=repeat, 2=clamp. default 1
 // -----------------------------------------------------------------------------
 float4 nm_scroll(float2 fragCoord, Texture2D inputTex, SamplerState samp_inputTex)
 {
-    // WGSL: var st = position.xy / resolution;
-    float2 st = fragCoord / resolution;
+    // GLSL: vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    //       vec2 globalUV = globalCoord / fullResolution;
+    float2 globalCoord = fragCoord + tileOffset;
+    float2 st = globalCoord / fullResolution;
 
-    // WGSL: st.x *= aspect;
+    // GLSL: globalUV.x *= aspect;
     st.x *= aspectRatio;
 
     // WGSL: var offset = vec2<f32>(-x + time * -speedX, y + time * speedY);
@@ -69,18 +72,24 @@ float4 nm_scroll(float2 fragCoord, Texture2D inputTex, SamplerState samp_inputTe
     // WGSL: st.x /= aspect;
     st.x /= aspectRatio;
 
+    // GLSL: vec2 localUV = (globalUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+    // The wrap below applies to this tile-local UV (equal to st when untiled).
+    uint texW, texH;
+    inputTex.GetDimensions(texW, texH);
+    st = (st * fullResolution - tileOffset) / float2(texW, texH);
+
     // Apply wrap mode.
-    // WGSL `%` on f32 is nm_mod (positive-remainder). All branches copied verbatim.
+    // GLSL mod -> nm_mod, GLSL fract -> frac.
     [branch]
     if (wrap == 0)
     {
-        // WGSL: st = abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
-        st = abs(nm_mod(nm_mod(st + 1.0, (float2)2.0) + 2.0, (float2)2.0) - 1.0);
+        // GLSL mirror: abs(mod(uv + 1.0, 2.0) - 1.0)
+        st = abs(nm_mod(st + 1.0, (float2)2.0) - 1.0);
     }
     else if (wrap == 1)
     {
-        // WGSL: st = (st % 1.0 + 1.0) % 1.0;
-        st = nm_mod(nm_mod(st, (float2)1.0) + 1.0, (float2)1.0);
+        // GLSL repeat: fract(uv)
+        st = frac(st);
     }
     else
     {

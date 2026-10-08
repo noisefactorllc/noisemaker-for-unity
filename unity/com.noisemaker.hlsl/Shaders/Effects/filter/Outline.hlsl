@@ -20,20 +20,19 @@
 //
 // PORTING-GUIDE notes / hazards handled:
 //  * Ported from WGSL (top-left, canonical). No per-effect Y flip (H8).
-//  * valueMap: WGSL samples `textureSample(inputTex, inputSampler, texCoord)`
-//    using the interpolated vertex texCoord (== uv). We use the same `i.uv`.
-//    (The GLSL recomputes uv = (fragCoord-0.5)/dims; the WGSL passes texCoord
-//    straight through. WGSL is canonical, so we use i.uv directly.)
+//  * valueMap: samples at the interpolated i.uv (texel centres). The GLSL's
+//    (fragCoord - 0.5) / dims form lands on texel corners and, with this
+//    port's linear sampler, blends four texels instead of matching WebGL2.
 //  * sobel: WGSL uses `textureLoad(valueTexture, ivec2, 0)` (texelFetch — integer
 //    coords, NO sampler, NO filtering) -> HLSL `valueTexture.Load(int3(x,y,0))`.
 //    The neighborhood coord is `vec2<i32>(input.position.xy)` (the @builtin frag
-//    coord truncated to int) -> int2(NM_FragCoord(i)). `offset = max(1, i32(
-//    thickness))` — WGSL has NO renderScale multiply (GLSL multiplies thickness*
-//    renderScale). WGSL is canonical: `(int)thickness`, no renderScale (H1).
+//    coord truncated to int) -> int2(NM_FragCoord(i)). `offset = max(1,
+//    int(thickness * renderScale))`, as the GLSL does.
 //    `metric = i32(params.sobelMetric)` truncation. Octagram divisor literal is
 //    `1.414` exactly. Magnitude boost `* 4.0` reproduced literally.
-//  * blend: WGSL samples both inputTex and edgesTexture with the interpolated
-//    texCoord (== uv). select(black, white, invert>0.5) -> invert>0.5 ? white :
+//  * blend: samples inputTex and edgesTexture at the GLSL's uv = fragCoord /
+//    textureSize(inputTex), with its zero-size guard.
+//    select(black, white, invert>0.5) -> invert>0.5 ? white :
 //    black (WGSL select(falseVal, trueVal, cond) is reversed — H, table row).
 //    mix -> lerp.
 //  * Linear, clamp-to-edge, non-sRGB samplers (H7) — set on the SamplerStates in
@@ -185,7 +184,7 @@ float4 NMFrag_outlineSobel(NMVaryings i) : SV_Target
     int metric = (int)sobelMetric;
 
     // Sample 3x3 neighborhood with thickness scaling
-    int offset = max(1, (int)thickness);
+    int offset = max(1, (int)(thickness * renderScale));
     float samples[9];
     int idx = 0;
     for (int ky = -1; ky <= 1; ky = ky + 1)
@@ -223,8 +222,16 @@ float4 NMFrag_outlineSobel(NMVaryings i) : SV_Target
 //       return vec4<f32>(out_rgb, base.a);
 float4 NMFrag_outlineBlend(NMVaryings i) : SV_Target
 {
-    float4 base = inputTex.Sample(sampler_inputTex, i.uv);
-    float4 edges = edgesTexture.Sample(sampler_edgesTexture, i.uv);
+    // GLSL: uv = gl_FragCoord.xy / vec2(textureSize(inputTex, 0)), zero-size guard.
+    uint bw, bh;
+    inputTex.GetDimensions(bw, bh);
+    if (bw == 0u || bh == 0u)
+    {
+        return float4(0.0, 0.0, 0.0, 0.0);
+    }
+    float2 uv = NM_FragCoord(i) / float2((float)bw, (float)bh);
+    float4 base = inputTex.Sample(sampler_inputTex, uv);
+    float4 edges = edgesTexture.Sample(sampler_edgesTexture, uv);
 
     // Edge strength from luminance
     float strength = clamp(edges.r, 0.0, 1.0);

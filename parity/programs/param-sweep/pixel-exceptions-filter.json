@@ -9,6 +9,14 @@
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "filter__bulge__strength__mid": {
+   "max_abs_diff": 64.0,
+   "max_mean_abs_diff": 0.000732421875,
+   "ssim_min": 0.9999979537,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "single bulge-displacement sample on a texel edge of the point-filtered input (corr(gold,cand)=1.0)"
+  },
   "filter__celShading__antialias__true": {
    "max_abs_diff": 4.0,
    "max_mean_abs_diff": 9.918212890625e-05,
@@ -769,14 +777,6 @@
    "max_exceeded_channels": 12,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "filter__pinch__wrap__repeat": {
-   "max_abs_diff": 4.0,
-   "max_mean_abs_diff": 0.000247955322265625,
-   "ssim_min": 0.9999999669,
-   "max_exceeded_pixels": 2,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__pixelSort__angled__mid": {
    "max_abs_diff": 111.0,
    "max_mean_abs_diff": 0.010181427001953125,
@@ -817,14 +817,6 @@
    "max_exceeded_channels": 850,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9999)"
   },
-  "filter__polar__rotation__mid": {
-   "max_abs_diff": 18.0,
-   "max_mean_abs_diff": 0.00273895263671875,
-   "ssim_min": 0.9999973773956299,
-   "max_exceeded_pixels": 66,
-   "max_exceeded_channels": 140,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__polar__scale__mid": {
    "max_abs_diff": 15.0,
    "max_mean_abs_diff": 0.002376556396484375,
@@ -833,20 +825,12 @@
    "max_exceeded_channels": 130,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "filter__polar__speed__mid": {
-   "max_abs_diff": 7.0,
-   "max_mean_abs_diff": 0.0016937255859375,
-   "ssim_min": 0.9999990463256836,
-   "max_exceeded_pixels": 62,
-   "max_exceeded_channels": 109,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__pondRipples__amount__mid": {
-   "max_abs_diff": 5.0,
-   "max_mean_abs_diff": 0.000263214111328125,
-   "ssim_min": 0.9999999582,
-   "max_exceeded_pixels": 2,
-   "max_exceeded_channels": 2,
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.0003204345703125,
+   "ssim_min": 0.9999999255,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 7,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "filter__pondRipples__antialias__false": {
@@ -887,14 +871,6 @@
    "ssim_min": 0.9999999451,
    "max_exceeded_pixels": 3,
    "max_exceeded_channels": 4,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__pondRipples__wrap__repeat": {
-   "max_abs_diff": 7.0,
-   "max_mean_abs_diff": 0.000324249267578125,
-   "ssim_min": 0.9999998671,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 7,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "filter__posterize__antialias__false": {
@@ -1032,30 +1008,6 @@
    "max_exceeded_pixels": 31,
    "max_exceeded_channels": 81,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__snow__alpha__mid": {
-   "max_abs_diff": 138.0,
-   "max_mean_abs_diff": 6.0345611572265625,
-   "ssim_min": 0.986101086,
-   "max_exceeded_pixels": 58681,
-   "max_exceeded_channels": 154881,
-   "mechanism": "snow cos-ULP\u2192fract-hash decorrelation family (established at base parameters); corr(gold,cand)=0.986"
-  },
-  "filter__snow__density__mid": {
-   "max_abs_diff": 58.0,
-   "max_mean_abs_diff": 2.668292999267578,
-   "ssim_min": 0.9918027051,
-   "max_exceeded_pixels": 46134,
-   "max_exceeded_channels": 109446,
-   "mechanism": "snow cos-ULP\u2192fract-hash decorrelation family (established at base parameters); corr(gold,cand)=0.9917"
-  },
-  "filter__snow__pause__true": {
-   "max_abs_diff": 127.0,
-   "max_mean_abs_diff": 0.9392814636230469,
-   "ssim_min": 0.9813557267189026,
-   "max_exceeded_pixels": 6912,
-   "max_exceeded_channels": 12228,
-   "mechanism": "snow cos-ULP\u2192fract-hash decorrelation family (established at base parameters); corr(gold,cand)=0.981"
   },
   "filter__spiral__antialias__false": {
    "max_abs_diff": 45.0,
@@ -1394,19 +1346,19 @@
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "filter__warp__speed__mid": {
-   "max_abs_diff": 4.0,
+   "max_abs_diff": 5.0,
    "max_mean_abs_diff": 0.000354766845703125,
-   "ssim_min": 0.9999999411,
+   "ssim_min": 0.9999999432,
    "max_exceeded_pixels": 7,
    "max_exceeded_channels": 13,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "filter__warp__strength__mid": {
    "max_abs_diff": 6.0,
-   "max_mean_abs_diff": 0.00045013427734375,
-   "ssim_min": 0.9999998402,
-   "max_exceeded_pixels": 11,
-   "max_exceeded_channels": 20,
+   "max_mean_abs_diff": 0.000457763671875,
+   "ssim_min": 0.9999998769,
+   "max_exceeded_pixels": 10,
+   "max_exceeded_channels": 19,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "filter__warp__wrap__clamp": {
@@ -1423,14 +1375,6 @@
    "ssim_min": 0.9999999467,
    "max_exceeded_pixels": 3,
    "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__waves__rotation__mid": {
-   "max_abs_diff": 2.0,
-   "max_mean_abs_diff": 0.0002288818359375,
-   "ssim_min": 0.9999999403953552,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 2,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "filter__waves__strength__mid": {

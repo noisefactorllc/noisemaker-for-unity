@@ -30,8 +30,8 @@
 //    uses `1.0 / textureSize(inputTex)`. Identical untiled. We use the input
 //    texture dimensions (GLSL form, tiling-correct) — `texSize` below.
 //  * atan2: WGSL `atan2(st.x, st.y)` -> HLSL `atan2(st.x, st.y)` (arg order kept).
-//  * `mix`->lerp. `fract`->frac. `select`->?:. NOTE: rgb2hsv's hue wrap is the
-//    WGSL `%` operator (sign-of-dividend), so it ports to fmod, NOT nm_mod.
+//  * `mix`->lerp. `fract`->frac. `select`->?:. hsv2rgb's mod(h * 6.0, 2.0) and
+//    rgb2hsv's hue wrap are the GLSL's floored mod, so both use nm_mod.
 //  * Full 32-bit float; PCG is bit-sensitive.
 //  * TODO(verify): runtime must bind a bilinear, clamp-to-edge, NON-sRGB sampler
 //    (H7); diamond SHAPE==1 and each KERNEL branch need parity-harness checks.
@@ -81,7 +81,7 @@ float3 cr_hsv2rgb(float3 hsv)
     float s = hsv.y;
     float v = hsv.z;
     float c = v * s;
-    float x = c * (1.0 - abs(frac(h * 6.0) * 2.0 - 1.0));
+    float x = c * (1.0 - abs(nm_mod(h * 6.0, 2.0) - 1.0));
     float m = v - c;
     float3 rgb;
     if (h < 1.0 / 6.0)      { rgb = float3(c, x, 0.0); }

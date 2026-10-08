@@ -68,6 +68,38 @@ float2 nm_mod(float2 a, float2 b) { return a - b * floor(a / b); }
 float3 nm_mod(float3 a, float3 b) { return a - b * floor(a / b); }
 float4 nm_mod(float4 a, float4 b) { return a - b * floor(a / b); }
 
+// -----------------------------------------------------------------------------
+// Accurate atan2(y, x) for ported GLSL `atan(y, x)` calls whose result must
+// match the reference closely. The HLSL atan2 intrinsic is low precision on
+// this toolchain (measured on Metal: off by up to ~1.4e-5 rad), while the
+// reference WebGL atan is accurate; where the angle picks a texel of a
+// nearest-filtered surface, that error moves samples across texel edges.
+// Single-precision Cephes atanf (octant reduction plus a degree-9 odd
+// polynomial, about 2 ulp), extended to atan2 by quadrant. Returns pi for
+// (+-0, x<0) and 0 for (0, 0).
+// -----------------------------------------------------------------------------
+float nm_atan2(float y, float x)
+{
+    float ax = abs(x);
+    float ay = abs(y);
+    float mx = max(ax, ay);
+    float mn = min(ax, ay);
+    float t  = (mx > 0.0) ? mn / mx : 0.0;            // [0, 1]
+    float base = 0.0;
+    if (t > 0.41421356237309503)                       // tan(pi/8)
+    {
+        base = 0.78539816339744831;                    // pi/4
+        t = (t - 1.0) / (t + 1.0);
+    }
+    float z = t * t;
+    float r = (((8.05374449538e-2 * z - 1.38776856032e-1) * z
+              + 1.99777106478e-1) * z - 3.33329491539e-1) * z * t + t;
+    r = base + r;
+    if (ay > ax) r = (1.5707963705062866 - r) - 4.371139000186241e-8;   // pi/2 - r
+    if (x < 0.0) r = (3.1415927410125732 - r) - 8.742278000372482e-8;   // pi - r
+    return (y < 0.0) ? -r : r;
+}
+
 // positiveModulo on ints: GLSL/WGSL/HLSL `%` all truncate toward zero, then
 // the +modulus fix makes negatives positive. modulus==0 returns 0.
 int nm_positiveModulo(int value, int modulus)

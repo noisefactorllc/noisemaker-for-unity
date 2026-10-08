@@ -178,17 +178,17 @@ void NM_LensDistortion_float(
 
     if (VignetteAmt < 0.0)
     {
-        float vigFactor = 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0);
+        // GLSL precedence: color.rgb * 1.0 - pow(...) is color MINUS the falloff.
         color = float4(
-            lerp(color.rgb * vigFactor, color.rgb, nmsg_ld_mapVal(VignetteAmt, -100.0, 0.0, 0.0, 1.0)),
+            lerp(color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0), color.rgb, nmsg_ld_mapVal(VignetteAmt, -100.0, 0.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - uv) * nmsg_ld_mapVal(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
     else
     {
-        float vigFactor = 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0);
+        // GLSL: 1 - (1 - color.rgb * 1.0 - pow(...)), color PLUS the falloff.
         color = float4(
-            lerp(color.rgb, float3(1.0, 1.0, 1.0) - (float3(1.0, 1.0, 1.0) - color.rgb * vigFactor), nmsg_ld_mapVal(VignetteAmt, 0.0, 100.0, 0.0, 1.0)),
+            lerp(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0)), nmsg_ld_mapVal(VignetteAmt, 0.0, 100.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - uv) * nmsg_ld_mapVal(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }

@@ -37,7 +37,13 @@ void NM_Sharpen_float(
     // directly; the wrapper is single-pass so this is safe.
     amount = Amount;
 
-    Out = nm_sharpen(InputTex.tex, SS.samplerstate, UV, texSize);
+    // The core now reads tileOffset/fullResolution/renderScale; a standalone
+    // node is untiled, so fullResolution is the input texture size.
+    _NM_FullResolution = float4(texSize, 0.0, 0.0);
+    _NM_TileOffset     = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_RenderScale    = 1.0;
+
+    Out = nm_sharpen(InputTex.tex, SS.samplerstate, UV * texSize, texSize);
 }
 
 #endif // NM_SHARPEN_SG_INCLUDED

@@ -348,8 +348,14 @@ float4 NMFrag_scanlineError(NMVaryings i) : SV_Target
         return float4(0.0, 0.0, 0.0, 0.0);
     }
 
-    float width_f = dims.x;
-    float height_f = dims.y;
+    // GLSL: canvas resolution for tile-aware rendering (dims stays the tile size)
+    float2 fullRes = fullResolution.x > 0.0 ? (fullResolution / renderScale) : dims;
+    float width_f = fullRes.x;
+    float height_f = fullRes.y;
+
+    // GLSL: global pixel coordinate for pattern generation and sampling
+    float2 globalGid_f = float2((float)coord.x + tileOffset.x, (float)coord.y + tileOffset.y);
+    uint2 globalGid = uint2((uint)globalGid_f.x, (uint)globalGid_f.y);
     float time_value = time + timeOffset;
     float speed_value = max(speed, 0.0);
     int m = (int)mode;
@@ -367,8 +373,8 @@ float4 NMFrag_scanlineError(NMVaryings i) : SV_Target
     if (m == 1)
     {
         // VHS mode
-        float yNorm = (float(noiseRow) + 0.5) / height_f;
-        float xNorm = (float(coord.x) + 0.5) / width_f;
+        float yNorm = (float(globalGid.y) + 0.5) / fullResolution.y;
+        float xNorm = (float(globalGid.x) + 0.5) / fullResolution.x;
         float2 destCoord = float2(xNorm, yNorm);
 
         float gradDest = se_vhs_gradValue(yNorm, 5.0, time_value, speed_value);
@@ -384,12 +390,18 @@ float4 NMFrag_scanlineError(NMVaryings i) : SV_Target
 
         float scanDest = se_vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 
-        int shiftAmount = (int)floor(scanDest * width_f * gradDest * gradDest * distortion);
-        int srcX = se_wrap_coord(coord.x - shiftAmount, width);
+        float fullWidth = fullResolution.x > 0.0 ? fullResolution.x : width_f;
+        float shiftAmount = floor(scanDest * fullWidth * gradDest * gradDest * distortion);
 
-        float4 srcTexel = inputTex.Load(int3(srcX, coord.y, 0));
+        float globalSampleX = float(globalGid.x) - shiftAmount;
+        int wrappedGlobalX = se_wrap_coord((int)globalSampleX, (int)fullWidth);
+        int localSampleX = wrappedGlobalX - (int)tileOffset.x;
+        if (localSampleX < 0) { localSampleX += width; }
+        localSampleX = clamp(localSampleX, 0, width - 1);
 
-        float srcXNorm = (float(srcX) + 0.5) / width_f;
+        float4 srcTexel = inputTex.Load(int3(localSampleX, coord.y, 0));
+
+        float srcXNorm = (float(wrappedGlobalX) + 0.5) / fullResolution.x;
         float scanSource = se_vhs_scanNoise(float2(srcXNorm, yNorm), scanFreq, time_value, speed_value * 100.0);
         float gradSource = se_vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
@@ -405,7 +417,8 @@ float4 NMFrag_scanlineError(NMVaryings i) : SV_Target
 
         // Noise and the .Load() fetch use the SAME row (noiseRow == coord.y); only
         // the x sample coordinate is displaced. (See the no-flip note at noiseRow.)
-        float2 coord_norm = (float2(coord.x, noiseRow) + 0.5) / dims;
+        // GLSL: normalized_coord(globalGid, dims) with dims = fullRes, max(dims, 1)
+        float2 coord_norm = (float2(globalGid) + 0.5) / max(fullRes, float2(1.0, 1.0));
         float2 freq_line = float2(max(floor(width_f * 0.5), 1.0), max(floor(height_f * 0.5), 1.0));
         float swerve_height = max(floor(height_f * 0.01), 1.0);
         float2 freq_swerve = float2(1.0, swerve_height);
@@ -424,11 +437,17 @@ float4 NMFrag_scanlineError(NMVaryings i) : SV_Target
         float white_weighted = white_base * swerve_weight;
 
         float combined_error = se_clamp01(line_weighted + white_weighted);
-        float shift_amount = combined_error * width_f * 0.025 * distortion;
+        float fullWidth = fullResolution.x > 0.0 ? fullResolution.x : width_f;
+        float shift_amount = combined_error * fullWidth * 0.025 * distortion;
         int shift_pixels = (int)floor(shift_amount);
-        int sample_x = se_wrap_coord(coord.x - shift_pixels, width);
 
-        float4 texel = inputTex.Load(int3(sample_x, coord.y, 0));
+        float globalSampleX = float(globalGid.x) - float(shift_pixels);
+        int wrappedGlobalX = se_wrap_coord((int)globalSampleX, (int)fullWidth);
+        int localSampleX = wrappedGlobalX - (int)tileOffset.x;
+        if (localSampleX < 0) { localSampleX += width; }
+        localSampleX = clamp(localSampleX, 0, width - 1);
+
+        float4 texel = inputTex.Load(int3(localSampleX, coord.y, 0));
 
         float additive = clamp(line_weighted * white_weighted * 4.0 * noise, 0.0, 4.0);
         float3 boosted = clamp(texel.rgb + float3(additive, additive, additive), float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));

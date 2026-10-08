@@ -34,17 +34,13 @@ Shader "Noisemaker/mixer/uvRemap"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // WGSL:
-                //   let dims = vec2<f32>(textureDimensions(inputTex, 0));
-                //   let st   = pos.xy / dims;
-                //   let colorA = textureSample(inputTex, samp, st);
-                //   let colorB = textureSample(tex,      samp, st);
-                // Same `st` (derived from inputTex's own size) samples BOTH
-                // textures. tileOffset NOT added (the WGSL does not add it).
-                uint dw, dh;
-                inputTex.GetDimensions(dw, dh);
-                float2 dims = float2(dw, dh);
-                float2 st = NM_FragCoord(i) / dims;
+                // GLSL:
+                //   vec2 localUV = gl_FragCoord.xy / resolution;
+                //   vec4 colorA = texture(inputTex, localUV);
+                //   vec4 colorB = texture(tex, localUV);
+                // Same local UV (render-target size, no tileOffset) samples BOTH
+                // textures.
+                float2 st = NM_FragCoord(i) / resolution;
 
                 float4 colorA = inputTex.Sample(sampler_inputTex, st);
                 float4 colorB = tex.Sample(sampler_tex, st);

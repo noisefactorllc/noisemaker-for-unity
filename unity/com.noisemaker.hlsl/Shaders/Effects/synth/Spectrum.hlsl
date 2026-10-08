@@ -12,13 +12,9 @@
 //
 // No per-effect helpers beyond sampleSpectrum (inline). No pcg/prng used.
 //
-// COORDINATE NOTE: WGSL computes uv as:
-//   uv = vec2(position.x, resolution.y - position.y) / resolution
-// This is equivalent to top-left UV (position.xy / resolution with Y-flip),
-// which is what NM_GlobalCoord gives us when divided by fullResolution.
-// Following WGSL literally: uv.y = (resolution.y - fragCoord.y) / resolution.y
-// = 1.0 - fragCoord.y / resolution.y.  In the fullscreen pass resolution ==
-// fullResolution so we replicate the WGSL exactly.
+// COORDINATE NOTE: the GLSL computes uv = (gl_FragCoord.xy + tileOffset) /
+// fullResolution. NM_FragCoord shares gl_FragCoord's bottom-up frame, so the
+// port adds tileOffset and divides with no Y flip.
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
@@ -54,11 +50,10 @@ float sampleSpectrum(uint index)
 // =============================================================================
 float4 nm_spectrum(float2 fragCoordXY)
 {
-    // WGSL: uv = vec2(position.x, resolution.y - position.y) / resolution
-    // resolution here is the render-target size (fullResolution in tiled mode;
-    // they are equal for untiled passes, matching the WGSL binding).
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution. NM_FragCoord
+    // shares gl_FragCoord's bottom-up frame, so no Y flip.
     float2 res = fullResolution.x > 0.0 ? fullResolution : resolution;
-    float2 uv  = float2(fragCoordXY.x, res.y - fragCoordXY.y) / res;
+    float2 uv  = (fragCoordXY + tileOffset) / res;
 
     // Sample the spectrum at this x position
     float fIndex   = uv.x * 127.0;

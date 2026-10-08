@@ -59,11 +59,12 @@ float computeBlurFactor(float depth)
 // depthSource==0: use inputTex (A) as depth map, blur tex (B)
 // 64-sample golden-angle spiral disk; flat (un-weighted) CoC averaging.
 // -----------------------------------------------------------------------------
-float4 applyFocusBlurAB(float2 uv, float2 resolutionDims,
+float4 applyFocusBlurAB(float2 st, float2 uv, float2 resolutionDims,
+    float2 fullRes, float2 tileOff,
     Texture2D inputTex_, SamplerState sampler_inputTex_,
     Texture2D tex_, SamplerState sampler_tex_)
 {
-    float4 depthSample = inputTex_.Sample(sampler_inputTex_, uv);
+    float4 depthSample = inputTex_.Sample(sampler_inputTex_, st);
     float depth = getLuminosity(depthSample.rgb);
 
     float blurRadius = computeBlurFactor(depth) * sampleBias;
@@ -71,12 +72,17 @@ float4 applyFocusBlurAB(float2 uv, float2 resolutionDims,
     float4 color = float4(0.0, 0.0, 0.0, 0.0);
     const float GOLDEN = 2.399963;
 
+    // GLSL: taps sample ((uv + offset) * fullResolution - tileOffset) / textureSize(sceneTex).
+    uint sw, sh;
+    tex_.GetDimensions(sw, sh);
+    float2 sceneDims = float2(sw, sh);
+
     for (int i = 0; i < 64; i = i + 1)
     {
         float r = sqrt((float)i / 64.0);
         float theta = (float)i * GOLDEN;
         float2 offset = float2(cos(theta), sin(theta)) * r * blurRadius / resolutionDims;
-        color = color + tex_.Sample(sampler_tex_, uv + offset);
+        color = color + tex_.Sample(sampler_tex_, ((uv + offset) * fullRes - tileOff) / sceneDims);
     }
 
     return color / 64.0;
@@ -87,11 +93,12 @@ float4 applyFocusBlurAB(float2 uv, float2 resolutionDims,
 // depthSource==1: use tex (B) as depth map, blur inputTex (A)
 // 64-sample golden-angle spiral disk; flat (un-weighted) CoC averaging.
 // -----------------------------------------------------------------------------
-float4 applyFocusBlurBA(float2 uv, float2 resolutionDims,
+float4 applyFocusBlurBA(float2 st, float2 uv, float2 resolutionDims,
+    float2 fullRes, float2 tileOff,
     Texture2D inputTex_, SamplerState sampler_inputTex_,
     Texture2D tex_, SamplerState sampler_tex_)
 {
-    float4 depthSample = tex_.Sample(sampler_tex_, uv);
+    float4 depthSample = tex_.Sample(sampler_tex_, st);
     float depth = getLuminosity(depthSample.rgb);
 
     float blurRadius = computeBlurFactor(depth) * sampleBias;
@@ -99,12 +106,17 @@ float4 applyFocusBlurBA(float2 uv, float2 resolutionDims,
     float4 color = float4(0.0, 0.0, 0.0, 0.0);
     const float GOLDEN = 2.399963;
 
+    // GLSL: taps sample ((uv + offset) * fullResolution - tileOffset) / textureSize(sceneTex).
+    uint sw, sh;
+    inputTex_.GetDimensions(sw, sh);
+    float2 sceneDims = float2(sw, sh);
+
     for (int i = 0; i < 64; i = i + 1)
     {
         float r = sqrt((float)i / 64.0);
         float theta = (float)i * GOLDEN;
         float2 offset = float2(cos(theta), sin(theta)) * r * blurRadius / resolutionDims;
-        color = color + inputTex_.Sample(sampler_inputTex_, uv + offset);
+        color = color + inputTex_.Sample(sampler_inputTex_, ((uv + offset) * fullRes - tileOff) / sceneDims);
     }
 
     return color / 64.0;
@@ -115,7 +127,7 @@ float4 applyFocusBlurBA(float2 uv, float2 resolutionDims,
 // main() lines 88-108.
 // Takes already-computed uv and dims, plus both sampled inputs for alpha.
 // -----------------------------------------------------------------------------
-float4 nm_focusBlur(float2 uv, float2 dims,
+float4 nm_focusBlur(float2 st, float2 uv, float2 dims, float2 fullRes, float2 tileOff,
     Texture2D inputTex_, SamplerState sampler_inputTex_,
     Texture2D tex_, SamplerState sampler_tex_)
 {
@@ -125,20 +137,20 @@ float4 nm_focusBlur(float2 uv, float2 dims,
     //              1 = use tex (B) as depth map, blur inputTex (A)
     if (depthSource == 0)
     {
-        color = applyFocusBlurAB(uv, dims,
+        color = applyFocusBlurAB(st, uv, dims, fullRes, tileOff,
             inputTex_, sampler_inputTex_,
             tex_, sampler_tex_);
     }
     else
     {
-        color = applyFocusBlurBA(uv, dims,
+        color = applyFocusBlurBA(st, uv, dims, fullRes, tileOff,
             inputTex_, sampler_inputTex_,
             tex_, sampler_tex_);
     }
 
-    // Preserve maximum alpha from both sources
-    float alpha1 = inputTex_.Sample(sampler_inputTex_, uv).a;
-    float alpha2 = tex_.Sample(sampler_tex_, uv).a;
+    // Preserve maximum alpha from both sources (tile-local, as the GLSL)
+    float alpha1 = inputTex_.Sample(sampler_inputTex_, st).a;
+    float alpha2 = tex_.Sample(sampler_tex_, st).a;
     color.a = max(alpha1, alpha2);
 
     return color;

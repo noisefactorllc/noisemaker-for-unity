@@ -70,7 +70,12 @@ float nm_lighting_getLuminosity(float3 color)
 // -----------------------------------------------------------------------------
 float nm_lighting_getHeight(float2 uv)
 {
-    return nm_lighting_getLuminosity(heightMap.Sample(sampler_heightMap, uv).rgb);
+    // GLSL: localUV = (uv * fullResolution - tileOffset) / textureSize(heightMap, 0)
+    uint mw, mh;
+    heightMap.GetDimensions(mw, mh);
+    float2 mapSize = float2((float)mw, (float)mh);
+    float2 localUV = (uv * fullResolution - tileOffset) / mapSize;
+    return nm_lighting_getLuminosity(heightMap.Sample(sampler_heightMap, localUV).rgb);
 }
 
 // -----------------------------------------------------------------------------
@@ -79,7 +84,7 @@ float nm_lighting_getHeight(float2 uv)
 // -----------------------------------------------------------------------------
 float3 nm_lighting_calculateNormal(float2 uv, float2 texelSize)
 {
-    float2 sampleSize = texelSize * smoothing;
+    float2 sampleSize = texelSize * smoothing * renderScale;
 
     // Sobel X kernel (row-major: TL,TC,TR, ML,MC,MR, BL,BC,BR)
     float sobel_x[9] = { -1.0, 0.0, 1.0,
@@ -128,7 +133,10 @@ float3 nm_lighting_calculateNormal(float2 uv, float2 texelSize)
 float4 nm_lighting_applyRefraction(float2 uv, float3 normal)
 {
     float2 refractionOffset = normal.xy * (refraction * 0.0125);
-    return inputTex.Sample(sampler_inputTex, uv + refractionOffset);
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    return inputTex.Sample(sampler_inputTex,
+        ((uv + refractionOffset) * fullResolution - tileOffset) / float2((float)tw, (float)th));
 }
 
 // -----------------------------------------------------------------------------
@@ -141,9 +149,9 @@ float4 nm_lighting_applyRefraction(float2 uv, float3 normal)
 //   blueOffset  = reflectionOffset * (1.0 - uniforms.aberration * 0.0075)
 //   separate channel samples + alpha from reflectionOffset
 // -----------------------------------------------------------------------------
-float4 nm_lighting_applyReflection(float2 uv, float3 normal)
+float4 nm_lighting_applyReflection(float2 uv, float2 globalUV, float3 normal)
 {
-    float3 incident = float3(normalize(uv - float2(0.5, 0.5)), 100.0);
+    float3 incident = float3(normalize(globalUV - float2(0.5, 0.5)), 100.0);
     float3 reflectionVec = reflect(incident, normal);
 
     float2 reflectionOffset = reflectionVec.xy * (reflection * 0.00005);
@@ -152,10 +160,13 @@ float4 nm_lighting_applyReflection(float2 uv, float3 normal)
     float2 greenOffset = reflectionOffset;
     float2 blueOffset  = reflectionOffset * (1.0 - aberration * 0.0075);
 
-    float redChannel   = inputTex.Sample(sampler_inputTex, uv + redOffset  ).r;
-    float greenChannel = inputTex.Sample(sampler_inputTex, uv + greenOffset ).g;
-    float blueChannel  = inputTex.Sample(sampler_inputTex, uv + blueOffset  ).b;
-    float alphaChannel = inputTex.Sample(sampler_inputTex, uv + reflectionOffset).a;
+    uint tw, th;
+    inputTex.GetDimensions(tw, th);
+    float2 inSize = float2((float)tw, (float)th);
+    float redChannel   = inputTex.Sample(sampler_inputTex, ((uv + redOffset  ) * fullResolution - tileOffset) / inSize).r;
+    float greenChannel = inputTex.Sample(sampler_inputTex, ((uv + greenOffset ) * fullResolution - tileOffset) / inSize).g;
+    float blueChannel  = inputTex.Sample(sampler_inputTex, ((uv + blueOffset  ) * fullResolution - tileOffset) / inSize).b;
+    float alphaChannel = inputTex.Sample(sampler_inputTex, ((uv + reflectionOffset) * fullResolution - tileOffset) / inSize).a;
 
     return float4(redChannel, greenChannel, blueChannel, alphaChannel);
 }
@@ -172,10 +183,15 @@ float4 NMFrag_lighting(NMVaryings i) : SV_Target
     uint w, h;
     inputTex.GetDimensions(w, h);
     float2 texSize   = float2((float)w, (float)h);
-    float2 uv        = NM_FragCoord(i) / texSize;
+    // GLSL: uv over fullResolution from the global coordinate; globalUV over
+    // fullResolution with the tile-size fallback
+    float2 globalCoord = NM_FragCoord(i) + tileOffset;
+    float2 fullRes   = fullResolution.x > 0.0 ? fullResolution : texSize;
+    float2 uv        = globalCoord / fullResolution;
+    float2 globalUV  = (NM_FragCoord(i) + tileOffset) / fullRes;
     float2 texelSize = 1.0 / texSize;
 
-    float4 origColor = inputTex.Sample(sampler_inputTex, uv);
+    float4 origColor = inputTex.Sample(sampler_inputTex, NM_FragCoord(i) / texSize);
     float3 normal    = nm_lighting_calculateNormal(uv, texelSize);
     float3 lightDir  = normalize(lightDirection);
     float3 viewDir   = float3(0.0, 0.0, 1.0);
@@ -208,7 +224,7 @@ float4 NMFrag_lighting(NMVaryings i) : SV_Target
     [branch]
     if (reflection > 0.0 || aberration > 0.0)
     {
-        float4 reflectedColor = nm_lighting_applyReflection(uv, normal);
+        float4 reflectedColor = nm_lighting_applyReflection(uv, globalUV, normal);
         workingColor = lerp(workingColor, reflectedColor, reflection / 100.0);
     }
 

@@ -126,8 +126,8 @@ float4 frag_ntapGather(NMVaryings i) : SV_Target
     float2 uv = NM_FragCoord(i) / texSize;
     float2 texelSize = 1.0 / texSize;
 
-    // Bloom radius in UV space
-    float2 radiusUV = radius * texelSize;
+    // Bloom radius in UV space, scaled for export resolution
+    float2 radiusUV = radius * renderScale * texelSize;
 
     // Clamp taps to valid range
     int tapCount = clamp((int)taps, 1, MAX_TAPS);

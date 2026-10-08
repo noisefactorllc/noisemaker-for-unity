@@ -32,20 +32,21 @@ Shader "Noisemaker/classicNoisedeck/splat"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // WGSL main():
-                //   let dims = vec2<f32>(textureDimensions(inputTex, 0));
-                //   let aspectRatio = dims.x / dims.y;
-                //   var uv = fragCoord.xy / dims;
-                // fragCoord = @builtin(position) (top-left, +0.5); NM_FragCoord(i)
-                // is the HLSL analog. Divide by the INPUT TEXTURE's own size (not
-                // fullResolution) — both uv AND aspectRatio use inputTex dims.
+                // GLSL main():
+                //   vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+                //   vec2 uv = globalCoord / fullResolution;
+                //   color = texture(inputTex, gl_FragCoord.xy / textureSize(inputTex, 0));
+                // aspectRatio = fullResolution.x / fullResolution.y. NM_FragCoord(i)
+                // is the gl_FragCoord analog: the base colour is read at the tile's
+                // own coordinate, the splat noise at the full-image uv.
                 uint tw, th;
                 inputTex.GetDimensions(tw, th);
                 float2 dims = float2(tw, th);
-                float aspectRatioLocal = dims.x / dims.y;
-                float2 uv = NM_FragCoord(i) / dims;
+                float aspectRatioLocal = fullResolution.x / fullResolution.y;
+                float2 globalCoord = NM_GlobalCoord(i);
+                float2 uv = globalCoord / fullResolution;
 
-                float4 color_ = inputTex.Sample(sampler_inputTex, uv);
+                float4 color_ = inputTex.Sample(sampler_inputTex, NM_FragCoord(i) / dims);
 
                 float2 noiseCoord = uv * float2(aspectRatioLocal, 1.0);
 
@@ -61,7 +62,7 @@ Shader "Noisemaker/classicNoisedeck/splat"
                     }
                     else if (speckMode == 1)
                     {
-                        color_ = inputTex.Sample(sampler_inputTex, uv + speckMask * 0.1); // displace
+                        color_ = inputTex.Sample(sampler_inputTex, ((uv + speckMask * 0.1) * fullResolution - tileOffset) / dims); // displace
                     }
                     else if (speckMode == 2)
                     {
@@ -86,7 +87,7 @@ Shader "Noisemaker/classicNoisedeck/splat"
                     }
                     else if (mode == 1)
                     {
-                        float4 texColor = inputTex.Sample(sampler_inputTex, uv + splatMask * 0.1); // displace
+                        float4 texColor = inputTex.Sample(sampler_inputTex, ((uv + splatMask * 0.1) * fullResolution - tileOffset) / dims); // displace
                         color_ = lerp(color_, texColor, splatMask);
                     }
                     else if (mode == 2)

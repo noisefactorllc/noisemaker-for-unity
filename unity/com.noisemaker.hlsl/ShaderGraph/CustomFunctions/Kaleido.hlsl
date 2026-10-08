@@ -85,7 +85,7 @@ float3 nmsg_kl_randomFromLatticeWithOffset(float2 st, float freq, int2 offset, i
     }
     uint xBits = (uint)xi;
     uint yBits = (uint)yi;
-    uint seedBits = asuint((float)seed);
+    uint seedBits = (uint)seed;  // GLSL uint(seed): the integer, not float bits
     uint fracBits = asuint(seedFrac);
     uint3 jitter = uint3(
         (fracBits * 374761393u) ^ 0x9E3779B9u,
@@ -292,7 +292,7 @@ float nmsg_kl_value(float2 st_in, float freq, int interp, float aspect, int seed
 float3 nmsg_kl_hsv2rgb(float3 hsv)
 {
     float h = frac(hsv.x); float s = hsv.y; float v = hsv.z;
-    float c = v * s; float x = c * (1.0 - abs(frac(h * 6.0) * 2.0 - 1.0)); float m = v - c;
+    float c = v * s; float x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0)); float m = v - c;
     float3 rgb;
     if (h < 1.0 / 6.0) { rgb = float3(c, x, 0.0); }
     else if (h < 2.0 / 6.0) { rgb = float3(x, c, 0.0); }

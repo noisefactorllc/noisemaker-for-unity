@@ -123,10 +123,10 @@ float3 nm_ld_saturateColor(float3 color)
 }
 
 // _distance — per-effect shape distance + animation, verbatim from WGSL
-// NOTE: uses `resolution` (= _NM_Resolution.xy) matching WGSL u.resolution
+// NOTE: uses `fullResolution`, matching the GLSL aspectRatio define
 float nm_ld_distance(float2 diff, float2 uv)
 {
-    float ar = resolution.x / resolution.y;   // WGSL: u.resolution.x / u.resolution.y
+    float ar = fullResolution.x / fullResolution.y;   // GLSL: aspectRatio
     float uvx = uv.x * ar;
     float dist = 1.0;
 
@@ -186,13 +186,14 @@ float nm_ld_distance(float2 diff, float2 uv)
 // =============================================================================
 // NMFrag_lensDistortion — single-pass fragment entry (progName "lensDistortion")
 //
-// WGSL main() ported verbatim. `uv` = fragCoord.xy / u.resolution (which is
-// the render-target resolution, available as `resolution` from NMFullscreen).
+// WGSL main() ported verbatim, with the GLSL's tiled coordinates: `uv` =
+// (gl_FragCoord.xy + tileOffset) / fullResolution, aspect from fullResolution.
 // =============================================================================
 float4 NMFrag_lensDistortion(NMVaryings i) : SV_Target
 {
-    float ar = resolution.x / resolution.y;
-    float2 uv = NM_FragCoord(i) / resolution;  // WGSL: fragCoord.xy / u.resolution
+    float ar = fullResolution.x / fullResolution.y;
+    float2 globalCoord = NM_GlobalCoord(i);
+    float2 uv = globalCoord / fullResolution;  // GLSL: globalCoord / fullResolution
 
     float4 color = float4(0.0, 0.0, 0.0, 1.0);
 
@@ -296,17 +297,17 @@ float4 NMFrag_lensDistortion(NMVaryings i) : SV_Target
     [branch]
     if (vignetteAmt < 0.0)
     {
-        float vigFactor = 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0);
+        // GLSL precedence: color.rgb * 1.0 - pow(...) is color MINUS the falloff.
         color = float4(
-            lerp(color.rgb * vigFactor, color.rgb, mapVal(vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
+            lerp(color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0), color.rgb, mapVal(vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - uv) * mapVal(vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
     else
     {
-        float vigFactor = 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0);
+        // GLSL: 1 - (1 - color.rgb * 1.0 - pow(...)), color PLUS the falloff.
         color = float4(
-            lerp(color.rgb, float3(1.0, 1.0, 1.0) - (float3(1.0, 1.0, 1.0) - color.rgb * vigFactor), mapVal(vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
+            lerp(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0)), mapVal(vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - uv) * mapVal(vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }

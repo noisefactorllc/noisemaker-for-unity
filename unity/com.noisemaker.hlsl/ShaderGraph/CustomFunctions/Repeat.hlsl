@@ -51,10 +51,10 @@ void NM_Repeat_float(
     [branch]
     if (Wrap == 0) {
         // mirror
-        st = abs(nm_mod(nm_mod(st + 1.0, float2(2.0, 2.0)) + 2.0, float2(2.0, 2.0)) - 1.0);
+        st = abs(nm_mod(st + 1.0, float2(2.0, 2.0)) - 1.0);
     } else if (Wrap == 1) {
         // repeat
-        st = nm_mod(nm_mod(st, float2(1.0, 1.0)) + 1.0, float2(1.0, 1.0));
+        st = frac(st);
     } else {
         // clamp
         st = clamp(st, float2(0.0, 0.0), float2(1.0, 1.0));

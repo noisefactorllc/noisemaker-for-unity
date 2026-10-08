@@ -36,7 +36,10 @@
 //  * Final sample uses the kaleidoscoped uv directly (kaleidoscope returns
 //    fract(st), 0..1), so no tile-local UV conversion is needed.
 //  * atan2: WGSL `atan2(st.x, st.y)` in shape(), `atan2(st.y, st.x)` in
-//    kaleidoscope() -> HLSL atan2 with the SAME arg order kept literally (H3).
+//    kaleidoscope() -> NMCore nm_atan2 with the SAME arg order kept literally
+//    (H3). nm_atan2 is accurate like the reference WebGL atan; the
+//    low-precision intrinsic moved some nearest-filtered samples across texel
+//    edges.
 //  * glslMod: kaleidoscope folds a signed angle and the WGSL deliberately uses
 //    GLSL-style mod (sign of divisor) via glslMod() -> nm_mod (NEVER fmod, H6).
 //  * `select(0.0, delta/maxC, maxC != 0.0)` -> `maxC != 0.0 ? delta/maxC : 0.0`.
@@ -130,7 +133,7 @@ float3 kl_randomFromLatticeWithOffset(float2 st, float freq, int2 offset)
     }
     uint xBits = (uint)xi;
     uint yBits = (uint)yi;
-    uint seedBits = asuint((float)seed);
+    uint seedBits = (uint)seed;  // GLSL uint(seed): the integer, not float bits
     uint fracBits = asuint(seedFrac);
     uint3 jitter = uint3(
         (fracBits * 374761393u) ^ 0x9E3779B9u,
@@ -338,7 +341,7 @@ float kl_value(float2 st_in, float freq, int interp)
 float3 kl_hsv2rgb(float3 hsv)
 {
     float h = frac(hsv.x); float s = hsv.y; float v = hsv.z;
-    float c = v * s; float x = c * (1.0 - abs(frac(h * 6.0) * 2.0 - 1.0)); float m = v - c;
+    float c = v * s; float x = c * (1.0 - abs(nm_mod(h * 6.0, 2.0) - 1.0)); float m = v - c;
     float3 rgb;
     if (h < 1.0 / 6.0) { rgb = float3(c, x, 0.0); }
     else if (h < 2.0 / 6.0) { rgb = float3(x, c, 0.0); }
@@ -446,7 +449,7 @@ float kl_shape(float2 st_in, int sides, float blend)
 {
     if (sides < 2) { return distance(st_in, float2(0.5, 0.5)); }
     float2 st = float2(st_in.x, 1.0 - st_in.y) * 2.0 - float2(kl_aspectRatio(), 1.0);
-    float a = atan2(st.x, st.y) + KL_PI;
+    float a = nm_atan2(st.x, st.y) + KL_PI;
     float r = KL_TAU / (float)sides;
     return cos(floor(0.5 + a / r) * r - a) * length(st) * blend;
 }
@@ -531,7 +534,7 @@ float2 kl_kaleidoscope(float2 st_in, float sides, float blendy)
 {
     float r = kl_getMetric(st_in) + blendy;
     float2 st = st_in - float2(0.5 * kl_aspectRatio(), 0.5);
-    float a = atan2(st.y, st.x);
+    float a = nm_atan2(st.y, st.x);
     float dir = time;
     if (DIRECTION == 1) { dir *= -1.0; }
     else if (DIRECTION == 2) { dir = 1.0; }

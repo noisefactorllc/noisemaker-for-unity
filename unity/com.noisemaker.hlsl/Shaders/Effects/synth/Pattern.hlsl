@@ -235,8 +235,8 @@ float nmp_zigzag(float2 p, float t, float sm)
 // =============================================================================
 float4 nm_pattern(float2 fragCoord)
 {
-    // Normalize coordinates: WGSL uses u.resolution (the render-target size).
-    float2 st = fragCoord / resolution;
+    // Normalize coordinates: GLSL st = globalCoord / fullResolution.
+    float2 st = fragCoord / fullResolution;
     st = (st - float2(0.5, 0.5)) * 2.0;
     // WGSL: st.x = st.x * u.aspect. pipeline.js sets u.aspect == aspectRatio ==
     // fullResolution.x/fullResolution.y (verified), so the NMFullscreen alias matches.

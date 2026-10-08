@@ -84,12 +84,13 @@ void NM_SpookyTicker_float(
 
     int rowSeed2 = (int)hash_mix((uint)rowIdx2 + baseSeed2);
 
-    float mask2   = ticker_row_mask(px2,     localY2,     rowSeed2, t);
+    // Standalone node is untiled (renderScale 1): iScale = BASE_SCALE, CELL_W = 21.
+    float mask2   = ticker_row_mask(px2,     localY2,     rowSeed2, t, CELL_W2, BASE_SCALE);
     float shadow2 = 0.0;
     int shadowLocalY2 = localY2 + 2;
     if (shadowLocalY2 < CELL_H2)
     {
-        shadow2 = ticker_row_mask(px2 + 2, shadowLocalY2, rowSeed2, t);
+        shadow2 = ticker_row_mask(px2 + 2, shadowLocalY2, rowSeed2, t, CELL_W2, BASE_SCALE);
     }
 
     float3 result2 = src.rgb;

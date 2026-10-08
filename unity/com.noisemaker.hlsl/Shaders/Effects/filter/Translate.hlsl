@@ -14,9 +14,9 @@
 //   uv.x = uv.x - uniforms.x;
 //   uv.y = uv.y - uniforms.y;
 //   if (uniforms.wrap == 0) { // mirror
-//       uv = abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
+//       uv = abs((uv + 1.0) - 2.0 * floor((uv + 1.0) / 2.0) - 1.0);
 //   } else if (uniforms.wrap == 1) { // repeat
-//       uv = (uv % 1.0 + 1.0) % 1.0;
+//       uv = fract(uv);
 //   } else { // clamp
 //       uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));
 //   }
@@ -25,8 +25,8 @@
 // PORTING-GUIDE notes:
 //  * uv = fragCoord / INPUT TEXTURE's own dimensions (not fullResolution). Follow
 //    WGSL: NM_FragCoord(i) / float2(tw, th). No tileOffset added (WGSL is canonical).
-//  * WGSL `%` on floats is floor-based modulo -> nm_mod (NEVER fmod).
-//  * mirror formula: abs(nm_mod(uv + 1.0, 2.0) + 2.0, ... ) — see verbatim below.
+//  * Wrap is the GLSL's: mirror abs(mod(uv + 1.0, 2.0) - 1.0) -> one nm_mod
+//    (NEVER fmod); repeat fract(uv) -> frac.
 //  * wrap is an int uniform; branch with [branch] at runtime (WGSL already branches).
 //  * No PRNG / no PCG / no float-bit hazards in this effect.
 //  * Linear, clamp-to-edge, non-sRGB sampler (H7) — configured in Translate.shader.
@@ -57,17 +57,17 @@ float4 nm_translate(float2 fragCoord, float2 texSize)
     uv.x = uv.x - x;
     uv.y = uv.y - y;
 
-    // WGSL: wrap mode branches — WGSL % on float is floor-based -> nm_mod
+    // Wrap mode branches — GLSL mod -> nm_mod, GLSL fract -> frac
     [branch]
     if (wrap == 0)
     {
-        // mirror: abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        uv = abs(nm_mod(nm_mod(uv + float2(1.0, 1.0), float2(2.0, 2.0)) + float2(2.0, 2.0), float2(2.0, 2.0)) - float2(1.0, 1.0));
+        // mirror: GLSL abs(mod(uv + 1.0, 2.0) - 1.0)
+        uv = abs(nm_mod(uv + float2(1.0, 1.0), float2(2.0, 2.0)) - float2(1.0, 1.0));
     }
     else if (wrap == 1)
     {
-        // repeat: (uv % 1.0 + 1.0) % 1.0
-        uv = nm_mod(nm_mod(uv, float2(1.0, 1.0)) + float2(1.0, 1.0), float2(1.0, 1.0));
+        // repeat: GLSL fract(uv)
+        uv = frac(uv);
     }
     else
     {

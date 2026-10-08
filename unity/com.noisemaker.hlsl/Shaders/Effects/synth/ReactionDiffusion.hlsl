@@ -468,8 +468,8 @@ float4 frag_rd(NMVaryings i) : SV_Target
 {
     // WGSL: resolution = data[0].xy; smoothing = i32(data[3].w);
     //       inputIntensity = data[1].x * 0.01.
-    float2 pos = NM_FragCoord(i);  // @builtin(position).xy analog
-    float2 res = resolution;       // engine global
+    float2 pos = NM_GlobalCoord(i);  // GLSL globalCoord = gl_FragCoord.xy + tileOffset
+    float2 res = fullResolution;     // GLSL scales every mode by fullResolution
     int sm = smoothing;
     float inputIntens = inputIntensity * 0.01;
 

@@ -6,8 +6,8 @@
 //
 // void NM_Snow_float(InputTex, SS, UV, Alpha, Pause, Density, out Out)
 //
-// UV must be the input texture's own 0..1 UV. Internally the hash operates on
-// integer pixel coords (floor(UV * texDims)) to match WGSL gid semantics.
+// UV must be the input texture's own 0..1 UV. The hash operates on pixel
+// centres (floor(UV * texDims) + 0.5), as the GLSL hashes gl_FragCoord.xy.
 // Pause is float: 0=animate, 1=freeze (compared > 0.5, per WGSL select).
 // Time is injected via _Time.y (Unity built-in), 0..1-normalized to match the
 // runtime's _NM_Time. TODO(verify): confirm time normalization matches runtime.
@@ -99,7 +99,8 @@ void NM_Snow_float(
         return;
     }
 
-    float2 coord = float2((float)icoord.x, (float)icoord.y);
+    // GLSL hashes the pixel centre gl_FragCoord.xy (+ tileOffset; no tiling here).
+    float2 coord = float2((float)icoord.x + 0.5, (float)icoord.y + 0.5);
     float  t     = (Pause > 0.5) ? 0.0 : _Time.y;  // TODO(verify): time normalization
     float  speed = 100.0;
 

@@ -345,15 +345,13 @@ float4 ca_bicubic4(float4 p0, float4 p1, float4 p2, float4 p3, float t)
 // distinct from the GLSL's expanded redundant form; we follow the WGSL Golden #1).
 float4 ca_catmullRom3(float4 p0, float4 p1, float4 p2, float t)
 {
+    // GLSL Catmull-Rom-esque cubic through 3 points (interpolating).
     float t2 = t * t;
     float t3 = t2 * t;
 
-    float4 m = 0.5 * (p2 - p0);
-
-    return (2.0*t3 - 3.0*t2 + 1.0) * p1 +
-           (t3 - 2.0*t2 + t) * m +
-           (-2.0*t3 + 3.0*t2) * p2 +
-           (t3 - t2) * m;
+    return p1 + 0.5 * t * (p2 - p0) +
+           0.5 * t2 * (2.0*p0 - 5.0*p1 + 4.0*p2 - p0) +
+           0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
 
 float4 ca_catmullRom4(float4 p0, float4 p1, float4 p2, float4 p3, float t)
@@ -511,13 +509,13 @@ float ca_cosineMix(float a, float b, float t)
 // Pass "render" (program "ca") — reconstruct/upsample the grid into outputTex.
 // WGSL: @fragment fn main(@builtin(position) fragCoord) -> @location(0) vec4
 //   resolution = uniforms.data[0].xy (engine resolution), smoothing = data[1].y.
-// WGSL uses fragCoord.xy directly (NO tileOffset) -> NM_FragCoord(i).
+// GLSL uses globalCoord = gl_FragCoord.xy + tileOffset, scaled by fullResolution.
 // =============================================================================
 float4 frag_ca(NMVaryings i) : SV_Target
 {
-    float2 fragCoord = NM_FragCoord(i);
-    // `resolution` is the engine-provided alias (render-target size).
-    float2 res = resolution;
+    float2 fragCoord = NM_GlobalCoord(i);
+    // GLSL scales every mode by fullResolution (full image), not the tile size.
+    float2 res = fullResolution;
 
     float state = 0.0;
     if (smoothing == 0) {

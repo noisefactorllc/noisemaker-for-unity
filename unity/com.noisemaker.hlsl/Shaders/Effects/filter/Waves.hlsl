@@ -16,16 +16,9 @@
 //    the INPUT TEXTURE's own dimensions, not fullResolution. Matches exactly.
 //  * `aspectRatio` derived from input texture size (texSize.x / texSize.y)
 //    exactly as in WGSL (not the engine `aspectRatio` alias).
-//  * Wrap uses nm_mod (float mod, floor-based). WGSL `%` on f32 is truncated
-//    toward zero, but the WGSL wrap code uses `((uv + 1.0) % 2.0 + 2.0) % 2.0`
-//    which is the positive-modulo pattern — translated with nm_mod to match.
-//    Mirror: nm_mod(uv + 1.0, 2.0) then abs(...- 1.0).
-//    Repeat: nm_mod(nm_mod(uv, 1.0) + 1.0, 1.0)  simplified to nm_mod(uv, 1.0).
-//    NOTE: WGSL `%` on f32 is truncating NOT floor, so `(uv + 1.0) % 2.0` for
-//    negative uv (e.g. uv=-0.1 -> (0.9) % 2.0 = 0.9, fine). For values in the
-//    typical distorted range the WGSL expression and nm_mod give identical
-//    results. Translating verbatim: nm_mod(uv + 1.0, 2.0) handles floor-mod.
-//    TODO(verify): confirm wrap parity at uv exactly 0 and 1 boundaries.
+//  * Wrap is the GLSL's: mirror abs(mod(uv + 1.0, 2.0) - 1.0), repeat
+//    mod(uv, 1.0), each one nm_mod (floored, never fmod). The old WGSL
+//    `((x % k) + k) % k` agrees only in exact arithmetic; it rounds differently.
 //  * `antialias` is an int uniform; test != 0 matching WGSL `antialias != 0`.
 //  * dpdx/dpdy -> ddx/ddy (HLSL quads).
 //  * rotate2D helper copied verbatim per-effect (PORTING-GUIDE rule 2).
@@ -79,33 +72,42 @@ float2 nm_waves_rotate2D(float2 st, float rot, float ar)
 // ---- Pass: "waves" (progName "waves") ----------------------------------------
 float4 NMFrag_waves(NMVaryings i) : SV_Target
 {
-    // WGSL: texSize = vec2<f32>(textureDimensions(inputTex));
-    //       aspectRatio = texSize.x / texSize.y;
-    //       uv = pos.xy / texSize;
+    // GLSL: aspectRatio = fullResolution.x / fullResolution.y;
+    //       globalCoord = gl_FragCoord.xy + tileOffset;
+    //       uv = globalCoord / fullResolution;
     uint w, h;
     inputTex.GetDimensions(w, h);
     float2 texSize = float2((float)w, (float)h);
-    float ar = texSize.x / texSize.y;
-    float2 uv = NM_FragCoord(i) / texSize;
+    float ar = fullResolution.x / fullResolution.y;
+    float2 globalCoord = NM_GlobalCoord(i);
+    float2 uv = globalCoord / fullResolution;
 
-    // WGSL: uv = rotate2D(uv, uniforms.rotation / 180.0, aspectRatio);
+    // GLSL: uv = rotate2D(uv, rotation / 180.0, aspectRatio);
     uv = nm_waves_rotate2D(uv, rotation / 180.0, ar);
 
-    // WGSL: uv.y = uv.y + sin(uv.x * scale * 10.0 + t * TAU * f32(speed)) * (strength * 0.01);
-    uv.y = uv.y + sin(uv.x * scale * 10.0 + time * NM_WAVES_TAU * (float)speed) * (strength * 0.01);
+    // Sine wave distortion
+    float displacement = sin(uv.x * scale * 10.0 + time * NM_WAVES_TAU * (float)speed) * (strength * 0.01);
+
+    // Bound displacement to overlap in tile mode to prevent seams
+    if (any(tileOffset != float2(0.0, 0.0)))
+    {
+        float maxDisplacementUV = 256.0 / fullResolution.y;
+        displacement = clamp(displacement, -maxDisplacementUV, maxDisplacementUV);
+    }
+
+    uv.y = uv.y + displacement;
 
     // Apply wrap mode
     [branch]
     if (wrap == 0)
     {
-        // mirror: WGSL abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        // Using nm_mod for floor-based float mod (required by PORTING-GUIDE).
-        uv = abs(nm_mod(nm_mod(uv + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+        // mirror: GLSL abs(mod(uv + 1.0, 2.0) - 1.0)
+        uv = abs(nm_mod(uv + 1.0, 2.0) - 1.0);
     }
     else if (wrap == 1)
     {
-        // repeat: WGSL (uv % 1.0 + 1.0) % 1.0
-        uv = nm_mod(nm_mod(uv, 1.0) + 1.0, 1.0);
+        // repeat: GLSL mod(uv, 1.0)
+        uv = nm_mod(uv, 1.0);
     }
     else
     {
@@ -113,25 +115,31 @@ float4 NMFrag_waves(NMVaryings i) : SV_Target
         uv = clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
     }
 
-    // WGSL: uv = rotate2D(uv, -uniforms.rotation / 180.0, aspectRatio);
+    // GLSL: uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
     uv = nm_waves_rotate2D(uv, -rotation / 180.0, ar);
+
+    // Convert distorted global UV to tile-local UV.
+    float2 localCoord = (uv * fullResolution - tileOffset) / texSize;
+
+    // In tile mode, wrap to enable seamless tiling. In normal mode, clamp to preserve original behavior.
+    float2 sampleUV = any(tileOffset != float2(0.0, 0.0)) ? frac(localCoord) : clamp(localCoord, 0.0, 1.0);
 
     // WGSL antialias path (4-tap RGSS)
     [branch]
     if (antialias != 0)
     {
-        float2 dx = ddx(uv);
-        float2 dy = ddy(uv);
+        float2 dx = ddx(sampleUV);
+        float2 dy = ddy(sampleUV);
         float4 col = float4(0.0, 0.0, 0.0, 0.0);
-        col += inputTex.Sample(sampler_inputTex, uv + dx * -0.375 + dy * -0.125);
-        col += inputTex.Sample(sampler_inputTex, uv + dx *  0.125 + dy * -0.375);
-        col += inputTex.Sample(sampler_inputTex, uv + dx *  0.375 + dy *  0.125);
-        col += inputTex.Sample(sampler_inputTex, uv + dx * -0.125 + dy *  0.375);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx * -0.375 + dy * -0.125);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx *  0.125 + dy * -0.375);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx *  0.375 + dy *  0.125);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx * -0.125 + dy *  0.375);
         return col * 0.25;
     }
     else
     {
-        return inputTex.Sample(sampler_inputTex, uv);
+        return inputTex.Sample(sampler_inputTex, sampleUV);
     }
 }
 

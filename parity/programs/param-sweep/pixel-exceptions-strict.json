@@ -105,14 +105,6 @@
    "max_exceeded_channels": 6,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "classicNoisedeck__effects__effect__shadow": {
-   "max_abs_diff": 220.0,
-   "max_mean_abs_diff": 1.3764801025390625,
-   "ssim_min": 0.9973620772361755,
-   "max_exceeded_pixels": 39248,
-   "max_exceeded_channels": 39248,
-   "mechanism": "kernel/convolution float32 ties in the shadow lighting path (corr(gold,cand)=0.9975; cand-vs-reference-webgpu corr=0.9975)"
-  },
   "classicNoisedeck__kaleido__direction__clockwise": {
    "max_abs_diff": 30.0,
    "max_mean_abs_diff": 0.0052490234375,
@@ -129,36 +121,12 @@
    "max_exceeded_channels": 149,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "classicNoisedeck__kaleido__loopOffset__decagon": {
-   "max_abs_diff": 16.0,
-   "max_mean_abs_diff": 0.001617431640625,
-   "ssim_min": 0.9999972581863403,
-   "max_exceeded_pixels": 36,
-   "max_exceeded_channels": 92,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
-  },
-  "classicNoisedeck__kaleido__loopOffset__diamond": {
-   "max_abs_diff": 15.0,
-   "max_mean_abs_diff": 0.003391265869140625,
-   "ssim_min": 0.9999909852,
-   "max_exceeded_pixels": 63,
-   "max_exceeded_channels": 173,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
-  },
   "classicNoisedeck__kaleido__loopOffset__dodecagon": {
    "max_abs_diff": 15.0,
    "max_mean_abs_diff": 0.003437042236328125,
    "ssim_min": 0.9999905753,
    "max_exceeded_pixels": 53,
    "max_exceeded_channels": 130,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
-  },
-  "classicNoisedeck__kaleido__loopOffset__hendecagon": {
-   "max_abs_diff": 29.0,
-   "max_mean_abs_diff": 0.00478363037109375,
-   "ssim_min": 0.9999781250953674,
-   "max_exceeded_pixels": 60,
-   "max_exceeded_channels": 148,
    "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
   },
   "classicNoisedeck__kaleido__loopOffset__heptagon": {
@@ -177,14 +145,6 @@
    "max_exceeded_channels": 112,
    "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
   },
-  "classicNoisedeck__kaleido__loopOffset__horizontalScan": {
-   "max_abs_diff": 30.0,
-   "max_mean_abs_diff": 0.003101348876953125,
-   "ssim_min": 0.999991342,
-   "max_exceeded_pixels": 55,
-   "max_exceeded_channels": 121,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
-  },
   "classicNoisedeck__kaleido__loopOffset__noiseBSpline3x3": {
    "max_abs_diff": 55.0,
    "max_mean_abs_diff": 0.6879463195800781,
@@ -192,14 +152,6 @@
    "max_exceeded_pixels": 9538,
    "max_exceeded_channels": 22866,
    "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=0.9971; same displacement-tie family as wormhole/reindex)"
-  },
-  "classicNoisedeck__kaleido__loopOffset__noiseBSpline4x4": {
-   "max_abs_diff": 49.0,
-   "max_mean_abs_diff": 0.6072540283203125,
-   "ssim_min": 0.9975167512893677,
-   "max_exceeded_pixels": 8630,
-   "max_exceeded_channels": 20542,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=0.9975; same displacement-tie family as wormhole/reindex)"
   },
   "classicNoisedeck__kaleido__loopOffset__noiseCatmullRom3x3": {
    "max_abs_diff": 55.0,
@@ -225,30 +177,6 @@
    "max_exceeded_channels": 33716,
    "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=0.9955; same displacement-tie family as wormhole/reindex)"
   },
-  "classicNoisedeck__kaleido__loopOffset__noiseHermite": {
-   "max_abs_diff": 55.0,
-   "max_mean_abs_diff": 0.8164749145507812,
-   "ssim_min": 0.9965509734,
-   "max_exceeded_pixels": 11224,
-   "max_exceeded_channels": 26938,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=0.9965; same displacement-tie family as wormhole/reindex)"
-  },
-  "classicNoisedeck__kaleido__loopOffset__noiseLinear": {
-   "max_abs_diff": 55.0,
-   "max_mean_abs_diff": 0.7639312744140625,
-   "ssim_min": 0.9967974861,
-   "max_exceeded_pixels": 10559,
-   "max_exceeded_channels": 25275,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=0.9967; same displacement-tie family as wormhole/reindex)"
-  },
-  "classicNoisedeck__kaleido__loopOffset__noiseSimplex": {
-   "max_abs_diff": 39.0,
-   "max_mean_abs_diff": 0.00565338134765625,
-   "ssim_min": 0.9999770574,
-   "max_exceeded_pixels": 68,
-   "max_exceeded_channels": 166,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
-  },
   "classicNoisedeck__kaleido__loopOffset__noiseSine": {
    "max_abs_diff": 55.0,
    "max_mean_abs_diff": 1.2717437744140625,
@@ -265,14 +193,6 @@
    "max_exceeded_channels": 125,
    "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
   },
-  "classicNoisedeck__kaleido__loopOffset__octagon": {
-   "max_abs_diff": 22.0,
-   "max_mean_abs_diff": 0.00350189208984375,
-   "ssim_min": 0.9999827146530151,
-   "max_exceeded_pixels": 32,
-   "max_exceeded_channels": 96,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
-  },
   "classicNoisedeck__kaleido__loopOffset__pentagon": {
    "max_abs_diff": 34.0,
    "max_mean_abs_diff": 0.00295257568359375,
@@ -281,28 +201,12 @@
    "max_exceeded_channels": 118,
    "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
   },
-  "classicNoisedeck__kaleido__loopOffset__rings": {
-   "max_abs_diff": 34.0,
-   "max_mean_abs_diff": 0.008880615234375,
-   "ssim_min": 0.9999428491,
-   "max_exceeded_pixels": 64,
-   "max_exceeded_channels": 176,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=0.9999; same displacement-tie family as wormhole/reindex)"
-  },
   "classicNoisedeck__kaleido__loopOffset__sine": {
    "max_abs_diff": 31.0,
    "max_mean_abs_diff": 0.003589630126953125,
    "ssim_min": 0.9999832623,
    "max_exceeded_pixels": 51,
    "max_exceeded_channels": 111,
-   "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
-  },
-  "classicNoisedeck__kaleido__loopOffset__square": {
-   "max_abs_diff": 11.0,
-   "max_mean_abs_diff": 0.00142669677734375,
-   "ssim_min": 0.999996102,
-   "max_exceeded_pixels": 24,
-   "max_exceeded_channels": 56,
    "mechanism": "noise-hash displacement decorrelation at loop-offset sample coordinates (corr(gold,cand)=1.0; same displacement-tie family as wormhole/reindex)"
   },
   "classicNoisedeck__kaleido__loopOffset__triangle": {
@@ -345,36 +249,12 @@
    "max_exceeded_channels": 174,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "classicNoisedeck__kaleido__metric__octagon": {
-   "max_abs_diff": 23.0,
-   "max_mean_abs_diff": 0.005706787109375,
-   "ssim_min": 0.9999734163284302,
-   "max_exceeded_pixels": 72,
-   "max_exceeded_channels": 184,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__kaleido__metric__square": {
-   "max_abs_diff": 27.0,
-   "max_mean_abs_diff": 0.00384521484375,
-   "ssim_min": 0.9999711137,
-   "max_exceeded_pixels": 40,
-   "max_exceeded_channels": 112,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "classicNoisedeck__kaleido__metric__triangle": {
    "max_abs_diff": 34.0,
    "max_mean_abs_diff": 0.004241943359375,
    "ssim_min": 0.9999791383743286,
    "max_exceeded_pixels": 53,
    "max_exceeded_channels": 131,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__kaleido__sides__mid": {
-   "max_abs_diff": 19.0,
-   "max_mean_abs_diff": 0.00475311279296875,
-   "ssim_min": 0.9999847018,
-   "max_exceeded_pixels": 69,
-   "max_exceeded_channels": 183,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__kaleido__speed__mid": {
@@ -427,10 +307,10 @@
   },
   "classicNoisedeck__refract__blendMode__add": {
    "max_abs_diff": 16.0,
-   "max_mean_abs_diff": 0.00022125244140625,
-   "ssim_min": 0.9999997615814209,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 9,
+   "max_mean_abs_diff": 0.00026702880859375,
+   "ssim_min": 0.9999997836,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 12,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__colorBurn": {
@@ -443,8 +323,8 @@
   },
   "classicNoisedeck__refract__blendMode__colorDodge": {
    "max_abs_diff": 12.0,
-   "max_mean_abs_diff": 0.0001373291015625,
-   "ssim_min": 0.9999999524,
+   "max_mean_abs_diff": 0.000141143798828125,
+   "ssim_min": 0.9999999522,
    "max_exceeded_pixels": 3,
    "max_exceeded_channels": 4,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
@@ -459,18 +339,18 @@
   },
   "classicNoisedeck__refract__blendMode__difference": {
    "max_abs_diff": 16.0,
-   "max_mean_abs_diff": 0.000240325927734375,
-   "ssim_min": 0.9999996072,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 11,
+   "max_mean_abs_diff": 0.00028228759765625,
+   "ssim_min": 0.9999995449,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 13,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__exclusion": {
-   "max_abs_diff": 5.0,
-   "max_mean_abs_diff": 0.000102996826171875,
-   "ssim_min": 0.9999998997,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 6,
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 0.000141143798828125,
+   "ssim_min": 0.9999998315,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 7,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__glow": {
@@ -483,18 +363,18 @@
   },
   "classicNoisedeck__refract__blendMode__hardLight": {
    "max_abs_diff": 12.0,
-   "max_mean_abs_diff": 0.000156402587890625,
-   "ssim_min": 0.9999995827674866,
+   "max_mean_abs_diff": 0.000164031982421875,
+   "ssim_min": 0.9999998098,
    "max_exceeded_pixels": 4,
    "max_exceeded_channels": 7,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__lighten": {
-   "max_abs_diff": 4.0,
-   "max_mean_abs_diff": 5.7220458984375e-05,
-   "ssim_min": 0.9999999932,
-   "max_exceeded_pixels": 2,
-   "max_exceeded_channels": 4,
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 9.918212890625e-05,
+   "ssim_min": 0.9999999447,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 6,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__multiply": {
@@ -507,48 +387,48 @@
   },
   "classicNoisedeck__refract__blendMode__negation": {
    "max_abs_diff": 16.0,
-   "max_mean_abs_diff": 0.00025177001953125,
-   "ssim_min": 0.9999998211860657,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 11,
+   "max_mean_abs_diff": 0.00029754638671875,
+   "ssim_min": 0.9999997825,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 14,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__overlay": {
    "max_abs_diff": 12.0,
-   "max_mean_abs_diff": 0.0001220703125,
-   "ssim_min": 0.9999998384,
+   "max_mean_abs_diff": 0.00012969970703125,
+   "ssim_min": 0.9999998367,
    "max_exceeded_pixels": 3,
    "max_exceeded_channels": 5,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__phoenix": {
    "max_abs_diff": 16.0,
-   "max_mean_abs_diff": 0.00023651123046875,
-   "ssim_min": 0.999999608,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 11,
+   "max_mean_abs_diff": 0.000278472900390625,
+   "ssim_min": 0.9999995457,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 13,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__reflect": {
    "max_abs_diff": 15.0,
-   "max_mean_abs_diff": 0.000202178955078125,
-   "ssim_min": 0.9999997615814209,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 8,
+   "max_mean_abs_diff": 0.000225067138671875,
+   "ssim_min": 0.9999997929,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 9,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__screen": {
    "max_abs_diff": 10.0,
-   "max_mean_abs_diff": 0.0001678466796875,
-   "ssim_min": 0.9999998634,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 7,
+   "max_mean_abs_diff": 0.00020599365234375,
+   "ssim_min": 0.9999998289,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 8,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__blendMode__softLight": {
    "max_abs_diff": 7.0,
-   "max_mean_abs_diff": 9.5367431640625e-05,
-   "ssim_min": 0.9999999323,
+   "max_mean_abs_diff": 9.918212890625e-05,
+   "ssim_min": 0.9999999318,
    "max_exceeded_pixels": 4,
    "max_exceeded_channels": 6,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
@@ -571,10 +451,10 @@
   },
   "classicNoisedeck__refract__mix__mid": {
    "max_abs_diff": 16.0,
-   "max_mean_abs_diff": 0.000217437744140625,
-   "ssim_min": 0.9999997136,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 11,
+   "max_mean_abs_diff": 0.0002593994140625,
+   "ssim_min": 0.9999996722,
+   "max_exceeded_pixels": 5,
+   "max_exceeded_channels": 13,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "classicNoisedeck__refract__wrap__clamp": {

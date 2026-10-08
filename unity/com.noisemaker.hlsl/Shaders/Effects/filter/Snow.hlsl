@@ -66,18 +66,23 @@ float nm_snow_periodic_value(float t, float value)
     return nm_snow_normalized_sine((t - value) * NM_SNOW_TAU);
 }
 
+// GLSL: value - floor(value). frac() is the same value, but it keeps Metal from
+// fusing the caller's product into fma(a, b, -floor(..)), which skips the f32
+// rounding of the product that the GLSL does and so changes the chaotic hash.
 float3 nm_snow_fract_vec3(float3 value)
 {
-    return value - floor(value);
+    return frac(value);
 }
 
 float nm_snow_hash(float3 sample_in)
 {
+    // Both fract steps use frac() so each product is rounded to f32 first, as
+    // in the GLSL (see nm_snow_fract_vec3).
     float3 scaled   = nm_snow_fract_vec3(sample_in * 0.1031);
     float  dot_val  = dot(scaled, scaled.yzx + float3(33.33, 33.33, 33.33));
     float3 shifted  = scaled + dot_val;
     float  combined = (shifted.x + shifted.y) * shifted.z;
-    float  fractional = combined - floor(combined);
+    float  fractional = frac(combined);
     return clamp(fractional, 0.0, 1.0);
 }
 

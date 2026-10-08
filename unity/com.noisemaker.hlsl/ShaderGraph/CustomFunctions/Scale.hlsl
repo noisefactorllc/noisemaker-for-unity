@@ -46,6 +46,9 @@ void NM_Scale_float(
 
     // Convert 0..1 UV back to pixel-centered fragCoord for nm_scale.
     float2 fragCoord = UV * Resolution;
+    // Untiled: seed the globals nm_scale reads (tileOffset, fullResolution, aspectRatio).
+    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_FullResolution = float4(Resolution, 0.0, 0.0);
     Out = nm_scale(fragCoord, Resolution, InputTex, SS); // TODO(verify): UnityTexture2D/UnitySamplerState implicit cast to Texture2D/SamplerState
 }
 

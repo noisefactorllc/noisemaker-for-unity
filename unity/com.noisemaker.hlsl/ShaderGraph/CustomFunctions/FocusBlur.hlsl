@@ -57,7 +57,8 @@ void NM_FocusBlur_float(
     // because the WGSL uv = position.xy / dims and position.xy = UV * dims.
     float2 uv = UV;
 
-    Out = nm_focusBlur(uv, dims,
+    // Untiled: global uv == fragment uv (fullResolution = dims, tileOffset = 0).
+    Out = nm_focusBlur(uv, uv, dims, dims, float2(0.0, 0.0),
         InputTex.tex, SS.samplerstate,
         Tex.tex, SS.samplerstate);
 }

@@ -17,9 +17,8 @@
 //    fullResolution involved in the sample coordinate.
 //  * rotate2D is this effect's own helper — copied verbatim from WGSL inline.
 //    Do NOT substitute any generic rotate.
-//  * Wrap modes use nm_mod (float mod, floor-based) to match WGSL `%` on floats
-//    which is also floor-based in WGSL (the `modulo` / `a - b*floor(a/b)` rule).
-//    WGSL `%` for vec2<f32> is identical to nm_mod per the porting guide.
+//  * Wrap modes are the GLSL's: mirror abs(mod(uv + 1.0, 2.0) - 1.0), repeat
+//    mod(uv, 1.0), each one nm_mod (floored, never fmod).
 //  * aspectLens and antialias are booleans in definition.js; bound as int uniforms
 //    and tested > 0 (matches WGSL `!= 0`).
 //  * wrap is an int uniform; branched with [branch].
@@ -74,14 +73,12 @@ float2 nm_pinch_rotate2D(float2 st, float rot, float ar)
 // ---- Pass: "pinch" (progName "pinch") ----------------------------------------
 float4 NMFrag_pinch(NMVaryings i) : SV_Target
 {
-    // WGSL: texSize = vec2<f32>(textureDimensions(inputTex))
-    //       uv      = pos.xy / texSize
-    uint tw, th;
-    inputTex.GetDimensions(tw, th);
-    float2 texSize = float2((float)tw, (float)th);
-    float ar = texSize.x / texSize.y;
+    // GLSL: aspectRatio = fullResolution.x / fullResolution.y;
+    //       uv = (gl_FragCoord.xy + tileOffset) / fullResolution
+    float ar = fullResolution.x / fullResolution.y;
 
-    float2 uv = NM_FragCoord(i) / texSize;
+    float2 globalCoord = NM_GlobalCoord(i);
+    float2 uv = globalCoord / fullResolution;
 
     // Apply rotation before distortion
     uv = nm_pinch_rotate2D(uv, rotation / 180.0, ar);
@@ -112,14 +109,13 @@ float4 NMFrag_pinch(NMVaryings i) : SV_Target
     [branch]
     if (wrap == 0)
     {
-        // mirror: abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        // WGSL % on f32 is floor-based, same as nm_mod
-        uv = abs(nm_mod(nm_mod(uv + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+        // mirror: GLSL abs(mod(uv + 1.0, 2.0) - 1.0)
+        uv = abs(nm_mod(uv + 1.0, 2.0) - 1.0);
     }
     else if (wrap == 1)
     {
-        // repeat: (uv % 1.0 + 1.0) % 1.0
-        uv = nm_mod(nm_mod(uv, 1.0) + 1.0, 1.0);
+        // repeat: GLSL mod(uv, 1.0)
+        uv = nm_mod(uv, 1.0);
     }
     else
     {
@@ -130,21 +126,25 @@ float4 NMFrag_pinch(NMVaryings i) : SV_Target
     // Reverse rotation after distortion
     uv = nm_pinch_rotate2D(uv, -rotation / 180.0, ar);
 
+    // Convert distorted global UV back to tile-local for texture sampling.
+    // Clamp to tile bounds so wrap modes don't sample past tile coverage.
+    float2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
+
     [branch]
     if (antialias != 0)
     {
-        float2 dx = ddx(uv);
-        float2 dy = ddy(uv);
+        float2 dx = ddx(sampleUV);
+        float2 dy = ddy(sampleUV);
         float4 col = float4(0.0, 0.0, 0.0, 0.0);
-        col += inputTex.Sample(sampler_inputTex, uv + dx * -0.375 + dy * -0.125);
-        col += inputTex.Sample(sampler_inputTex, uv + dx *  0.125 + dy * -0.375);
-        col += inputTex.Sample(sampler_inputTex, uv + dx *  0.375 + dy *  0.125);
-        col += inputTex.Sample(sampler_inputTex, uv + dx * -0.125 + dy *  0.375);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx * -0.375 + dy * -0.125);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx *  0.125 + dy * -0.375);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx *  0.375 + dy *  0.125);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx * -0.125 + dy *  0.375);
         return col * 0.25;
     }
     else
     {
-        return inputTex.Sample(sampler_inputTex, uv);
+        return inputTex.Sample(sampler_inputTex, sampleUV);
     }
 }
 

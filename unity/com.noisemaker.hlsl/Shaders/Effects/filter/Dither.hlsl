@@ -457,13 +457,15 @@ float3 nm_dither_fsSeedNoise(int2 blockOrigin, int lane)
 float3 nm_dither_fsFetchCell(Texture2D inputTexture, int2 cell, float cellSize, int2 texSize)
 {
     float2 pGlobal = (float2(cell) + 0.5) * cellSize;
-    int2 p = clamp(int2(floor(pGlobal)), int2(0, 0), texSize - 1);
-    return inputTexture.Load(int3(p, 0)).rgb;
+    int2 pLocal = int2(floor(pGlobal)) - int2(tileOffset);
+    pLocal = clamp(pLocal, int2(0, 0), texSize - 1);
+    return inputTexture.Load(int3(pLocal, 0)).rgb;
 }
 
 float3 nm_dither_errorDiffusion(
     Texture2D inputTexture,
     float2 pixelCoord,
+    float2 fragCoord,
     float cellSize,
     int paletteType,
     int levelsInt,
@@ -529,7 +531,7 @@ float3 nm_dither_errorDiffusion(
         }
     }
 
-    int2 own = clamp(int2(pixelCoord), int2(0, 0), texSize - 1);
+    int2 own = clamp(int2(fragCoord), int2(0, 0), texSize - 1);
     float3 src = inputTexture.Load(int3(own, 0)).rgb;
     float3 v = clamp(src + carried + bias,
         float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));
@@ -548,15 +550,18 @@ float4 nm_dither(Texture2D inputTexture, float4 color, float2 pixelCoord)
     int paletteInt = (int)palette;
     int levelsInt = (int)levels;
 
+    // GLSL: global pixel coordinate so the pattern aligns across tiles
+    float2 globalCoord = pixelCoord + tileOffset;
+
     [branch]
     if (ditherTypeInt == DITHER_ERROR_DIFFUSION)
     {
-        result = nm_dither_errorDiffusion(inputTexture, pixelCoord, matrixScale,
-            paletteInt, levelsInt, threshold);
+        result = nm_dither_errorDiffusion(inputTexture, globalCoord, pixelCoord,
+            matrixScale * renderScale, paletteInt, levelsInt, threshold);
     }
     else
     {
-        float ditherValue = getDitherThreshold(pixelCoord, ditherTypeInt, matrixScale, time);
+        float ditherValue = getDitherThreshold(globalCoord, ditherTypeInt, matrixScale * renderScale, time);
         if (paletteInt == PALETTE_INPUT) {
             result = quantizeWithDither(color.rgb, (float)levelsInt, ditherValue, threshold);
         } else {

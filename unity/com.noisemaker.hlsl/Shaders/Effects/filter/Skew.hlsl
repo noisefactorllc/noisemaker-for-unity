@@ -27,9 +27,8 @@
 //  * aspect is also derived from INPUT TEXTURE dimensions, NOT fullResolution.
 //  * GLSL uses globalUV and fullResolution.x/y for aspect — WGSL is canonical, use
 //    local tex dimensions only.
-//  * WGSL mirror wrap: abs(((st+1.0) % 2.0 + 2.0) % 2.0 - 1.0). The inner `%` on
-//    floats in WGSL is floor-based (= nm_mod). Reproduced verbatim.
-//  * WGSL repeat wrap: (st % 1.0 + 1.0) % 1.0. All `%` on floats -> nm_mod.
+//  * Mirror wrap is the GLSL's abs(mod(st + 1.0, 2.0) - 1.0): one nm_mod.
+//  * Repeat wrap is the GLSL's fract(st): frac.
 //  * No PRNG, no hazards beyond nm_mod. No skewAmt clamping — GLSL has it but
 //    GLSL is NOT canonical; WGSL applies skewAmt directly. // TODO(verify) parity.
 //  * int wrapMode = i32(u.wrap) — declared as int uniform.
@@ -60,11 +59,11 @@ float4 nm_skew(
     inputTex.GetDimensions(tw, th);
     float2 texSize = float2(tw, th);
 
-    // WGSL: var st = pos.xy / texSize;
-    float2 st = fragCoord / texSize;
+    // GLSL: globalUV = (gl_FragCoord.xy + tileOffset) / fullResolution;
+    float2 st = (fragCoord + tileOffset) / fullResolution;
 
-    // WGSL: let aspect = texSize.x / texSize.y;
-    float aspect = texSize.x / texSize.y;
+    // GLSL: aspect = fullResolution.x / fullResolution.y;
+    float aspect = fullResolution.x / fullResolution.y;
 
     // Center
     st = st - 0.5;
@@ -88,13 +87,17 @@ float4 nm_skew(
     // GLSL: float maxSkew = 512.0 / fullResolution.y;
     //       float effectiveSkewAmt = clamp(skewAmt, -maxSkew, maxSkew);
     //       st.x += st.y * -effectiveSkewAmt;
-    float maxSkew = 512.0 / texSize.y;
+    float maxSkew = 512.0 / fullResolution.y;
     float effectiveSkewAmt = clamp(skewAmt, -maxSkew, maxSkew);
     st.x = st.x + st.y * -effectiveSkewAmt;
 
     // Undo aspect, uncenter
     st.x = st.x / aspect;
     st = st + 0.5;
+
+    // GLSL: localUV = (st * fullResolution - tileOffset) / resolution, with
+    // resolution = textureSize(inputTex). The wrap mode applies in local UV.
+    st = (st * fullResolution - tileOffset) / texSize;
 
     // Wrap mode
     // WGSL: let wrapMode = i32(u.wrap);
@@ -107,15 +110,14 @@ float4 nm_skew(
     else if (wrap == 1)
     {
         // mirror
-        // WGSL: st = abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
-        // All `%` on floats in WGSL = floor-based modulo -> nm_mod
-        st = abs(nm_mod(nm_mod(st + 1.0, float2(2.0, 2.0)) + 2.0, float2(2.0, 2.0)) - 1.0);
+        // GLSL: abs(mod(st + 1.0, 2.0) - 1.0) -> nm_mod
+        st = abs(nm_mod(st + 1.0, float2(2.0, 2.0)) - 1.0);
     }
     else
     {
         // repeat
-        // WGSL: st = (st % 1.0 + 1.0) % 1.0;
-        st = nm_mod(nm_mod(st, float2(1.0, 1.0)) + 1.0, float2(1.0, 1.0));
+        // GLSL: fract(st)
+        st = frac(st);
     }
 
     // WGSL: return textureSample(inputTex, inputSampler, st);

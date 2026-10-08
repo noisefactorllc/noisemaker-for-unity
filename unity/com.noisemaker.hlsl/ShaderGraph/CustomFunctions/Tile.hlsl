@@ -57,6 +57,10 @@ void NM_Tile_float(
     InputTex.tex.GetDimensions(tw, th);
     float2 texSize = float2((float)tw, (float)th);
 
+    // Untiled: seed the globals nm_tile_frag reads (global UV = fragCoord / Resolution).
+    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_FullResolution = float4(Resolution, 0.0, 0.0);
+
     Out = nm_tile_frag(InputTex.tex, SS.samplerstate, fragCoord, texSize);
 }
 

@@ -167,7 +167,7 @@ float3 shapes3d_pal(float t0,
 {
     float t = abs(t0);
     t = t * repPal + rotPal * 0.01;
-    float3 color = pOffset + pAmp * cos(SHAPES3D_TAU * (pFreq * t + pPhase));
+    float3 color = pOffset + pAmp * cos(6.28318 * (pFreq * t + pPhase));
     if (pMode == 1) {
         color = shapes3d_hsv2rgb(color);
     } else if (pMode == 2) {
@@ -179,14 +179,11 @@ float3 shapes3d_pal(float t0,
     return color;
 }
 
-float2 shapes3d_rotate2D(float2 st, float rot)
+// GLSL golden: rotate2D(st, cs) = (x*c - y*s, x*s + y*c), where cs = (cos, sin)
+// of the angle the caller computes (GLSL computeTransformData).
+float2 shapes3d_rotate2D(float2 st, float2 cs)
 {
-    float angle = rot * SHAPES3D_PI;
-    float s = sin(angle);
-    float c = cos(angle);
-    // WGSL: mat2x2<f32>(c, -s, s, c) * st  (column-major, so col0=(c,s), col1=(-s,c))
-    // => result.x = c*st.x + (-s)*st.y, result.y = s*st.x + c*st.y
-    return float2(c * st.x - s * st.y, s * st.x + c * st.y);
+    return float2(st.x * cs.x - st.y * cs.y, st.x * cs.y + st.y * cs.x);
 }
 
 float shapes3d_smin(float a, float b, float k)
@@ -319,19 +316,24 @@ float3 shapes3d_applyTransform(float3 p0)
     if (repetition > 0.5 && (int)round(animation) != 0 && flythroughSpeed != 0.0) {
         p.z = p.z + time * flythroughSpeed;
     }
-    float2 rotXZ = shapes3d_rotate2D(p.xz, spin / 180.0);
+    // GLSL computeTransformData: static angles from radians(), dynamic from * PI.
+    float staticSpinAngle = radians(spin);
+    float staticFlipAngle = radians(flip);
+    float dynamicSpinAngle = time * (spinSpeed * 0.1) * SHAPES3D_PI;
+    float dynamicFlipAngle = time * (flipSpeed * 0.1) * SHAPES3D_PI;
+    float2 rotXZ = shapes3d_rotate2D(p.xz, float2(cos(staticSpinAngle), sin(staticSpinAngle)));
     p.x = rotXZ.x;
     p.z = rotXZ.y;
-    float2 rotYZ = shapes3d_rotate2D(p.yz, flip / 180.0);
+    float2 rotYZ = shapes3d_rotate2D(p.yz, float2(cos(staticFlipAngle), sin(staticFlipAngle)));
     p.y = rotYZ.x;
     p.z = rotYZ.y;
     if (repetition > 0.5 && (int)round(animation) == 1) {
         p = p - spacing * round(p / spacing);
     }
-    rotXZ = shapes3d_rotate2D(p.xz, time * (spinSpeed * 0.1));
+    rotXZ = shapes3d_rotate2D(p.xz, float2(cos(dynamicSpinAngle), sin(dynamicSpinAngle)));
     p.x = rotXZ.x;
     p.z = rotXZ.y;
-    rotYZ = shapes3d_rotate2D(p.yz, time * (flipSpeed * 0.1));
+    rotYZ = shapes3d_rotate2D(p.yz, float2(cos(dynamicFlipAngle), sin(dynamicFlipAngle)));
     p.y = rotYZ.x;
     p.z = rotYZ.y;
     if (repetition > 0.5 && (int)round(animation) == 0) {

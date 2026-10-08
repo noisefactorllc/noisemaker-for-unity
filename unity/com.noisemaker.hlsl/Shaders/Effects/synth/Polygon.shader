@@ -28,9 +28,9 @@ Shader "Noisemaker/synth/polygon"
             {
                 // globalCoord = fragCoord + tileOffset (top-left, +0.5 centered).
                 float2 globalCoord = NM_GlobalCoord(i);
-                // WGSL divides st by resolution (not fullResolution).
+                // GLSL: st = globalCoord / fullResolution (full image, not the tile).
                 // aspectRatio = fullResolution.x / fullResolution.y (NMFullscreen alias).
-                return nm_polygon(globalCoord, resolution, aspectRatio);
+                return nm_polygon(globalCoord, fullResolution, aspectRatio);
             }
             ENDHLSL
         }

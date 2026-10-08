@@ -37,7 +37,7 @@ Shader "Noisemaker/mixer/shadow"
                 //   let dims = vec2<f32>(textureDimensions(inputTex, 0));
                 //   let uv   = position.xy / dims;
                 // pos = @builtin(position) (top-left, +0.5); NM_FragCoord(i) is the
-                // HLSL analog. tileOffset is NOT added (the WGSL does not use it).
+                // HLSL analog. nm_shadow adds tileOffset itself (GLSL global uv).
                 return nm_shadow(
                     inputTex, sampler_inputTex,
                     tex,      sampler_tex,

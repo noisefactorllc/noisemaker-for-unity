@@ -49,8 +49,11 @@
 //          // runtime tiles it, fold tileOffset in via NM_GlobalCoord.
 //  * Helpers (mandelbulb/juliaBulb/boxFold/sphereFold/mandelcube/juliaCube)
 //    ported verbatim, inline. NONE come from NMCore (no pcg/prng/random/nm_mod
-//    used by this effect). atan2 arg order copied literally: atan2(z.y, z.x).
-//  * Full 32-bit float throughout. pow/log/acos/sin/cos as written.
+//    used by this effect) except nm_atan2. atan2 arg order copied literally:
+//    atan2(z.y, z.x). The bulb steps use the accurate NMCore nm_atan2 and
+//    fr_acos (the HLSL inverse-trig intrinsics are low precision here; the
+//    reference WebGL ones are accurate).
+//  * Full 32-bit float throughout. pow/log/sin/cos as written.
 //  * WGSL vec2<i32>(position.xy) truncation -> int2(NM_FragCoord(i)). The
 //    integer atlas decode uses i32 '%' and '/' (trunc-toward-zero) on
 //    non-negative coords -> HLSL int % and / (same).
@@ -72,6 +75,16 @@ float juliaZ;       // globals.juliaZ      default 0
 int   colorMode;    // globals.colorMode   default 0    (0=mono 1=rgb)
 
 static const float PI = 3.141592653589793;
+
+// Accurate acos for the spherical-coordinate step. The HLSL acos intrinsic is
+// a low-precision polynomial on this toolchain (like atan2, see NMCore
+// nm_atan2), while the reference WebGL acos is accurate; the bulb iteration
+// amplifies that error. acos(x) = atan2(sqrt((1 - x)(1 + x)), x) keeps full
+// precision near |x| = 1 (1 - x is exact there).
+float fr_acos(float x)
+{
+    return nm_atan2(sqrt(max((1.0 - x) * (1.0 + x), 0.0)), x);
+}
 
 // =============================================================================
 // PASS: precompute — generate 3D fractal volume as a 2D atlas (frag_precompute)
@@ -96,8 +109,8 @@ float3 fr_mandelbulb(float3 pos, float n, int maxIter, float bail)
         trap = min(trap, r);
 
         // Convert to spherical coordinates
-        float theta = acos(z.z / r);
-        float phi = atan2(z.y, z.x);
+        float theta = fr_acos(z.z / r);
+        float phi = nm_atan2(z.y, z.x);
 
         // Scale the running derivative
         dr = pow(r, n - 1.0) * n * dr + 1.0;
@@ -140,8 +153,8 @@ float3 fr_juliaBulb(float3 pos, float3 c, float n, int maxIter, float bail)
 
         trap = min(trap, r);
 
-        float theta = acos(z.z / r);
-        float phi = atan2(z.y, z.x);
+        float theta = fr_acos(z.z / r);
+        float phi = nm_atan2(z.y, z.x);
 
         dr = pow(r, n - 1.0) * n * dr + 1.0;
 
@@ -299,19 +312,22 @@ FractalOutput frag_precompute(NMVaryings i)
     FractalOutput o;
 
     int volSize = volumeSize;
-    float volSizeF = (float)volSize;
+    int scaledVolSize = (int)((float)volSize * renderScale);
+    float scaledVolSizeF = (float)scaledVolSize;
 
-    // Atlas is volSize x (volSize * volSize)
-    // Pixel (x, y) maps to 3D coordinate (x, y % volSize, y / volSize)
-    // WGSL: vec2<i32>(position.xy) — truncation of the top-left fragment coord.
-    int2 pixelCoord = int2(NM_FragCoord(i));
+    // Atlas is scaledVolSize x (scaledVolSize * scaledVolSize)
+    // Pixel (x, y) maps to 3D coordinate (x, y % scaledVolSize, y / scaledVolSize)
+    // GLSL: ivec2(gl_FragCoord.xy + tileOffset) — truncation of the global coord.
+    float2 globalPixelCoord = NM_GlobalCoord(i);
+    int2 pixelCoord = int2(globalPixelCoord);
 
-    int x = pixelCoord.x;
-    int y = pixelCoord.y % volSize;
-    int z = pixelCoord.y / volSize;
+    // GLSL: int(mod(float(pixelCoord.x), scaledVolSizeF)) — floored mod (nm_mod).
+    int x = (int)nm_mod((float)pixelCoord.x, scaledVolSizeF);
+    int y = pixelCoord.y % scaledVolSize;
+    int z = pixelCoord.y / scaledVolSize;
 
     // Bounds check
-    if (x >= volSize || y >= volSize || z >= volSize)
+    if (x >= scaledVolSize || y >= scaledVolSize || z >= scaledVolSize)
     {
         o.color = float4(0.0, 0.0, 0.0, 0.0);
         o.geoOut = float4(0.5, 0.5, 0.5, 0.0);
@@ -320,7 +336,7 @@ FractalOutput frag_precompute(NMVaryings i)
 
     // Convert to normalized 3D coordinates in [-1.5, 1.5] world space
     // Slightly larger than [-1,1] to capture the full fractal
-    float3 p = (float3((float)x, (float)y, (float)z) / (volSizeF - 1.0) * 2.0 - 1.0) * 1.5;
+    float3 p = (float3((float)x, (float)y, (float)z) / (scaledVolSizeF - 1.0) * 2.0 - 1.0) * 1.5;
 
     // Julia constant from uniforms (normalized from -100..100 to -1..1)
     float3 juliaC = float3(juliaX, juliaY, juliaZ) * 0.01;

@@ -103,8 +103,8 @@ float3 nmp_smoothFract3(float3 v)
 // =============================================================================
 float4 nm_modPattern(float2 fragCoord)
 {
-    // Unpack: match WGSL's `res` guard
-    float2 res = resolution;
+    // GLSL centres the full image: res = fullResolution (WGSL guard kept)
+    float2 res = fullResolution;
     if (res.x < 1.0) { res = float2(1024.0, 1024.0); }
 
     // Normalized coordinates: centered, divided by min dimension

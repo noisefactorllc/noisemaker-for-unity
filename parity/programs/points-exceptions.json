@@ -18,11 +18,11 @@
     },
     "points__flock": {
       "max_abs_diff": 253,
-      "max_mean_abs_diff": 41.0,
+      "max_mean_abs_diff": 41.1706,
       "ssim_min": 0.50,
-      "max_exceeded_pixels": 45000,
+      "max_exceeded_pixels": 45041,
       "max_exceeded_channels": 135000,
-      "mechanism": "Boids flocking spatial grid-cell neighbor partition sensitivity; particles form identical flock density (mean 101.4 vs 96.7) with chaotic individual agent trajectories."
+      "mechanism": "Boids flocking spatial grid-cell neighbor partition sensitivity; particles form identical flock density (mean 99.3 vs 98.1) with chaotic individual agent trajectories."
     },
     "points__flow": {
       "max_abs_diff": 105,

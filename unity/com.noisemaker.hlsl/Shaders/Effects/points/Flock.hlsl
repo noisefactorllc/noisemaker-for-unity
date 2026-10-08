@@ -49,10 +49,9 @@
 //  * vec2i(fragCoord.xy) truncates → int2(NM_FragCoord(i)). vec2i(...) of a
 //    float vector truncates toward zero; reproduced with (int2) casts.
 //  * textureDimensions(xyzTex,0) → xyzTex.GetDimensions(w,h); int2((int)w,(int)h).
-//  * WGSL `position %  bounds` (float modulo) → nm_mod (NEVER fmod). The WGSL
-//    wrapPosition is `(position % bounds + bounds) % bounds`; the GLSL is
-//    `mod(position + bounds, bounds)`. These are algebraically the SAME for the
-//    operand ranges here; we port the WGSL form literally with nm_mod.
+//  * wrapPosition is the GLSL's `mod(position + bounds, bounds)` → one nm_mod
+//    (NEVER fmod). The old WGSL `(position % bounds + bounds) % bounds` agrees
+//    only in exact arithmetic; its extra fold rounds differently.
 //  * `boundaryMode == 0` integer branch on an int uniform (truncated).
 //  * `u32(time*10.0)` is a numeric truncation of a float to uint → (uint)(time*10.0).
 //    `time` is the engine's normalized 0..1 animation time (NMFullscreen alias),
@@ -130,8 +129,8 @@ float flock_noise2D(float2 p)
 
 float2 flock_wrapPosition(float2 position, float2 bounds)
 {
-    // WGSL: (position % bounds + bounds) % bounds  (% is float modulo → nm_mod)
-    return nm_mod(nm_mod(position, bounds) + bounds, bounds);
+    // GLSL: mod(position + bounds, bounds)
+    return nm_mod(position + bounds, bounds);
 }
 
 float2 flock_limitVec(float2 v, float maxLen)

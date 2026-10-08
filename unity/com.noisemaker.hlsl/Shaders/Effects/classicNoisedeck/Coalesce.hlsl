@@ -14,12 +14,12 @@
 //  * `blendMode`: int uniform, 19 standard modes (0..18) + cloak (100) + 4 HSV
 //    modes (1000..1005). declaration.js types it `int`.
 //  * `mixAmt`: float uniform, UI range -100..100. paramAliases.mixAmt='mix'.
-//  * uv: WGSL divides position.xy by textureDimensions(inputTex, 0) — i.e. by
-//    inputTex's OWN dimensions. Both refracted samples also use inputTex's dims
-//    as the coordinate space (st is derived from inputTex size). We follow WGSL.
-//  * fract(leftUV) / fract(rightUV): WGSL wraps with fract after adding refract
-//    offset, in cloak() and (since upstream bc3b9f53) in main(), as the GLSL
-//    does. Rendered in HLSL as frac(leftUV) / frac(rightUV).
+//  * uv (GLSL, the parity authority): the unrefracted colors sample
+//    gl_FragCoord.xy / textureSize(each input); the refraction runs in global
+//    UV st = (gl_FragCoord.xy + tileOffset) / fullResolution, and each refracted
+//    sample converts back to the tile-local UV
+//    fract((uv * fullResolution - tileOffset) / textureSize(input)). Untiled
+//    this is the WGSL's position.xy / textureDimensions(inputTex) form.
 //  * nm_mod not used here (no floor-mod in this effect).
 //  * The WGSL `%` on f32 (line 86: `((h * 6.0) % 2.0)`) is WGSL float modulo
 //    which is floor-mod for positives. For h in [0,1), h*6 in [0,6) so the
@@ -159,18 +159,26 @@ bool vec4_eq(float4 a, float4 b)
 }
 
 // =============================================================================
-// cloak — ported VERBATIM from coalesce.wgsl cloak()
+// cloak — ported from coalesce.glsl cloak()
 // Called when blendMode == 100.
-// st: normalized UV derived from inputTex dimensions (top-left origin).
+// st: global UV (gl_FragCoord.xy + tileOffset) / fullResolution.
+// fragCoord: tile-local pixel coord (gl_FragCoord.xy).
 // =============================================================================
-float4 nm_coalesce_cloak(float2 st)
+float4 nm_coalesce_cloak(float2 st, float2 fragCoord)
 {
     float m  = map_range(mixAmt, -100.0, 100.0, 0.0, 1.0);
     float ra = map_range(refractAAmt, 0.0, 100.0, 0.0, 0.125);
     float rb = map_range(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-    float4 leftColor  = inputTex.Sample(sampler_inputTex, st);
-    float4 rightColor = tex.Sample(sampler_tex, st);
+    uint inW, inH, texW, texH;
+    inputTex.GetDimensions(inW, inH);
+    tex.GetDimensions(texW, texH);
+    float2 inSize  = float2(inW, inH);
+    float2 texSize = float2(texW, texH);
+
+    // GLSL: texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)))
+    float4 leftColor  = inputTex.Sample(sampler_inputTex, fragCoord / inSize);
+    float4 rightColor = tex.Sample(sampler_tex, fragCoord / texSize);
 
     // When the mixer is all the way to the left, we see left refracted by right
     float2 leftUV  = st;
@@ -178,7 +186,9 @@ float4 nm_coalesce_cloak(float2 st)
     leftUV.x = leftUV.x + cos(rightLen * NM_TAU) * ra;
     leftUV.y = leftUV.y + sin(rightLen * NM_TAU) * ra;
 
-    float4 leftRefracted = inputTex.Sample(sampler_inputTex, frac(leftUV));
+    // GLSL: leftLocalUV = (leftUV * fullResolution - tileOffset) / textureSize(inputTex)
+    float2 leftLocalUV = (leftUV * fullResolution - tileOffset) / inSize;
+    float4 leftRefracted = inputTex.Sample(sampler_inputTex, frac(leftLocalUV));
 
     // When the mixer is all the way to the right, we see right refracted by left
     float2 rightUV = st;
@@ -186,7 +196,8 @@ float4 nm_coalesce_cloak(float2 st)
     rightUV.x = rightUV.x + cos(leftLen * NM_TAU) * rb;
     rightUV.y = rightUV.y + sin(leftLen * NM_TAU) * rb;
 
-    float4 rightRefracted = tex.Sample(sampler_tex, frac(rightUV));
+    float2 rightLocalUV = (rightUV * fullResolution - tileOffset) / texSize;
+    float4 rightRefracted = tex.Sample(sampler_tex, frac(rightLocalUV));
 
     // As the mixer approaches midpoint, mix the two refracted outputs using the same
     // logic as the "reflect" mode in coalesce.
@@ -360,20 +371,32 @@ float3 nm_blend_colors(float4 color1, float4 color2, int mode_in, float factor_i
 
 // =============================================================================
 // nm_coalesce — entry point called from the fragment shader.
-// st: normalized UV derived from inputTex's own dimensions.
+// localSt: tile-local UV = gl_FragCoord.xy / textureSize(inputTex) (the
+// fragment's NM_FragCoord / inputTex dimensions).
 // =============================================================================
-float4 nm_coalesce(float2 st)
+float4 nm_coalesce(float2 localSt)
 {
     float4 color = float4(0.0, 0.0, 1.0, 1.0);
 
+    uint inW, inH, texW, texH;
+    inputTex.GetDimensions(inW, inH);
+    tex.GetDimensions(texW, texH);
+    float2 inSize  = float2(inW, inH);
+    float2 texSize = float2(texW, texH);
+
+    // GLSL: globalCoord = gl_FragCoord.xy + tileOffset; st = globalCoord / fullResolution.
+    float2 fragCoord = localSt * inSize;
+    float2 st = (fragCoord + tileOffset) / fullResolution;
+
     if (blendMode == 100) {
-        color = nm_coalesce_cloak(st);
+        color = nm_coalesce_cloak(st, fragCoord);
     } else {
         float ra = map_range(refractAAmt, 0.0, 100.0, 0.0, 0.125);
         float rb = map_range(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-        float4 leftColor  = inputTex.Sample(sampler_inputTex, st);
-        float4 rightColor = tex.Sample(sampler_tex, st);
+        // GLSL: texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)))
+        float4 leftColor  = inputTex.Sample(sampler_inputTex, fragCoord / inSize);
+        float4 rightColor = tex.Sample(sampler_tex, fragCoord / texSize);
 
         // refract a->b
         float2 leftUV  = st;
@@ -387,13 +410,15 @@ float4 nm_coalesce(float2 st)
         rightUV.x = rightUV.x + cos(leftLen * NM_TAU) * rb;
         rightUV.y = rightUV.y + sin(leftLen * NM_TAU) * rb;
 
-        // Wrap refracted coordinates, as the GLSL does (texture(inputTex,
-        // fract(leftLocalUV))); the WGSL matches since upstream bc3b9f53.
+        // Convert to the tile-local UV and wrap, as the GLSL does:
+        //   texture(inputTex, fract((leftUV * fullResolution - tileOffset) / textureSize(inputTex)))
         // leftUV.x = st.x + cos(...)*ra can exceed [0,1]; without frac the Clamp
         // sampler repeats the edge column instead of the wrapped sample. For an
         // untiled render leftLocalUV == leftUV.
-        float4 color1 = inputTex.Sample(sampler_inputTex, frac(leftUV));
-        float4 color2 = tex.Sample(sampler_tex, frac(rightUV));
+        float2 leftLocalUV  = (leftUV * fullResolution - tileOffset) / inSize;
+        float2 rightLocalUV = (rightUV * fullResolution - tileOffset) / texSize;
+        float4 color1 = inputTex.Sample(sampler_inputTex, frac(leftLocalUV));
+        float4 color2 = tex.Sample(sampler_tex, frac(rightLocalUV));
 
         color = float4(nm_blend_colors(color1, color2, blendMode, mixAmt), max(color1.a, color2.a));
     }

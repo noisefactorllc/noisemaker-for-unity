@@ -17,9 +17,10 @@
 //    and do NOT call the core one.
 //  * `modulo`/`map` are this effect's own copies (identical in form to nm_mod /
 //    nm_map but kept inline to match the source 1:1).
-//  * pcg/prng reproduced inline exactly as the WGSL declares (fold variant,
-//    divisor 4294967295.0 = float(0xffffffffu); (uint3)p is float->uint
-//    truncation, NOT asuint).
+//  * pcg/prng reproduced inline as the GLSL golden declares (plain
+//    pcg(uvec3(p)), no sign-fold; divisor 4294967295.0 = float(0xffffffffu);
+//    (uint3)p is float->uint truncation, NOT asuint). constant() hashes the
+//    integer lattice cell through randomFromLatticeWithOffset, as the GLSL does.
 //  * rotate2D is declared by the WGSL but UNUSED by main(); ported anyway for
 //    completeness (it reads `aspectRatio`).
 //  * `random(vec2)` in the WGSL is also unused by main(); omitted.
@@ -95,16 +96,12 @@ uint3 nms_pcg(uint3 v_in)
     return v;
 }
 
-// prng (fold variant; divisor 4294967295.0 = float(0xffffffffu)).
-// (uint3)p is float->uint truncation toward zero (NOT asuint).
-float3 nms_prng(float3 p0)
+// prng (GLSL golden: plain pcg(uvec3(p)), NO sign-fold; divisor
+// 4294967295.0 = float(0xffffffffu)). (uint3)p is float->uint truncation
+// toward zero (NOT asuint).
+float3 nms_prng(float3 p)
 {
-    float3 p = p0;
-    p.x = (p.x >= 0.0) ? p.x * 2.0 : -p.x * 2.0 + 1.0;
-    p.y = (p.y >= 0.0) ? p.y * 2.0 : -p.y * 2.0 + 1.0;
-    p.z = (p.z >= 0.0) ? p.z * 2.0 : -p.z * 2.0 + 1.0;
-    uint3 u = nms_pcg((uint3)p);
-    return float3(u) / 4294967295.0;
+    return float3(nms_pcg((uint3)p)) / 4294967295.0;
 }
 
 // periodicFunction(p) = map(sin(TAU*p), -1, 1, 0, 1)  (sin, NOT cos).
@@ -114,19 +111,72 @@ float nms_periodicFunction(float p)
     return nms_map(sin(x), -1.0, 1.0, 0.0, 1.0);
 }
 
-// constant() — hashed lattice value with looping time. Reads globals wrap/seed/time.
-float nms_constant(float2 st_in, float freq, float speed)
+// positiveModulo / randomFromLatticeWithOffset — GLSL golden (Noisemaker value
+// noise): the integer lattice cell and the integer seed hashed through pcg,
+// with integer wrap.
+int nms_positiveModulo(int value, int modulus)
 {
-    float x = st_in.x * freq;
-    float y = st_in.y * freq;
+    if (modulus == 0)
+    {
+        return 0;
+    }
+    int r = value % modulus;
+    return (r < 0) ? r + modulus : r;
+}
+
+float3 nms_randomFromLatticeWithOffset(float2 st, float freq, int2 offset)
+{
+    float2 lattice = st * freq;
+    float2 baseFloor = floor(lattice);
+    int2 base = (int2)baseFloor + offset;
+    float2 fracL = lattice - baseFloor;
+
+    int seedInt = (int)seed;
+    float seedFrac = 0.0;
+
+    float xCombined = fracL.x + seedFrac;
+    int xi = base.x + seedInt + (int)floor(xCombined);
+    int yi = base.y;
+
     if (wrap > 0.5)
     {
-        x = nms_modulo(x, freq);
-        y = nms_modulo(y, freq);
+        int freqInt = (int)(freq + 0.5);
+        if (freqInt > 0)
+        {
+            xi = nms_positiveModulo(xi, freqInt);
+            yi = nms_positiveModulo(yi, freqInt);
+        }
     }
-    x = x + (float)seed;
-    float3 rand = nms_prng(float3(floor(float2(x, y)), (float)seed));
-    float scaledTime = nms_periodicFunction(rand.x - time) * nms_map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    uint xBits = (uint)xi;
+    uint yBits = (uint)yi;
+    uint seedBits = (uint)seedInt;
+    uint fracBits = asuint(seedFrac);
+
+    uint3 jitter = uint3(
+        (fracBits * 374761393u) ^ 0x9E3779B9u,
+        (fracBits * 668265263u) ^ 0x7F4A7C15u,
+        (fracBits * 2246822519u) ^ 0x94D049B4u
+    );
+
+    uint3 state = uint3(xBits, yBits, seedBits) ^ jitter;
+    uint3 prngState = nms_pcg(state);
+    float denom = 4294967295.0;
+    return float3(
+        (float)prngState.x / denom,
+        (float)prngState.y / denom,
+        (float)prngState.z / denom
+    );
+}
+
+// constant() — GLSL golden: time phase from the (40, 0)-offset cell, value from
+// the cell itself. Reads globals wrap/seed/time.
+float nms_constant(float2 st, float freq, float speed)
+{
+    float3 randTime = nms_randomFromLatticeWithOffset(st, freq, int2(40, 0));
+    float scaledTime = nms_periodicFunction(randTime.x - time) * nms_map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    float3 rand = nms_randomFromLatticeWithOffset(st, freq, int2(0, 0));
     return nms_periodicFunction(rand.y - scaledTime);
 }
 

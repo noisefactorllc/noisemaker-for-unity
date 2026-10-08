@@ -37,9 +37,8 @@ Shader "Noisemaker/filter/sobel"
                 uint tw, th;
                 inputTex.GetDimensions(tw, th);
                 float2 texSize = float2(tw, th);
-                float2 uv = NM_FragCoord(i) / texSize;
 
-                return nm_sobel(inputTex, sampler_inputTex, uv, texSize);
+                return nm_sobel(inputTex, sampler_inputTex, NM_FragCoord(i), texSize);
             }
             ENDHLSL
         }

@@ -72,6 +72,12 @@ void NM_Corrupt_float(
     InputTex.tex.GetDimensions(tw, th);
     float2 fragCoord = UV * float2(tw, th);
 
+    // The core now reads tileOffset/fullResolution/renderScale; a standalone
+    // node is untiled, so fullResolution is the input texture size.
+    _NM_FullResolution = float4((float)tw, (float)th, 0.0, 0.0);
+    _NM_TileOffset     = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_RenderScale    = 1.0;
+
     Out = nm_corrupt(InputTex.tex, SS.samplerstate, fragCoord);
 }
 

@@ -99,7 +99,7 @@ float4 frag_cfSharpen(NMVaryings i) : SV_Target
 
     float4 center = inputTex.Load(int3(coord, 0));
 
-    int   radius = sharpenRadius;
+    int   radius = (int)((float)sharpenRadius * renderScale);
     float amount = sharpenAmount;
 
     if (radius <= 0 || amount <= 0.0)
@@ -160,7 +160,7 @@ float4 frag_cfBlur(NMVaryings i) : SV_Target
     int2 coord = (int2)NM_FragCoord(i);
 
     float4 center = inputTex.Load(int3(coord, 0));
-    int   radius = blurRadius;
+    int   radius = (int)((float)blurRadius * renderScale);
     float amount = blurAmount;
 
     if (radius <= 0 || amount <= 0.0)

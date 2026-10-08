@@ -44,7 +44,13 @@ void NM_Sobel_float(
     InputTex.tex.GetDimensions(tw, th);
     float2 texSize = float2(tw, th);
 
-    Out = nm_sobel(InputTex.tex, SS.samplerstate, UV, texSize);
+    // The core now reads tileOffset/fullResolution/renderScale; a standalone
+    // node is untiled, so fullResolution is the input texture size.
+    _NM_FullResolution = float4(texSize, 0.0, 0.0);
+    _NM_TileOffset     = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_RenderScale    = 1.0;
+
+    Out = nm_sobel(InputTex.tex, SS.samplerstate, UV * texSize, texSize);
 }
 
 #endif // NM_SOBEL_SG_INCLUDED

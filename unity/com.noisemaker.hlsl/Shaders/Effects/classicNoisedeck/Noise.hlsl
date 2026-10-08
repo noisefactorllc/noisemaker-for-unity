@@ -236,7 +236,7 @@ float nmn_bicubicValue(float2 st, float2 freq, float s, float blend)
 // 3×3 Catmull-Rom value noise
 float nmn_catmullRom3x3ValueNoise(float2 st, float2 freq, float s, float blend)
 {
-    float2 lattice = float2(st.x * freq.x + s, st.y * freq.y);
+    float2 lattice = st * freq;  // GLSL: seed applies only inside the lattice hash
 
     float x0y0 = nmn_constantOffset(lattice, freq, s, blend, int2(-1, -1));
     float x0y1 = nmn_constantOffset(lattice, freq, s, blend, int2(-1, 0));
@@ -262,7 +262,7 @@ float nmn_catmullRom3x3ValueNoise(float2 st, float2 freq, float s, float blend)
 // 4×4 Catmull-Rom value noise
 float nmn_catmullRom4x4ValueNoise(float2 st, float2 freq, float s, float blend)
 {
-    float2 lattice = float2(st.x * freq.x + s, st.y * freq.y);
+    float2 lattice = st * freq;  // GLSL: seed applies only inside the lattice hash
 
     float x0y0 = nmn_constantOffset(lattice, freq, s, blend, int2(-1, -1));
     float x0y1 = nmn_constantOffset(lattice, freq, s, blend, int2(-1, 0));

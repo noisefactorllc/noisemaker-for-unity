@@ -240,18 +240,18 @@ void NM_Glitch_float(
     color = nmsg_glitch_scanlines(color, UV, Resolution, ScanlinesAmt, Time, (int)Seed);
     color = nmsg_glitch_snow(color, fragCoord, SnowAmt, Time);
 
-    // ---- vignette (WGSL parenthesised form) ----
+    // ---- vignette (GLSL precedence: color.rgb * 1.0 - pow(...)) ----
     if (VignetteAmt < 0.0)
     {
         color = float4(
-            lerp(color.rgb * (1.0 - pow(length(float2(0.5, 0.5) - UV) * 1.125, 2.0)), color.rgb, nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 0.0, 1.0)),
+            lerp(color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - UV) * 1.125, 2.0), color.rgb, nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - UV) * nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
     else
     {
         color = float4(
-            lerp(color.rgb, 1.0 - (1.0 - color.rgb * (1.0 - pow(length(float2(0.5, 0.5) - UV) * 1.125, 2.0))), nmsg_glitch_map(VignetteAmt, 0.0, 100.0, 0.0, 1.0)),
+            lerp(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - UV) * 1.125, 2.0)), nmsg_glitch_map(VignetteAmt, 0.0, 100.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - UV) * nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }

@@ -33,7 +33,8 @@ int flipMode;
 float4 nm_flipMirror(Texture2D inputTex, SamplerState sampler_inputTex,
                      float2 texSize, float2 fragCoord)
 {
-    float2 uv = fragCoord / texSize;
+    // GLSL: globalUV = (gl_FragCoord.xy + tileOffset) / fullResolution;
+    float2 uv = (fragCoord + tileOffset) / fullResolution;
 
     [branch]
     if (flipMode == 1) {
@@ -101,8 +102,9 @@ float4 nm_flipMirror(Texture2D inputTex, SamplerState sampler_inputTex,
     }
     // flipMode == 0 (none): uv unchanged
 
-    // WGSL: textureSampleLevel(inputTex, inputSampler, uv, 0.0)
-    return inputTex.SampleLevel(sampler_inputTex, uv, 0);
+    // GLSL: localUV = fract((warpedUV * fullResolution - tileOffset) / texSize);
+    float2 localUV = frac((uv * fullResolution - tileOffset) / texSize);
+    return inputTex.SampleLevel(sampler_inputTex, localUV, 0);
 }
 
 #endif // NM_FLIPMIRROR_INCLUDED

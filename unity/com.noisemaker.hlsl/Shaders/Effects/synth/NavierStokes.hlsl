@@ -473,7 +473,7 @@ float4 frag_nsSmooth(NMVaryings i) : SV_Target
 // =============================================================================
 float4 frag_ns(NMVaryings i) : SV_Target
 {
-    float2 resolutionU = resolution;
+    float2 fullRes = fullResolution;
     float inputIntensityU = inputIntensity;
 
     uint tw, th;
@@ -483,8 +483,8 @@ float4 frag_ns(NMVaryings i) : SV_Target
     int2 minIdx = int2(0, 0);
     int2 maxIdx = texSize - int2(1, 1);
 
-    float2 pos = NM_FragCoord(i);
-    float2 texelPos = (pos * texSizeF / resolutionU) - float2(0.5, 0.5);
+    float2 globalCoord = NM_GlobalCoord(i);
+    float2 texelPos = (globalCoord * texSizeF / fullRes) - float2(0.5, 0.5);
     int2 baseI = int2(floor(texelPos));
     float2 f = frac(texelPos);
 
@@ -505,7 +505,7 @@ float4 frag_ns(NMVaryings i) : SV_Target
     {
         // PARITY (HDR-input guard): same rationale as nsSplat — bound an out-of-[0,1]
         // particle-field input so the display blend cannot leak HDR into the output.
-        float3 inputColor = clamp(inputTex.SampleLevel(sampler_inputTex, pos / resolutionU, 0.0).rgb, 0.0, 1.0);
+        float3 inputColor = clamp(inputTex.SampleLevel(sampler_inputTex, globalCoord / fullRes, 0.0).rgb, 0.0, 1.0);
         outCol = lerp(outCol, inputColor, float3(blend, blend, blend));
     }
 

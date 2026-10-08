@@ -40,17 +40,17 @@ void NM_Translate_float(
     uv.x = uv.x - X;
     uv.y = uv.y - Y;
 
-    // WGSL wrap mode branches — WGSL % on float is floor-based -> nmsg_mod2
+    // Wrap mode branches — GLSL mod -> nmsg_mod2, GLSL fract -> frac
     [branch]
     if (Wrap == 0)
     {
-        // mirror: abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        uv = abs(nmsg_mod2(nmsg_mod2(uv + float2(1.0, 1.0), float2(2.0, 2.0)) + float2(2.0, 2.0), float2(2.0, 2.0)) - float2(1.0, 1.0));
+        // mirror: GLSL abs(mod(uv + 1.0, 2.0) - 1.0)
+        uv = abs(nmsg_mod2(uv + float2(1.0, 1.0), float2(2.0, 2.0)) - float2(1.0, 1.0));
     }
     else if (Wrap == 1)
     {
-        // repeat: (uv % 1.0 + 1.0) % 1.0
-        uv = nmsg_mod2(nmsg_mod2(uv, float2(1.0, 1.0)) + float2(1.0, 1.0), float2(1.0, 1.0));
+        // repeat: GLSL fract(uv)
+        uv = frac(uv);
     }
     else
     {

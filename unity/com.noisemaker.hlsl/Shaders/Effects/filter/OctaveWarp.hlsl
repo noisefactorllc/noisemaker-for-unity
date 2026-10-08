@@ -204,13 +204,12 @@ float2 nm_octaveWarp_warpCoord(float2 fragPos, float2 texSize)
 // ---- Pass: "octaveWarp" (progName "octaveWarp") ------------------------------
 float4 NMFrag_octaveWarp(NMVaryings i) : SV_Target
 {
-    // WGSL: texSize = vec2<f32>(textureDimensions(inputTex));
-    //       uv = pos.xy / texSize;  (pos = @builtin(position), top-left)
-    uint w, h;
-    inputTex.GetDimensions(w, h);
-    float2 texSize = float2((float)w, (float)h);
+    // GLSL: fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    //       dims = fullRes; uv = (gl_FragCoord.xy + tileOffset) / fullRes;
+    //       sampleCoord = uv * dims; finalUV = wrapped sampleCoord / dims.
+    float2 fullRes = (fullResolution.x > 0.0) ? fullResolution : resolution;
 
-    float2 finalUV = nm_octaveWarp_warpCoord(NM_FragCoord(i), texSize);
+    float2 finalUV = nm_octaveWarp_warpCoord(NM_GlobalCoord(i), fullRes);
 
     if (antialias != 0)
     {

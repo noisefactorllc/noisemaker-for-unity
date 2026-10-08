@@ -84,7 +84,11 @@ float4 NMFrag_upsample(NMVaryings i) : SV_Target
 
     float2 fragCoordPx = NM_FragCoord(i);
     int2   coord       = int2((int)fragCoordPx.x, (int)fragCoordPx.y);
-    float2 uv          = (float2(coord) + 0.5) / fullSize;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution; the edge mask
+    // uses globalUV over fullResolution (falling back to resolution).
+    float2 uv          = (fragCoordPx + tileOffset) / fullResolution;
+    float2 fullRes     = (fullResolution.x > 0.0) ? fullResolution : resolution;
+    float2 globalUV    = (fragCoordPx + tileOffset) / fullRes;
 
     // textureLoad(inputTex, coord, 0) -> Load with mip=0
     float4 original = inputTex.Load(int3(coord, 0));
@@ -96,8 +100,8 @@ float4 NMFrag_upsample(NMVaryings i) : SV_Target
         return float4(nm_vaseline_clamp01v(original.rgb), original.a);
     }
 
-    float2 texelSize = 1.0 / fullSize;
-    float2 radiusUV  = RADIUS * texelSize;
+    float2 texelSize = 1.0 / fullResolution;
+    float2 radiusUV  = RADIUS * renderScale * texelSize;
 
     // N-tap gather using golden angle spiral
     float3 blurAccum = float3(0.0, 0.0, 0.0);
@@ -113,16 +117,17 @@ float4 NMFrag_upsample(NMVaryings i) : SV_Target
         float sigma  = 0.4;
         float weight = exp(-0.5 * (r * r) / (sigma * sigma));
 
-        float2 sampleUV = clamp(uv + offset * radiusUV, float2(0.0, 0.0), float2(1.0, 1.0));
-        blurAccum = blurAccum + inputTex.Sample(sampler_inputTex, sampleUV).rgb * weight;
+        float2 sampleGlobalUV = clamp(uv + offset * radiusUV, float2(0.0, 0.0), float2(1.0, 1.0));
+        float2 sampleLocalUV  = (sampleGlobalUV * fullResolution - tileOffset) / fullSize;
+        blurAccum = blurAccum + inputTex.Sample(sampler_inputTex, sampleLocalUV).rgb * weight;
         weightSum = weightSum + weight;
     }
 
     float3 blurred = blurAccum / weightSum;
     float3 boosted = nm_vaseline_clamp01v(blurred + float3(BRIGHTNESS_ADJUST, BRIGHTNESS_ADJUST, BRIGHTNESS_ADJUST));
 
-    // Edge mask - more effect at edges
-    float edgeMask = nm_vaseline_chebyshev_mask(uv);
+    // Edge mask - more effect at edges, using global UV so center is full-image center
+    float edgeMask = nm_vaseline_chebyshev_mask(globalUV);
     edgeMask = smoothstep(0.0, 0.8, edgeMask);
 
     float3 sourceClamped = nm_vaseline_clamp01v(original.rgb);

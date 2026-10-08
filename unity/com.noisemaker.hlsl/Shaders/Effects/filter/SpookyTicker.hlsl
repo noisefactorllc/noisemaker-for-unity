@@ -69,10 +69,8 @@ static const int GLYPHS[80] = {
 
 static const int GLYPH_W = 7;
 static const int GLYPH_H = 8;
-static const int SCALE   = 3;
-static const int CELL_W  = 21;  // GLYPH_W * SCALE
-static const int CELL_H  = 24;  // GLYPH_H * SCALE
-static const int ROW_GAP = 4;
+static const int BASE_SCALE   = 3;
+static const int BASE_ROW_GAP = 4;
 
 // -----------------------------------------------------------------------------
 // hash_mix — effect-local; verbatim from WGSL.
@@ -95,10 +93,10 @@ uint hash_mix(uint v)
 // sample_glyph — effect-local; verbatim from WGSL.
 // WGSL `(row >> u32(6 - gx)) & 1` → HLSL `(row >> (uint)(6 - gx)) & 1`.
 // -----------------------------------------------------------------------------
-float sample_glyph(int digit, int localX, int localY)
+float sample_glyph(int digit, int localX, int localY, int iScale)
 {
-    int gx = localX / SCALE;
-    int gy = localY / SCALE;
+    int gx = localX / iScale;
+    int gy = localY / iScale;
     if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H)
     {
         return 0.0;
@@ -113,7 +111,7 @@ float sample_glyph(int digit, int localX, int localY)
 // Negative-sx branch: WGSL `(sx - CELL_W + 1) / CELL_W` copied literally.
 // Hash expression: WGSL `hash_mix(u32(cellX) ^ (u32(rowSeed) * 997u))`.
 // -----------------------------------------------------------------------------
-float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t)
+float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t, int CELL_W, int iScale)
 {
     // WGSL: 0.5 + f32(hash_mix(u32(rowSeed) ^ 17u) & 0xFFFFu) / 65535.0 * 1.5
     float scrollSpeed = 0.5 + (float)(hash_mix((uint)rowSeed ^ 17u) & 0xFFFFu) / 65535.0 * 1.5;
@@ -135,7 +133,7 @@ float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t)
     uint h = hash_mix((uint)cellX ^ ((uint)rowSeed * 997u));
     int digit = (int)(h % 10u);
 
-    return sample_glyph(digit, localX, pixelY);
+    return sample_glyph(digit, localX, pixelY, iScale);
 }
 
 // =============================================================================
@@ -144,6 +142,12 @@ float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t)
 // =============================================================================
 float4 NMFrag_spookyTicker(NMVaryings i) : SV_Target
 {
+    // GLSL: scale pixel-space sizes by renderScale for high-res export
+    int iScale  = max((int)((float)BASE_SCALE * renderScale), 1);
+    int CELL_W  = GLYPH_W * iScale;
+    int CELL_H  = GLYPH_H * iScale;
+    int ROW_GAP = max((int)((float)BASE_ROW_GAP * renderScale), 1);
+
     // WGSL: let dims = vec2<f32>(textureDimensions(inputTex, 0));
     uint tw, th;
     inputTex.GetDimensions(tw, th);
@@ -184,13 +188,14 @@ float4 NMFrag_spookyTicker(NMVaryings i) : SV_Target
     // WGSL: let rowSeed = i32(hash_mix(u32(rowIdx) + baseSeed));
     int rowSeed = (int)hash_mix((uint)rowIdx + baseSeed);
 
-    float mask = ticker_row_mask(px, localY, rowSeed, t);
+    float mask = ticker_row_mask(px, localY, rowSeed, t, CELL_W, iScale);
 
     float shadow = 0.0;
-    int shadowLocalY = localY + 2;
+    int shadowOff = max((int)(2.0 * renderScale), 1);
+    int shadowLocalY = localY + shadowOff;
     if (shadowLocalY < CELL_H)
     {
-        shadow = ticker_row_mask(px + 2, shadowLocalY, rowSeed, t);
+        shadow = ticker_row_mask(px + shadowOff, shadowLocalY, rowSeed, t, CELL_W, iScale);
     }
 
     float3 result = src.rgb;

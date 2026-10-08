@@ -38,7 +38,8 @@ Shader "Noisemaker/mixer/patternMix"
                 //   colorB = textureSample(tex,      samp, st);
                 // position.xy is top-left, +0.5. NM_FragCoord(i) is the HLSL analog.
                 // The SAME st (derived from inputTex's own size) samples BOTH textures.
-                // tileOffset is NOT added (the WGSL does not add it).
+                // The pattern itself uses the GLSL global coords: globalUV =
+                // (gl_FragCoord.xy + tileOffset) / fullRes, aspect from fullRes.
                 uint dw, dh;
                 inputTex.GetDimensions(dw, dh);
                 float2 dims = float2(dw, dh);
@@ -47,7 +48,8 @@ Shader "Noisemaker/mixer/patternMix"
                 float4 colorA = inputTex.Sample(sampler_inputTex, st);
                 float4 colorB = tex.Sample(sampler_tex, st);
 
-                return nm_patternMix(colorA, colorB, NM_FragCoord(i), dims);
+                float2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+                return nm_patternMix(colorA, colorB, NM_GlobalCoord(i), fullRes);
             }
             ENDHLSL
         }

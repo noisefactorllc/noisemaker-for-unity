@@ -16,8 +16,8 @@
 //  * aspectRatio computed from texSize (not fullResolution) — matches WGSL.
 //  * rotate2D: this effect's own version (scales x by aspectRatio, rotates
 //    around (0.5*aspectRatio, 0.5)). Copied verbatim — do NOT substitute.
-//  * WGSL wrap uses `% 2.0` / `% 1.0` (WGSL modulo = floor-mod, not fmod).
-//    In HLSL we must use nm_mod from NMCore (never fmod).
+//  * Wrap is the GLSL's mirror abs(mod(uv + 1.0, 2.0) - 1.0) and repeat
+//    mod(uv, 1.0): one nm_mod each from NMCore (never fmod).
 //  * select() args in WGSL: select(falseVal, trueVal, cond) — reversed from
 //    ternary. WGSL source uses if/else here, so no select translation needed.
 //  * Booleans (aspectLens, antialias) declared int; tested > 0 matching WGSL
@@ -76,14 +76,11 @@ float2 nm_bulge_rotate2D(float2 st, float rot, float asp)
 // =============================================================================
 float4 NMFrag_bulge(NMVaryings i) : SV_Target
 {
-    // WGSL: let texSize = vec2<f32>(textureDimensions(inputTex));
-    //       let aspectRatio = texSize.x / texSize.y;
-    //       var uv = pos.xy / texSize;
-    uint tw, th;
-    inputTex.GetDimensions(tw, th);
-    float2 texSize = float2((float)tw, (float)th);
-    float asp = texSize.x / texSize.y;  // local (NOT macro `aspectRatio`)
-    float2 uv = NM_FragCoord(i) / texSize;
+    // GLSL: aspectRatio = fullResolution.x / fullResolution.y;
+    //       uv = (gl_FragCoord.xy + tileOffset) / fullResolution;
+    float asp = fullResolution.x / fullResolution.y;  // local (NOT macro `aspectRatio`)
+    float2 globalCoord = NM_GlobalCoord(i);
+    float2 uv = globalCoord / fullResolution;
 
     // Apply rotation before distortion
     // WGSL: uv = rotate2D(uv, uniforms.rotation / 180.0, aspectRatio);
@@ -118,17 +115,17 @@ float4 NMFrag_bulge(NMVaryings i) : SV_Target
     uv = uv + 0.5;
 
     // Apply wrap mode
-    // WGSL uses WGSL modulo (floor-mod) `%`; HLSL must use nm_mod (never fmod).
+    // GLSL mod -> nm_mod (never fmod).
     [branch]
     if (wrap == 0)
     {
-        // mirror: abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        uv = abs(nm_mod(nm_mod(uv + 1.0, float2(2.0, 2.0)) + 2.0, float2(2.0, 2.0)) - 1.0);
+        // mirror: GLSL abs(mod(uv + 1.0, 2.0) - 1.0)
+        uv = abs(nm_mod(uv + 1.0, float2(2.0, 2.0)) - 1.0);
     }
     else if (wrap == 1)
     {
-        // repeat: (uv % 1.0 + 1.0) % 1.0
-        uv = nm_mod(nm_mod(uv, float2(1.0, 1.0)) + 1.0, float2(1.0, 1.0));
+        // repeat: GLSL mod(uv, 1.0)
+        uv = nm_mod(uv, float2(1.0, 1.0));
     }
     else
     {
@@ -137,26 +134,29 @@ float4 NMFrag_bulge(NMVaryings i) : SV_Target
     }
 
     // Reverse rotation after distortion
-    // WGSL: uv = rotate2D(uv, -uniforms.rotation / 180.0, aspectRatio);
+    // GLSL: uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
     uv = nm_bulge_rotate2D(uv, -rotation / 180.0, asp);
+
+    // GLSL: convert distorted global UV back to tile-local for texture sampling;
+    //       fract() wraps samples at tile boundaries.
+    float2 sampleUV = frac((uv * fullResolution - tileOffset) / resolution);
 
     // Antialias: 4x supersample using distortion derivatives
     [branch]
     if (antialias != 0)
     {
-        // WGSL: let dx = dpdx(uv); let dy = dpdy(uv);
-        float2 dx = ddx(uv);
-        float2 dy = ddy(uv);
+        float2 dx = ddx(sampleUV);
+        float2 dy = ddy(sampleUV);
         float4 col = float4(0.0, 0.0, 0.0, 0.0);
-        col += inputTex.Sample(sampler_inputTex, uv + dx * -0.375 + dy * -0.125);
-        col += inputTex.Sample(sampler_inputTex, uv + dx *  0.125 + dy * -0.375);
-        col += inputTex.Sample(sampler_inputTex, uv + dx *  0.375 + dy *  0.125);
-        col += inputTex.Sample(sampler_inputTex, uv + dx * -0.125 + dy *  0.375);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx * -0.375 + dy * -0.125);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx *  0.125 + dy * -0.375);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx *  0.375 + dy *  0.125);
+        col += inputTex.Sample(sampler_inputTex, sampleUV + dx * -0.125 + dy *  0.375);
         return col * 0.25;
     }
     else
     {
-        return inputTex.Sample(sampler_inputTex, uv);
+        return inputTex.Sample(sampler_inputTex, sampleUV);
     }
 }
 

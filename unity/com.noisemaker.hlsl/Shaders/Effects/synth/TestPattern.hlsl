@@ -189,32 +189,20 @@ float4 nmtp_uvMapPattern(float2 uv)
     return float4(uv.x, uv.y, 0.0, 1.0);
 }
 
-// Pattern 4: Thin white grid lines on black. Verbatim from WGSL.
-// `fw` is computed unconditionally (fwidthFine must be evaluated in uniform
-// control flow), then overridden on the tiling path with an analytic width.
+// Pattern 4: Thin white grid lines on black. GLSL analytic AA width
+// (1 / fullResolution * gridSize, 2.0 multiplier) on every path.
 float4 nmtp_gridLines(float2 uv)
 {
     int n = max(gridSize, 1);
     float2 cellUV = frac(uv * (float)n);
     float2 edge = min(cellUV, 1.0 - cellUV);
 
-    // Non-tiling: original fwidth-based AA (byte-identical baseline).
-    // Tiling: analytic AA width mirroring glsl/testPattern.glsl, which is
-    // seam-stable across tiles where screen-space derivatives are not.
-    bool isTile = length(tileOffset) > 0.0;
+    // Direct calculation instead of fwidth() for tile-aware rendering.
+    // select(resolution, fullResolution, fullResolution.x > 0.0)
+    float2 fr = (fullResolution.x > 0.0) ? fullResolution : resolution;
+    float2 fw = float2(1.0, 1.0) / fr * (float)n;
 
-    // WGSL fwidthFine(p) == |dpdxFine(p)| + |dpdyFine(p)|.
-    float2 p = uv * (float)n;
-    float2 fw = abs(ddx_fine(p)) + abs(ddy_fine(p));
-    float edgeMul = 1.5;
-    if (isTile)
-    {
-        // select(resolution, fullResolution, fullResolution.x > 0.0)
-        float2 fr = (fullResolution.x > 0.0) ? fullResolution : resolution;
-        fw = float2(1.0, 1.0) / fr * (float)n;
-        edgeMul = 2.0;
-    }
-    float lineVal = 1.0 - smoothstep(0.0, edgeMul * fw.x, edge.x) * smoothstep(0.0, edgeMul * fw.y, edge.y);
+    float lineVal = 1.0 - smoothstep(0.0, 2.0 * fw.x, edge.x) * smoothstep(0.0, 2.0 * fw.y, edge.y);
     return float4(float3(lineVal, lineVal, lineVal), 1.0);
 }
 

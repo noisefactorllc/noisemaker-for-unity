@@ -9,12 +9,12 @@
 // Single render pass (progName "polar").
 //
 // PORTING-GUIDE notes / hazards handled:
-//  * UV computed as: pos.xy / textureDimensions(inputTex) — i.e. fragCoord
-//    divided by the INPUT TEXTURE's own dimensions (NOT fullResolution).
-//    WGSL is canonical; the GLSL uses fullResolution with tileOffset but WGSL
-//    does not. We follow the WGSL.
-//  * aspect = texSize.x / texSize.y (from input texture dims, not fullResolution).
-//  * atan2 arg order from WGSL: atan2(uv.y, uv.x) — copied literally (H3).
+//  * UV follows the GLSL (the parity authority): fullRes = fullResolution (or
+//    the input texture dims when unset), uv = (gl_FragCoord.xy + tileOffset) /
+//    fullRes, aspect = fullRes.x / fullRes.y. Untiled this is the WGSL's
+//    pos.xy / textureDimensions(inputTex).
+//  * atan2 arg order from WGSL: atan2(uv.y, uv.x) — copied literally (H3),
+//    evaluated with the accurate NMCore nm_atan2 (the intrinsic is low precision).
 //  * WGSL select(b,a,cond) = cond ? a : b — aspectLens/antialias tested as != 0.
 //  * smod1 helper is this effect's own; copied verbatim (NOT NMCore).
 //  * time, rotation, speed, scale, polarMode, aspectLens, antialias are uniforms.
@@ -53,6 +53,8 @@ float nm_polar_smod1(float v, float m)
 }
 
 // ---- polarCoords — verbatim from WGSL ----------------------------------------
+// atan2 is NMCore nm_atan2 (accurate; the low-precision intrinsic moves the
+// nearest-filtered samples across texel edges).
 // WGSL:
 //   var uv = uvIn - 0.5;
 //   if (doAspect) { uv.x = uv.x * aspect; }
@@ -65,7 +67,7 @@ float2 nm_polar_polarCoords(float2 uvIn, float aspect, bool doAspect)
     float2 uv = uvIn - float2(0.5, 0.5);
     if (doAspect) { uv.x = uv.x * aspect; }
     float2 coord = float2(
-        atan2(uv.y, uv.x) / NM_POLAR_TAU + 0.5,
+        nm_atan2(uv.y, uv.x) / NM_POLAR_TAU + 0.5,
         length(uv) - scale * 0.075
     );
     coord.x = nm_polar_smod1(coord.x + time * -(float)rotation, 1.0);
@@ -121,8 +123,11 @@ float4 NMFrag_polar(NMVaryings i) : SV_Target
     uint tw, th;
     inputTex.GetDimensions(tw, th);
     float2 texSize = float2((float)tw, (float)th);
-    float2 uv = NM_FragCoord(i) / texSize;
-    float aspect = texSize.x / texSize.y;
+    // GLSL: fullRes = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    //       uv = (gl_FragCoord.xy + tileOffset) / fullRes; aspect = fullRes.x / fullRes.y;
+    float2 fullRes = (fullResolution.x > 0.0) ? fullResolution : texSize;
+    float2 uv = NM_GlobalCoord(i) / fullRes;
+    float aspect = fullRes.x / fullRes.y;
     bool doAspect = (aspectLens != 0);
 
     float2 coord;

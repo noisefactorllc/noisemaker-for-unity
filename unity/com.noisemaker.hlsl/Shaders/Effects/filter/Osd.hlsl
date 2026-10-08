@@ -12,18 +12,11 @@
 //  * The WGSL is a compute shader writing an output_buffer, but operationally it
 //    is a per-pixel filter: each invocation reads one input texel and writes one
 //    output pixel. We port it as a single fullscreen render pass.
-//  * COORDINATE SYSTEM: the canonical WGSL is a COMPUTE shader and uses gid.xy
-//    with y=0 at the TOP (output_buffer row 0 = top; no render flip). This port
-//    is a render PASS: NM_FragCoord(i).y, like gl_FragCoord, has y=0 at the
-//    BOTTOM (confirmed against the verified filter/spookyTicker pair). So we
-//    flip Y ONCE inside nm_osd (coord.y = (h-1) - icoord.y) to recover the
-//    WGSL's top-origin layout — equivalent to the render-path GLSL osd.glsl,
-//    which documents "GL coords: y=0 is bottom" and uses local_y = (CELL_H-1)-ly.
-//    See the detailed note at the coord setup in nm_osd.
-//  * NO renderScale scaling: the WGSL uses fixed integer SCALE/PADDING constants.
-//    (The GLSL multiplies sizes by renderScale; that is a GLSL-only export path.
-//    WGSL is canonical, so we use the fixed constants.) // TODO(verify) at
-//    renderScale != 1 the WGSL path is the reference.
+//  * COORDINATE SYSTEM: NM_FragCoord(i).y, like gl_FragCoord, has y=0 at the
+//    BOTTOM, so nm_osd uses the GLSL osd.glsl layout unflipped: "GL coords:
+//    y=0 is bottom" corner origins and local_y = (CELL_H-1)-ly.
+//  * renderScale scales the cell, gap and padding sizes and the scanline step,
+//    as the GLSL does. Corners use fullResolution; panel tests use tileOffset.
 //  * width/height come from params.width/height in the WGSL, which equal the
 //    input texture's own dimensions. We read inputTex.GetDimensions() and use
 //    those for both the sample size and corner positioning — matching Invert and
@@ -49,11 +42,8 @@ int   corner;  // 0=TL 1=TR 2=BL 3=BR
 // ---- Compile-time constants (WGSL `const`) ----------------------------------
 static const int GLYPH_W = 7;
 static const int GLYPH_H = 8;
-static const int SCALE   = 3;
-static const int CELL_W  = 21;  // GLYPH_W * SCALE
-static const int CELL_H  = 24;  // GLYPH_H * SCALE
-static const int GAP     = 3;   // SCALE
-static const int PADDING = 25;
+static const int BASE_SCALE   = 3;   // scaled by renderScale in nm_osd
+static const int BASE_PADDING = 25;  // scaled by renderScale in nm_osd
 
 // Bank OCR bitmaps: 10 digits, 7 wide x 8 tall each (verbatim from WGSL).
 static const int GLYPHS[80] = {
@@ -98,10 +88,10 @@ uint nm_osd_hash3(uint a, uint b, uint c)
 }
 
 // Sample the bitmap for a given digit at pixel-local coords.
-float nm_osd_sample_glyph(int digit, int localX, int localY)
+float nm_osd_sample_glyph(int digit, int localX, int localY, int iScale)
 {
-    int gx = localX / SCALE;
-    int gy = localY / SCALE;
+    int gx = localX / iScale;
+    int gy = localY / iScale;
     if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) {
         return 0.0;
     }
@@ -112,35 +102,36 @@ float nm_osd_sample_glyph(int digit, int localX, int localY)
 
 // -----------------------------------------------------------------------------
 // nm_osd — core per-pixel evaluation. `texel` is the already-sampled input
-// color, `icoord` is the integer pixel coord (top-left origin, == WGSL gid.xy),
-// and (w,h) are the input texture dimensions (== WGSL params.width/height).
+// color, `icoord` is the integer pixel coord (== ivec2(gl_FragCoord.xy)), and
+// (w,h) are the input texture dimensions (fallback when fullResolution is unset).
 // Returns the final RGBA.
 // -----------------------------------------------------------------------------
 float4 nm_osd(float4 texel, int2 icoord, int w, int h)
 {
-    // Y-ORIENTATION: the canonical WGSL is a COMPUTE shader and indexes its
-    // output_buffer by gid.y with y=0 at the TOP (no render flip). This HLSL
-    // render-pass port receives NM_FragCoord(i), which — like gl_FragCoord — has
-    // y=0 at the BOTTOM (verified against the sibling filter/spookyTicker pair,
-    // whose @fragment WGSL uses `1.0 - uv.y`). The render-path GLSL osd.glsl
-    // therefore documents "GL coords: y=0 is bottom" and flips the glyph row via
-    //   `int local_y = (CELL_H - 1) - ly;`
-    // To reproduce the WGSL's top-origin layout exactly, flip the Y coord ONCE
-    // here so the WGSL body below (corner placement, panel test, local_y = ly)
-    // operates in top-origin space, matching the golden.
-    // EXCEPTION — scanline parity: the GLSL golden computes
-    //   (globalCoord.y / step) & 1
-    // in gl_FragCoord's BOTTOM-UP frame, so it darkens visual-EVEN rows (an
-    // (h-1)-flip inverts parity when h-1 is odd). Compute the parity from the
-    // un-flipped GL-equivalent y (icoord.y) to match the golden exactly.
-    // X is unaffected. `texel`/base_rgb stay at the un-flipped fragment pixel
-    // (input and output share the same coord in both the WGSL and this port).
-    int2 coord = int2(icoord.x, (h - 1) - icoord.y);
+    // Y-ORIENTATION: NM_FragCoord(i), like gl_FragCoord, has y=0 at the BOTTOM,
+    // so the GLSL osd.glsl body below applies unflipped.
+
+    // Scale all pixel-space sizes by renderScale for high-res export. A Shader
+    // Graph node leaves renderScale unbound (0); treat that as 1.
+    float rs = (renderScale > 0.0) ? renderScale : 1.0;
+    int iScale  = max((int)((float)BASE_SCALE * rs), 1);
+    int CELL_W  = GLYPH_W * iScale;
+    int CELL_H  = GLYPH_H * iScale;
+    int GAP     = iScale;
+    int PADDING = (int)((float)BASE_PADDING * rs);
+
+    // Use full image dimensions for corner positioning so OSD appears in the
+    // correct corner; adjust coord by tileOffset for the global pixel position.
+    float2 fullRes = (fullResolution.x > 0.0) ? fullResolution : float2((float)w, (float)h);
+    int width  = max((int)fullRes.x, 1);
+    int height = max((int)fullRes.y, 1);
+    int2 globalCoord = icoord + (int2)tileOffset;
 
     float blend_alpha = clamp(alpha, 0.0, 1.0);
 
     // Subtle scanline tint across entire image (OSD monitor feel)
-    float scanline = 1.0 - 0.03 * blend_alpha * (float)(icoord.y & 1);
+    int scanlineStep = max(iScale / BASE_SCALE, 1);
+    float scanline = 1.0 - 0.03 * blend_alpha * (float)((globalCoord.y / scanlineStep) & 1);
     float3 base_rgb = texel.rgb * scanline;
 
     if (blend_alpha <= 0.0) {
@@ -148,8 +139,6 @@ float4 nm_osd(float4 texel, int2 icoord, int w, int h)
     }
 
     uint base_seed = (uint)max((float)seed, 1.0);
-    int width  = w;
-    int height = h;
 
     // Glyph count: 3-6 from seed
     int glyph_count = 3 + (int)(nm_osd_hash2(base_seed, 42u) % 4u);
@@ -158,23 +147,23 @@ float4 nm_osd(float4 texel, int2 icoord, int w, int h)
     int overlay_w = glyph_count * CELL_W + (glyph_count - 1) * GAP;
     int overlay_h = CELL_H;
 
-    // Position based on corner (WebGPU coords: y=0 is top)
+    // Position based on corner (GL coords: y=0 is bottom)
     // 0=TL, 1=TR, 2=BL, 3=BR
     int corner_val = corner;
     int origin_x;
     int origin_y;
     if (corner_val == 0) { // top-left
         origin_x = PADDING;
-        origin_y = PADDING;
+        origin_y = height - overlay_h - PADDING;
     } else if (corner_val == 1) { // top-right
         origin_x = width - overlay_w - PADDING;
-        origin_y = PADDING;
+        origin_y = height - overlay_h - PADDING;
     } else if (corner_val == 2) { // bottom-left
         origin_x = PADDING;
-        origin_y = height - overlay_h - PADDING;
+        origin_y = PADDING;
     } else { // bottom-right (default)
         origin_x = width - overlay_w - PADDING;
-        origin_y = height - overlay_h - PADDING;
+        origin_y = PADDING;
     }
     if (origin_x < 0) {
         origin_x = 0;
@@ -191,13 +180,13 @@ float4 nm_osd(float4 texel, int2 icoord, int w, int h)
     int panel_y1 = origin_y + overlay_h + panel_pad;
 
     // Outside panel region: just scanline
-    if (coord.x < panel_x0 || coord.x >= panel_x1 || coord.y < panel_y0 || coord.y >= panel_y1) {
+    if (globalCoord.x < panel_x0 || globalCoord.x >= panel_x1 || globalCoord.y < panel_y0 || globalCoord.y >= panel_y1) {
         return float4(base_rgb.x, base_rgb.y, base_rgb.z, texel.a);
     }
 
     // Check if pixel is in OSD glyph region
-    int lx = coord.x - origin_x;
-    int ly = coord.y - origin_y;
+    int lx = globalCoord.x - origin_x;
+    int ly = globalCoord.y - origin_y;
 
     float mask = 0.0;
     if (lx >= 0 && lx < overlay_w && ly >= 0 && ly < overlay_h) {
@@ -207,15 +196,15 @@ float4 nm_osd(float4 texel, int2 icoord, int w, int h)
         int within_glyph_x = lx - glyph_idx * cell_stride;
 
         if (within_glyph_x < CELL_W && glyph_idx < glyph_count) {
-            // Local Y within glyph (y=0 is top in WebGPU, glyph row 0 is top)
-            int local_y = ly;
+            // Local Y within glyph (flip so row 0 is top of glyph)
+            int local_y = (CELL_H - 1) - ly;
 
             // Time-cycling digit selection
             int time_cell = (int)floor(time * max(speed, 0.001));
             uint digit_hash = nm_osd_hash3(base_seed, (uint)glyph_idx, (uint)time_cell);
             int digit = (int)(digit_hash % 10u);
 
-            mask = nm_osd_sample_glyph(digit, within_glyph_x, local_y);
+            mask = nm_osd_sample_glyph(digit, within_glyph_x, local_y, iScale);
         }
     }
 

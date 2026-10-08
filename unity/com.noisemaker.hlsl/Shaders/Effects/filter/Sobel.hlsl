@@ -60,13 +60,15 @@ float alpha;    // globals.alpha.uniform  "alpha",  default 1.0 (min 0,   max 1)
 // input texture's pixel dimensions (used to derive texelSize). Ported VERBATIM
 // from sobel.wgsl. Reads `amount` / `alpha` from module-scope named uniforms.
 // -----------------------------------------------------------------------------
-float4 nm_sobel(Texture2D tex, SamplerState ss, float2 uv, float2 texSize)
+float4 nm_sobel(Texture2D tex, SamplerState ss, float2 fragCoord, float2 texSize)
 {
-    // let texelSize = 1.0 / texSize;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution
+    float2 globalCoord = fragCoord + tileOffset;
+    float2 uv = globalCoord / fullResolution;
     float2 texelSize = 1.0 / texSize;
 
-    // let origColor = textureSample(inputTex, inputSampler, uv);
-    float4 origColor = tex.Sample(ss, uv);
+    // GLSL: origColor = texture(inputTex, gl_FragCoord.xy / textureSize(inputTex, 0));
+    float4 origColor = tex.Sample(ss, fragCoord / texSize);
 
     // Sobel X and Y kernels (verbatim ordering).
     float sobel_x[9] = { 1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0 };
@@ -90,7 +92,8 @@ float4 nm_sobel(Texture2D tex, SamplerState ss, float2 uv, float2 texSize)
     for (int i = 0; i < 9; i = i + 1)
     {
         // sample = textureSample(inputTex, inputSampler, uv + offsets[i] * amount).rgb
-        float3 sampleRgb = tex.Sample(ss, uv + offsets[i] * amount).rgb;
+        float3 sampleRgb = tex.Sample(ss,
+            ((uv + offsets[i] * amount * renderScale) * fullResolution - tileOffset) / texSize).rgb;
         convX = convX + sampleRgb * sobel_x[i];
         convY = convY + sampleRgb * sobel_y[i];
     }

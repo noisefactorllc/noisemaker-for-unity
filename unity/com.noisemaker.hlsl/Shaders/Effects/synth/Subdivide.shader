@@ -31,11 +31,11 @@ Shader "Noisemaker/synth/subdivide"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // WGSL: st = pos.xy / u.data[0].xy (the RENDER resolution), no
-                // tileOffset. NM_FragCoord(i) is the top-left, +0.5 analog of
-                // @builtin(position).
-                float2 fragCoord = NM_FragCoord(i);
-                return nm_subdivide(fragCoord, resolution, time,
+                // GLSL: st = (gl_FragCoord.xy + tileOffset) / fullResolution, with
+                // cell sizes, aspect and outline width from fullResolution.
+                // NM_GlobalCoord(i) is the global coord; fullResolution is `res`.
+                float2 globalCoord = NM_GlobalCoord(i);
+                return nm_subdivide(globalCoord, fullResolution, time,
                                     inputTex, sampler_inputTex);
             }
             ENDHLSL

@@ -32,7 +32,9 @@ float2 nmsg_pinch_rotate2D(float2 st, float rot, float ar)
     st = st - float2(0.5 * ar, 0.5);
     float c = cos(angle);
     float s = sin(angle);
-    st = float2(c * st.x - s * st.y, s * st.x + c * st.y);
+    // GLSL golden: mat2(cos,-sin,sin,cos) * st. GLSL mat2 is COLUMN-MAJOR:
+    // (c*st.x + s*st.y, -s*st.x + c*st.y).
+    st = float2(c * st.x + s * st.y, -s * st.x + c * st.y);
     st = st + float2(0.5 * ar, 0.5);
     st.x = st.x / ar;
     return st;
@@ -84,11 +86,11 @@ void NM_Pinch_float(
     int wrapMode = (int)Wrap;
     if (wrapMode == 0)
     {
-        uv = abs(nmsg_mod(nmsg_mod(uv + 1.0, 2.0) + 2.0, 2.0) - 1.0);
+        uv = abs(nmsg_mod(uv + 1.0, 2.0) - 1.0);
     }
     else if (wrapMode == 1)
     {
-        uv = nmsg_mod(nmsg_mod(uv, 1.0) + 1.0, 1.0);
+        uv = nmsg_mod(uv, 1.0);
     }
     else
     {

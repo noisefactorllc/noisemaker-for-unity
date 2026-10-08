@@ -32,17 +32,16 @@ Shader "Noisemaker/mixer/focusBlur"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // WGSL:
-                //   let dims = vec2f(textureDimensions(inputTex, 0));
-                //   let uv   = position.xy / dims;
-                // pos = @builtin(position) (top-left, +0.5); NM_FragCoord(i) is the
-                // HLSL analog. uv derived from inputTex's own size used for all samples.
+                // GLSL: depth and alpha are read at the tile's own coordinate;
+                //   uv = (gl_FragCoord.xy + tileOffset) / fullResolution is the
+                //   global UV the blur taps are placed around.
                 uint dw, dh;
                 inputTex.GetDimensions(dw, dh);
                 float2 dims = float2(dw, dh);
-                float2 uv = NM_FragCoord(i) / dims;
+                float2 st = NM_FragCoord(i) / dims;
+                float2 uv = NM_GlobalCoord(i) / fullResolution;
 
-                return nm_focusBlur(uv, dims,
+                return nm_focusBlur(st, uv, dims, fullResolution, tileOffset,
                     inputTex, sampler_inputTex,
                     tex, sampler_tex);
             }

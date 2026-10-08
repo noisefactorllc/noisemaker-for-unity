@@ -225,7 +225,7 @@ void NM_Refract_float(
 
     [branch]
     if (Wrap == 1)
-        uv = frac(uv);
+        uv = uv - 1.0 * floor(uv / 1.0);   // GLSL mod(uv, 1.0)
     else if (Wrap == 2)
         uv = clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
     // Wrap==0 (mirror): rely on sampler address mode.

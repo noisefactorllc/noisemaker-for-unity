@@ -33,14 +33,19 @@ Shader "Noisemaker/classicNoisedeck/shapeMixer"
 
             float4 frag(NMVaryings i) : SV_Target
             {
-                // WGSL: var st = fragCoord.xy / u.resolution; (the CURRENT render
-                // target resolution). NM_FragCoord(i) = uv*resolution = pixel-
-                // centered (+0.5) target coords, the position.xy analog. The SAME
-                // st samples BOTH textures. tileOffset is NOT added (WGSL omits it).
-                float2 st = NM_FragCoord(i) / resolution;
+                // GLSL: globalCoord = gl_FragCoord.xy + tileOffset; st = globalCoord /
+                // fullResolution. Each input is sampled at the tile's own coordinate,
+                // gl_FragCoord.xy / textureSize(input). NM_FragCoord(i) is the
+                // gl_FragCoord analog; diamonds() reads it through sm_fragCoordXY.
+                sm_fragCoordXY = NM_FragCoord(i);
+                float2 globalCoord = NM_GlobalCoord(i);
+                float2 st = globalCoord / fullResolution;
 
-                float4 color1 = inputTex.Sample(sampler_inputTex, st);
-                float4 color2 = tex.Sample(sampler_tex, st);
+                uint w1, h1, w2, h2;
+                inputTex.GetDimensions(w1, h1);
+                tex.GetDimensions(w2, h2);
+                float4 color1 = inputTex.Sample(sampler_inputTex, NM_FragCoord(i) / float2(w1, h1));
+                float4 color2 = tex.Sample(sampler_tex, NM_FragCoord(i) / float2(w2, h2));
 
                 return nm_shapeMixer(color1, color2, st);
             }

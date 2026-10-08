@@ -67,14 +67,18 @@ float4 nm_deriv(
 {
     float2 texelSize = 1.0 / texSize;
 
+    // GLSL: radiusPixels = min(amount * renderScale, 256.0)
+    float radiusPixels = amount * renderScale;
+    radiusPixels = min(radiusPixels, 256.0);
+
     float4 color  = inputTex.Sample(sampler_inputTex, uv);
 
     // Desaturated center / right / bottom — verbatim from WGSL.
     float3 center = desaturate(color.rgb);
     float3 right  = desaturate(inputTex.Sample(sampler_inputTex,
-                        uv + float2(texelSize.x * amount, 0.0)).rgb);
+                        uv + float2(radiusPixels, 0.0) * texelSize).rgb);
     float3 bottom = desaturate(inputTex.Sample(sampler_inputTex,
-                        uv + float2(0.0, texelSize.y * amount)).rgb);
+                        uv + float2(0.0, radiusPixels) * texelSize).rgb);
 
     float3 dx   = center - right;
     float3 dy   = center - bottom;

@@ -21,27 +21,22 @@
 //   folding, so the runtime numeric result is identical.
 //
 // CANONICAL-SOURCE (WGSL) HAZARDS handled here:
-//  * WGSL uses `u.resolution` (its own packed uniform) throughout — NOT a
-//    separate fullResolution. We map that to the engine `resolution` alias
-//    (_NM_Resolution.xy). The effect's own `aspectRatio()` is
-//    `u.resolution.x / u.resolution.y` — we replicate it as a LOCAL helper
-//    `nm_cnd_aspectRatio()` over `resolution`, NOT the NMFullscreen
-//    `aspectRatio` macro (which uses fullResolution). Follow the WGSL literally.
-//  * Main UV: `uv = fragCoord.xy / u.resolution` => NM_FragCoord(i) / resolution.
-//    Top-left, +0.5 centered (WGSL @builtin(position) analog) — no per-effect
-//    Y flip (H8). All internal samples re-sample inputTex at the derived uv,
-//    same as the WGSL (which divides by u.resolution, NOT input dims). Since
-//    upstream 326193cf the GLSL also samples the base color and pixellate's
-//    size<1 path at the transformed uv, mapped into the tile's input texture
-//    ((uv * fullResolution - tileOffset) / textureSize). For an untiled render
-//    that mapping is the identity, so sampling at uv matches the GLSL.
+//  * Tiling follows the GLSL (the parity authority; the WGSL is the same
+//    untiled): uv = (gl_FragCoord.xy + tileOffset) / fullResolution, and the
+//    rotate2D / cga aspect is fullResolution.x / fullResolution.y
+//    (nm_cnd_aspectRatio). `resolution` (_NM_Resolution.xy, the tile size)
+//    stays in imageSize, the convolve steps, pixellate, cga and subpixel, as
+//    in the GLSL. The base color, pixellate's size<1 path and every convolve
+//    tap sample the uv mapped into the tile's input texture
+//    ((uv * fullResolution - tileOffset) / textureSize, nm_cnd_localUV). The
+//    GLSL leaves pixellate's size>=1 path, cga, bloom and zoomBlur unmapped,
+//    and so does this port. No per-effect Y flip (H8).
 //  * WGSL float `%` is truncated (sign of dividend, == HLSL `fmod`). GLSL `mod`
 //    is floored (sign of divisor, == nm_mod). For the ONE place this matters —
 //    rgb2hsv's `((rgb.g - rgb.b) / delta) % 6.0` where the dividend can be
-//    negative — the WGSL and GLSL still disagree at v1.0.265, and we use
-//    `nm_mod` to match the GLSL (WebGL2) reference. cga/subpixel `%`
-//    operate on non-negative floored coords where fmod==nm_mod==same result;
-//    we still use `fmod` there to mirror the WGSL `%` operator literally.
+//    negative — the WGSL and GLSL still disagree at v1.0.271, and we use
+//    `nm_mod` to match the GLSL (WebGL2) reference. cga/subpixel use the
+//    GLSL `mod` on non-negative coords, also written as nm_mod.
 //  * `select(0.0, delta/maxC, maxC != 0.0)` -> ternary `maxC != 0.0 ? d/m : 0`.
 //  * prng()/random(): this effect's WGSL prng does `vec3f(pcg(vec3u(p)))` WITHOUT
 //    the sign-fold present in some other effects (Variant B, 08-§1.2). NMCore
@@ -82,10 +77,20 @@ float saturation;  // globals.saturation.uniform   default 0
 static const float NM_CND_PI  = 3.14159265359;
 static const float NM_CND_TAU = 6.28318530718;
 
-// aspectRatio() — WGSL: u.resolution.x / u.resolution.y (NOT fullResolution).
+// aspectRatio — GLSL: #define aspectRatio fullResolution.x / fullResolution.y
+// (the WGSL's u.resolution aspect is the same value untiled).
 float nm_cnd_aspectRatio()
 {
-    return resolution.x / resolution.y;
+    return fullResolution.x / fullResolution.y;
+}
+
+// GLSL tile mapping: (uv * fullResolution - tileOffset) / textureSize(inputTex)
+// converts a global UV into this tile's input-texture UV (identity untiled).
+float2 nm_cnd_localUV(float2 uv)
+{
+    uint texW, texH;
+    inputTex.GetDimensions(texW, texH);
+    return (uv * fullResolution - tileOffset) / float2(texW, texH);
 }
 
 // prng() — WGSL Variant B (NO sign-fold). Reuses the shared nm_pcg core (which
@@ -102,7 +107,7 @@ float nm_cnd_mapRange(float value, float inMin, float inMax, float outMin, float
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
 
-// rotate2D — WGSL verbatim. NOTE: uses nm_cnd_aspectRatio() (= u.resolution
+// rotate2D — WGSL verbatim. NOTE: uses nm_cnd_aspectRatio() (= fullResolution
 // aspect) and mapRange(rot, 0, 360, 0, 2) BEFORE multiplying by PI.
 float2 nm_cnd_rotate2D(float2 st_in, float rot)
 {
@@ -146,14 +151,14 @@ float3 nm_cnd_saturateFn(float3 color)
     return color - (avg - color) * sat;
 }
 
-// hsv2rgb — WGSL verbatim.
+// hsv2rgb — the GLSL's: x uses mod(h * 6.0, 2.0) (nm_mod).
 float3 nm_cnd_hsv2rgb(float3 hsv)
 {
     float h = frac(hsv.x);
     float s = hsv.y;
     float v = hsv.z;
     float c = v * s;
-    float x = c * (1.0 - abs(frac(h * 6.0) * 2.0 - 1.0));
+    float x = c * (1.0 - abs(nm_mod(h * 6.0, 2.0) - 1.0));
     float m = v - c;
     float3 rgb;
     if (h < 1.0 / 6.0)      { rgb = float3(c, x, 0.0); }
@@ -198,15 +203,16 @@ float3 nm_cnd_posterize(float3 color, float levIn)
     return pow(c, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
 }
 
-// pixellate — WGSL verbatim. Samples inputTex at the floored coord (no flip).
-// size<1 samples at uv_in; the GLSL samples the same uv mapped into the tile.
+// pixellate — GLSL. Samples inputTex at the floored coord (no flip, and, as in
+// the GLSL, no tile mapping). size<1 samples uv_in mapped into the tile.
 float3 nm_cnd_pixellate(float2 uv_in, float sizeIn)
 {
     float size = sizeIn;
-    if (size < 1.0) { return inputTex.Sample(sampler_inputTex, uv_in).rgb; }
+    if (size < 1.0) { return inputTex.Sample(sampler_inputTex, nm_cnd_localUV(uv_in)).rgb; }
     size *= 4.0;
-    float dx = size / resolution.x;
-    float dy = size / resolution.y;
+    // GLSL: dx = size * (1.0 / resolution.x)
+    float dx = size * (1.0 / resolution.x);
+    float dy = size * (1.0 / resolution.y);
     float2 uv = uv_in - 0.5;
     float2 coord = float2(dx * floor(uv.x / dx), dy * floor(uv.y / dy)) + 0.5;
     return inputTex.Sample(sampler_inputTex, coord).rgb;
@@ -219,7 +225,8 @@ float3 nm_cnd_desaturate(float3 color)
     return float3(avg, avg, avg);
 }
 
-// convolve — WGSL verbatim. offsets * u.effectAmt; sample inputTex at uv+offset.
+// convolve — offsets * effectAmt; sample inputTex at uv+offset mapped into the
+// tile, as the GLSL does: ((uv + offset * effectAmt) * fullResolution - tileOffset) / textureSize.
 float3 nm_cnd_convolve(float2 uv, float kernel[9], bool divide)
 {
     float2 steps = 1.0 / resolution;
@@ -233,7 +240,7 @@ float3 nm_cnd_convolve(float2 uv, float kernel[9], bool divide)
     [unroll]
     for (int i = 0; i < 9; i++)
     {
-        float3 color = inputTex.Sample(sampler_inputTex, uv + offsets[i] * effectAmt).rgb;
+        float3 color = inputTex.Sample(sampler_inputTex, nm_cnd_localUV(uv + offsets[i] * effectAmt)).rgb;
         conv += color * kernel[i];
         kernelWeight += kernel[i];
     }
@@ -312,17 +319,20 @@ float3 nm_cnd_convolutionEffect(float3 color, float2 uv)
     return color;
 }
 
-// cga — WGSL verbatim. Uses fmod for WGSL `%` (operands non-negative here).
-float3 nm_cnd_cga(float4 color, float2 st)
+// cga — GLSL. pixelDensity scales by renderScale, the aspect is the
+// fullResolution aspect, and the dither checker uses mod(gl_FragCoord.xy,
+// dSize) (fragCoord = NM_FragCoord, the tile-local pixel coord). The GLSL
+// samples (sx, sy) with no tile mapping. mod -> nm_mod.
+float3 nm_cnd_cga(float4 color, float2 st, float2 fragCoord)
 {
     float amt = nm_cnd_mapRange(effectAmt, 0.0, 20.0, 0.0, 5.0);
     if (amt < 0.01) { return color.rgb; }
-    float pixelDensity = amt;
+    float pixelDensity = amt * renderScale;
     float size = 2.0 * pixelDensity;
     float dSize = 2.0 * size;
     float amount = resolution.x / size;
     float d = 1.0 / amount;
-    float ar = resolution.x / resolution.y;
+    float ar = fullResolution.x / fullResolution.y;
     float sx = floor(st.x / d) * d;
     d = ar / amount;
     float sy = floor(st.y / d) * d;
@@ -342,29 +352,28 @@ float3 nm_cnd_cga(float4 color, float2 st)
     else if (o == 4.0) { c1 = light; c2 = light; }
     else if (o == 5.0) { c1 = light; c2 = white; }
     else               { c1 = white; c2 = white; }
-    float fx = st.x * resolution.x;
-    float fy = st.y * resolution.y;
     float3 result = c1;
-    if (fmod(fx, dSize) > size)
+    if (nm_mod(fragCoord.x, dSize) > size)
     {
-        if (fmod(fy, dSize) > size) { result = c1; } else { result = c2; }
+        if (nm_mod(fragCoord.y, dSize) > size) { result = c1; } else { result = c2; }
     }
     else
     {
-        if (fmod(fy, dSize) > size) { result = c2; } else { result = c1; }
+        if (nm_mod(fragCoord.y, dSize) > size) { result = c2; } else { result = c1; }
     }
     return result;
 }
 
-// subpixel — WGSL verbatim. fmod for WGSL `%`.
+// subpixel — GLSL. scale is multiplied by renderScale and pixellate gets
+// 4.0 * scale, as in the GLSL. mod -> nm_mod (operands are non-negative).
 float3 nm_cnd_subpixel(float2 st, float scaleIn)
 {
-    float scale = nm_cnd_mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0);
-    float3 orig = nm_cnd_pixellate(st, scale);
+    float scale = nm_cnd_mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0) * renderScale;
+    float3 orig = nm_cnd_pixellate(st, 4.0 * scale);
     float3 color = orig;
     float2 coord = floor(st * resolution);
-    float m = fmod(coord.x, 4.0 * scale);
-    if (fmod(coord.y, 4.0 * scale) <= scale)
+    float m = nm_mod(coord.x, 4.0 * scale);
+    if (nm_mod(coord.y, 4.0 * scale) <= 1.0 * scale)
     {
         color *= float3(0.0, 0.0, 0.0);
     }
@@ -446,8 +455,9 @@ float nm_cnd_offsets(float2 st)
 // =============================================================================
 float4 NMFrag_effects(NMVaryings i) : SV_Target
 {
-    // WGSL: uv = fragCoord.xy / u.resolution
-    float2 uv = NM_FragCoord(i) / resolution;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution
+    float2 fragCoord = NM_FragCoord(i);
+    float2 uv = (fragCoord + tileOffset) / fullResolution;
 
     float scale = 100.0 / scaleAmt;
     if (scale == 0.0) { scale = 1.0; }
@@ -478,16 +488,16 @@ float4 NMFrag_effects(NMVaryings i) : SV_Target
     else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
     else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
 
-    // Sample at the transformed uv (scale, rotation, offset, flip). The GLSL
-    // origcolor does the same since 326193cf (tile mapping is identity untiled).
-    float4 color = inputTex.Sample(sampler_inputTex, uv);
+    // Sample at the transformed uv (scale, rotation, offset, flip), mapped into
+    // this tile's input texture, as the GLSL origcolor does since 326193cf.
+    float4 color = inputTex.Sample(sampler_inputTex, nm_cnd_localUV(uv));
 
     if (effectAmt != 0.0 && EFFECT != 0)
     {
         [branch]
         if (EFFECT == 100)      { color = float4(nm_cnd_pixellate(uv, effectAmt), color.a); }
         else if (EFFECT == 110) { color = float4(nm_cnd_posterize(color.rgb, effectAmt), color.a); }
-        else if (EFFECT == 200) { color = float4(nm_cnd_cga(color, uv), color.a); }
+        else if (EFFECT == 200) { color = float4(nm_cnd_cga(color, uv, fragCoord), color.a); }
         else if (EFFECT == 210) { color = float4(nm_cnd_subpixel(uv, effectAmt), color.a); }
         else if (EFFECT == 220) { color = float4(nm_cnd_bloom(uv), color.a); }
         else if (EFFECT == 230) { color = float4(nm_cnd_zoomBlur(uv), color.a); }

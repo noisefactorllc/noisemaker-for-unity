@@ -28,13 +28,12 @@
 //  * The refract wrap is floored mod: upstream 3c614a7d replaced the WGSL's
 //    truncated `% 1.0` (== fmod, sign of dividend) with fract(), which equals
 //    GLSL mod(x, 1.0) == nm_mod. All three backends now agree; use nm_mod.
-//  * Coordinate: WGSL `uv = fragCoord.xy / resolution`; snow uses raw
-//    `fragCoord.xy` (NOT +tileOffset). We use NM_FragCoord(i) (top-left, +0.5),
-//    dividing by resolution for uv. Sampling is done in 0..1 lensedCoords space
-//    EXACTLY as the WGSL textureSample(inputTex, samp, coord) — NO division by
-//    input texture dimensions, NO fullResolution (the WGSL does neither). The
-//    GLSL's localUV `fract((coord*fullResolution - tileOffset)/textureSize)` is a
-//    tiling reconciliation that is identity when untiled; we follow the WGSL.
+//  * Coordinate (GLSL, the parity authority): uv = (gl_FragCoord.xy +
+//    tileOffset) / fullResolution, aspectRatio = fullResolution.x/.y, the
+//    scanline hatch scales by fullResolution.y, and snow hashes
+//    gl_FragCoord.xy + tileOffset. Each channel samples the tile-local UV
+//    fract((coord*fullResolution - tileOffset)/textureSize). All of this is the
+//    WGSL's local form when untiled; tiled renders need the GLSL form.
 //  * VIGNETTE: ported from WGSL parenthesised form `color.rgb * (1.0 - pow(...))`.
 //    The GLSL drops the parens (`color.rgb * 1.0 - pow(...)`) — a different result.
 //    WGSL is canonical (golden rule 1).
@@ -265,13 +264,22 @@ float4 g_glitch(float2 st_in, float aspectRatioV, float timev, float xChonkV, fl
 
     float aberrationOffset = g_map(aberrationV, 0.0, 100.0, 0.0, 0.05) * centerDist * G_PI * 0.5;
 
-    float redOffset = lerp(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
-    float4 red = inputTex.Sample(sampler_inputTex, float2(redOffset, lensedCoords.y));
+    // GLSL: each channel samples at the tile-local UV
+    //   fract((coord * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)))
+    uint texW, texH;
+    inputTex.GetDimensions(texW, texH);
+    float2 texSize = float2(texW, texH);
 
-    float4 green = inputTex.Sample(sampler_inputTex, lensedCoords);
+    float redOffset = lerp(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
+    float2 localUV_red = frac((float2(redOffset, lensedCoords.y) * fullResolution - tileOffset) / texSize);
+    float4 red = inputTex.Sample(sampler_inputTex, localUV_red);
+
+    float2 localUV_green = frac((lensedCoords * fullResolution - tileOffset) / texSize);
+    float4 green = inputTex.Sample(sampler_inputTex, localUV_green);
 
     float blueOffset = lerp(lensedCoords.x, clamp(lensedCoords.x - aberrationOffset, 0.0, 1.0), lensedCoords.x);
-    float4 blue = inputTex.Sample(sampler_inputTex, float2(blueOffset, lensedCoords.y));
+    float2 localUV_blue = frac((float2(blueOffset, lensedCoords.y) * fullResolution - tileOffset) / texSize);
+    float4 blue = inputTex.Sample(sampler_inputTex, localUV_blue);
 
     return float4(red.r, green.g, blue.b, green.a);
 }
@@ -279,35 +287,39 @@ float4 g_glitch(float2 st_in, float aspectRatioV, float timev, float xChonkV, fl
 // ---- Pass: "glitch" (progName "glitch") -------------------------------------
 float4 NMFrag_glitch(NMVaryings i) : SV_Target
 {
-    float2 res = resolution;
-    float aspectRatioV = res.x / res.y;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution, and
+    // `aspectRatio` is fullResolution.x / fullResolution.y — the effect runs in
+    // full-image space so tiled renders stay seamless.
+    float aspectRatioV = fullResolution.x / fullResolution.y;
 
-    float2 fragCoord = NM_FragCoord(i);    // WGSL @builtin(position).xy (top-left)
-    float2 uv = fragCoord / res;
+    float2 globalCoord = NM_GlobalCoord(i);
+    float2 uv = globalCoord / fullResolution;
 
     float4 color = g_glitch(uv, aspectRatioV, time, (float)xChonk, (float)yChonk,
                             glitchiness, (float)aspectLens, distortion, aberration);
     if (scanlinesAmt != 0)
     {
-        color = g_scanlines(color, uv, res, (float)scanlinesAmt, time, seed);
+        // GLSL scanlines() scales the hatch by fullResolution.y.
+        color = g_scanlines(color, uv, fullResolution, (float)scanlinesAmt, time, seed);
     }
     if (snowAmt != 0.0)
     {
-        color = g_snow(color, fragCoord, snowAmt, time);
+        // GLSL snow(): st = gl_FragCoord.xy + tileOffset.
+        color = g_snow(color, globalCoord, snowAmt, time);
     }
 
-    // vignette (WGSL parenthesised form)
+    // vignette (GLSL precedence: color.rgb * 1.0 - pow(...), unparenthesised)
     if (vignetteAmt < 0.0)
     {
         color = float4(
-            lerp(color.rgb * (1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0)), color.rgb, g_map(vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
+            lerp(color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0), color.rgb, g_map(vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - uv) * g_map(vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
     else
     {
         color = float4(
-            lerp(color.rgb, 1.0 - (1.0 - color.rgb * (1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0))), g_map(vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
+            lerp(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - uv) * 1.125, 2.0)), g_map(vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
             max(color.a, length(float2(0.5, 0.5) - uv) * g_map(vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }

@@ -28,13 +28,8 @@
 //    same comparisons as the WGSL.
 //  * select(b,a,cond) (WGSL) -> cond ? a : b (HLSL) — reversed arg order. Applied
 //    literally in rgb2hsv saturation and value()'s interp computation.
-//  * `%` on floats in WGSL (rgb2hsv hue, blendFloat mode 5, hue cycle, blendVec3
-//    mode 5) is GLSL-style mod (sign of divisor) -> nm_mod. WGSL `%` on f32 is
-//    actually fmod-like (sign of dividend); however the reference GLSL uses mod().
-//    // TODO(verify): WGSL f32 `%` truncates toward zero. To stay faithful to the
-//    canonical WGSL we use HLSL fmod for those f32 `%` ops below. nm_mod is used
-//    only where the GLSL/Python semantics demand sign-of-divisor — none here, so
-//    fmod matches WGSL.
+//  * The GLSL golden's float mod() (rgb2hsv hue, blendFloat mode 5, hue cycle,
+//    blendVec3 mode 5) floors (sign of divisor) -> nm_mod, never HLSL fmod.
 //  * bitcast<u32>(f) -> asuint(f) (bit reinterpret). u32(float) -> (uint) cast
 //    (numeric truncation). vec3u(p) in pcg arg is (uint3) truncation.
 //  * pcg/prng here are LOCAL copies matching the WGSL's own (prng divides by
@@ -68,8 +63,12 @@ int    levels;          // globals.levels.uniform, default 0
 static const float SM_PI  = 3.14159265359;
 static const float SM_TAU = 6.28318530718;
 
-// aspectRatio() = u.resolution.x / u.resolution.y (current target). Local copy.
-float nm_aspectRatio() { return resolution.x / resolution.y; }
+// aspectRatio = fullResolution.x / fullResolution.y (GLSL #define). Local copy.
+float nm_aspectRatio() { return fullResolution.x / fullResolution.y; }
+
+// Fragment position (gl_FragCoord analog), set by the fragment entry so
+// diamonds() can read it as the GLSL does.
+static float2 sm_fragCoordXY = float2(0.0, 0.0);
 
 float mapRange(float value, float inMin, float inMax, float outMin, float outMax)
 {
@@ -106,7 +105,7 @@ float3 hsv2rgb(float3 hsv)
     float s = hsv.y;
     float v = hsv.z;
     float c = v * s;
-    float x = c * (1.0 - abs(frac(h * 6.0) * 2.0 - 1.0));
+    float x = c * (1.0 - abs(nm_mod(h * 6.0, 2.0) - 1.0));
     float m = v - c;
     float3 rgb;
     if (h < 1.0/6.0) { rgb = float3(c, x, 0.0); }
@@ -200,10 +199,23 @@ float3 linear_srgb_from_oklab(float3 c)
     return o;
 }
 
+bool sm_isNan(float val)
+{
+    return !(val <= 0.0 || 0.0 <= val);
+}
+
+bool sm_isInf(float val)
+{
+    return val != 0.0 && val * 2.0 == val;
+}
+
 float3 pal(float t_in)
 {
+    // GLSL golden: NaN and infinity guards, then the literal 6.28318 (not TAU).
+    if (sm_isNan(t_in)) { return float3(0.0, 0.0, 0.0); }
+    else if (sm_isInf(t_in)) { return float3(0.0, 0.0, 0.0); }
     float t = t_in * (float)repeatPalette + rotatePalette * 0.01;
-    float3 color = paletteOffset + paletteAmp * cos(SM_TAU * (paletteFreq * t + palettePhase));
+    float3 color = paletteOffset + paletteAmp * cos(6.28318 * (paletteFreq * t + palettePhase));
     if (paletteMode == 1) { color = hsv2rgb(color); }
     else if (paletteMode == 2) {
         color.g = color.g * -0.509 + 0.276;
@@ -255,7 +267,8 @@ float circles(float2 st, float freq)
 
 float diamonds(float2 st_in, float freq)
 {
-    float2 st = st_in;
+    // GLSL: st = (gl_FragCoord.xy + tileOffset) / fullResolution.y (st_in unused).
+    float2 st = (sm_fragCoordXY + tileOffset) / fullResolution.y;
     st -= float2(0.5 * nm_aspectRatio(), 0.5);
     st *= freq;
     return cos(st.x * SM_PI) + cos(st.y * SM_PI);
@@ -284,8 +297,8 @@ float3 randomFromLatticeWithOffset(float2 st, float freq, int2 offset)
     float2 baseFloor = floor(lattice);
     int2 base = (int2)baseFloor + offset;
     float2 fracv = lattice - baseFloor;
-    int seedInt = (int)floor((float)seed);
-    float seedFrac = frac((float)seed);
+    int seedInt = seed;
+    float seedFrac = 0.0;
     float xCombined = fracv.x + seedFrac;
     int xi = base.x + seedInt + (int)floor(xCombined);
     int yi = base.y;
@@ -298,7 +311,7 @@ float3 randomFromLatticeWithOffset(float2 st, float freq, int2 offset)
     }
     uint xBits = (uint)xi;
     uint yBits = (uint)yi;
-    uint seedBits = asuint((float)seed);
+    uint seedBits = (uint)seed;
     uint fracBits = asuint(seedFrac);
     uint3 jitter = uint3(
         (fracBits * 374761393u) ^ 0x9E3779B9u,
@@ -458,7 +471,7 @@ float blendFloat(float color1, float color2, int mode, float factorIn)
     else if (mode == 2) { return max(color1, color2 * factor); }
     else if (mode == 3) { return min(color1, color2 * factor); }
     else if (mode == 4) { return lerp(color1, color2, clamp(factor, 0.0, 1.0)); }
-    else if (mode == 5) { float c2 = max(0.1, color2 * factor); return fmod(color1, c2); }
+    else if (mode == 5) { float c2 = max(0.1, color2 * factor); return nm_mod(color1, c2); }
     else if (mode == 6) { return color1 * color2 * factor; }
     else if (mode == 7) {
         // reflect for scalar: r = i - 2*dot(n,i)*n = i - 2*n*i*n = i*(1 - 2*n^2)
@@ -466,12 +479,11 @@ float blendFloat(float color1, float color2, int mode, float factorIn)
         return color1 - 2.0 * n * color1 * n;
     }
     else if (mode == 8) {
-        // refract for scalar approximation
-        float eta = factor;
-        float cosi = color1;
-        float k = 1.0 - eta * eta * (1.0 - cosi * cosi);
+        // GLSL refract(float I, float N, float eta)
+        float d = color2 * color1;
+        float k = 1.0 - factor * factor * (1.0 - d * d);
         if (k < 0.0) { return 0.0; }
-        return eta * color1 + (eta * cosi - sqrt(k)) * color2;
+        return factor * color1 - (factor * d + sqrt(k)) * color2;
     }
     else if (mode == 9) { return color1 - color2 * factor; }
     return lerp(color1, color2, clamp(factor, 0.0, 1.0));
@@ -481,11 +493,11 @@ float3 blendVec3(float3 color1, float3 color2, int mode, float factorIn)
 {
     float factor = 1.0 - factorIn;
     if (mode == 0) { return color1 + color2 * factor; }
-    else if (mode == 1) { return color1 / (color2 * factor); }
+    else if (mode == 1) { return color1 / color2 * factor; }
     else if (mode == 2) { return max(color1, color2 * factor); }
     else if (mode == 3) { return min(color1, color2 * factor); }
     else if (mode == 4) { return lerp(color1, color2, clamp(factor, 0.0, 1.0)); }
-    else if (mode == 5) { return fmod(color1, (color2 * factor)); }
+    else if (mode == 5) { return nm_mod(color1, color2 * factor); }
     else if (mode == 6) { return color1 * color2 * factor; }
     else if (mode == 7) { return reflect(color1, color2 * factor); }
     else if (mode == 8) { return refract(color1, color2, factor); }
@@ -530,8 +542,8 @@ float4 nm_shapeMixer(float4 color1, float4 color2, float2 st)
         float3 c = blendVec3(color1.rgb, color2.rgb, blendMode, blendy * 0.5);
         c = rgb2hsv(c);
         float hue = c.r + rotatePalette * 0.01;
-        if (cyclePalette == -1) { hue = fmod(hue + time, 1.0); }
-        else if (cyclePalette == 1) { hue = fmod(hue - time, 1.0); }
+        if (cyclePalette == -1) { hue = nm_mod(hue + time, 1.0); }
+        else if (cyclePalette == 1) { hue = nm_mod(hue - time, 1.0); }
         c = hsv2rgb(float3(hue, c.g, c.b));
         c = posterize2_vec3(c, (float)levels);
         color = float4(c, max(color1.a, color2.a));

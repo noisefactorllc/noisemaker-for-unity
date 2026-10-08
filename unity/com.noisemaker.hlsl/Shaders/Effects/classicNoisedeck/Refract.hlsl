@@ -16,8 +16,9 @@
 //    NOT divided by fullResolution. NM_FragCoord(i) / float2(texW, texH).
 //  * wrap == 0 (mirror): uv = abs(mod(uv+1, 2) - 1) — explicit mirror reflection.
 //    (Upstream 7194deaf: the mirror branch used to be a no-op in BOTH reference
-//    backends; both now apply this idiom.) wrap == 1 uses frac(); wrap == 2 clamps.
-//    WGSL uses the sign-corrected ((x%2)+2)%2 == floored mod == nm_mod (H6).
+//    backends; both now apply this idiom.) wrap == 1 is the GLSL's mod(uv, 1.0)
+//    (nm_mod, which can reach 1.0 where a clamped fract() cannot); wrap == 2
+//    clamps. GLSL mod == floored mod == nm_mod (H6).
 //  * blend_colors in the WGSL reads mixAmt and blendMode as module-scope globals.
 //    In HLSL we use the per-effect uniform declarations.
 //  * mix -> lerp; fract -> frac; clamp/abs/min/max/cos/sin map 1:1.
@@ -67,6 +68,8 @@ float3 nm_refract_convolve_kernel(float2 uv, float kernel[9], bool divide)
     uint texW, texH;
     inputTex.GetDimensions(texW, texH);
     float2 dims  = float2((float)texW, (float)texH);
+    // GLSL: convert global UV to local UV for sampling inputTex
+    float2 localUV = (uv * fullResolution - tileOffset) / dims;
     float2 steps = 1.0 / dims;
 
     float2 offsets[9];
@@ -87,7 +90,7 @@ float3 nm_refract_convolve_kernel(float2 uv, float kernel[9], bool divide)
     [unroll]
     for (int i = 0; i < 9; i = i + 1)
     {
-        float3 color = inputTex.Sample(sampler_inputTex, uv + offsets[i] * scale).rgb;
+        float3 color = inputTex.Sample(sampler_inputTex, localUV + offsets[i] * scale).rgb;
         conv         = conv + color * kernel[i];
         kernelWeight = kernelWeight + kernel[i];
     }
@@ -315,8 +318,8 @@ float3 nm_refract_blend_colors(float4 color1, float4 color2)
 //               uv.y += sin(brightness*TAU)*amount*0.01
 //   if mode==1: uv.y += desaturate(derivX(uv,false))*amount*0.01
 //               uv.x += desaturate(derivY(uv,false))*amount*0.01
-//   if wrap==0: uv = abs(((uv + 1) % 2 + 2) % 2 - 1)   (mirror)
-//   if wrap==1: uv = fract(uv)
+//   if wrap==0: uv = abs((uv + 1) - 2 * floor((uv + 1) / 2) - 1)   (mirror)
+//   if wrap==1: uv = uv - 1 * floor(uv / 1)                         (repeat)
 //   if wrap==2: uv = clamp(uv, 0, 1)
 //   color = textureSample(inputTex, samp, uv)
 //   color = vec4(blend_colors(inputColor, color), color.a)
@@ -327,34 +330,45 @@ float4 NMFrag_refract(NMVaryings i) : SV_Target
     inputTex.GetDimensions(texW, texH);
     float2 dims = float2((float)texW, (float)texH);
 
-    float2 uv = NM_FragCoord(i) / dims;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution (full-image uv)
+    float2 globalCoord = NM_GlobalCoord(i);
+    float2 uv = globalCoord / fullResolution;
 
-    float4 inputColor = inputTex.Sample(sampler_inputTex, uv);
+    // Convert global UV to local UV for sampling inputTex
+    float2 localUV = (uv * fullResolution - tileOffset) / dims;
+    float4 inputColor = inputTex.Sample(sampler_inputTex, localUV);
     float  brightness = nm_refract_desaturate(inputColor.rgb) + direction / 360.0;
+
+    // In tiling mode, clamp displacement to overlap budget
+    float displacement = amount * 0.01;
+    if (fullResolution.x > resolution.x || fullResolution.y > resolution.y)
+    {
+        float maxDisplacement = 256.0 / max(fullResolution.x, fullResolution.y);
+        displacement = min(displacement, maxDisplacement);
+    }
 
     [branch]
     if (mode == 0)
     {
-        uv.x = uv.x + cos(brightness * NM_TAU) * amount * 0.01;
-        uv.y = uv.y + sin(brightness * NM_TAU) * amount * 0.01;
+        uv.x = uv.x + cos(brightness * NM_TAU) * displacement;
+        uv.y = uv.y + sin(brightness * NM_TAU) * displacement;
     }
     else if (mode == 1)
     {
-        uv.y = uv.y + nm_refract_desaturate(nm_refract_derivX(uv, false)) * amount * 0.01;
-        uv.x = uv.x + nm_refract_desaturate(nm_refract_derivY(uv, false)) * amount * 0.01;
+        uv.y = uv.y + nm_refract_desaturate(nm_refract_derivX(uv, false)) * displacement;
+        uv.x = uv.x + nm_refract_desaturate(nm_refract_derivY(uv, false)) * displacement;
     }
 
     [branch]
     if (wrap == 0)
     {
-        // mirror (default) — WGSL: abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-        // (sign-corrected truncated % == floored mod == nm_mod, H6)
+        // mirror (default) — GLSL: abs(mod(uv + 1.0, 2.0) - 1.0), nm_mod (H6)
         uv = abs(nm_mod(uv + 1.0, float2(2.0, 2.0)) - 1.0);
     }
     else if (wrap == 1)
     {
-        // repeat
-        uv = frac(uv);
+        // repeat — GLSL mod(uv, 1.0)
+        uv = nm_mod(uv, float2(1.0, 1.0));
     }
     else if (wrap == 2)
     {
@@ -362,7 +376,9 @@ float4 NMFrag_refract(NMVaryings i) : SV_Target
         uv = clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
     }
 
-    float4 color = inputTex.Sample(sampler_inputTex, uv);
+    // Convert warped global UV to local UV for sampling
+    float2 warpedLocalUV = (uv * fullResolution - tileOffset) / dims;
+    float4 color = inputTex.Sample(sampler_inputTex, warpedLocalUV);
     color = float4(nm_refract_blend_colors(inputColor, color), color.a);
 
     return color;

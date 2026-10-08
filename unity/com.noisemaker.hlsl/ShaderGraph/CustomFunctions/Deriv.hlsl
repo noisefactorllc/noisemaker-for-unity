@@ -31,6 +31,8 @@ void NM_Deriv_float(
     uint tw, th;
     InputTex.tex.GetDimensions(tw, th);
     float2 texSize = float2(tw, th);
+    // The core now reads renderScale; a standalone node is untiled.
+    _NM_RenderScale = 1.0;
     Out = nm_deriv(InputTex.tex, SS.samplerstate, UV, texSize);
 }
 

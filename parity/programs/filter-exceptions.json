@@ -48,14 +48,6 @@
       "max_exceeded_channels": 24,
       "mechanism": "Radial pinch displacement bilinear resample UV ties near the pinch center (13 sparse flips)."
     },
-    "filter__polar": {
-      "max_abs_diff": 18,
-      "max_mean_abs_diff": 0.003,
-      "ssim_min": 0.9999,
-      "max_exceeded_pixels": 65,
-      "max_exceeded_channels": 142,
-      "mechanism": "Polar remap bilinear resample ties at angle-wrap and radius boundaries (65 sparse flips)."
-    },
     "filter__posterize": {
       "max_abs_diff": 2,
       "max_mean_abs_diff": 0.001,
@@ -128,23 +120,6 @@
       "max_exceeded_pixels": 9,
       "max_exceeded_channels": 13,
       "mechanism": "Domain-warp bilinear resample UV ties at warped-gradient crossing pixels (9 sparse flips)."
-    },
-    "filter__waves": {
-      "max_abs_diff": 4,
-      "max_mean_abs_diff": 0.001,
-      "ssim_min": 0.9999,
-      "max_exceeded_pixels": 1,
-      "max_exceeded_channels": 2,
-      "allowed_exceeded_pixels": [[124, 193]],
-      "mechanism": "Wave displacement bilinear tie at exactly one crest-crossing pixel [124, 193]."
-    },
-    "filter__snow": {
-      "max_abs_diff": 69,
-      "max_mean_abs_diff": 3.1,
-      "ssim_min": 0.991,
-      "max_exceeded_pixels": 51000,
-      "max_exceeded_channels": 125000,
-      "mechanism": "Hash z-seed transcendental ULP divergence: cos(t*TAU) differs at 1 ULP between ANGLE and Metal, amplified through the fract hash and pow limiter so the static field decorrelates per-pixel while macro-structure matches (mean 165.36 both sides, 94% speck overlap, signed mean ~0)."
     },
     "filter__wormhole": {
       "max_abs_diff": 197,

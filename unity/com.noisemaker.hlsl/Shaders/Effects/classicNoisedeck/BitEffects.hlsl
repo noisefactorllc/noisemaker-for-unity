@@ -22,8 +22,8 @@
 //    the WGSL's simplified prng(floor(...)). be_prng/be_pcg are inlined as the
 //    plain (uint3)p truncation variant (NOT the sign-fold nm_prng); be_prng is
 //    retained for structural parity with the reference (now unused, as in GLSL).
-//  * rotate2D references the WGSL private `resolution` (NOT fullResolution).
-//    Ported from WGSL literally per golden rule 1.
+//  * rotate2D and the bitMask centering use fullResolution, as the GLSL does
+//    (aspectRatio is fullResolution.x / fullResolution.y there).
 //  * hsv2rgb / rgb2hsv are this effect's own versions.
 //  * 8-bit masked integer ops (modi/or_i/and_i/not_i/xor_i) reproduced exactly.
 //  * mod_f is the effect's own a-b*floor(a/b) (== nm_mod) — kept inline to match
@@ -92,17 +92,17 @@ float3 be_prng(float3 p)
     return float3(be_pcg((uint3)p)) / 4294967295.0;
 }
 
-// ---- rotate2D (uses WGSL private `resolution`) ------------------------------
-// WGSL: mat2x2<f32>(c,-s,s,c) is COLUMN-MAJOR -> m*v = (c*x + s*y, -s*x + c*y).
+// ---- rotate2D (GLSL golden: centred on fullResolution) ----------------------
+// GLSL: mat2(c,-s,s,c) is COLUMN-MAJOR -> m*v = (c*x + s*y, -s*x + c*y).
 float2 be_rotate2D(float2 st, float rot)
 {
     float2 st2 = st;
     float angle = be_map(rot, 0.0, 360.0, 0.0, 1.0) * BE_TAU;
-    st2 = st2 - resolution * 0.5;
+    st2 = st2 - fullResolution * 0.5;
     float c = cos(angle);
     float s = sin(angle);
     st2 = float2(c * st2.x + s * st2.y, -s * st2.x + c * st2.y);
-    st2 = st2 + resolution * 0.5;
+    st2 = st2 + fullResolution * 0.5;
     return st2;
 }
 
@@ -456,7 +456,7 @@ float3 be_bitMask(float2 st)
     float3 color = float3(0.0, 0.0, 0.0);
 
     float2 st2 = st;
-    float aspectRatioLocal = resolution.x / resolution.y;
+    float aspectRatioLocal = fullResolution.x / fullResolution.y;
     st2 = st2 - float2(0.5 * aspectRatioLocal, 0.5);
     st2 = st2 * tiles;
     st2 = st2 + float2(0.5 * aspectRatioLocal, 0.5);

@@ -94,23 +94,25 @@ float4 NMFrag_glowingEdge(NMVaryings i) : SV_Target
     uint tw, th;
     inputTex.GetDimensions(tw, th);
     float2 texSize = float2((float)tw, (float)th);
-    float2 uv = NM_FragCoord(i) / texSize;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution (global UV).
+    float2 uv = (NM_FragCoord(i) + tileOffset) / fullResolution;
 
     // WGSL: let texel = uniforms.width / texSize;
     float2 texel = (float)width / texSize;
 
-    // Sample base color (textureSampleLevel with mip 0)
-    float4 base = inputTex.SampleLevel(sampler_inputTex, uv, 0.0);
+    // Sample base color at the tile's coordinate (GLSL: gl_FragCoord.xy / textureSize)
+    float4 base = inputTex.SampleLevel(sampler_inputTex, NM_FragCoord(i) / texSize, 0.0);
 
-    // 3x3 neighborhood luminances (textureSampleLevel, mip 0)
-    float tl = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2(-texel.x, -texel.y), 0.0).rgb);
-    float tc = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2( 0.0,     -texel.y), 0.0).rgb);
-    float tr = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2( texel.x, -texel.y), 0.0).rgb);
-    float ml = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2(-texel.x,  0.0    ), 0.0).rgb);
-    float mr = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2( texel.x,  0.0    ), 0.0).rgb);
-    float bl = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2(-texel.x,  texel.y), 0.0).rgb);
-    float bc = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2( 0.0,      texel.y), 0.0).rgb);
-    float br = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, uv + float2( texel.x,  texel.y), 0.0).rgb);
+    // 3x3 neighborhood luminances (textureSampleLevel, mip 0). GLSL converts each
+    // global tap back to the tile: ((uv + offset) * fullResolution - tileOffset) / texSize
+    float tl = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(-texel.x, -texel.y)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
+    float tc = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(0.0, -texel.y)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
+    float tr = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(texel.x, -texel.y)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
+    float ml = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(-texel.x, 0.0)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
+    float mr = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(texel.x, 0.0)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
+    float bl = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(-texel.x, texel.y)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
+    float bc = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(0.0, texel.y)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
+    float br = nm_glowingEdge_luminance(inputTex.SampleLevel(sampler_inputTex, ((uv + float2(texel.x, texel.y)) * fullResolution - tileOffset) / texSize, 0.0).rgb);
 
     // Sobel kernels
     float gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;

@@ -72,6 +72,12 @@ void NM_Shadow_float(
     InputTex.tex.GetDimensions(dw, dh);
     float2 fragCoord = UV * float2(dw, dh);
 
+    // Seed the engine globals nm_shadow reads (untiled: no offset, full = target).
+    _NM_Resolution     = float4((float)dw, (float)dh, 0.0, 0.0);
+    _NM_FullResolution = float4((float)dw, (float)dh, 0.0, 0.0);
+    _NM_TileOffset     = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_RenderScale    = 1.0;
+
     Out = nm_shadow(
         InputTex.tex, SS.samplerstate,
         Tex.tex,      SS.samplerstate,

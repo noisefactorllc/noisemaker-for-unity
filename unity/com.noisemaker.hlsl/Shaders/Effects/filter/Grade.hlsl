@@ -36,6 +36,9 @@
 //  * primary/creative/wheels/hslSecondary/vignette: texSize = textureDimensions(
 //    inputTex); uv = pos.xy / texSize. We mirror exactly: NM_FragCoord(i) /
 //    float2(w,h) using the bound input's OWN dimensions (NOT fullResolution).
+//    Only the vignette mask uses the full image, as in the GLSL: globalUV =
+//    (gl_FragCoord.xy + tileOffset) / fullResolution, with the fullResolution
+//    aspect.
 //  * lut: uses textureLoad(inputTex, vec2i(fragCoord.xy), 0) — an integer-coord
 //    fetch with NO sampler. Ported as inputTex.Load(int3((int2)fragCoord, 0)).
 //    floor-toward-zero of the +0.5-centered fragCoord matches WGSL vec2i().
@@ -1084,17 +1087,23 @@ float4 frag_vignette(NMVaryings i) : SV_Target
 
     float3 rgb = vignette_srgbToLinear(color.rgb);
 
+    // GLSL: the vignette ellipse uses the full image, so tiles share one center:
+    //   fullRes  = fullResolution.x > 0.0 ? fullResolution : texSize;
+    //   globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+    float2 fullRes  = fullResolution.x > 0.0 ? fullResolution : texSize;
+    float2 globalUV = (NM_FragCoord(i) + tileOffset) / fullRes;
+
     float2 aspectRatioV;
-    if (texSize.x > texSize.y)
+    if (fullRes.x > fullRes.y)
     {
-        aspectRatioV = float2(texSize.x / texSize.y, 1.0);
+        aspectRatioV = float2(fullRes.x / fullRes.y, 1.0);
     }
     else
     {
-        aspectRatioV = float2(1.0, texSize.y / texSize.x);
+        aspectRatioV = float2(1.0, fullRes.y / fullRes.x);
     }
 
-    float vignetteMask = vignette_computeVignette(uv, aspectRatioV, vignetteMidpoint,
+    float vignetteMask = vignette_computeVignette(globalUV, aspectRatioV, vignetteMidpoint,
                                                   vignetteRoundness, vignetteFeather);
 
     rgb = vignette_applyVignette(rgb, vignetteMask, vignetteAmount, vigHiProtect);

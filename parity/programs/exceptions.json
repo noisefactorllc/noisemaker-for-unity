@@ -59,16 +59,14 @@
     },
     "refract_mirror": {
       "max_abs_diff": 19,
-      "ssim_min": 0.999998,
-      "max_exceeded_pixels": 7,
-      "max_exceeded_channels": 18,
+      "ssim_min": 0.9999990208,
+      "max_exceeded_pixels": 5,
+      "max_exceeded_channels": 13,
       "allowed_exceeded_pixels": [
         [7, 44],
-        [252, 49],
         [196, 50],
         [172, 102],
         [180, 148],
-        [190, 201],
         [146, 250]
       ]
     }

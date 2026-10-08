@@ -153,15 +153,17 @@ float2 nm_corrupt_meltDisplace(float2 uv_in, float meltAmt, float t, float sd, f
 // vec3 from (floor(fragCoord) [vec2], scalar); the second call adds vec2(1000.0)
 // to the floored coord BEFORE the splice — reproduced exactly.
 // -----------------------------------------------------------------------------
-float2 nm_corrupt_scatterDisplace(float2 uv_in, float scatterAmt, float t, float sd, float2 fragCoord)
+float2 nm_corrupt_scatterDisplace(float2 uv_in, float scatterAmt, float t, float sd, float rs, float2 tileOff, float2 fragCoord)
 {
     float2 uv = uv_in;
-    float3 phaseHash = nm_prng(float3(floor(fragCoord), sd + 700.0));
+    // GLSL: scaledCoord = floor((gl_FragCoord.xy + tileOff) / rs)
+    float2 scaledCoord = floor((fragCoord + tileOff) / rs);
+    float3 phaseHash = nm_prng(float3(scaledCoord, sd + 700.0));
     float pixTime = floor((t + phaseHash.x) * 8.0);
-    float3 pixHash = nm_prng(float3(floor(fragCoord), pixTime + sd));
+    float3 pixHash = nm_prng(float3(scaledCoord, pixTime + sd));
     float threshold = lerp(0.98, 0.1, scatterAmt * scatterAmt);
     if (pixHash.x > threshold) {
-        float3 dirHash = nm_prng(float3(floor(fragCoord) + float2(1000.0, 1000.0), pixTime + sd));
+        float3 dirHash = nm_prng(float3(scaledCoord + float2(1000.0, 1000.0), pixTime + sd));
         float dist = scatterAmt * 0.15 * (0.5 + pixHash.y * 0.5);
         uv.x = frac(uv.x + (dirHash.x - 0.5) * dist);
         uv.y = clamp(uv.y + (dirHash.y - 0.5) * dist, 0.0, 1.0);
@@ -180,14 +182,19 @@ float4 nm_corrupt(Texture2D inputTex, SamplerState ss, float2 fragCoord)
 
     uint tw, th;
     inputTex.GetDimensions(tw, th);
-    float2 res = float2(tw, th);  // local (NOT macro `resolution`); input-tex size
-    float resX = res.x;
-    float2 uv = fragCoord / res;
+    float2 tileDims = float2(tw, th);
+    // local (NOT macro `resolution`); GLSL: fullResolution, tile size fallback
+    float2 res = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    float2 globalCoord = fragCoord + tileOffset;
+    float2 uv = globalCoord / res;
+    // GLSL: scale pixel-space coordinates so patterns keep their visual size
+    float rs = max(renderScale, 1.0);
+    float resX = res.x / rs;
     float spd = floor(fspeed);
     float t = time * NM_CORRUPT_TAU * spd;
 
-    // Scanline grouping
-    float rawRow = fragCoord.y;
+    // Scanline grouping - GLSL scales band rows by rs
+    float rawRow = globalCoord.y / rs;
     float bh = max(1.0, floor(bandHeight * 0.32));
     float row = floor(rawRow / bh);
 
@@ -208,7 +215,7 @@ float4 nm_corrupt(Texture2D inputTex, SamplerState ss, float2 fragCoord)
     }
     float scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
-        sampleUv = nm_corrupt_scatterDisplace(sampleUv, scatterAmt, t, fseed, fragCoord);
+        sampleUv = nm_corrupt_scatterDisplace(sampleUv, scatterAmt, t, fseed, rs, tileOffset, fragCoord);
     }
 
     // Band-based corruption to UV

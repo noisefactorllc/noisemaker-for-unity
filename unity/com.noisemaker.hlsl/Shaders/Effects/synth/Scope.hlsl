@@ -11,15 +11,13 @@
 // No per-effect helpers beyond sampleWaveform (no shared primitives needed).
 //
 // WGSL PARITY NOTES:
-//  * WGSL: uv = vec2(position.x, resolution.y - position.y) / resolution
-//    The Y flip converts top-left WGSL coordinates to bottom-left waveform
-//    convention so the waveform draws upward from center, matching the GLSL
-//    path which uses gl_FragCoord (bottom-left). Applied here verbatim.
-//  * WGSL uses resolution (not fullResolution) and packs waveform into
-//    array<vec4<f32>,32>. We declare float4 audioWaveform[32] to match exactly.
+//  * GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution, no Y flip:
+//    NM_FragCoord shares gl_FragCoord's bottom-up frame.
+//  * The waveform is packed as array<vec4<f32>,32>. We declare float4
+//    audioWaveform[32] to match exactly.
 //  * sampleWaveform(index): audioWaveform[index/4][index%4] -- verbatim.
 //  * Indices: i0 = u32(floor(fIndex)), i1 = min(i0+1, 127) -- verbatim.
-//  * dist = abs(uv.y - gained) * resolution.y -- verbatim (uses resolution.y).
+//  * dist = abs(uv.y - gained) * fullResolution.y, as the GLSL does.
 //  * Premultiplied alpha output: float4(lineColor * line, line).
 //  * No nm_mod, no pcg/prng — this effect has no such helpers.
 // =============================================================================
@@ -48,9 +46,10 @@ float nm_sampleWaveform(uint index)
 // =============================================================================
 float4 nm_scope(float2 fragCoord)
 {
-    // WGSL: uv = vec2(position.x, resolution.y - position.y) / resolution
-    // This flips Y to bottom-left convention for waveform drawing.
-    float2 uv = float2(fragCoord.x, resolution.y - fragCoord.y) / resolution;
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution. NM_FragCoord
+    // shares gl_FragCoord's bottom-up frame, so no Y flip.
+    float2 res = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float2 uv = (fragCoord + tileOffset) / res;
 
     // Sample the waveform at this x position.
     // Map uv.x [0,1] to array index [0,127].
@@ -68,7 +67,7 @@ float4 nm_scope(float2 fragCoord)
     float gained = 0.5 + (wval - 0.5) * gain;
 
     // Distance from fragment to waveform line, in pixels.
-    float dist = abs(uv.y - gained) * resolution.y;
+    float dist = abs(uv.y - gained) * res.y;
 
     // Anti-aliased line.
     float lineVal = smoothstep(lineThickness + 1.0, lineThickness, dist);

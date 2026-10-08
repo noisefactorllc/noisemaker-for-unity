@@ -588,7 +588,7 @@ float4 NMFrag_crt(NMVaryings i) : SV_Target
         float red_sample_x = crt_blend_cosine(x, red_x, aber_mask);
 
         // GLSL tileOffset/renderScale remapping for local texture coord
-        float red_sample_global_x = red_sample_x * rs;
+        float red_sample_global_x = red_sample_x * renderScale;
         float red_sample_local_x  = red_sample_global_x - tileOffset.x;
         float3 red_base_col = inputTex.Load(int3((int)red_sample_local_x, iy, 0)).xyz;
 
@@ -607,7 +607,7 @@ float4 NMFrag_crt(NMVaryings i) : SV_Target
         blue_x              = crt_blend_linear(x, blue_x, gradient);
         float blue_sample_x = crt_blend_cosine(x, blue_x, aber_mask);
 
-        float blue_sample_global_x = blue_sample_x * rs;
+        float blue_sample_global_x = blue_sample_x * renderScale;
         float blue_sample_local_x  = blue_sample_global_x - tileOffset.x;
         float3 blue_base_col = inputTex.Load(int3((int)blue_sample_local_x, iy, 0)).xyz;
 
