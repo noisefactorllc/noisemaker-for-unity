@@ -45,3 +45,7 @@ tools/compiler-contract-tests/bin/
 # Python
 __pycache__/
 *.pyc
+
+# agent process artifacts (plans, progress records)
+.superpowers/
+docs/superpowers/

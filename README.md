@@ -5,10 +5,6 @@
 
 # Noisemaker for Unity
 
-Current measured support: [compatibility report](docs/COMPATIBILITY.md).
-
-Current qualification limits: [completion gaps](docs/COMPLETION_GAPS.md).
-
 > This package supports the "Export Shader Pipeline" feature in Noisedeck.app. The
 > feature runs shader compositions on other platforms. Noise Factor derives this package
 > from the upstream Noisemaker Engine project and tests it for pixel-level parity.
@@ -16,23 +12,9 @@ Current qualification limits: [completion gaps](docs/COMPLETION_GAPS.md).
 A parallel port of the Noisemaker shader engine — a separate reference engine, not bundled
 with this package — to **Unity / HLSL**.
 It renders **live procedural textures from the Polymorphic DSL**, aiming to be
-**pixel-identical** to the JS/WebGPU reference engine, and exposes effects both as a
-standalone renderer and as **Shader Graph (material) nodes**.
-
-> **🚧 WIP — stabilization toward a full-parity release.** All 207 ported effects (of 210
-> declared; `synth/media`, `synth/scope`, `synth/spectrum` are not yet ported) are
-> structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
-> with the runtime contract synced through the delivered upstream work, audited to range end
-> `noisemaker@6a0af04d` (force-push flagged; audits in `docs/COMPATIBILITY.md` §6 pass 16 /
-> §3 pass 22 — the only shaders/ code deltas are the GAP-005 pass-field row `fa83eeab` and
-> the runtime-only GAP-006 texture-pooling row `6113da00`+`95743621`; effect catalog
-> unchanged through that range end)
-> AND pixel-verified: the declared fixture corpora (245 programs across root/3D/classic/synth/mixer/points/filter/render/v104/tiled gates) render
-> with zero failures — 197 strict byte-level passes plus 48 measured, bounded exceptions.
-> The installed Quick Start workflow and macOS player builds are qualified end-to-end on Unity 6.
-> Still open: Windows/Linux coverage, the live-display color pipeline, and remaining per-effect
-> parameter/state sweeps (Unity 6 is required; older versions are not supported). Treat
-> remaining platform claims as provisional until those close.
+**pixel-identical** to the reference engine's WebGL2 output, and exposes effects both as a
+standalone renderer and as **Shader Graph (material) nodes**. Unity 6 (`6000.0+`) is
+required.
 
 ## Layout
 
@@ -66,11 +48,11 @@ renderSurface`). That is the seam. Noisemaker for Unity produces the same graph 
   engine. Point `NM_REFERENCE_ROOT` at its root. The reference engine is **not** included in this package.
   To render immediately with no external dependency, import the bundled **Quick Start** sample.
   It ships a ready `graph.json` — see *Quick start* below.
-- **Live / in-Unity** — the C# `Compiler/` port compiles DSL at runtime. The recorded
-  v1.0.104 comparison matched 304/304 programs against the golden path via `tools/graphdump`,
-  including the `--selftest` corpus. This is structural graph parity, with per-instance metadata
-  excluded. It does not verify rendered pixels or every runtime/platform combination. See
-  `parity/README.md` § Graph parity for the corpus and comparison rules.
+- **Live / in-Unity** — the C# `Compiler/` port compiles DSL at runtime. `scripts/test`
+  compares its graphs with the reference compiler's for the `--selftest` corpus, every
+  fixture program, and the parameter sweep. This is structural graph parity, with per-instance
+  metadata excluded; it does not verify rendered pixels. See `parity/README.md` § Graph
+  parity for the corpus and comparison rules.
 
 Both feed the same `NMPipeline` executor + HLSL shaders. When their graphs match, visual parity
 depends on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -97,75 +79,44 @@ depends on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.m
 4. Read `NMRenderer.Output` (an `ARGBHalf` `RenderTexture`, valid after the first frame)
    into any material, or drop a Noisemaker **Custom Function node** into a Shader Graph.
 
-## Status
+## Coverage
 
-**Compiles and renders in Unity 6** (verified on 6000.3.16f1). The C# engine compiles
-clean (compiler contract tests: PASS) and all effect shaders compile via batchmode
-package import + render passes. Parity-critical shaders (PCG, noise, cell,
-blend, blur) were additionally hardened by adversarial line-by-line review vs the WGSL.
+All 210 reference effect definitions ship as runtime `Effects/*.json`, regenerated from the
+reference by `tools/convert-definitions.mjs`. 209 ship a shader: `synth/media` is a
+definition-only stub, since external image and video input is out of scope. Each ported effect
+has an `.hlsl` core and a `.shader`; single-pass effects also ship a Shader Graph Custom
+Function node. `Shaders/` also carries the `NMBlit`, `NMFrameExportResolve`, and
+`NMCubeEquirect` utility shaders.
 
-**Pixel parity verified** via the `parity/` harness (JS/WebGL2 golden in headless Chromium
-↔ Unity candidate ↔ `batch-compare.py`), regenerated at pinned reference authority
-`noisemaker@c9ee8a04` (v1.0.176), with the runtime contract synced through the delivered
-upstream work, audited to range end `noisemaker@6a0af04d` (GAP-005 pass-field row
-`fa83eeab`; GAP-006 texture-pooling row `6113da00`+`95743621`; force-push-flagged
-range audited in `docs/COMPATIBILITY.md` §3 pass 22 —
-`4891b9953f9f` verified an ancestor of the range end, the observed delivery
-`27590caad94d..8eeb7b5ac14e` diffed, and `shaders/effects` untouched across it, so the
-effect catalog is unchanged). Current measured state: **graph parity 316/316
-byte-clean** (the full 207-program `--selftest` corpus + all 109 fixture programs, C#
-live-DSL compiler vs the reference oracle) and **245/245 rendered fixtures graded with
-zero failures** — 197 strict `PASS` and 48 narrowly bounded `ALLOWED_NEAR` (root corpus 5,
-3D corpus 3, classicNoisedeck corpus 2, synth corpus 3, mixer corpus 2, points corpus 8, filter corpus 19, render corpus 2, v104 corpus 4), every one pinned
-by max delta, SSIM floor, exceeded pixel/channel counts, and exact pixel coordinates in the tracked
-exception files. **Every one of the 207 ported effects (210 declared; `synth/media`,
-`synth/scope`, `synth/spectrum` are not yet ported) is now 100% pixel-parity qualified** —
-`classicNoisedeck` (20/20), renderable `synth` (26/26), `mixer` (15/15), `points` (11/11),
-`filter` (113/113), and `render` (11/11 renderable) included (the points gate grades after
-60 warm frames, ~1 s of simulation at 60 fps, so particle/agent behavior manifests before
-comparison; the mesh render fixtures share a sphere OBJ copied from the pinned authority
-through `--mesh`/`-nmMesh`). The 3-case tiled large-format gate is exact at zero
-tolerance. Per-corpus tolerances stay separate (root/3D/classic/synth/mixer/points/filter/render/v104 each have their own
-policy); see `docs/COMPATIBILITY.md` §3 and `parity/README.md` for the gates.
+The runtime executes feedback and persistent state (`repeat:` ping-pong, MRT), agents
+(`DrawProcedural(Points)` scatter with additive deposit and `rgba32f` state), and the 3D lane
+(64×4096 volume atlas with raymarching, the OBJ loader and mesh-data textures, loop expansion).
+The C# DSL frontend handles multi-statement programs, `read(oN)` and mid-chain `.write()`,
+`let` bindings, mixer chains, `loopBegin`/`loopEnd`, and `read3d`/`write3d`/`textures3d`;
+`subchain` and `if`/`elif` are not supported yet.
 
-The Y-flip reconciliation the design anticipated is now solved properly: Unity flips Y once
-per `DrawProcedural` into a RenderTexture, so textures of odd-vs-even render depth ended up
-oppositely oriented (only exposed when a mixer samples two such inputs — `blendMode`).
-`NMVertFullscreen` counter-flips clip-space Y by `_ProjectionParams.x`, making every pass
-store one consistent orientation regardless of depth. sRGB/linear and FMA are confirmed
-correct by the SSIM-1.0 matches.
+## Verification
 
-Bringing up Unity + the parity harness surfaced (and fixed) real bugs static review missed:
-C# variable shadowing, a `PassType` namespace clash, an `NMBlit` include path + `src` input
-name, batchmode `Shader.Find` resolution, multi-pass `Material.FindPass` selection, ShaderLab
-reserved-word collisions in the (now-removed, MPB-driven) `Properties` blocks, the HLSL
-reserved word `point` in `Cell.hlsl`, and `export-graph` starter-op + compile-time-`define`
-promotion. See `parity/README.md` for the runbook.
+The reference authority is pinned by commit in `scripts/test` (`REFERENCE_SHA`); every gate
+runs against that revision.
 
-**Effect coverage: 210 effect definitions** — every namespace complete:
-`synth` 29 · `filter` 113 · `mixer` 15 · `classicNoisedeck` 20 · `points` 11 · `synth3d` 8 ·
-`filter3d` 2 · `render` 12 (the `render` count includes the `loopBegin`/`loopEnd`/`meshLoader`
-control passes). 209 ship a renderable shader; `synth/media` is a definition-only stub (no
-shader — external image/video input is out of scope). `Shaders/` additionally carries the
-`NMBlit`, `NMFrameExportResolve`, and `NMCubeEquirect` utility shaders. The served kit
-(`0.1.17`) publishes the identical source revision and all 2107 files verify against its
-inventory.
+- `scripts/test` needs neither Unity nor a GPU. It runs the Node and Python unit tests, the
+  C# compiler contract tests, and graph parity between the C# compiler and the reference
+  compiler for 316 programs plus the 1900-variant parameter sweep. CI runs it on every push
+  without the sweep, and in full weekly and on manual dispatch.
+- The pixel gates in `parity/` render each corpus with the reference (headless Chromium,
+  WebGL2) and with Unity from the same program, then grade fail-closed with
+  `parity/batch-compare.py`: the root, 3D, classicNoisedeck, synth, mixer, points, filter, and
+  render corpora, the v1.0.104 corpus and its tiled gate, and the 1900-variant parameter
+  sweep. Together they cover the 207 effects that render without audio input;
+  `synth/scope` and `synth/spectrum` need audio and are graph-checked only. They need a
+  licensed Unity editor and a GPU, so they run on a host, not in CI.
+- A case outside the corpus tolerance passes only through an exception file that names the
+  case and pins its measured bounds and pixels. The per-corpus tolerances and exception files
+  are listed in `parity/README.md`.
 
-Each ported effect ships an `.hlsl` core, a `.shader`, and a runtime `Effects/*.json`.
-Single-pass effects also ship a Shader Graph Custom Function node. Every port is faithful to
-the reference **WGSL**. PRNG-heavy, multi-pass, agent, and 3D ports were additionally
-hardened by adversarial line-by-line review against the WGSL.
-
-The runtime was hardened in stages to execute the harder patterns: **feedback/state**
-(persistent surfaces, `repeat:` ping-pong, MRT), **agents** (`DrawProcedural(Points)`
-scatter + additive deposit + `rgba32f` state), and **3D/mesh** (64×4096 volume atlas +
-raymarch, OBJ loader + mesh-data textures, loop expansion). The C# DSL frontend handles
-multi-statement programs, `read(oN)` / mid-chain `.write()`, `let` bindings, multi-input
-(mixer) chains, `loopBegin`/`loopEnd`, and the 3D lane (`read3d`/`write3d`/`textures3d`,
-graph-verified against the reference); `subchain` and `if`/`elif` remain staged.
-
-`tools/convert-definitions.mjs` regenerates all effect-definition JSONs automatically.
-The per-effect port path is documented in [PORTING-GUIDE.md](PORTING-GUIDE.md).
+Verified on Unity `6000.3.16f1` on macOS (Apple silicon, Metal) with the Built-in render
+pipeline. Windows and Linux editors are not verified.
 
 ## Contributing
 

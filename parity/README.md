@@ -105,51 +105,9 @@ node parity/batch-golden.mjs parity/programs/v104/tiled-manifest.tsv /tmp/v104-t
   -nmTileX 1536 -nmTileY 2048 -nmFullWidth 4096 -nmFullHeight 4096 -nmRenderScale 1
 ```
 
-This corpus was the pre-port RED gate: new filters were initially unknown and
-changed definitions diverged on their new parameters and enum choices. The
-definitions are now synchronized and all 70 cases are structurally byte-clean.
-The v1.0.104 verification run records the complete shader/pixel result.
-
-Pixel status (measured 2026-09-24 against reference `noisemaker@c9ee8a04` = v1.0.176,
-Unity 6000.3.16f1 / Metal, Linear color space): the 70-case v1.0.104 gate reports
-66 `PASS` and 4 narrowly bounded `ALLOWED_NEAR` (`craquelure`, `mandala_large_format`,
-`strokes_smudge`, `strokes_sumi_e`). The 30-case root gate reports 25 `PASS` and 5
-narrowly bounded `ALLOWED_NEAR` (`heightGrid_billboard`, `heightmap3d_landscape`,
-`nm_chrome_test`, plus the established `parallax` / `refract_mirror`). The 17-case
-classicNoisedeck gate reports 15 `PASS` and 2 bounded `ALLOWED_NEAR` (`classicNoisedeck__fractal`,
-`classicNoisedeck__kaleido`), bringing the entire `classicNoisedeck` namespace (20/20) to
-100% pixel-verified coverage. The 15-case synth gate reports 12 `PASS` and 3 bounded
-`ALLOWED_NEAR` (`synth__julia`, `synth__mandelbrot`, `synth__newton`), bringing all 26
-renderable `synth` effects to 100% pixel-verified coverage. The 12-case mixer gate reports
-10 `PASS` and 2 bounded `ALLOWED_NEAR` (`mixer__distortion`, `mixer__thresholdMix`), bringing
-the entire `mixer` namespace (15/15) to 100% pixel-verified coverage. The 10-case points gate
-runs 60 warm frames (~1 s of simulation at 60 fps) from a clean state so particle/agent
-behavior manifests before grading, and reports 2 strict `PASS` (`points__attractor`,
-`points__physical` — byte-exact) and 8 bounded `ALLOWED_NEAR` (`points__buddhabrot`,
-`points__dla`, `points__flock`, `points__flow`, `points__hydraulic`, `points__lenia`,
-`points__life`, `points__physarum` — emergent agent simulations whose macro-structure and
-trail networks converge while individual agent trajectories drift under float32 chaos),
-bringing the entire `points` namespace (11/11) to 100% pixel-verified coverage. The filter
-corpus was verified alphabetically in three batches (74 fixtures total, `bloom` through
-`zoomBlur`), reporting 55 `PASS` and 19 bounded `ALLOWED_NEAR` (resample/warp displacement
-ties, the `scanlineError` floor() tie, and the `snow` cos-ULP→fract-hash decorrelation whose
-macro-structure is identical: mean 165.36 both sides, 94% speck overlap); the gate always
-re-renders and re-grades the whole tracked manifest so earlier batches stay verified on
-every run, and the entire `filter` namespace (113/113) is now 100% pixel-verified. The
-`osd` scanline-parity port bug the gate exposed (parity must be evaluated in gl_FragCoord's
-bottom-up frame, not after the Y-flip) was fixed; `osd` is now byte-exact. The 9-case 3D gate
-reports 6 `PASS` and 3 bounded `ALLOWED_NEAR`; the 3-case tiled gate is exact (zero tolerance).
-The render namespace gate (5 fixtures: `loopBegin`, `loopEnd`, `renderLit3d`, and the two mesh
-fixtures `meshLoader`/`meshRender`, which share a sphere OBJ copied from the pinned authority
-through `--mesh`/`-nmMesh`) reports 3 `PASS` and 2 bounded `ALLOWED_NEAR` (the warp loop tie)
-— and exposed two real mesh-path bugs, now fixed with certification tests in the
-`NMOutputRuntimeTests` harness: chain-scoped mesh bindings resolved to zeroed pooled RTs
-(nothing rasterized), and the clip-Y flip inverted the projected winding so `Cull Back`
-shaded the far hemisphere (a flat 131/255 ambient+rim field); both mesh fixtures are
-byte-exact after the fixes.
-Full suite: 245 fixtures, 197 PASS + 48 bounded exceptions, exit 0. Every exception is
-checked against a per-case maximum delta, SSIM floor, exceeded-pixel/channel counts, and
-exact top-left-origin pixel coordinates where declared.
+The 70-case gate grades at tolerance 1 / SSIM 0.9999 with
+`programs/v104/exceptions.json`; the tiled gate grades at zero tolerance with no
+exceptions.
 
 ## Gates
 
@@ -183,7 +141,7 @@ NM_REFERENCE_ROOT=/path/to/noisemaker bash parity/param-sweep-verify.sh
 # renders the same DSL manifests; points 60 warm frames, mesh batch shares
 # meshes/sphere.obj), grade (fail-closed compare with pixel-exceptions-*.json;
 # pixel-reference-blocked.tsv excludes variants with no faithful reference
-# render; pixel-unresolved.tsv FAILs stay open by design). Chunkable:
+# render). Chunkable:
 # NMC_CHUNKS=N NMC_CHUNK=i renders slice i of N per batch.
 #   Stage 1 (any host with the reference): bash parity/param-sweep-pixel-verify.sh --stage goldens <workDir>
 #   Stage 2 (licensed host): UNITY=... UNITY_PROJECT=... bash parity/param-sweep-pixel-verify.sh --stage unity <workDir>
@@ -323,23 +281,18 @@ runtime/platform combination.
   (regenerates the committed corpus byte-identically, compiles every variant with
   the reference oracle and the C# live DSL compiler, diffs each with
   `graph-diff.py`; 1900 variants, 391 measured exclusions in
-  `programs/param-sweep/exclusions.tsv`, raw per-variant results in
-  `programs/param-sweep/results.tsv` pinned to authority
-  `noisemaker@c9ee8a04` v1.0.176). Unbounded float/int params (no min/max) sweep
+  `programs/param-sweep/exclusions.tsv`; per-variant results land in the work
+  directory). Unbounded float/int params (no min/max) sweep
   default+1 (`plus1` slug); any out-of-range value is a compile failure on one
   or both sides, never a silent pass.
 - `param-sweep-pixel-verify.sh` — staged Unity-side pixel leg for the same 1900
   variants (`--stage goldens|unity|grade`; reference Chromium WebGL2 goldens,
   licensed-Unity Metal candidates, fail-closed grading with per-group policies
   and exact per-case budgets). `programs/param-sweep/pixel-exceptions-*.json`
-  pin every `ALLOWED_NEAR` (430, each with its measured mechanism);
-  `pixel-reference-blocked.tsv` records the 113 variants with no faithful
-  reference render and the measured proof (including the 16 `synth/shape`
-  loop-offset noise rows, resolved 2026-10-04 as a reference-internal
-  divergence: the authority's own WebGL2 and WebGPU backends implement different
-  lattice hashes for `synth/shape`, and the port byte-matches the reference
-  WebGPU golden); `pixel-unresolved.tsv` is retained as historical provenance
-  and lists no open rows.
+  pin every `ALLOWED_NEAR`, each with its measured mechanism;
+  `pixel-reference-blocked.tsv` lists the variants the reference cannot render
+  faithfully, each with its measured reason; they are excluded from rendering and
+  grading, and the gate prints their count.
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).

@@ -80,16 +80,14 @@ Blit passes use `"passType":"blit"`, `"func":"blit"`, `inputs:{src:...}`,
 `{scale, clamp?}`. Resolve with the exact rounding rules in `reference/04 §9`
 (`floor` for param/percent/scale, `round` for screenDivide, always `max(1, …)`).
 
-GAP-004 texture policies (noisemaker@2f47612c2904, introduced in the
-range by a021a283), carried as data — placement is
+Texture policies are carried as data — placement is
 enforced upstream by `effect-validator.js`: `filter` is authorable on 3D specs
 only (`textures3d`), `mipmaps`/`persistent` are 2D-only allocation policies.
 Fields are copied only when authored, so unchanged graphs stay byte-stable.
 The Unity executor keeps its engine-wide NEAREST sampling, single mip level,
 and no content preservation (no shipped effect definition authors these yet).
 
-GAP-005 pass-field row (noisemaker@fa83eeab, delivered in the range
-`27590caad94d..8eeb7b5ac14e`): `expand()` copies `name`, `type`, `clear`,
+Pass fields: `expand()` copies `name`, `type`, `clear`,
 `viewport`, and `samplerTypes` verbatim onto every expanded pass. Of these,
 only `clear` is part of the normalized graph — emitted after `repeat` (before
 `conditions`/metadata) exactly when authored, including an explicit `null`;

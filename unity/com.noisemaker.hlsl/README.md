@@ -1,16 +1,14 @@
 # Noisemaker for Unity (com.noisemaker.hlsl)
 
 Live procedural textures from the Noisemaker Polymorphic DSL, rendered in Unity via
-HLSL — pixel-identical to the JS/WebGPU reference engine. Use it as a standalone
+HLSL — pixel-identical to the reference engine's WebGL2 output. Use it as a standalone
 renderer that writes a `RenderTexture`, or drop single-pass effects into Shader Graph
 as Custom Function nodes.
 
-> **🚧 WIP — stabilization toward a full-parity release.** All 210 declared effects are
-> structurally graph-verified against the pinned reference authority (`noisemaker@c9ee8a04`),
-> and the declared fixture corpora render with zero failures (100 strict passes plus 12 measured,
-> bounded exceptions). The installed Quick Start workflow and macOS player builds are qualified
-> end-to-end. Still open: Windows/Linux coverage, the live-display color pipeline, and broader
-> per-effect parameter/state sweeps.
+> **Status:** the 207 effects that render without audio input are pixel-graded against the
+> pinned reference authority on Unity 6000.3.16f1 / macOS Metal. Windows and Linux editors
+> and the live-display color pipeline are not verified yet. See the repository README's
+> *Verification* section for the gates.
 
 > This README is for **integrators** (using the package). Contributors porting shaders
 > should read `../../PORTING-GUIDE.md`, `../../ARCHITECTURE.md`, and `../../parity/` —

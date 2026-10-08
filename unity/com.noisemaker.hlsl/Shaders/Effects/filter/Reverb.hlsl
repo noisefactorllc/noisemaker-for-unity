@@ -40,12 +40,8 @@
 //    no-op for mirror/repeat (both already land in [0,1)) but maps the CLAMP
 //    branch's exact 1.0 back to 0.0, so clamped samples hit texel 0, not the
 //    last texel. The checked-in wgsl/reverb.wgsl lacks that trailing fract;
-//    the clamp branch below therefore applies frac() to match the measured
-//    webgl2 golden behavior (measured 2026-09-27: regenerating the
-//    wrap__clamp golden with batch-golden --backend webgl2 and rendering the
-//    port on the licensed Unity 6000.3.16f1 host diverged at max 93 /
-//    SSIM 0.812 without the frac — exactly the recorded unresolved row — and
-//    measures max 1 / SSIM 0.99997 with it; see docs/COMPATIBILITY.md §3).
+//    the clamp branch below therefore applies frac() to match the webgl2
+//    golden (without it the wrap__clamp sweep variant diverges at max 93).
 //  * applyWrap mirror mode: literal verbatim from WGSL (manual mirror formula,
 //    NOT the fmod-style abs(mod) from GLSL — WGSL is canonical).
 //  * nm_mod NOT used here (no float mod needed; applyWrap mirror uses floor arithmetic).

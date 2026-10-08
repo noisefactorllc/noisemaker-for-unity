@@ -2,7 +2,7 @@
   "name": "com.noisemaker.hlsl",
   "version": "0.1.0",
   "displayName": "Noisemaker for Unity",
-  "description": "Noisemaker for Unity renders live procedural textures from the Noisemaker Polymorphic DSL via HLSL. A parallel port of the Noisemaker shader engine, pixel-identical to the JS/WebGPU reference. Usable as a standalone renderer or as Shader Graph (material) building blocks.",
+  "description": "Noisemaker for Unity renders live procedural textures from the Noisemaker Polymorphic DSL via HLSL. A parallel port of the Noisemaker shader engine, pixel-identical to the reference engine's WebGL2 output. Usable as a standalone renderer or as Shader Graph (material) building blocks.",
   "unity": "6000.0",
   "keywords": ["shader", "procedural", "texture", "noise", "dsl", "shadergraph"],
   "author": { "name": "Noisemaker" },
