@@ -51,7 +51,7 @@ void NM_Tunnel_float(
     out float4        Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 texSize = float2(texW, texH);
 
     float2 centered = UV - 0.5;

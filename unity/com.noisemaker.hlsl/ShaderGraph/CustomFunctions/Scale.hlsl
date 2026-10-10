@@ -49,7 +49,9 @@ void NM_Scale_float(
     // Untiled: seed the globals nm_scale reads (tileOffset, fullResolution, aspectRatio).
     _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
     _NM_FullResolution = float4(Resolution, 0.0, 0.0);
-    Out = nm_scale(fragCoord, Resolution, InputTex, SS); // TODO(verify): UnityTexture2D/UnitySamplerState implicit cast to Texture2D/SamplerState
+    // SRP Core's UnityTexture2D/UnitySamplerState do not implicitly convert to
+    // Texture2D/SamplerState; pass the wrapped resources explicitly.
+    Out = nm_scale(fragCoord, Resolution, InputTex.tex, SS.samplerstate);
 }
 
 #endif // NM_SCALE_SG_INCLUDED

@@ -157,7 +157,7 @@ void NM_LensDistortion_float(
     }
     else
     {
-        color = float4(float3(length(float4(red.r, green.g, blue.b, color.a) - green)) * green.rgb, green.a);
+        color = float4(float3(length(float4(red.r, green.g, blue.b, color.a) - green), length(float4(red.r, green.g, blue.b, color.a) - green), length(float4(red.r, green.g, blue.b, color.a) - green)) * green.rgb, green.a);
         hsv = nmsg_ld_rgb2hsv(color.rgb);
         hsv = float3(frac(((hsv.x + 0.125 + (1.0 - (HueRotation / 360.0))) * (2.0 + HueRange * 0.05)) + t), 1.0, hsv.z);
     }

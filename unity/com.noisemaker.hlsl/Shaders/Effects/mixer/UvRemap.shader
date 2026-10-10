@@ -45,7 +45,7 @@ Shader "Noisemaker/mixer/uvRemap"
                 float4 colorA = inputTex.Sample(sampler_inputTex, st);
                 float4 colorB = tex.Sample(sampler_tex, st);
 
-                return nm_uvRemap(colorA, colorB);
+                return nm_uvRemap(colorA, colorB, inputTex, sampler_inputTex, tex, sampler_tex);
             }
             ENDHLSL
         }

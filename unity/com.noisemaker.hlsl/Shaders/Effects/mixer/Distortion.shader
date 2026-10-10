@@ -45,7 +45,7 @@ Shader "Noisemaker/mixer/distortion"
                 float2 uv = NM_FragCoord(i) / dims;
                 float2 texelSize = 1.0 / dims;
 
-                return nm_distortion(uv, texelSize);
+                return nm_distortion(uv, texelSize, inputTex, sampler_inputTex, tex, sampler_tex);
             }
             ENDHLSL
         }

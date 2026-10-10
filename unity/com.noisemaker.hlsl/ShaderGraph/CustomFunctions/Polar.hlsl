@@ -76,7 +76,7 @@ void NM_Polar_float(
     out float4        Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 texSize = float2(texW, texH);
     float aspect   = texSize.x / texSize.y;
     bool doAspect  = (AspectLens != 0);

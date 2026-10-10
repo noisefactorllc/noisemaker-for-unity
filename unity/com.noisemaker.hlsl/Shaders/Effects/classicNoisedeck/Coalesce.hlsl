@@ -44,10 +44,10 @@ float refractBDir;  // globals.refractBDir.uniform "refractBDir", default 0
 
 // ---- Constants ---------------------------------------------------------------
 
-// ---- Textures: declared in the .shader HLSLPROGRAM block (inputTex/tex and
-// their samplers). The helper functions below reference them as globals. They
-// are NOT redeclared here to avoid a redefinition error (the .shader is the
-// single declaration site, matching the mixer-effect convention).
+// ---- Textures: the entry functions below take the input resources as
+// parameters (named exactly as the .shader HLSLPROGRAM block declares them, so
+// its frag passes them straight through). The helpers keep referencing the
+// parameter names; nothing is declared here.
 
 // =============================================================================
 // map_range — ported VERBATIM from coalesce.wgsl
@@ -163,8 +163,14 @@ bool vec4_eq(float4 a, float4 b)
 // Called when blendMode == 100.
 // st: global UV (gl_FragCoord.xy + tileOffset) / fullResolution.
 // fragCoord: tile-local pixel coord (gl_FragCoord.xy).
+// The input resources are passed as parameters (named as the .shader declares
+// them) so the ShaderGraph Custom Function wrapper can bind node textures.
 // =============================================================================
-float4 nm_coalesce_cloak(float2 st, float2 fragCoord)
+float4 nm_coalesce_cloak(float2 st, float2 fragCoord,
+                         Texture2D    inputTex,
+                         SamplerState sampler_inputTex,
+                         Texture2D    tex,
+                         SamplerState sampler_tex)
 {
     float m  = map_range(mixAmt, -100.0, 100.0, 0.0, 1.0);
     float ra = map_range(refractAAmt, 0.0, 100.0, 0.0, 0.125);
@@ -373,8 +379,15 @@ float3 nm_blend_colors(float4 color1, float4 color2, int mode_in, float factor_i
 // nm_coalesce — entry point called from the fragment shader.
 // localSt: tile-local UV = gl_FragCoord.xy / textureSize(inputTex) (the
 // fragment's NM_FragCoord / inputTex dimensions).
+// The input resources are passed as parameters (named as the .shader declares
+// them) so the ShaderGraph Custom Function wrapper can bind node textures;
+// the .shader frag passes its resources unchanged.
 // =============================================================================
-float4 nm_coalesce(float2 localSt)
+float4 nm_coalesce(float2 localSt,
+                   Texture2D    inputTex,
+                   SamplerState sampler_inputTex,
+                   Texture2D    tex,
+                   SamplerState sampler_tex)
 {
     float4 color = float4(0.0, 0.0, 1.0, 1.0);
 
@@ -389,7 +402,7 @@ float4 nm_coalesce(float2 localSt)
     float2 st = (fragCoord + tileOffset) / fullResolution;
 
     if (blendMode == 100) {
-        color = nm_coalesce_cloak(st, fragCoord);
+        color = nm_coalesce_cloak(st, fragCoord, inputTex, sampler_inputTex, tex, sampler_tex);
     } else {
         float ra = map_range(refractAAmt, 0.0, 100.0, 0.0, 0.125);
         float rb = map_range(refractBAmt, 0.0, 100.0, 0.0, 0.125);

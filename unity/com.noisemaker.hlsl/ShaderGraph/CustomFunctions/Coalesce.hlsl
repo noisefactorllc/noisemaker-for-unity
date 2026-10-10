@@ -8,10 +8,9 @@
 // Add a Custom Function node, point it at this file, select NM_Coalesce_float,
 // and wire the named inputs.
 //
-// NOTE: The core nm_coalesce() function samples inputTex/tex internally via
-// module-scope Texture2D globals (the runtime binding model). This wrapper
-// bridges UnityTexture2D/UnitySamplerState node inputs into those globals and
-// assigns all scalar uniforms before calling nm_coalesce().
+// NOTE: The core nm_coalesce()/nm_coalesce_cloak() now take the input
+// resources as function parameters; this wrapper binds the UnityTexture2D/
+// UnitySamplerState node inputs by passing the wrapped resources through.
 //
 // Param mapping (definition.js globals[*].uniform -> node input):
 //   InputTex    : inputTex (base / input A)
@@ -53,13 +52,10 @@ void NM_Coalesce_float(
     refractADir = RefractADir;
     refractBDir = RefractBDir;
 
-    // Bridge texture/sampler inputs into module-scope globals.
-    inputTex         = InputTex.tex;
-    sampler_inputTex = SS.samplerstate;
-    tex              = Tex.tex;
-    sampler_tex      = SS.samplerstate;
-
-    Out = nm_coalesce(UV);
+    // The core nm_coalesce()/nm_coalesce_cloak() now take the input resources
+    // as parameters, so bind the node's UnityTexture2D/UnitySamplerState inputs
+    // by passing the wrapped resources through.
+    Out = nm_coalesce(UV, InputTex.tex, SS.samplerstate, Tex.tex, SS.samplerstate);
 }
 
 #endif // NM_COALESCE_SG_INCLUDED

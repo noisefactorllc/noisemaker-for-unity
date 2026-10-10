@@ -108,7 +108,7 @@ void NM_LensWarp_float(
     out float4        Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 texSize = float2(texW, texH);
 
     // Non-tiling path: fragcoord = UV * texSize (WGSL pos.xy), originOffset = 0.

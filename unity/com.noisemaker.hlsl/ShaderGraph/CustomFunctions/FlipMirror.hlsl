@@ -40,7 +40,7 @@ void NM_FlipMirror_float(
     // Untiled: seed the globals nm_flipMirror reads so its global UV == UV.
     _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
     _NM_FullResolution = float4(1.0, 1.0, 0.0, 0.0);
-    Out = nm_flipMirror(InputTex, SS, float2(1.0, 1.0), UV);
+    Out = nm_flipMirror(InputTex.tex, SS.samplerstate, float2(1.0, 1.0), UV);
 }
 
 #endif // NM_FLIPMIRROR_SG_INCLUDED

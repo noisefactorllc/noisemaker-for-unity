@@ -49,23 +49,25 @@ void NM_BitEffects_float(
     float  Time,
     out float4 Out)
 {
-    // Bridge node inputs -> the core's named global uniforms.
+    // Bridge node inputs -> the core's named global uniforms. The scalar
+    // uniforms in BitEffects.hlsl are unprefixed (speed, n, scale, ...); only
+    // the define-style constants carry the be_/upper-case spellings.
     MODE              = Mode;
-    be_speed          = Speed;
+    speed             = Speed;
     FORMULA           = Formula;
-    be_n              = (float)N;
-    be_scale          = Scale;
-    be_rotation       = Rotation;
+    n                 = (float)N;
+    scale             = Scale;
+    rotation          = Rotation;
     COLOR_SCHEME      = ColorScheme;
     INTERP            = Interp;
     MASK_FORMULA      = MaskFormula;
-    be_tiles          = (float)Tiles;
-    be_complexity     = Complexity;
+    tiles             = (float)Tiles;
+    complexity        = Complexity;
     MASK_COLOR_SCHEME = MaskColorScheme;
-    be_baseHueRange   = BaseHueRange;
-    be_hueRotation    = HueRotation;
-    be_hueRange       = HueRange;
-    be_seed           = Seed;
+    baseHueRange      = BaseHueRange;
+    hueRotation       = HueRotation;
+    hueRange          = HueRange;
+    seed              = Seed;
 
     // be_rotate2D() and be_bitMask() read engine `resolution`/`fullResolution`;
     // be_constant() reads the `time` alias (_NM_Time). Seed them from the inputs.

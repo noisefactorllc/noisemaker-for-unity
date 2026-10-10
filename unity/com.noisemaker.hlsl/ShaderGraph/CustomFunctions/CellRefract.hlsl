@@ -217,17 +217,17 @@ float nmsg_cr_cells(float2 st_in, float freq, float cellSize, int seed, float sp
         {
             float2 n = float2((float)x, (float)y);
             float2 wrap_coord = i + n;
-            float2 point = nmsg_cr_prng(float3(wrap_coord, (float)seed)).xy;
+            float2 cellPoint = nmsg_cr_prng(float3(wrap_coord, (float)seed)).xy;
             float3 r1 = nmsg_cr_prng(float3((float)seed, wrap_coord)) * 0.5 - 0.25;
             float3 r2 = nmsg_cr_prng(float3(wrap_coord, (float)seed)) * 2.0 - 1.0;
             float spd = floor(speed);
-            point += float2(sin(time * NMSG_CR_TAU * spd + r2.x) * r1.x, cos(time * NMSG_CR_TAU * spd + r2.y) * r1.y);
-            float2 diff = n + point - f;
+            cellPoint += float2(sin(time * NMSG_CR_TAU * spd + r2.x) * r1.x, cos(time * NMSG_CR_TAU * spd + r2.y) * r1.y);
+            float2 diff = n + cellPoint - f;
             float dist;
             [branch]
             if (SHAPE == 1)
             {
-                dist = (abs(n.x + point.x - f.x) + abs(n.y + point.y - f.y)) * cellSize;
+                dist = (abs(n.x + cellPoint.x - f.x) + abs(n.y + cellPoint.y - f.y)) * cellSize;
             }
             else
             {
@@ -284,7 +284,7 @@ void NM_CellRefract_float(
     out float4        Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 texSize = float2(texW, texH);
 
     float aspectRatio = Resolution.x / Resolution.y;

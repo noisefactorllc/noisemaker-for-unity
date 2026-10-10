@@ -187,7 +187,7 @@ void NM_Grain_float(
     out float4     Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 dims = float2(texW, texH);
 
     float4 texel = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, UV);

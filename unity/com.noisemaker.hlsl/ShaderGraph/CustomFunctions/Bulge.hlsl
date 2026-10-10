@@ -46,23 +46,23 @@ void NM_Bulge_float(
     uint tw, th;
     InputTex.tex.GetDimensions(tw, th);
     float2 texSize = float2((float)tw, (float)th);
-    float aspectRatio = texSize.x / texSize.y;
+    float texAspect = texSize.x / texSize.y;
 
     float2 uv = UV;
 
     // rotate2D before distortion
-    uv = nm_bulge_rotate2D(uv, Rotation / 180.0, aspectRatio);
+    uv = nm_bulge_rotate2D(uv, Rotation / 180.0, texAspect);
 
     float intensity = Strength * -0.01;
     uv = uv - 0.5;
 
-    if (AspectLens != 0) { uv.x = uv.x * aspectRatio; }
+    if (AspectLens != 0) { uv.x = uv.x * texAspect; }
 
     float r = length(uv);
     float effect = pow(r, 1.0 - intensity);
     uv = normalize(uv) * effect;
 
-    if (AspectLens != 0) { uv.x = uv.x / aspectRatio; }
+    if (AspectLens != 0) { uv.x = uv.x / texAspect; }
 
     uv = uv + 0.5;
 
@@ -81,7 +81,7 @@ void NM_Bulge_float(
     }
 
     // reverse rotation
-    uv = nm_bulge_rotate2D(uv, -Rotation / 180.0, aspectRatio);
+    uv = nm_bulge_rotate2D(uv, -Rotation / 180.0, texAspect);
 
     [branch]
     if (Antialias != 0)

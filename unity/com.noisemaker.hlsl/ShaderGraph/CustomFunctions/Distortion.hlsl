@@ -51,20 +51,14 @@ void NM_Distortion_float(
     aberration = Aberration;
     antialias  = Antialias;
 
-    // Wire extern resources so the shared helpers (calculateNormal, sample
-    // calls) resolve to the node-supplied textures and sampler.
-    // TODO(verify): Unity SG extern resource bridging — confirm at runtime that
-    // assigning UnityTexture2D.tex to Texture2D extern compiles correctly.
-    inputTex         = InputTex.tex;
-    sampler_inputTex = SS.samplerstate;
-    tex              = Tex.tex;
-    sampler_tex      = SS.samplerstate;
-
+    // The core helpers take the input resources as parameters now; bind the
+    // node's UnityTexture2D/UnitySamplerState inputs by passing the wrapped
+    // resources through.
     uint dw, dh;
     InputTex.tex.GetDimensions(dw, dh);
     float2 texelSize = 1.0 / float2(dw, dh);
 
-    Out = nm_distortion(UV, texelSize);
+    Out = nm_distortion(UV, texelSize, InputTex.tex, SS.samplerstate, Tex.tex, SS.samplerstate);
 }
 
 #endif // NM_DISTORTION_SG_INCLUDED

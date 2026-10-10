@@ -38,7 +38,7 @@ float3 nmsg_refract_convolve_kernel(UnityTexture2D inputTex,
                                     bool divide, float amount)
 {
     float texW, texH;
-    inputTex.GetDimensions(texW, texH);
+    inputTex.tex.GetDimensions(texW, texH);
     float2 dims  = float2(texW, texH);
     float2 steps = 1.0 / dims;
 
@@ -201,7 +201,7 @@ void NM_Refract_float(
     out float4        Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 dims = float2(texW, texH);
 
     float2 uv = UV;

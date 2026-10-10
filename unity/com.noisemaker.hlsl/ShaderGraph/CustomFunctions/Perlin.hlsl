@@ -48,7 +48,7 @@ void NM_Perlin_float(
     scale          = Scale;
     octaves        = Octaves;
     colorMode      = ColorMode;
-    dimensions     = Dimensions;
+    DIMENSIONS     = Dimensions;
     ridges         = Ridges;
     warpIterations = WarpIterations;
     warpScale      = WarpScale;

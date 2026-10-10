@@ -42,7 +42,7 @@ Shader "Noisemaker/classicNoisedeck/coalesce"
                 float2 dims = float2(dw, dh);
                 float2 st   = NM_FragCoord(i) / dims;
 
-                return nm_coalesce(st);
+                return nm_coalesce(st, inputTex, sampler_inputTex, tex, sampler_tex);
             }
             ENDHLSL
         }

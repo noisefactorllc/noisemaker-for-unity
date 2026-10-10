@@ -47,8 +47,15 @@ int NOISE_TYPE;     // was globals.type.define = "NOISE_TYPE"
 int LOOP_OFFSET;    // was globals.loopOffset.define = "LOOP_OFFSET"
 
 // PI / TAU exactly as in the WGSL source.
+// SRP Core's Macros.hlsl #defines PI (3.14159265358979323846); guard so the
+// Shader Graph Custom Function context (which includes SRP Core) keeps one
+// definition while the runtime .shader path (no SRP Core) uses these locals.
+#ifndef PI
 static const float PI  = 3.14159265359;
+#endif
+#ifndef TAU
 static const float TAU = 6.28318530718;
+#endif
 
 // -----------------------------------------------------------------------------
 // Effect-local helpers (ported verbatim from noise.wgsl). `modulo`, `map`,

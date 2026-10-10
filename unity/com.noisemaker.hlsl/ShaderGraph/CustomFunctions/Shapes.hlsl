@@ -45,8 +45,10 @@ void NM_Shapes_float(
     out float4 Out)
 {
     // Bridge node inputs -> the core's named global uniforms.
-    loopAOffset   = LoopAOffset;
-    loopBOffset   = LoopBOffset;
+    // The WGSL compile-time offsets are LOOP_A_OFFSET / LOOP_B_OFFSET in
+    // Shapes.hlsl (camelCase would collide with the engine globals).
+    LOOP_A_OFFSET = LoopAOffset;
+    LOOP_B_OFFSET = LoopBOffset;
     loopAScale    = LoopAScale;
     loopBScale    = LoopBScale;
     speedA        = SpeedA;

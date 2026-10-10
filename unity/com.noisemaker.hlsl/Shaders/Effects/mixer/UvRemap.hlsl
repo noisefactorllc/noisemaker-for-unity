@@ -70,14 +70,19 @@ float2 applyWrap(float2 uv, int wrapMode)
 // remapped coordinates. Returns the final RGBA. Ported VERBATIM from
 // uvRemap.wgsl main() lines 37-81.
 //
-// References the global Texture2D/SamplerState resources the .shader declares
-// BEFORE this #include (same forward pattern as Distortion.hlsl). HLSL cannot
-// reliably pass Texture2D/SamplerState as function parameters, so the remapped
-// samples use the globals directly.
+// The input resources are passed as function parameters (with the same names
+// the .shader declares them under) so the ShaderGraph Custom Function wrapper
+// can bind its UnityTexture2D node inputs. The .shader frag passes its
+// resources unchanged, so the sampled pair is identical to the previous
+// global-reference form.
 // -----------------------------------------------------------------------------
 float4 nm_uvRemap(
     float4 colorA,
-    float4 colorB)
+    float4 colorB,
+    Texture2D    inputTex,
+    SamplerState sampler_inputTex,
+    Texture2D    tex,
+    SamplerState sampler_tex)
 {
     // Choose map and sample sources.
     // MATCH THE GLSL (the WebGL2 golden), NOT the WGSL — they are INVERTED here:

@@ -42,8 +42,8 @@ void NM_Reverb_float(
     alpha      = Alpha;
     wrap       = Wrap;
 
-    float4 original = InputTex.Sample(SS, UV);
-    Out = nm_reverb(original, UV, InputTex, SS);
+    float4 original = InputTex.tex.Sample(SS.samplerstate, UV);
+    Out = nm_reverb(original, UV, InputTex.tex, SS.samplerstate);
 }
 
 #endif // NM_REVERB_SG_INCLUDED

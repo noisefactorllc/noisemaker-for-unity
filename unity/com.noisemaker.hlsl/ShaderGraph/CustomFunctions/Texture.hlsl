@@ -282,8 +282,8 @@ float nmsg_texture_material_sprinkles(float2 globalPixel, float motion, uint sal
             int2 cell = baseCell + int2(x, y);
             float jx = nmsg_texture_fast_hash(int3(cell, 0), salt) - 0.5;
             float jy = nmsg_texture_fast_hash(int3(cell, 1), salt ^ 0x68bc21ebu) - 0.5;
-            float2 point = float2((float)x, (float)y) + 0.5 + float2(jx, jy) * 0.6;
-            nearest = min(nearest, length(local - point));
+            float2 sprinklePoint = float2((float)x, (float)y) + 0.5 + float2(jx, jy) * 0.6;
+            nearest = min(nearest, length(local - sprinklePoint));
         }
     }
     return lerp(0.45, 1.0, 1.0 - smoothstep(0.10, 0.22, nearest));
@@ -373,7 +373,7 @@ void NM_Texture_float(
     int mode = (int)Mode;
 
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 dims = float2(texW, texH);
     float2 pixel_step = 1.0 / dims;
 

@@ -53,23 +53,14 @@ float getLuminosity(float3 color)
 }
 
 // calculateNormal — Sobel convolution on either inputTex or tex.
-// Declared forward; full version references the samplers so it is defined
-// AFTER the sampler declarations in the .shader. We instead put it after
-// a forward-declaration trick using the two Texture2D resources declared
-// in the .shader HLSLPROGRAM block. Because HLSL does not allow forward
-// declarations for functions that reference resource variables, the function
-// bodies are defined in the .shader after the Texture2D declarations.
-// We define a single inline macro-free version here:  the two
-// applyDisplacement / applyRefraction / applyReflection functions accept
-// explicit Texture2D + SamplerState pairs so we can keep all logic in this
-// .hlsl file while the .shader binds the actual resources.
+// The input resources are passed as function parameters (named exactly as the
+// .shader HLSLPROGRAM block declares them, so the .shader frag and the
+// ShaderGraph Custom Function wrapper can both pass their resources straight
+// through); the helpers below reference the parameter names.
 
-// NOTE: the resources (inputTex / sampler_inputTex / tex / sampler_tex) are
-// declared in the .shader HLSLPROGRAM block BEFORE this file is #included, so
-// the helpers below reference them directly. They must NOT be re-declared here
-// or the compiler reports a redefinition.
-
-float3 calculateNormal(float2 uv, float2 texelSize, bool useInputTex)
+float3 calculateNormal(Texture2D    inputTex, SamplerState sampler_inputTex,
+                       Texture2D    tex,      SamplerState sampler_tex,
+                       float2 uv, float2 texelSize, bool useInputTex)
 {
     float2 sampleSize = texelSize * smoothing;
 
@@ -143,7 +134,9 @@ float2 wrapCoords(float2 st_in)
     return st;
 }
 
-float4 applyDisplacement(float2 uv, bool useInputTexAsMap)
+float4 applyDisplacement(Texture2D    inputTex, SamplerState sampler_inputTex,
+                         Texture2D    tex,      SamplerState sampler_tex,
+                         float2 uv, bool useInputTexAsMap)
 {
     float4 mapColor;
     if (useInputTexAsMap)
@@ -190,9 +183,11 @@ float4 applyDisplacement(float2 uv, bool useInputTexAsMap)
     }
 }
 
-float4 applyRefraction(float2 uv, float2 texelSize, bool useInputTexAsMap)
+float4 applyRefraction(Texture2D    inputTex, SamplerState sampler_inputTex,
+                       Texture2D    tex,      SamplerState sampler_tex,
+                       float2 uv, float2 texelSize, bool useInputTexAsMap)
 {
-    float3 normal = calculateNormal(uv, texelSize, useInputTexAsMap);
+    float3 normal = calculateNormal(inputTex, sampler_inputTex, tex, sampler_tex, uv, texelSize, useInputTexAsMap);
     float2 refractionOffset = normal.xy * (intensity * 0.0125);
     float2 refractedUV = wrapCoords(uv + refractionOffset);
 
@@ -227,9 +222,11 @@ float4 applyRefraction(float2 uv, float2 texelSize, bool useInputTexAsMap)
     }
 }
 
-float4 applyReflection(float2 uv, float2 texelSize, bool useInputTexAsMap)
+float4 applyReflection(Texture2D    inputTex, SamplerState sampler_inputTex,
+                       Texture2D    tex,      SamplerState sampler_tex,
+                       float2 uv, float2 texelSize, bool useInputTexAsMap)
 {
-    float3 normal = calculateNormal(uv, texelSize, useInputTexAsMap);
+    float3 normal = calculateNormal(inputTex, sampler_inputTex, tex, sampler_tex, uv, texelSize, useInputTexAsMap);
 
     // WGSL: let incident = vec3f(normalize(uv - vec2f(0.5)), 100.0);
     float3 incident = float3(normalize(uv - float2(0.5, 0.5)), 100.0);
@@ -320,18 +317,23 @@ float4 applyReflection(float2 uv, float2 texelSize, bool useInputTexAsMap)
 }
 
 // ---- nm_distortion: entry point called by the render-pass frag --------------
-float4 nm_distortion(float2 uv, float2 texelSize)
+// The input resources are passed as parameters (named exactly as the .shader
+// declares them) so the ShaderGraph Custom Function wrapper can bind node
+// textures; the .shader frag passes its resources unchanged.
+float4 nm_distortion(float2 uv, float2 texelSize,
+                     Texture2D    inputTex, SamplerState sampler_inputTex,
+                     Texture2D    tex,      SamplerState sampler_tex)
 {
     // mapSource: 0 = inputTex (A), 1 = tex (B)
     bool useInputTexAsMap = (mapSource == 0);
 
     float4 color;
     if (mode == 0)
-        color = applyDisplacement(uv, useInputTexAsMap);
+        color = applyDisplacement(inputTex, sampler_inputTex, tex, sampler_tex, uv, useInputTexAsMap);
     else if (mode == 1)
-        color = applyRefraction(uv, texelSize, useInputTexAsMap);
+        color = applyRefraction(inputTex, sampler_inputTex, tex, sampler_tex, uv, texelSize, useInputTexAsMap);
     else
-        color = applyReflection(uv, texelSize, useInputTexAsMap);
+        color = applyReflection(inputTex, sampler_inputTex, tex, sampler_tex, uv, texelSize, useInputTexAsMap);
 
     return color;
 }

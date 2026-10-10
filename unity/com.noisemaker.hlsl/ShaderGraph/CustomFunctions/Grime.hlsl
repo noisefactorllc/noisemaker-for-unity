@@ -198,7 +198,7 @@ void NM_Grime_float(
     out float4     Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 dims = max(float2(texW, texH), float2(1.0, 1.0));
 
     float4 base_color = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, UV);

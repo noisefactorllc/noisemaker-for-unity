@@ -176,7 +176,7 @@ void NM_OctaveWarp_float(
     out float4     Out)
 {
     float texW, texH;
-    InputTex.GetDimensions(texW, texH);
+    InputTex.tex.GetDimensions(texW, texH);
     float2 texSize = float2(texW, texH);
 
     // Reconstruct WGSL fragPos: uv = pos.xy / texSize, so pos.xy = UV * texSize.

@@ -117,7 +117,7 @@ void NM_LightLeak_float(
     out float4        Out)
 {
     float tw, th;
-    InputTex.GetDimensions(tw, th);
+    InputTex.tex.GetDimensions(tw, th);
     float2 texSize = float2(tw, th);
 
     // @builtin(position).xy analog reconstructed from UV and the render size.

@@ -45,7 +45,7 @@ void NM_PrismaticAberration_float(
 
     // Reconstruct fragCoord from UV and Resolution (matching NM_FragCoord convention).
     float2 fragCoord = UV * Resolution;
-    Out = nm_prismaticAberration(InputTex, SS, fragCoord);
+    Out = nm_prismaticAberration(InputTex.tex, SS.samplerstate, fragCoord);
 }
 
 #endif // NM_PRISMATIC_ABERRATION_SG_INCLUDED

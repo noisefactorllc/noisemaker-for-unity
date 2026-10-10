@@ -37,16 +37,16 @@ void NM_Scroll_float(
     int               Wrap,
     out float4        Out)
 {
-    // Temporarily shadow the named uniforms declared in Scroll.hlsl so the
-    // nm_scroll() call picks up the node's per-instance values.
-    // HLSL allows local variable shadowing of globals within the function scope.
-    float x      = X;
-    float y      = Y;
-    float speedX = SpeedX;
-    float speedY = SpeedY;
-    int   wrap   = Wrap;
+    // Assign the named uniforms declared in Scroll.hlsl so nm_scroll() reads
+    // the node's per-instance values. (Locals would shadow the globals without
+    // reaching nm_scroll's body.)
+    x      = X;
+    y      = Y;
+    speedX = SpeedX;
+    speedY = SpeedY;
+    wrap   = Wrap;
 
-    Out = nm_scroll(PixelCoord, InputTex, SS);
+    Out = nm_scroll(PixelCoord, InputTex.tex, SS.samplerstate);
 }
 
 #endif // NM_SCROLL_SG_INCLUDED

@@ -24,16 +24,27 @@
 // InputTex     : source surface
 // SS           : sampler state (bilinear, clamp, linear/non-sRGB)
 // UV           : normalised screen UV (top-left, 0..1)
+// Resolution   : render target size in pixels (fullResolution for this node)
 // Displacement : chromatic aberration offset in UV space
 void NM_SimpleAberration_float(
     UnityTexture2D    InputTex,
     UnitySamplerState SS,
     float2            UV,
+    float2            Resolution,
     float             Displacement,
     out float4        Out)
 {
     displacement = Displacement; // write the module-scope uniform before sampling
-    Out = nm_simpleAberration(InputTex.tex, SS.samplerstate, UV);
+
+    // Untiled node usage: globalPixel = UV * Resolution, fullResolution = Resolution,
+    // tileOffset = 0. texSize is the input's own dimensions (WGSL textureDimensions).
+    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_FullResolution = float4(Resolution, 0.0, 0.0);
+
+    uint tw, th;
+    InputTex.tex.GetDimensions(tw, th);
+    Out = nm_simpleAberration(InputTex.tex, SS.samplerstate, UV * Resolution,
+                              float2((float)tw, (float)th));
 }
 
 #endif // NM_SIMPLEABERRATION_SG_INCLUDED

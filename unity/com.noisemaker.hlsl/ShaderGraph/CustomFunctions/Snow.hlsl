@@ -72,8 +72,9 @@ float nmsg_snow_noise(float2 coord, float t, float speed, float3 seed)
 }
 
 // Shader Graph Custom Function entry.
-// TODO(verify): _Time.y must be normalized to the same 0..1 range as _NM_Time;
-// replace `_Time.y` below with the Time node output configured to match.
+// Time is a node input (0..1 normalized, the same range the runtime feeds
+// _NM_Time); the engine-built-in _Time.y is NOT available inside a Custom
+// Function node's generated pass under SRP Core.
 void NM_Snow_float(
     UnityTexture2D    InputTex,
     UnitySamplerState SS,
@@ -81,6 +82,7 @@ void NM_Snow_float(
     float             Alpha,
     float             Pause,
     float             Density,
+    float             Time,
     out float4        Out)
 {
     float texW, texH;
@@ -101,7 +103,7 @@ void NM_Snow_float(
 
     // GLSL hashes the pixel centre gl_FragCoord.xy (+ tileOffset; no tiling here).
     float2 coord = float2((float)icoord.x + 0.5, (float)icoord.y + 0.5);
-    float  t     = (Pause > 0.5) ? 0.0 : _Time.y;  // TODO(verify): time normalization
+    float  t     = (Pause > 0.5) ? 0.0 : Time;
     float  speed = 100.0;
 
     float static_value  = nmsg_snow_noise(coord, t, speed, NMSG_SNOW_STATIC_SEED);
