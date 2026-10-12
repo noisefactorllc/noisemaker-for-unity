@@ -17,7 +17,7 @@ PROBE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PROBE)
 SIZE = 256
 CASES = {
-    "Snow": {"Alpha": 0.5, "Pause": 0.0, "Density": 75.0},
+    "Snow": {"Alpha": 0.5, "Pause": 0.0, "Density": 75.0, "Time": 0.25},
     "Polar": {"Time": 0.25, "PolarMode": 0, "Scale": 0, "Rotation": 0,
               "Speed": 0, "AspectLens": 1, "Antialias": 1},
     "Tunnel": {"Time": 0.25, "Shape": 0, "Scale": 0, "Speed": 1,

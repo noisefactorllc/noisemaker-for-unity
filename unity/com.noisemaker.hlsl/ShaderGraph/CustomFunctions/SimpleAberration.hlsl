@@ -35,12 +35,16 @@ void NM_SimpleAberration_float(
     out float4        Out)
 {
     displacement = Displacement; // write the module-scope uniform before sampling
+
+    // Global pixel coordinates use the render target size, while textureSize
+    // follows the source texture's dimensions.
+    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
+    _NM_FullResolution = float4(Resolution, 0.0, 0.0);
+
     uint texW, texH;
     InputTex.tex.GetDimensions(texW, texH);
-    float2 texSize = float2(texW, texH);
-    _NM_FullResolution = float4(texSize, 0.0, 0.0);
-    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
-    Out = nm_simpleAberration(InputTex.tex, SS.samplerstate, UV * texSize, texSize);
+    Out = nm_simpleAberration(InputTex.tex, SS.samplerstate, UV * Resolution,
+                              float2((float)texW, (float)texH));
 }
 
 #endif // NM_SIMPLEABERRATION_SG_INCLUDED

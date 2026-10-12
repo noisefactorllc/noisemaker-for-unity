@@ -832,7 +832,7 @@ class RepositoryClassicPolicyContractTests(unittest.TestCase):
             for line in CLASSIC_MANIFEST.read_text().splitlines()
             if line.strip() and not line.lstrip().startswith("#")
         ]
-        self.assertEqual(len(manifest_lines), 18)
+        self.assertEqual(len(manifest_lines), 19)
         self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
         self.assertEqual({parts[0] for parts in manifest_lines}, CLASSIC_FIXTURES)
         self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
@@ -879,7 +879,7 @@ class RepositoryClassicPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 17, "ALLOWED_NEAR": 1}, report["counts"])
+        self.assertEqual({"PASS": 18, "ALLOWED_NEAR": 1}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

@@ -77,7 +77,7 @@ namespace Noisemaker.Hlsl.Editor
                         pipeline.SetVector("_NM_TileOffset", tiled ? new Vector4(Size / 2, wide ? 0 : Size / 2, 0, 0) : Vector4.zero);
                         pipeline.SetFloat("_NM_RenderScale", name.EndsWith("Scaled") ? 2f : 1f);
                         pipeline.SetFloat("_NM_AspectRatio", 1f);
-                        pipeline.SetFloat("_NM_Time", name == "Snow" ? Shader.GetGlobalVector("_Time").y : 0.25f);
+                        pipeline.SetFloat("_NM_Time", 0.25f);
                         if (name == "Snow")
                         {
                             pipeline.SetFloat("alpha", 0.5f);
