@@ -75,7 +75,7 @@ float2 df64_two_sum(float a, float b)
 
 float2 df64_two_prod(float a, float b)
 {
-    float p = a * b;
+    precise float p = a * b;
     float ca = 4097.0 * a;
     float ah = ca - (ca - a);
     float al = a - ah;

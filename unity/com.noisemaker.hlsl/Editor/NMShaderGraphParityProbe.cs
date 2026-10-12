@@ -60,6 +60,8 @@ namespace Noisemaker.Hlsl.Editor
                             graph.SetFloat("_NMParityEffectAmt", name == "EffectsSubpixelLowTiled" ? 2f : 5f);
                         if (name == "Spiral")
                             graph.SetFloat("_NMParityStrength", -100f);
+                        if (name == "EffectsScaleMid")
+                            graph.SetFloat("_NMParityScaleAmt", 212.5f);
                         pipeline.SetTexture("inputTex", input);
                         ShaderUtil.CompilePass(graph, 0, true);
                         ShaderUtil.CompilePass(pipeline, 0, true);
@@ -168,8 +170,8 @@ namespace Noisemaker.Hlsl.Editor
                                 name == "EffectsBlurTiled" ? 1 : 0);
                             pipeline.SetInt("FLIP", 0);
                             pipeline.SetFloat("effectAmt", name == "EffectsSubpixelLowTiled" ? 2f :
-                                name == "Effects" || name == "EffectsBlurTiled" ? 1f : 5f);
-                            pipeline.SetFloat("scaleAmt", 100f);
+                                name == "Effects" || name == "EffectsScaleMid" || name == "EffectsBlurTiled" ? 1f : 5f);
+                            pipeline.SetFloat("scaleAmt", name == "EffectsScaleMid" ? 212.5f : 100f);
                             pipeline.SetFloat("rotation", 0f);
                             pipeline.SetFloat("offsetX", 0f);
                             pipeline.SetFloat("offsetY", 0f);

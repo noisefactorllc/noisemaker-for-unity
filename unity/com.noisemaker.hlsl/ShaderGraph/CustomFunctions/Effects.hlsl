@@ -373,7 +373,7 @@ void NM_Effects_float(
     float2 offset = legacy ? float2(0.0, 0.0) : TileOffset;
     float scaleFactor = legacy ? 1.0 : RenderScale;
     float2 fragCoord = UV * Resolution;
-    float2 uv = (fragCoord + offset) / fullRes;
+    precise float2 uv = (fragCoord + offset) / fullRes;
     float2 texSize = float2(InputTex.texelSize.z, InputTex.texelSize.w);
     NMSG_CndTile tile;
     tile.fullResolution = fullRes;
@@ -385,7 +385,8 @@ void NM_Effects_float(
 
     uv = nmsg_cnd_rotate2D(uv, Rotation, fullRes);
     uv -= 0.5;
-    uv *= scale;
+    precise float2 scaledUV = uv * scale;
+    uv = scaledUV;
     uv += 0.5;
 
     float2 imageSize = res;

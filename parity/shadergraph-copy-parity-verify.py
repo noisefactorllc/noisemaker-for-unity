@@ -50,6 +50,7 @@ CASES["GlitchActive"] = dict(CASES["Glitch"], Glitchiness=50, Aberration=25,
                              Distortion=30)
 CASES["EffectsCga"] = dict(CASES["Effects"], Effect=200, EffectAmt=5)
 CASES["EffectsSubpixel"] = dict(CASES["Effects"], Effect=210, EffectAmt=5)
+CASES["EffectsScaleMid"] = dict(CASES["Effects"], ScaleAmt=212.5)
 CASES["GlitchTiled"] = dict(CASES["GlitchActive"], FullResolution=512, TileOffset=128)
 CASES["GlitchTiledWide"] = dict(CASES["GlitchActive"], FullResolution=(512, 256),
                                 TileOffset=(128, 0), AspectRatio=2)
@@ -119,9 +120,10 @@ def parity_graph(wrapper: Path, template, uv_node, uv_slot, sampler_node, sample
                     value = {component: value for component in components}
             slot["m_Value"] = value
             slot["m_DefaultValue"] = value
-    if (wrapper.stem == "Effects" and defaults["Effect"] == 210) or wrapper.stem == "Spiral":
+    if (wrapper.stem == "Effects" and (defaults["Effect"] == 210 or defaults["ScaleAmt"] != 100)) or wrapper.stem == "Spiral":
         ids = lambda suffix: hashlib.md5((wrapper.stem + ":parity:" + suffix).encode()).hexdigest()
-        parameter = "Strength" if wrapper.stem == "Spiral" else "EffectAmt"
+        parameter = "Strength" if wrapper.stem == "Spiral" else (
+            "ScaleAmt" if defaults["ScaleAmt"] != 100 else "EffectAmt")
         node = copy.deepcopy(property_node)
         slot = copy.deepcopy(property_slot)
         prop = copy.deepcopy(scalar_property)
@@ -213,10 +215,7 @@ def main():
     if project == ROOT or ROOT in project.parents:
         raise ValueError("UNITY_PROJECT must be outside the repository")
     dependency = json.loads((project / "Packages/manifest.json").read_text())["dependencies"]
-    expected = (ROOT / "unity/com.noisemaker.hlsl").resolve()
-    package = dependency.get("com.noisemaker.hlsl", "")
-    if not package.startswith("file:") or Path(package[5:]).resolve() != expected:
-        raise ValueError("UNITY_PROJECT must use this checkout")
+    PROBE.verify_source_package(dependency)
     shadergraph = next((project / "Library/PackageCache").glob("com.unity.shadergraph@*"))
     template = PROBE.multi_json(shadergraph / "GraphTemplates/BuiltIn/BuiltIn Unlit Basic.shadergraph")
     uv_sample = shadergraph / "Samples~/NodeReference/UV/TilingAndOffset.shadergraph"
@@ -254,7 +253,7 @@ def main():
                         "EffectsSubpixelLowTiled": "Effects",
                         "EffectsSubpixelLegacy": "Effects", "EffectsCgaScaled": "Effects",
                         "EffectsSubpixelScaled": "Effects",
-                        "EffectsSubpixelSaved": "Effects"}.get(name, name)
+                        "EffectsSubpixelSaved": "Effects", "EffectsScaleMid": "Effects"}.get(name, name)
         wrapper = ROOT / "unity/com.noisemaker.hlsl/ShaderGraph/CustomFunctions" / (wrapper_name + ".hlsl")
         (asset_dir / (name + ".shadergraph")).write_text(parity_graph(
             wrapper, template, uv_node, uv_slot, sampler_node, sampler_slot,

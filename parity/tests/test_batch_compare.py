@@ -921,14 +921,6 @@ class RepositorySynthPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 552,
                     "mechanism": "Iterative escape-time boundary classification is chaotic under cross-backend floating-point rounding at the set boundary.",
                 },
-                "synth__mandelbrot": {
-                    "max_abs_diff": 225,
-                    "max_mean_abs_diff": 0.10,
-                    "ssim_min": 0.92,
-                    "max_exceeded_pixels": 130,
-                    "max_exceeded_channels": 390,
-                    "mechanism": "Iterative escape-time boundary classification is chaotic under cross-backend floating-point rounding at the set boundary; low-luminance field amplifies relative SSIM impact of 130 boundary pixels.",
-                },
                 "synth__newton": {
                     "max_abs_diff": 252,
                     "max_mean_abs_diff": 0.11,
@@ -952,8 +944,6 @@ class RepositorySynthPolicyContractTests(unittest.TestCase):
                 changed = None
                 if name == "synth__julia":
                     changed = [(0, 0, (130, 127, 127, 255))]
-                elif name == "synth__mandelbrot":
-                    changed = [(1, 1, (130, 127, 127, 255))]
                 elif name == "synth__newton":
                     changed = [(2, 2, (130, 127, 127, 255))]
                 write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
@@ -974,7 +964,7 @@ class RepositorySynthPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 12, "ALLOWED_NEAR": 3}, report["counts"])
+        self.assertEqual({"PASS": 13, "ALLOWED_NEAR": 2}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

@@ -14,6 +14,28 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WRAPPERS = ROOT / "unity/com.noisemaker.hlsl/ShaderGraph/CustomFunctions"
 EXPECTED_COUNT = 138
+
+
+def verify_source_package(dependency):
+    expected = (ROOT / "unity/com.noisemaker.hlsl").resolve()
+    package = dependency.get("com.noisemaker.hlsl", "")
+    if not package.startswith("file:"):
+        raise ValueError(f"UNITY_PROJECT must use the current package: {expected}")
+    actual = Path(package[5:]).resolve()
+    if actual == expected:
+        return
+    if not actual.is_dir():
+        raise ValueError(f"UNITY_PROJECT package copy is missing: {actual}")
+    source_files = {path.relative_to(expected) for path in expected.rglob("*") if path.is_file()}
+    copied_files = {path.relative_to(actual) for path in actual.rglob("*") if path.is_file()}
+    if source_files != copied_files or any(
+        hashlib.sha256((expected / path).read_bytes()).digest() !=
+        hashlib.sha256((actual / path).read_bytes()).digest()
+        for path in source_files
+    ):
+        raise ValueError("UNITY_PROJECT package copy differs from this checkout")
+
+
 INITIALIZERS = {
     "float": "1.0",
     "int": "1",
@@ -214,10 +236,7 @@ def main() -> int:
         "com.unity.render-pipelines.high-definition",
     )):
         raise ValueError("UNITY_PROJECT must declare Shader Graph or an SRP that depends on it")
-    expected_package = (ROOT / "unity/com.noisemaker.hlsl").resolve()
-    package = dependency.get("com.noisemaker.hlsl", "")
-    if not package.startswith("file:") or Path(package[5:]).resolve() != expected_package:
-        raise ValueError(f"UNITY_PROJECT must use the current package: {expected_package}")
+    verify_source_package(dependency)
     shadergraph_package = next(package_cache.glob("com.unity.shadergraph@*"))
     template = multi_json(shadergraph_package / "GraphTemplates/BuiltIn/BuiltIn Unlit Basic.shadergraph")
 

@@ -484,7 +484,8 @@ float4 NMFrag_effects(NMVaryings i) : SV_Target
 
     uv = nm_cnd_rotate2D(uv, rotation);
     uv -= 0.5;
-    uv *= scale;
+    precise float2 scaledUV = uv * scale;
+    uv = scaledUV;
     uv += 0.5;
 
     float2 imageSize = resolution;
