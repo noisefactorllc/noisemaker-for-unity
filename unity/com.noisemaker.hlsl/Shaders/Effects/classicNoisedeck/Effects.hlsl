@@ -244,7 +244,21 @@ float3 nm_cnd_convolve(float2 uv, float kernel[9], bool divide)
         conv += color * kernel[i];
         kernelWeight += kernel[i];
     }
-    if (divide && kernelWeight != 0.0) { conv /= kernelWeight; }
+    if (divide)
+    {
+        if (kernelWeight != 0.0)
+        {
+            conv /= kernelWeight;
+        }
+        else
+        {
+            // WebGL2 clamps the zero-weight division to 1 for positive sums,
+            // and to 0 otherwise. Reproduce that result without dividing by zero.
+            conv = float3(conv.x > 0.0 ? 1.0 : 0.0,
+                          conv.y > 0.0 ? 1.0 : 0.0,
+                          conv.z > 0.0 ? 1.0 : 0.0);
+        }
+    }
     return clamp(conv, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));
 }
 
