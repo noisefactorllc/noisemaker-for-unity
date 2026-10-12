@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "classicNoisedeck__coalesce": {
+      "max_abs_diff": 3,
+      "max_mean_abs_diff": 0.000245,
+      "ssim_min": 0.999999,
+      "max_exceeded_pixels": 2,
+      "max_exceeded_channels": 4,
+      "mechanism": "Two sparse nonlinear blend rounding ties at the tolerance boundary."
+    },
+    "classicNoisedeck__refract": {
+      "max_abs_diff": 11,
+      "max_mean_abs_diff": 0.000718,
+      "ssim_min": 0.999999,
+      "max_exceeded_pixels": 4,
+      "max_exceeded_channels": 9,
+      "mechanism": "Sparse refraction coordinate rounding selects adjacent bilinear samples."
+    },
+    "classicNoisedeck__shapeMixer": {
+      "max_abs_diff": 3,
+      "max_mean_abs_diff": 0.000474,
+      "ssim_min": 0.999999,
+      "max_exceeded_pixels": 4,
+      "max_exceeded_channels": 6,
+      "mechanism": "Sparse shape-mask threshold rounding tie."
+    },
+    "filter3d__flow3d": {
+      "max_abs_diff": 96,
+      "max_mean_abs_diff": 0.016022,
+      "ssim_min": 0.999787,
+      "max_exceeded_pixels": 8,
+      "max_exceeded_channels": 24,
+      "mechanism": "Sparse volume-advection sample rounding ties."
+    },
+    "filter__convolutionFeedback": {
+      "max_abs_diff": 6,
+      "max_mean_abs_diff": 0.006806,
+      "ssim_min": 0.999998,
+      "max_exceeded_pixels": 79,
+      "max_exceeded_channels": 79,
+      "mechanism": "Repeated exp and weighted-sum rounding accumulates over feedback frames."
+    },
+    "filter__crt": {
+      "max_abs_diff": 26,
+      "max_mean_abs_diff": 0.046601,
+      "ssim_min": 0.999977,
+      "max_exceeded_pixels": 466,
+      "max_exceeded_channels": 545,
+      "mechanism": "A ring around the centre selects a neighboring colour texel at a truncation boundary."
+    },
+    "filter__degauss": {
+      "max_abs_diff": 2,
+      "max_mean_abs_diff": 0.000275,
+      "ssim_min": 0.999999,
+      "max_exceeded_pixels": 3,
+      "max_exceeded_channels": 3,
+      "mechanism": "Sparse channel displacement sampling rounding ties."
+    },
+    "filter__reindex": {
+      "max_abs_diff": 30,
+      "max_mean_abs_diff": 0.001053,
+      "ssim_min": 0.999992,
+      "max_exceeded_pixels": 1,
+      "max_exceeded_channels": 3,
+      "mechanism": "One palette reindex threshold tie."
+    },
+    "filter__scanlineError": {
+      "max_abs_diff": 255,
+      "max_mean_abs_diff": 0.037003,
+      "ssim_min": 0.998926,
+      "max_exceeded_pixels": 6,
+      "max_exceeded_channels": 18,
+      "mechanism": "Sparse scanline error threshold ties."
+    },
+    "filter__unsharpMask": {
+      "max_abs_diff": 2,
+      "max_mean_abs_diff": 0.000718,
+      "ssim_min": 0.999999,
+      "max_exceeded_pixels": 8,
+      "max_exceeded_channels": 8,
+      "mechanism": "Sparse convolution accumulation rounding ties."
+    },
+    "mixer__uvRemap": {
+      "max_abs_diff": 21,
+      "max_mean_abs_diff": 0.004593,
+      "ssim_min": 0.999999,
+      "max_exceeded_pixels": 11,
+      "max_exceeded_channels": 19,
+      "mechanism": "Gradient-derived UVs on image diagonals select neighboring input texels at a rounding boundary; Gradient already uses nm_atan2."
+    },
+    "points__flock": {
+      "max_abs_diff": 242,
+      "max_mean_abs_diff": 51.236573,
+      "ssim_min": 0.044291,
+      "max_exceeded_pixels": 12412,
+      "max_exceeded_channels": 37236,
+      "mechanism": "Boids neighbor-cell partition sensitivity produces divergent agent trajectories."
+    },
+    "points__life": {
+      "max_abs_diff": 242,
+      "max_mean_abs_diff": 133.859162,
+      "ssim_min": 0.011987,
+      "max_exceeded_pixels": 15269,
+      "max_exceeded_channels": 45807,
+      "mechanism": "Particle-life neighborhood-count threshold sensitivity produces divergent agent states."
+    },
+    "points__physarum": {
+      "max_abs_diff": 251,
+      "max_mean_abs_diff": 3.632721,
+      "ssim_min": 0.928172,
+      "max_exceeded_pixels": 826,
+      "max_exceeded_channels": 2270,
+      "mechanism": "Slime-mold sensor steering feedback amplifies cross-backend rounding."
+    },
+    "render__pointsBillboardRender": {
+      "max_abs_diff": 6,
+      "max_mean_abs_diff": 0.000107,
+      "ssim_min": 0.999999,
+      "max_exceeded_pixels": 1,
+      "max_exceeded_channels": 1,
+      "mechanism": "Sparse billboard raster coverage rounding ties."
+    },
+    "render__renderLandscape3d": {
+      "max_abs_diff": 215,
+      "max_mean_abs_diff": 4.814332,
+      "ssim_min": 0.978588,
+      "max_exceeded_pixels": 7116,
+      "max_exceeded_channels": 11232,
+      "mechanism": "Landscape raymarch hit and lighting thresholds amplify floating-point drift."
+    },
+    "synth3d__flythrough3d": {
+      "max_abs_diff": 216,
+      "max_mean_abs_diff": 0.650773,
+      "ssim_min": 0.998126,
+      "max_exceeded_pixels": 2386,
+      "max_exceeded_channels": 4630,
+      "mechanism": "Camera-origin collision avoidance amplifies distance-estimator rounding drift."
+    },
+    "synth__julia": {
+      "max_abs_diff": 196,
+      "max_mean_abs_diff": 0.017945,
+      "ssim_min": 0.999735,
+      "max_exceeded_pixels": 2,
+      "max_exceeded_channels": 6,
+      "mechanism": "Two Julia escape-basin boundary classification ties."
+    },
+    "synth__newton": {
+      "max_abs_diff": 245,
+      "max_mean_abs_diff": 0.021241,
+      "ssim_min": 0.999546,
+      "max_exceeded_pixels": 5,
+      "max_exceeded_channels": 15,
+      "mechanism": "Sparse Newton root-basin boundary classification ties."
+    }
+  }
+}

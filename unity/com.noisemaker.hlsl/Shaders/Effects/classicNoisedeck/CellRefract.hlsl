@@ -207,7 +207,7 @@ float3 cr_convolutionKernel(float3 color, float2 uv, float2 texSize)
 //        return cos(floor(0.5 + a/r) * r - a) * length(st); }
 float cr_polarShape(float2 st, int sides)
 {
-    float a = atan2(st.x, st.y) + CR_PI;
+    float a = nm_atan2(st.x, st.y) + CR_PI;
     float r = CR_TAU / (float)sides;
     return cos(floor(0.5 + a / r) * r - a) * length(st);
 }

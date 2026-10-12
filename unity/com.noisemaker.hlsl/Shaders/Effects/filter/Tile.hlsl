@@ -96,7 +96,7 @@ float2 nm_tile_rotationalFold(float2 uv, int n)
     float sectorAngle = NM_TILE_TAU / fn_val;
 
     float2 p = uv - 0.5;
-    float a = atan2(p.y, p.x);  // WGSL: atan2(p.y, p.x) — arg order kept verbatim
+    float a = nm_atan2(p.y, p.x);  // WGSL: atan2(p.y, p.x) — arg order kept verbatim
     float r = length(p);
 
     a = nm_mod(nm_mod(a + NM_TILE_TAU, NM_TILE_TAU), sectorAngle);

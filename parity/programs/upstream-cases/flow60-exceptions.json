@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "cases": {
+    "points__flow": {
+      "max_abs_diff": 57,
+      "max_mean_abs_diff": 0.00435,
+      "ssim_min": 0.999975,
+      "max_exceeded_pixels": 4,
+      "max_exceeded_channels": 10,
+      "mechanism": "After the canvas-stride fix, accumulated float32 trajectory rounding leaves four sparse raster pixels different at frame 60; frame 8 is pixel exact."
+    }
+  }
+}

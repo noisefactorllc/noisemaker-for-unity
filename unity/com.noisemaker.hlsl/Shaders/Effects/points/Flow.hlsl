@@ -41,19 +41,12 @@
 // PORTING-GUIDE / parity notes:
 //  * WGSL textureLoad(t, coord, 0) -> t.Load(int3(coord, 0)) (integer texel
 //    fetch, point, no filtering). The agent pass reads rgba32f state this way.
-//  * RESOLUTION SEMANTICS: the runtime binds `resolution` (_NM_Resolution) to
-//    the SCREEN/canvas size for EVERY pass (UniformBinder.SetEngineGlobals sets
-//    it once per frame to (W,H); reference globalUniforms.resolution=[w,h] is
-//    likewise bound to all passes, pipeline.js updateGlobalUniforms). It is NOT
-//    re-set to the bound render target's size. So:
-//      - The stride math (`max(res.x,res.y)/1024`, divide by `max(res.x,res.y)`)
-//        correctly reads the SCREEN size, matching the WGSL u.resolution. OK.
-//      - The agent texel must NOT be derived from NM_FragCoord(i) (=uv*screen):
-//        the agent pass renders into the stateSize x stateSize STATE texture, so
-//        WGSL vec2i(fragCoord.xy) is over that target. We derive the texel from
-//        i.uv * stateSize (xyzTex.GetDimensions) instead -- see frag_agent and
-//        Hydraulic.hlsl. Using NM_FragCoord here would index the state texture
-//        with screen-scaled coords (wrong agent + out-of-range fetch).
+//  * RESOLUTION SEMANTICS: _NM_Resolution tracks the current render target,
+//    while the reference's u.resolution stays at the SCREEN/canvas size. So:
+//      - Stride math uses _NM_ScreenResolution, matching WGSL u.resolution.
+//      - Agent texel selection follows the bound state texture's dimensions.
+//        WGSL vec2i(fragCoord.xy) is over that target; here i.uv * stateSize
+//        (xyzTex.GetDimensions) avoids dependence on viewport bookkeeping.
 //  * PRNG: this effect ships its OWN hash (PCG-style hash_uint + hash), which
 //    differs from NMCore's pcg/prng/random -- per PORTING-GUIDE rule 2 we
 //    inline THIS effect's version, not the shared one. hash divisor is
@@ -67,6 +60,7 @@
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
+float4 _NM_ScreenResolution; // canvas size; state pass target can be smaller
 
 // ---- Input textures across both passes --------------------------------------
 // agent:       xyzTex, velTex, rgbaTex (Load); inputTex (Load by texel)
@@ -181,16 +175,8 @@ float flow_computeRotationBias(int behaviorMode, float baseHeading, float rotRan
 FlowAgentOutputs frag_agent(NMVaryings i)
 {
     // Agent texel = vec2i(fragCoord.xy) where fragCoord is over the STATE
-    // texture (the agent pass viewport == stateSize x stateSize), NOT the
-    // chain/screen resolution. Do NOT use NM_FragCoord here: it multiplies by
-    // _NM_Resolution, which the runtime sets to the SCREEN size for every pass
-    // (UniformBinder.SetEngineGlobals SetGlobalVector(_NM_Resolution,(W,H)) is
-    // set once per frame to the canvas size, mirroring the reference's
-    // globalUniforms.resolution = [width,height] bound to all passes,
-    // pipeline.js updateGlobalUniforms). So uv*_NM_Resolution would index the
-    // 256x256 state texture with screen-scaled coords. Instead derive the texel
-    // from i.uv * stateSize (uv*stateSize at a pixel center == texel+0.5, which
-    // truncates to the integer texel) -- matches Hydraulic.hlsl.
+    // texture (the agent pass viewport == stateSize x stateSize). Derive the
+    // texel from i.uv * stateSize so it stays tied to the bound state texture.
     uint sw, sh;
     xyzTex.GetDimensions(sw, sh);
     int2 stateSize = int2((int)sw, (int)sh);
@@ -253,12 +239,12 @@ FlowAgentOutputs frag_agent(NMVaryings i)
         finalAngle = round(finalAngle);
     }
 
-    // Stride in normalized coords. `resolution` (=_NM_Resolution) is the SCREEN
-    // size for every pass (see RESOLUTION SEMANTICS at top), matching the WGSL
-    // u.resolution (globalUniforms.resolution). Correct as-is.
-    float scale = max(max(resolution.x, resolution.y) / 1024.0, 1.0);
+    // WGSL u.resolution is the canvas size even while this pass draws into the
+    // smaller state texture. The backend's _NM_Resolution is target-sized.
+    float2 screenSize = _NM_ScreenResolution.xy;
+    float scale = max(max(screenSize.x, screenSize.y) / 1024.0, 1.0);
     float devFactor = 1.0 + strideRand * 2.0 * strideDeviation;
-    float actualStride = max(0.0001, (stride * 0.1) * scale * devFactor / max(resolution.x, resolution.y));
+    float actualStride = max(0.0001, (stride * 0.1) * scale * devFactor / max(screenSize.x, screenSize.y));
 
     // Move agent.
     float newX = px + sin(finalAngle) * actualStride;

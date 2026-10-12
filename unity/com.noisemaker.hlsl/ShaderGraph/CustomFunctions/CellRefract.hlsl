@@ -174,9 +174,32 @@ float3 nmsg_cr_convolutionKernel(UnityTexture2D InputTex, UnitySamplerState SS, 
     return color;
 }
 
+// Self-contained copy of NMCore.nm_atan2 for texel-selecting refraction.
+float nmsg_cr_atan2(float y, float x)
+{
+    float ax = abs(x);
+    float ay = abs(y);
+    float mx = max(ax, ay);
+    float mn = min(ax, ay);
+    float t = (mx > 0.0) ? mn / mx : 0.0;
+    float base = 0.0;
+    if (t > 0.41421356237309503)
+    {
+        base = 0.78539816339744831;
+        t = (t - 1.0) / (t + 1.0);
+    }
+    float z = t * t;
+    float r = (((8.05374449538e-2 * z - 1.38776856032e-1) * z
+              + 1.99777106478e-1) * z - 3.33329491539e-1) * z * t + t;
+    r = base + r;
+    if (ay > ax) r = (1.5707963705062866 - r) - 4.371139000186241e-8;
+    if (x < 0.0) r = (3.1415927410125732 - r) - 8.742278000372482e-8;
+    return (y < 0.0) ? -r : r;
+}
+
 float nmsg_cr_polarShape(float2 st, int sides)
 {
-    float a = atan2(st.x, st.y) + NMSG_CR_PI;
+    float a = nmsg_cr_atan2(st.x, st.y) + NMSG_CR_PI;
     float r = NMSG_CR_TAU / (float)sides;
     return cos(floor(0.5 + a / r) * r - a) * length(st);
 }

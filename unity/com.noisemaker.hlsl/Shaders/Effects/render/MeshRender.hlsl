@@ -134,12 +134,12 @@ float3x3 mr_rotationY(float angle)
 {
     float c = cos(angle);
     float s = sin(angle);
-    // WGSL cols: c0=(c,0,-s) c1=(0,1,0) c2=(s,0,c)
-    // rows: (c,0,s); (0,1,0); (-s,0,c)
+    // WGSL cols: c0=(c,0,s) c1=(0,1,0) c2=(-s,0,c)
+    // rows: (c,0,-s); (0,1,0); (s,0,c)
     return float3x3(
-          c, 0.0,   s,
+          c, 0.0,  -s,
         0.0, 1.0, 0.0,
-         -s, 0.0,   c
+          s, 0.0,   c
     );
 }
 

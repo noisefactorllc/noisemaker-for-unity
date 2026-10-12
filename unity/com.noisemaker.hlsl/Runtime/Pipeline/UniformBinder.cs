@@ -4,7 +4,8 @@
 //
 // Engine globals (set per frame, once, via Shader.SetGlobal* so every effect sees
 // them through the NMFullscreen #define aliases):
-//   _NM_Resolution (float4 .xy), _NM_FullResolution (.xy), _NM_TileOffset (.xy),
+//   _NM_Resolution (float4 .xy), _NM_ScreenResolution (.xy),
+//   _NM_FullResolution (.xy), _NM_TileOffset (.xy),
 //   _NM_Time, _NM_DeltaTime, _NM_RenderScale, _NM_AspectRatio, _NM_Frame (int).
 //
 // Per-pass uniforms + define ints are written onto a single reused MPB
@@ -49,6 +50,7 @@ namespace Noisemaker.Hlsl
 
         // Cached shader property ids for engine globals.
         private static readonly int IdResolution     = Shader.PropertyToID("_NM_Resolution");
+        private static readonly int IdScreenResolution = Shader.PropertyToID("_NM_ScreenResolution");
         private static readonly int IdFullResolution = Shader.PropertyToID("_NM_FullResolution");
         private static readonly int IdTileOffset      = Shader.PropertyToID("_NM_TileOffset");
         private static readonly int IdTime            = Shader.PropertyToID("_NM_Time");
@@ -64,6 +66,7 @@ namespace Noisemaker.Hlsl
             float time, float deltaTime, float renderScale, int frame)
         {
             Shader.SetGlobalVector(IdResolution, new Vector4(width, height, 0f, 0f));
+            Shader.SetGlobalVector(IdScreenResolution, new Vector4(width, height, 0f, 0f));
             Shader.SetGlobalVector(IdFullResolution, new Vector4(fullResX, fullResY, 0f, 0f));
             Shader.SetGlobalVector(IdTileOffset, new Vector4(tileX, tileY, 0f, 0f));
             Shader.SetGlobalFloat(IdTime, time);

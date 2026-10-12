@@ -223,7 +223,7 @@ float4 nm_strokes_smearColor(float2 uv, float2 gc, float4 src, float runBase)
     }
     float2 grad = nm_strokes_lumGradient(uv);
     float gradMag = length(grad);
-    float edgeAngle = gradMag > 1e-5 ? degrees(atan2(grad.y, grad.x)) + 90.0 : 45.0;
+    float edgeAngle = gradMag > 1e-5 ? degrees(nm_atan2(grad.y, grad.x)) + 90.0 : 45.0;
     float2 dir = nm_strokes_rotate2D(float2(1.0, 0.0), edgeAngle);
     float L = runBase * nm_strokes_variation(gc, dir, runBase);
     float4 layer = nm_strokes_brushField(uv, gc, dir, runBase);
