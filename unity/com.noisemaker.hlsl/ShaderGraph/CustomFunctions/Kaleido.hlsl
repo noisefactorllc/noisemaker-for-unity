@@ -11,10 +11,8 @@
 // because the core references `time`, `aspectRatio` (= Resolution.x/Resolution.y)
 // and uses `Resolution` for the convolve/pixellate texel size.
 //
-// Self-contained (does NOT include NMFullscreen.hlsl / NMCore.hlsl) so it is
-// safe in a Shader Graph Custom Function node. Helpers/PCG are mirrored VERBATIM
-// from Shaders/Effects/classicNoisedeck/Kaleido.hlsl, prefixed `nmsg_kl_` to
-// avoid symbol clashes.
+// Uses the same NMCore angle and modulo functions as the pipeline shader.
+// Effect-local helpers/PCG are prefixed `nmsg_kl_` to avoid symbol clashes.
 //
 // PRNG note: this effect uses PLAIN (uint3)p truncation, NO sign-fold (unlike
 // the shared NMCore nm_prng). Ported inline below.
@@ -30,6 +28,8 @@
 
 #define NMSG_KL_PI  3.14159265359
 #define NMSG_KL_TAU 6.28318530718
+
+#include "../../Shaders/Include/NMCore.hlsl"
 
 uint3 nmsg_kl_pcg(uint3 v)
 {
@@ -311,7 +311,7 @@ float3 nmsg_kl_rgb2hsv(float3 rgb)
     float h = 0.0;
     if (delta != 0.0)
     {
-        if (maxC == rgb.r) { h = ((rgb.g - rgb.b) / delta % 6.0) / 6.0; }
+        if (maxC == rgb.r) { h = nm_mod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }
@@ -397,7 +397,7 @@ float nmsg_kl_shape(float2 st_in, int sides, float blend, float aspect)
 {
     if (sides < 2) { return distance(st_in, float2(0.5, 0.5)); }
     float2 st = float2(st_in.x, 1.0 - st_in.y) * 2.0 - float2(aspect, 1.0);
-    float a = atan2(st.x, st.y) + NMSG_KL_PI;
+    float a = nm_atan2(st.x, st.y) + NMSG_KL_PI;
     float r = NMSG_KL_TAU / (float)sides;
     return cos(floor(0.5 + a / r) * r - a) * length(st) * blend;
 }
@@ -480,7 +480,7 @@ float2 nmsg_kl_kaleidoscope(float2 st_in, float sides, float blendy, int METRIC,
 {
     float r = nmsg_kl_getMetric(st_in, METRIC, aspect) + blendy;
     float2 st = st_in - float2(0.5 * aspect, 0.5);
-    float a = atan2(st.y, st.x);
+    float a = nm_atan2(st.y, st.x);
     float dir = time;
     if (DIRECTION == 1) { dir *= -1.0; }
     else if (DIRECTION == 2) { dir = 1.0; }

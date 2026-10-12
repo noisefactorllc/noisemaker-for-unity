@@ -15,8 +15,8 @@
 //
 // Self-contained: does NOT include NMFullscreen.hlsl / NMCore.hlsl.
 // Helpers are verbatim from Refract.hlsl, prefixed `nmsg_refract_`.
-// TODO(verify): sampler_inputTex must be a mirror-wrap, non-sRGB (linear)
-// sampler so wrap==0 matches the runtime path.
+// Wrap==0 reflects coordinates explicitly; use a Point/Clamp linear source
+// sampler, matching the runtime surface contract.
 // =============================================================================
 
 static const float NM_SG_REFRACT_TAU = 6.28318530718;
@@ -186,8 +186,7 @@ float3 nmsg_refract_blend_colors(float4 color1, float4 color2,
 }
 
 // Shader Graph Custom Function entry.
-// TODO(verify): SS must be a mirror-wrap, non-sRGB (linear) sampler to match
-// the runtime's default mirror/bilinear/linear path for wrap==0.
+// SS uses Point/Clamp linear sampling; wrap==0 is handled in the node.
 void NM_Refract_float(
     UnityTexture2D    InputTex,
     UnitySamplerState SS,
@@ -224,12 +223,12 @@ void NM_Refract_float(
     }
 
     [branch]
-    if (Wrap == 1)
+    if (Wrap == 0)
+        uv = abs((uv + 1.0) - 2.0 * floor((uv + 1.0) / 2.0) - 1.0);
+    else if (Wrap == 1)
         uv = uv - 1.0 * floor(uv / 1.0);   // GLSL mod(uv, 1.0)
     else if (Wrap == 2)
         uv = clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
-    // Wrap==0 (mirror): rely on sampler address mode.
-
     float4 color = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, uv);
     Out = float4(nmsg_refract_blend_colors(inputColor, color, BlendMode, MixAmt), color.a);
 }

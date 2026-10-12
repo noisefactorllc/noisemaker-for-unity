@@ -15,14 +15,15 @@
 // InputTex/SS/UV provide the source surface. UV must be the input texture's
 // own 0..1 UV (fragCoord / inputTex dimensions, matching WGSL main() exactly).
 //
-// Self-contained: does NOT include NMFullscreen.hlsl / NMCore.hlsl. Helpers
-// are mirrored VERBATIM from Spiral.hlsl, name-prefixed `nmsg_` to avoid
-// symbol clashes with the runtime include.
+// Uses the same NMCore angle function as the pipeline shader. Effect-local
+// helpers are name-prefixed `nmsg_` to avoid symbol clashes.
 //
 // NOTE: The WGSL antialias path uses dpdx/dpdy (ddx/ddy). Shader Graph Custom
 // Function nodes execute in a pixel shader context, so ddx/ddy are valid here.
 // TODO(verify): confirm ddx/ddy are available and consistent in all SG targets.
 // =============================================================================
+
+#include "../../Shaders/Include/NMCore.hlsl"
 
 static const float NMSG_SPIRAL_PI  = 3.14159265359;
 static const float NMSG_SPIRAL_TAU = 6.28318530718;
@@ -64,6 +65,7 @@ void NM_Spiral_float(
 {
     float texW, texH;
     InputTex.tex.GetDimensions(texW, texH);
+    float2 texSize = float2(texW, texH);
     float ar = texW / texH;
     float2 uv = UV;
 
@@ -79,7 +81,7 @@ void NM_Spiral_float(
 
     // Convert to polar coordinates
     float r = length(uv);
-    float a = atan2(uv.y, uv.x);
+    float a = nm_atan2(uv.y, uv.x);
 
     // Apply spiral distortion
     float spiralAmt = (Strength * 0.05) * r;
@@ -111,22 +113,23 @@ void NM_Spiral_float(
 
     // Reverse rotation after distortion
     uv = nmsg_spiral_rotate2D(uv, -Rotation / 180.0, ar);
+    float2 sampleUV = clamp((uv * texSize) / texSize, 0.0, 1.0);
 
     [branch]
     if (Antialias != 0)
     {
-        float2 dx = ddx(uv);
-        float2 dy = ddy(uv);
+        float2 dx = ddx(sampleUV);
+        float2 dy = ddy(sampleUV);
         float4 col = float4(0.0, 0.0, 0.0, 0.0);
-        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, uv + dx * -0.375 + dy * -0.125, 0.0);
-        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, uv + dx *  0.125 + dy * -0.375, 0.0);
-        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, uv + dx *  0.375 + dy *  0.125, 0.0);
-        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, uv + dx * -0.125 + dy *  0.375, 0.0);
+        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, sampleUV + dx * -0.375 + dy * -0.125, 0.0);
+        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, sampleUV + dx *  0.125 + dy * -0.375, 0.0);
+        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, sampleUV + dx *  0.375 + dy *  0.125, 0.0);
+        col += SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, sampleUV + dx * -0.125 + dy *  0.375, 0.0);
         Out = col * 0.25;
     }
     else
     {
-        Out = SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, uv, 0.0);
+        Out = SAMPLE_TEXTURE2D_LOD(InputTex.tex, SS.samplerstate, sampleUV, 0.0);
     }
 }
 

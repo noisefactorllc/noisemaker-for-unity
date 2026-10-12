@@ -16,12 +16,11 @@
 //   vignetteAmt  -> VignetteAmt  (float)  [-100,100] default 0
 //   distortion   -> Distortion   (float)  [-100,100] default 0
 //   aspectLens   -> AspectLens   (float, bool 0/1)  default 0
-// Engine globals (Resolution, Time, AspectRatio) are passed as node inputs.
+// Engine globals (Resolution, FullResolution, TileOffset, Time, AspectRatio)
+// are passed as node inputs. AspectRatio is FullResolution.x / FullResolution.y.
 //
-// UV/FragCoord: the runtime path computes uv = fragCoord/resolution, samples
-// inputTex in 0..1 space, and uses raw fragCoord for snow. In the node, UV is the
-// input texture's own 0..1 UV; FragCoord = UV * Resolution. The WGSL samples
-// inputTex directly in 0..1 lensed-coord space (no division by texture dims).
+// UV is tile-local. The runtime computes global UV from fragCoord + tileOffset;
+// each lensed source sample maps back into the tile's input texture.
 //
 // Self-contained (does NOT include NMFullscreen.hlsl / NMCore.hlsl). Helpers/core
 // are mirrored VERBATIM from Shaders/Effects/classicNoisedeck/Glitch.hlsl,
@@ -151,7 +150,7 @@ float4 nmsg_glitch_snow(float4 color, float2 fragCoord, float snowAmtv, float ti
 }
 
 // Shader Graph Custom Function entry. InputTex/SS/UV supply the source surface;
-// Resolution + Time + AspectRatio are engine globals passed as node inputs.
+// render and tile coordinates, Time and AspectRatio are node inputs.
 // TODO(verify): SS must be a clamp, non-sRGB (linear) sampler so it matches the
 // runtime bilinear/clamp/linear path (H7).
 void NM_Glitch_float(
@@ -159,6 +158,8 @@ void NM_Glitch_float(
     UnitySamplerState SS,
     float2            UV,
     float2            Resolution,
+    float2            FullResolution,
+    float2            TileOffset,
     float             Time,
     float             AspectRatio,
     float             Glitchiness,
@@ -173,10 +174,18 @@ void NM_Glitch_float(
     float             AspectLens,
     out float4        Out)
 {
-    float2 fragCoord = UV * Resolution;
+    // Existing nodes have no tile inputs; Shader Graph initializes new slots
+    // below one pixel, so retain their original untiled coordinates.
+    bool legacy = FullResolution.x < 1.0 || FullResolution.y < 1.0;
+    float2 fullRes = legacy ? Resolution : FullResolution;
+    float2 offset = legacy ? float2(0.0, 0.0) : TileOffset;
+    float fullAspect = legacy ? AspectRatio : fullRes.x / fullRes.y;
+    float2 globalCoord = UV * Resolution + offset;
+    float2 globalUV = globalCoord / fullRes;
+    float2 texSize = float2(InputTex.texelSize.z, InputTex.texelSize.w);
 
     // ---- glitch() ----
-    float2 st = UV;
+    float2 st = globalUV;
     float2 freq = float2(1.0, 1.0);
     freq.x = freq.x * nmsg_glitch_map(XChonk, 1.0, 100.0, 50.0, 1.0);
     freq.y = freq.y * nmsg_glitch_map(YChonk, 1.0, 100.0, 50.0, 1.0);
@@ -205,7 +214,7 @@ void NM_Glitch_float(
     float2 diff = float2(0.5 - st.x, 0.5 - st.y);
     if (AspectLens > 0.5)
     {
-        diff = float2(0.5 * AspectRatio, 0.5) - float2(st.x * AspectRatio, st.y);
+        diff = float2(0.5 * fullAspect, 0.5) - float2(st.x * fullAspect, st.y);
     }
     float centerDist = length(diff);
 
@@ -227,36 +236,52 @@ void NM_Glitch_float(
     float aberrationOffset = nmsg_glitch_map(Aberration, 0.0, 100.0, 0.0, 0.05) * centerDist * NMSG_G_PI * 0.5;
 
     float redOffset = lerp(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
-    float4 red = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, float2(redOffset, lensedCoords.y));
+    float4 red = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate,
+        frac((float2(redOffset, lensedCoords.y) * fullRes - offset) / texSize));
 
-    float4 green = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, lensedCoords);
+    float4 green = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate,
+        frac((lensedCoords * fullRes - offset) / texSize));
 
     float blueOffset = lerp(lensedCoords.x, clamp(lensedCoords.x - aberrationOffset, 0.0, 1.0), lensedCoords.x);
-    float4 blue = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, float2(blueOffset, lensedCoords.y));
+    float4 blue = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate,
+        frac((float2(blueOffset, lensedCoords.y) * fullRes - offset) / texSize));
 
     float4 color = float4(red.r, green.g, blue.b, green.a);
 
     // ---- scanlines() / snow() ----
-    color = nmsg_glitch_scanlines(color, UV, Resolution, ScanlinesAmt, Time, (int)Seed);
-    color = nmsg_glitch_snow(color, fragCoord, SnowAmt, Time);
+    color = nmsg_glitch_scanlines(color, globalUV, fullRes, ScanlinesAmt, Time, (int)Seed);
+    color = nmsg_glitch_snow(color, globalCoord, SnowAmt, Time);
 
     // ---- vignette (GLSL precedence: color.rgb * 1.0 - pow(...)) ----
     if (VignetteAmt < 0.0)
     {
         color = float4(
-            lerp(color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - UV) * 1.125, 2.0), color.rgb, nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 0.0, 1.0)),
-            max(color.a, length(float2(0.5, 0.5) - UV) * nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
+            lerp(color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - globalUV) * 1.125, 2.0), color.rgb, nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 0.0, 1.0)),
+            max(color.a, length(float2(0.5, 0.5) - globalUV) * nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
     else
     {
         color = float4(
-            lerp(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - UV) * 1.125, 2.0)), nmsg_glitch_map(VignetteAmt, 0.0, 100.0, 0.0, 1.0)),
-            max(color.a, length(float2(0.5, 0.5) - UV) * nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
+            lerp(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(float2(0.5, 0.5) - globalUV) * 1.125, 2.0)), nmsg_glitch_map(VignetteAmt, 0.0, 100.0, 0.0, 1.0)),
+            max(color.a, length(float2(0.5, 0.5) - globalUV) * nmsg_glitch_map(VignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
 
     Out = color;
+}
+
+// Preserve the call shape serialized by Shader Graph before tile inputs existed.
+void NM_Glitch_float(
+    UnityTexture2D InputTex, UnitySamplerState SS, float2 UV, float2 Resolution,
+    float Time, float AspectRatio, float Glitchiness, float Aberration,
+    float XChonk, float YChonk, float Seed, float ScanlinesAmt, float SnowAmt,
+    float VignetteAmt, float Distortion, float AspectLens, out float4 Out)
+{
+    NM_Glitch_float(InputTex, SS, UV, Resolution, float2(0.0, 0.0),
+        float2(0.0, 0.0), Time, AspectRatio, Glitchiness, Aberration,
+        XChonk, YChonk, Seed, ScanlinesAmt, SnowAmt, VignetteAmt,
+        Distortion, AspectLens, Out);
 }
 
 #endif // NM_SG_GLITCH_INCLUDED

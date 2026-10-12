@@ -33,7 +33,7 @@ float nmsg_snow_periodic_value(float t, float value)
 
 float3 nmsg_snow_fract_vec3(float3 value)
 {
-    return value - floor(value);
+    return frac(value);
 }
 
 float nmsg_snow_hash(float3 sample_in)
@@ -42,7 +42,7 @@ float nmsg_snow_hash(float3 sample_in)
     float  dot_val   = dot(scaled, scaled.yzx + float3(33.33, 33.33, 33.33));
     float3 shifted   = scaled + dot_val;
     float  combined  = (shifted.x + shifted.y) * shifted.z;
-    float  fractional = combined - floor(combined);
+    float  fractional = frac(combined);
     return clamp(fractional, 0.0, 1.0);
 }
 

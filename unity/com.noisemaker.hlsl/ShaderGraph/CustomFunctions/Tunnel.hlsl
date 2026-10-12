@@ -8,14 +8,14 @@
 // definition.js maps to a named input. InputTex/SS/UV provide the source
 // surface. UV must be the input texture's own 0..1 UV (fragCoord / texDims).
 //
-// Self-contained (does NOT include NMFullscreen.hlsl / NMCore.hlsl) so it is
-// safe to drop into a Shader Graph Custom Function node. Helpers are mirrored
-// VERBATIM from Shaders/Effects/filter/Tunnel.hlsl, name-prefixed `nmsg_` to
-// avoid symbol clashes with the runtime include.
+// Uses the same NMCore angle function as the pipeline shader. Effect-local
+// helpers are name-prefixed `nmsg_` to avoid symbol clashes.
 //
 // NOTE: `time` must be supplied externally (e.g. _Time.y or a custom float).
 // The runtime passes _NM_Time; in Shader Graph wire a Time node or float input.
 // =============================================================================
+
+#include "../../Shaders/Include/NMCore.hlsl"
 
 static const float NM_SG_TUNNEL_PI  = 3.14159265359;
 static const float NM_SG_TUNNEL_TAU = 6.28318530718;
@@ -23,7 +23,7 @@ static const float NM_SG_TUNNEL_TAU = 6.28318530718;
 // polygonShape — verbatim from WGSL (note reversed atan2(uv.x, uv.y) arg order)
 float nmsg_tunnel_polygonShape(float2 uv, int sides)
 {
-    float a = atan2(uv.x, uv.y) + NM_SG_TUNNEL_PI;
+    float a = nm_atan2(uv.x, uv.y) + NM_SG_TUNNEL_PI;
     float r = NM_SG_TUNNEL_TAU / (float)sides;
     return cos(floor(0.5 + a / r) * r - a) * length(uv);
 }
@@ -61,7 +61,7 @@ void NM_Tunnel_float(
         centered.x = centered.x * (texSize.x / texSize.y);
     }
 
-    float a = atan2(centered.y, centered.x);
+    float a = nm_atan2(centered.y, centered.x);
     float r;
 
     [branch] if (Shape == 0)

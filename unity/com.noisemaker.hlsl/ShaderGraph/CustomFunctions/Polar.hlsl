@@ -15,15 +15,15 @@
 //   InputTex/SS — source surface; UV must be the input texture's 0..1 space
 //   Time (float) — animation time (matches `time` engine global)
 //
-// Self-contained (does NOT include NMFullscreen.hlsl / NMCore.hlsl) so it is
-// safe to drop into a Shader Graph Custom Function node. Helpers are mirrored
-// VERBATIM from Shaders/Effects/filter/Polar.hlsl, name-prefixed `nmsg_` to
-// avoid symbol clashes with the runtime include.
+// Uses the same NMCore angle function as the pipeline shader. Effect-local
+// helpers are name-prefixed `nmsg_` to avoid symbol clashes.
 //
 // NOTE: antialias 4-tap MSAA uses ddx/ddy which are only valid in pixel shaders.
 // In SG the node runs in a pixel shader context so ddx/ddy are available.
 // TODO(verify): confirm SG executes this in pixel stage on all target platforms.
 // =============================================================================
+
+#include "../../Shaders/Include/NMCore.hlsl"
 
 static const float NM_SG_POLAR_TAU = 6.28318530718;
 
@@ -40,7 +40,7 @@ float2 nmsg_polar_polarCoords(float2 uvIn, float aspect, bool doAspect,
     float2 uv = uvIn - float2(0.5, 0.5);
     if (doAspect) { uv.x = uv.x * aspect; }
     float2 coord = float2(
-        atan2(uv.y, uv.x) / NM_SG_POLAR_TAU + 0.5,
+        nm_atan2(uv.y, uv.x) / NM_SG_POLAR_TAU + 0.5,
         length(uv) - scale * 0.075
     );
     coord.x = nmsg_polar_smod1(coord.x + time * -rotation, 1.0);

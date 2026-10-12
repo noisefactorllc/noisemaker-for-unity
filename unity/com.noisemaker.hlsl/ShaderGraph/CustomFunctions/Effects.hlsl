@@ -1,6 +1,8 @@
 #ifndef NM_SG_CLASSICNOISEDECK_EFFECTS_INCLUDED
 #define NM_SG_CLASSICNOISEDECK_EFFECTS_INCLUDED
 
+#include "../../Shaders/Include/NMCore.hlsl"
+
 // =============================================================================
 // ShaderGraph Custom Function wrapper for classicNoisedeck/effects.
 //
@@ -15,16 +17,11 @@
 //   offsetY    -> OffsetY    (float) default 0
 //   intensity  -> Intensity  (float) default 0
 //   saturation -> Saturation (float) default 0
-// InputTex/SS/UV provide the source surface; Resolution is the render target
-// size the WGSL calls `u.resolution` (the effect divides fragCoord by it and
-// uses it for texel steps / cga sizing). Pass the runtime resolution so the
-// kernel offsets and cga grid match the runtime path exactly.
+// InputTex/SS/UV provide the source surface. Resolution is the tile size;
+// FullResolution, TileOffset and RenderScale match the pipeline globals.
 //
-// Self-contained (does NOT include NMFullscreen.hlsl / NMCore.hlsl) so it is
-// safe to drop into a Shader Graph Custom Function node. Helpers/core are
-// mirrored VERBATIM from Shaders/Effects/classicNoisedeck/Effects.hlsl,
-// name-prefixed `nmsg_cnd_`. PCG is inlined here; prng is the runtime's
-// no-fold nm_cnd_prng (the effect's own prng has no sign-fold).
+// Uses NMCore's modulo. Effect-local helpers are prefixed `nmsg_cnd_`;
+// PCG is inlined here because this effect's prng has no sign-fold.
 // =============================================================================
 
 static const float NMSG_CND_PI  = 3.14159265359;
@@ -56,6 +53,18 @@ float nmsg_cnd_aspectRatio(float2 res)
 {
     return res.x / res.y;
 }
+
+float2 nmsg_cnd_localUV(float2 uv, float2 fullResolution, float2 tileOffset, float2 texSize)
+{
+    return (uv * fullResolution - tileOffset) / texSize;
+}
+
+struct NMSG_CndTile
+{
+    float2 fullResolution;
+    float2 tileOffset;
+    float2 texSize;
+};
 
 float2 nmsg_cnd_rotate2D(float2 st_in, float rot, float2 res)
 {
@@ -136,19 +145,20 @@ float3 nmsg_cnd_posterize(float3 color, float lev)
     return pow(c, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
 }
 
-float3 nmsg_cnd_pixellate(UnityTexture2D tex, UnitySamplerState ss, float2 uv_in, float sizeIn, float2 res)
+float3 nmsg_cnd_pixellate(UnityTexture2D tex, UnitySamplerState ss, float2 uv_in, float sizeIn, float2 res, NMSG_CndTile tile)
 {
     float size = sizeIn;
-    if (size < 1.0) { return SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, uv_in).rgb; }
+    if (size < 1.0) { return SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
+        nmsg_cnd_localUV(uv_in, tile.fullResolution, tile.tileOffset, tile.texSize)).rgb; }
     size *= 4.0;
-    float dx = size / res.x;
-    float dy = size / res.y;
+    float dx = size * (1.0 / res.x);
+    float dy = size * (1.0 / res.y);
     float2 uv = uv_in - 0.5;
     float2 coord = float2(dx * floor(uv.x / dx), dy * floor(uv.y / dy)) + 0.5;
     return SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, coord).rgb;
 }
 
-float3 nmsg_cnd_convolve(UnityTexture2D tex, UnitySamplerState ss, float2 uv, float kernel[9], bool divide, float effectAmt, float2 res)
+float3 nmsg_cnd_convolve(UnityTexture2D tex, UnitySamplerState ss, float2 uv, float kernel[9], bool divide, float effectAmt, float2 res, NMSG_CndTile tile)
 {
     float2 steps = 1.0 / res;
     float2 offsets[9] = {
@@ -161,7 +171,9 @@ float3 nmsg_cnd_convolve(UnityTexture2D tex, UnitySamplerState ss, float2 uv, fl
     [unroll]
     for (int i = 0; i < 9; i++)
     {
-        float3 color = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, uv + offsets[i] * effectAmt).rgb;
+        float3 color = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
+            nmsg_cnd_localUV(uv + offsets[i] * effectAmt,
+                tile.fullResolution, tile.tileOffset, tile.texSize)).rgb;
         conv += color * kernel[i];
         kernelWeight += kernel[i];
     }
@@ -169,40 +181,40 @@ float3 nmsg_cnd_convolve(UnityTexture2D tex, UnitySamplerState ss, float2 uv, fl
     return clamp(conv, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0));
 }
 
-float3 nmsg_cnd_derivatives(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, bool divide, float effectAmt, float2 res)
+float3 nmsg_cnd_derivatives(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, bool divide, float effectAmt, float2 res, NMSG_CndTile tile)
 {
     float deriv_x[9] = { 0.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, 0.0 };
     float deriv_y[9] = { 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0 };
-    float3 s1 = nmsg_cnd_convolve(tex, ss, uv, deriv_x, divide, effectAmt, res);
-    float3 s2 = nmsg_cnd_convolve(tex, ss, uv, deriv_y, divide, effectAmt, res);
+    float3 s1 = nmsg_cnd_convolve(tex, ss, uv, deriv_x, divide, effectAmt, res, tile);
+    float3 s2 = nmsg_cnd_convolve(tex, ss, uv, deriv_y, divide, effectAmt, res, tile);
     return color * distance(s1, s2);
 }
 
-float3 nmsg_cnd_sobel(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, float effectAmt, float2 res)
+float3 nmsg_cnd_sobel(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, float effectAmt, float2 res, NMSG_CndTile tile)
 {
     float sobel_x[9] = { 1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0 };
     float sobel_y[9] = { 1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0 };
-    float3 s1 = nmsg_cnd_convolve(tex, ss, uv, sobel_x, false, effectAmt, res);
-    float3 s2 = nmsg_cnd_convolve(tex, ss, uv, sobel_y, false, effectAmt, res);
+    float3 s1 = nmsg_cnd_convolve(tex, ss, uv, sobel_x, false, effectAmt, res, tile);
+    float3 s2 = nmsg_cnd_convolve(tex, ss, uv, sobel_y, false, effectAmt, res, tile);
     return color * distance(s1, s2);
 }
 
-float3 nmsg_cnd_outline(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, float effectAmt, float2 res)
+float3 nmsg_cnd_outline(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, float effectAmt, float2 res, NMSG_CndTile tile)
 {
     float sobel_x[9] = { 1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0 };
     float sobel_y[9] = { 1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0 };
-    float3 s1 = nmsg_cnd_convolve(tex, ss, uv, sobel_x, false, effectAmt, res);
-    float3 s2 = nmsg_cnd_convolve(tex, ss, uv, sobel_y, false, effectAmt, res);
+    float3 s1 = nmsg_cnd_convolve(tex, ss, uv, sobel_x, false, effectAmt, res, tile);
+    float3 s2 = nmsg_cnd_convolve(tex, ss, uv, sobel_y, false, effectAmt, res, tile);
     return max(color - distance(s1, s2), float3(0.0, 0.0, 0.0));
 }
 
-float3 nmsg_cnd_shadow(UnityTexture2D tex, UnitySamplerState ss, float3 color_in, float2 uv, float effectAmt, float2 res)
+float3 nmsg_cnd_shadow(UnityTexture2D tex, UnitySamplerState ss, float3 color_in, float2 uv, float effectAmt, float2 res, NMSG_CndTile tile)
 {
     float sobel_x[9] = { 1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0 };
     float sobel_y[9] = { 1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0 };
     float3 color = nmsg_cnd_rgb2hsv(color_in);
-    float3 x = nmsg_cnd_convolve(tex, ss, uv, sobel_x, false, effectAmt, res);
-    float3 y = nmsg_cnd_convolve(tex, ss, uv, sobel_y, false, effectAmt, res);
+    float3 x = nmsg_cnd_convolve(tex, ss, uv, sobel_x, false, effectAmt, res, tile);
+    float3 y = nmsg_cnd_convolve(tex, ss, uv, sobel_y, false, effectAmt, res, tile);
     float shade_dist = distance(x, y);
     float highlight = shade_dist * shade_dist;
     float shade = (1.0 - ((1.0 - color.z) * (1.0 - highlight))) * shade_dist;
@@ -210,7 +222,7 @@ float3 nmsg_cnd_shadow(UnityTexture2D tex, UnitySamplerState ss, float3 color_in
     return nmsg_cnd_hsv2rgb(color);
 }
 
-float3 nmsg_cnd_convolutionEffect(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, int EFFECT, float effectAmt, float2 res)
+float3 nmsg_cnd_convolutionEffect(UnityTexture2D tex, UnitySamplerState ss, float3 color, float2 uv, int EFFECT, float effectAmt, float2 res, NMSG_CndTile tile)
 {
     float emboss[9]      = { -2.0, -1.0, 0.0, -1.0, 1.0, 1.0, 0.0, 1.0, 2.0 };
     float sharpen[9]     = { -1.0, 0.0, -1.0, 0.0, 5.0, 0.0, -1.0, 0.0, -1.0 };
@@ -220,31 +232,31 @@ float3 nmsg_cnd_convolutionEffect(UnityTexture2D tex, UnitySamplerState ss, floa
     float sharpenBlur[9] = { -2.0, 2.0, -2.0, 2.0, 1.0, 2.0, -2.0, 2.0, -2.0 };
 
     [branch]
-    if (EFFECT == 1)        { return nmsg_cnd_convolve(tex, ss, uv, blur, true, effectAmt, res); }
-    else if (EFFECT == 2)   { return nmsg_cnd_derivatives(tex, ss, color, uv, true, effectAmt, res); }
-    else if (EFFECT == 120) { return clamp(nmsg_cnd_derivatives(tex, ss, color, uv, false, effectAmt, res) * 2.5, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0)); }
-    else if (EFFECT == 3)   { return color * nmsg_cnd_convolve(tex, ss, uv, edge2, true, effectAmt, res); }
-    else if (EFFECT == 4)   { return nmsg_cnd_convolve(tex, ss, uv, emboss, false, effectAmt, res); }
-    else if (EFFECT == 5)   { return nmsg_cnd_outline(tex, ss, color, uv, effectAmt, res); }
-    else if (EFFECT == 6)   { return nmsg_cnd_shadow(tex, ss, color, uv, effectAmt, res); }
-    else if (EFFECT == 7)   { return nmsg_cnd_convolve(tex, ss, uv, sharpen, false, effectAmt, res); }
-    else if (EFFECT == 8)   { return nmsg_cnd_sobel(tex, ss, color, uv, effectAmt, res); }
-    else if (EFFECT == 9)   { return max(color, nmsg_cnd_convolve(tex, ss, uv, edge2, true, effectAmt, res)); }
-    else if (EFFECT == 300) { return nmsg_cnd_convolve(tex, ss, uv, sharpenBlur, true, effectAmt, res); }
-    else if (EFFECT == 301) { return nmsg_cnd_convolve(tex, ss, uv, edge3, true, effectAmt, res); }
+    if (EFFECT == 1)        { return nmsg_cnd_convolve(tex, ss, uv, blur, true, effectAmt, res, tile); }
+    else if (EFFECT == 2)   { return nmsg_cnd_derivatives(tex, ss, color, uv, true, effectAmt, res, tile); }
+    else if (EFFECT == 120) { return clamp(nmsg_cnd_derivatives(tex, ss, color, uv, false, effectAmt, res, tile) * 2.5, float3(0.0, 0.0, 0.0), float3(1.0, 1.0, 1.0)); }
+    else if (EFFECT == 3)   { return color * nmsg_cnd_convolve(tex, ss, uv, edge2, true, effectAmt, res, tile); }
+    else if (EFFECT == 4)   { return nmsg_cnd_convolve(tex, ss, uv, emboss, false, effectAmt, res, tile); }
+    else if (EFFECT == 5)   { return nmsg_cnd_outline(tex, ss, color, uv, effectAmt, res, tile); }
+    else if (EFFECT == 6)   { return nmsg_cnd_shadow(tex, ss, color, uv, effectAmt, res, tile); }
+    else if (EFFECT == 7)   { return nmsg_cnd_convolve(tex, ss, uv, sharpen, false, effectAmt, res, tile); }
+    else if (EFFECT == 8)   { return nmsg_cnd_sobel(tex, ss, color, uv, effectAmt, res, tile); }
+    else if (EFFECT == 9)   { return max(color, nmsg_cnd_convolve(tex, ss, uv, edge2, true, effectAmt, res, tile)); }
+    else if (EFFECT == 300) { return nmsg_cnd_convolve(tex, ss, uv, sharpenBlur, true, effectAmt, res, tile); }
+    else if (EFFECT == 301) { return nmsg_cnd_convolve(tex, ss, uv, edge3, true, effectAmt, res, tile); }
     return color;
 }
 
-float3 nmsg_cnd_cga(UnityTexture2D tex, UnitySamplerState ss, float4 color, float2 st, float effectAmt, float2 res)
+float3 nmsg_cnd_cga(UnityTexture2D tex, UnitySamplerState ss, float4 color, float2 st, float2 fragCoord, float effectAmt, float2 res, float2 fullResolution, float renderScale)
 {
     float amt = nmsg_cnd_mapRange(effectAmt, 0.0, 20.0, 0.0, 5.0);
     if (amt < 0.01) { return color.rgb; }
-    float pixelDensity = amt;
+    float pixelDensity = amt * renderScale;
     float size = 2.0 * pixelDensity;
     float dSize = 2.0 * size;
     float amount = res.x / size;
     float d = 1.0 / amount;
-    float ar = res.x / res.y;
+    float ar = fullResolution.x / fullResolution.y;
     float sx = floor(st.x / d) * d;
     d = ar / amount;
     float sy = floor(st.y / d) * d;
@@ -264,28 +276,28 @@ float3 nmsg_cnd_cga(UnityTexture2D tex, UnitySamplerState ss, float4 color, floa
     else if (o == 4.0) { c1 = light; c2 = light; }
     else if (o == 5.0) { c1 = light; c2 = white; }
     else               { c1 = white; c2 = white; }
-    float fx = st.x * res.x;
-    float fy = st.y * res.y;
+    float fx = fragCoord.x;
+    float fy = fragCoord.y;
     float3 result = c1;
-    if (fmod(fx, dSize) > size)
+    if (nm_mod(fx, dSize) > size)
     {
-        if (fmod(fy, dSize) > size) { result = c1; } else { result = c2; }
+        if (nm_mod(fy, dSize) > size) { result = c1; } else { result = c2; }
     }
     else
     {
-        if (fmod(fy, dSize) > size) { result = c2; } else { result = c1; }
+        if (nm_mod(fy, dSize) > size) { result = c2; } else { result = c1; }
     }
     return result;
 }
 
-float3 nmsg_cnd_subpixel(UnityTexture2D tex, UnitySamplerState ss, float2 st, float scaleIn, float2 res)
+float3 nmsg_cnd_subpixel(UnityTexture2D tex, UnitySamplerState ss, float2 st, float scaleIn, float2 res, float renderScale, NMSG_CndTile tile)
 {
-    float scale = nmsg_cnd_mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0);
-    float3 orig = nmsg_cnd_pixellate(tex, ss, st, scale, res);
+    float scale = nmsg_cnd_mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0) * renderScale;
+    float3 orig = nmsg_cnd_pixellate(tex, ss, st, 4.0 * scale, res, tile);
     float3 color = orig;
     float2 coord = floor(st * res);
-    float m = fmod(coord.x, 4.0 * scale);
-    if (fmod(coord.y, 4.0 * scale) <= scale)        { color *= float3(0.0, 0.0, 0.0); }
+    float m = nm_mod(coord.x, 4.0 * scale);
+    if (nm_mod(coord.y, 4.0 * scale) <= scale)    { color *= float3(0.0, 0.0, 0.0); }
     else if (m <= scale)                            { color *= float3(1.0, 0.0, 0.0); }
     else if (m <= 2.0 * scale)                      { color *= float3(0.0, 1.0, 0.0); }
     else if (m <= 3.0 * scale)                      { color *= float3(0.0, 0.0, 1.0); }
@@ -331,8 +343,8 @@ float3 nmsg_cnd_zoomBlur(UnityTexture2D tex, UnitySamplerState ss, float2 st, fl
     return color / total;
 }
 
-// Shader Graph Custom Function entry. UV is the fullscreen 0..1 coord that the
-// runtime computes as fragCoord/resolution; Resolution is `u.resolution`.
+// Shader Graph Custom Function entry. UV is tile-local 0..1; the full image
+// coordinates and source-sampling coordinates use FullResolution/TileOffset.
 // TODO(verify): SS must be a clamp, non-sRGB (linear) sampler state to match the
 // runtime's bilinear/clamp/linear path (H7).
 void NM_Effects_float(
@@ -340,6 +352,9 @@ void NM_Effects_float(
     UnitySamplerState SS,
     float2            UV,
     float2            Resolution,
+    float2            FullResolution,
+    float2            TileOffset,
+    float             RenderScale,
     int               Effect,
     int               Flip,
     float             EffectAmt,
@@ -352,12 +367,23 @@ void NM_Effects_float(
     out float4        Out)
 {
     float2 res = Resolution;
-    float2 uv = UV;
+    // Nodes saved before tile inputs existed retain the original untiled path.
+    bool legacy = FullResolution.x < 1.0 || FullResolution.y < 1.0;
+    float2 fullRes = legacy ? Resolution : FullResolution;
+    float2 offset = legacy ? float2(0.0, 0.0) : TileOffset;
+    float scaleFactor = legacy ? 1.0 : RenderScale;
+    float2 fragCoord = UV * Resolution;
+    float2 uv = (fragCoord + offset) / fullRes;
+    float2 texSize = float2(InputTex.texelSize.z, InputTex.texelSize.w);
+    NMSG_CndTile tile;
+    tile.fullResolution = fullRes;
+    tile.tileOffset = offset;
+    tile.texSize = texSize;
 
     float scale = 100.0 / ScaleAmt;
     if (scale == 0.0) { scale = 1.0; }
 
-    uv = nmsg_cnd_rotate2D(uv, Rotation, res);
+    uv = nmsg_cnd_rotate2D(uv, Rotation, fullRes);
     uv -= 0.5;
     uv *= scale;
     uv += 0.5;
@@ -382,24 +408,37 @@ void NM_Effects_float(
     else if (Flip == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
     else if (Flip == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
 
-    float4 color = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, uv);
+    float4 color = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate,
+        nmsg_cnd_localUV(uv, fullRes, offset, texSize));
 
     if (EffectAmt != 0.0 && Effect != 0)
     {
         [branch]
-        if (Effect == 100)      { color = float4(nmsg_cnd_pixellate(InputTex, SS, uv, EffectAmt, res), color.a); }
+        if (Effect == 100)      { color = float4(nmsg_cnd_pixellate(InputTex, SS, uv, EffectAmt, res, tile), color.a); }
         else if (Effect == 110) { color = float4(nmsg_cnd_posterize(color.rgb, EffectAmt), color.a); }
-        else if (Effect == 200) { color = float4(nmsg_cnd_cga(InputTex, SS, color, uv, EffectAmt, res), color.a); }
-        else if (Effect == 210) { color = float4(nmsg_cnd_subpixel(InputTex, SS, uv, EffectAmt, res), color.a); }
+        else if (Effect == 200) { color = float4(nmsg_cnd_cga(InputTex, SS, color, uv, fragCoord, EffectAmt, res, fullRes, scaleFactor), color.a); }
+        else if (Effect == 210) { color = float4(nmsg_cnd_subpixel(InputTex, SS, uv, EffectAmt, res, scaleFactor, tile), color.a); }
         else if (Effect == 220) { color = float4(nmsg_cnd_bloom(InputTex, SS, uv, EffectAmt), color.a); }
         else if (Effect == 230) { color = float4(nmsg_cnd_zoomBlur(InputTex, SS, uv, EffectAmt), color.a); }
-        else                    { color = float4(nmsg_cnd_convolutionEffect(InputTex, SS, color.rgb, uv, Effect, EffectAmt, res), color.a); }
+        else                    { color = float4(nmsg_cnd_convolutionEffect(InputTex, SS, color.rgb, uv, Effect, EffectAmt, res, tile), color.a); }
     }
 
     float3 c = nmsg_cnd_brightnessContrast(color.rgb, Intensity);
     c = nmsg_cnd_saturateFn(c, Saturation);
 
     Out = float4(c, color.a);
+}
+
+// Preserve the call shape serialized by Shader Graph before tile inputs existed.
+void NM_Effects_float(
+    UnityTexture2D InputTex, UnitySamplerState SS, float2 UV, float2 Resolution,
+    int Effect, int Flip, float EffectAmt, float ScaleAmt, float Rotation,
+    float OffsetX, float OffsetY, float Intensity, float Saturation,
+    out float4 Out)
+{
+    NM_Effects_float(InputTex, SS, UV, Resolution, float2(0.0, 0.0),
+        float2(0.0, 0.0), 0.0, Effect, Flip, EffectAmt, ScaleAmt,
+        Rotation, OffsetX, OffsetY, Intensity, Saturation, Out);
 }
 
 #endif // NM_SG_CLASSICNOISEDECK_EFFECTS_INCLUDED

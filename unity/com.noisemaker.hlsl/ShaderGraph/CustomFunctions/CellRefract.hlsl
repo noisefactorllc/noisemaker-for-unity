@@ -299,7 +299,11 @@ void NM_CellRefract_float(
     st.x += cos(refLen * NMSG_CR_TAU) * refAmt;
     st.y += sin(refLen * NMSG_CR_TAU) * refAmt;
 
-    if (Wrap == 1)
+    if (Wrap == 0)
+    {
+        st = abs((st + 1.0) - 2.0 * floor((st + 1.0) / 2.0) - 1.0);
+    }
+    else if (Wrap == 1)
     {
         st = frac(st);
     }
