@@ -28,8 +28,7 @@
 //  * rotate2D helper is per-effect (mat2x2 column-major in WGSL -> float2x2 in HLSL;
 //    both store (c,-s,s,c) in the same layout — row-major HLSL mul(m,v) is identical
 //    to WGSL mat2x2 * vec2). See note below.
-//  * WGSL modulo used for mirror/repeat wrap: `(a % b + b) % b` — use nm_mod (never
-//    fmod) per PORTING-GUIDE rule H6.
+//  * WebGL2 GLSL uses one floor-based mod for mirror wrap and fract for repeat.
 //  * `time` comes from NMFullscreen.hlsl engine alias (_NM_Time).
 //  * speed / wrap are declared as int uniforms (definition.js type:"int").
 //  * WGSL rotate2D(angle) constructs mat2x2<f32>(c, -s, s, c).
@@ -101,20 +100,18 @@ float2 nm_rotate_uv(float2 uv, float2 texSize)
     uv += center;
 
     // Apply wrap mode
-    // WGSL wrap==0 (mirror): uv = abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0)
-    // WGSL wrap==1 (repeat): uv = (uv % 1.0 + 1.0) % 1.0
-    // WGSL wrap==2 (clamp):  uv = clamp(uv, 0.0, 1.0)
-    // nm_mod(a,b) = a - b*floor(a/b) — matches WGSL modulo (floors toward -inf)
+    // WebGL2 GLSL: mirror = abs(mod(uv + 1.0, 2.0) - 1.0), repeat = fract(uv).
+    // nm_mod(a,b) = a - b*floor(a/b), matching GLSL mod for mirror.
     [branch]
     if (wrap == 0)
     {
         // mirror
-        uv = abs(nm_mod(nm_mod(uv + float2(1.0, 1.0), float2(2.0, 2.0)) + float2(2.0, 2.0), float2(2.0, 2.0)) - float2(1.0, 1.0));
+        uv = abs(nm_mod(uv + float2(1.0, 1.0), float2(2.0, 2.0)) - float2(1.0, 1.0));
     }
     else if (wrap == 1)
     {
         // repeat
-        uv = nm_mod(nm_mod(uv, float2(1.0, 1.0)) + float2(1.0, 1.0), float2(1.0, 1.0));
+        uv = frac(uv);
     }
     else
     {

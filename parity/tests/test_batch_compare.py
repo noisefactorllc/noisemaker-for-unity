@@ -42,6 +42,7 @@ CLASSIC_FIXTURES = {
     "classicNoisedeck__fractal",
     "classicNoisedeck__glitch",
     "classicNoisedeck__kaleido",
+    "classicNoisedeck__kaleido__shadow_red",
     "classicNoisedeck__lensDistortion",
     "classicNoisedeck__moodscape",
     "classicNoisedeck__noise3d",
@@ -157,6 +158,8 @@ FILTER_FIXTURES = {
     "filter__reverb",
     "filter__ridge",
     "filter__rotate",
+    "filter__rotate__negative_mirror",
+    "filter__rotate__negative_repeat",
     "filter__scale",
     "filter__scanlineError",
     "filter__scratches",
@@ -1211,7 +1214,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             for line in FILTER_MANIFEST.read_text().splitlines()
             if line.strip() and not line.lstrip().startswith("#")
         ]
-        self.assertEqual(len(manifest_lines), 74)
+        self.assertEqual(len(manifest_lines), 76)
         self.assertTrue(all(len(parts) == 2 for parts in manifest_lines))
         self.assertEqual({parts[0] for parts in manifest_lines}, FILTER_FIXTURES)
         self.assertTrue(all((ROOT / parts[1]).is_file() for parts in manifest_lines))
@@ -1361,7 +1364,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             gold.mkdir()
             cand.mkdir()
             for name in FILTER_FIXTURES:
-                # 58 strict fixtures stay byte-exact; the 16 exception cases carry
+                # 60 strict fixtures stay byte-exact; the 16 exception cases carry
                 # a single mad=2 pixel so every exception is exercised once (above
                 # the tol-1 PASS bound, inside each measured policy). Cases with
                 # allowed_exceeded_pixels pin the diff to their exact coordinate.
@@ -1394,7 +1397,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 58, "ALLOWED_NEAR": 16}, report["counts"])
+        self.assertEqual({"PASS": 60, "ALLOWED_NEAR": 16}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

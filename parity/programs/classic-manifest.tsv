@@ -9,6 +9,7 @@ classicNoisedeck__effectsCgaOob	--selftest/classicNoisedeck__effectsCgaOob.dsl
 classicNoisedeck__fractal	--selftest/classicNoisedeck__fractal.dsl
 classicNoisedeck__glitch	--selftest/classicNoisedeck__glitch.dsl
 classicNoisedeck__kaleido	--selftest/classicNoisedeck__kaleido.dsl
+classicNoisedeck__kaleido__shadow_red	parity/programs/classicNoisedeck__kaleido__shadow_red.dsl
 classicNoisedeck__lensDistortion	--selftest/classicNoisedeck__lensDistortion.dsl
 classicNoisedeck__moodscape	--selftest/classicNoisedeck__moodscape.dsl
 classicNoisedeck__noise3d	--selftest/classicNoisedeck__noise3d.dsl

@@ -41,6 +41,8 @@ filter__repeat	--selftest/filter__repeat.dsl
 filter__reverb	--selftest/filter__reverb.dsl
 filter__ridge	--selftest/filter__ridge.dsl
 filter__rotate	--selftest/filter__rotate.dsl
+filter__rotate__negative_mirror	parity/programs/filter__rotate__negative_mirror.dsl
+filter__rotate__negative_repeat	parity/programs/filter__rotate__negative_repeat.dsl
 filter__scale	--selftest/filter__scale.dsl
 filter__scanlineError	--selftest/filter__scanlineError.dsl
 filter__scratches	--selftest/filter__scratches.dsl

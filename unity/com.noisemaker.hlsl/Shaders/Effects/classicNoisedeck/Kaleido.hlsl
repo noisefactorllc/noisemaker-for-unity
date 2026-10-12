@@ -44,9 +44,8 @@
 //    GLSL-style mod (sign of divisor) via glslMod() -> nm_mod (NEVER fmod, H6).
 //  * `select(0.0, delta/maxC, maxC != 0.0)` -> `maxC != 0.0 ? delta/maxC : 0.0`.
 //  * `select(vec2(0,1), vec2(1,0), x0.x > x0.y)` -> `x0.x > x0.y ? (1,0):(0,1)`.
-//  * rgb2hsv uses `% 6.0` on a possibly-negative value: WGSL `%` truncates
-//    toward zero (sign of x). HLSL `%` on floats ALSO truncates toward zero, so
-//    HLSL `%` matches the WGSL here (NOT nm_mod, which would change the sign).
+//  * WebGL2 GLSL rgb2hsv uses floor-based mod for red-dominant hues; use nm_mod
+//    because HLSL `%` truncates negative values toward zero.
 //  * `bitcast<u32>(f)` -> asuint(f) (bit reinterpret); `u32(i)` -> (uint)i
 //    (two's-complement); `vec3u(p)` -> (uint3)p (float trunc). Match each.
 //  * `mix`->lerp, `fract`->frac, `radians(d)`->d*PI/180 (kept as the literal
@@ -360,8 +359,7 @@ float3 kl_rgb2hsv(float3 rgb)
     float h = 0.0;
     if (delta != 0.0)
     {
-        // WGSL `% 6.0` truncates toward zero (sign of x); HLSL `%` matches.
-        if (maxC == rgb.r) { h = ((rgb.g - rgb.b) / delta % 6.0) / 6.0; }
+        if (maxC == rgb.r) { h = nm_mod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }

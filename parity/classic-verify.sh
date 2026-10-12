@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# End-to-end 17-fixture classicNoisedeck parity gate: reference goldens, Unity candidates,
+# End-to-end 18-fixture classicNoisedeck parity gate: reference goldens, Unity candidates,
 # then fail-closed grading with the repository's measured exception policy.
-# Covers the 17 classicNoisedeck effects not in the root corpus (cellRefract, noise,
+# Covers 17 classicNoisedeck effects not in the root corpus (cellRefract, noise,
 # and refract are covered by root-verify.sh). Together, all 20 classicNoisedeck effects
 # are verified for rendered pixel parity.
 set -euo pipefail
