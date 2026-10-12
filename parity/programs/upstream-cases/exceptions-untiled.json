@@ -105,14 +105,6 @@
       "max_exceeded_channels": 7,
       "mechanism": "Sparse convolution accumulation rounding ties."
     },
-    "filter__warp": {
-      "max_abs_diff": 5,
-      "max_mean_abs_diff": 0.000214,
-      "ssim_min": 0.999999,
-      "max_exceeded_pixels": 1,
-      "max_exceeded_channels": 2,
-      "mechanism": "One domain-warp resampling coordinate tie."
-    },
     "mixer__uvRemap": {
       "max_abs_diff": 42,
       "max_mean_abs_diff": 0.009644,

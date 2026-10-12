@@ -113,7 +113,7 @@ float4 NMFrag_warp(NMVaryings i) : SV_Target
     //       uv = (gl_FragCoord.xy + tileOffset) / fullRes;
     float2 fullRes = (fullResolution.x > 0.0) ? fullResolution : resolution;
     float aspectRatioLocal = fullRes.x / fullRes.y;
-    float2 uv = NM_GlobalCoord(i) / fullRes;
+    precise float2 uv = NM_GlobalCoord(i) / fullRes;
 
     float t = time;
 

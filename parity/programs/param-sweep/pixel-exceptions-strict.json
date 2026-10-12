@@ -553,22 +553,6 @@
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "render__loopBegin__alpha__mid": {
-   "max_abs_diff": 10.0,
-   "max_mean_abs_diff": 0.000568389892578125,
-   "ssim_min": 0.9999989685,
-   "max_exceeded_pixels": 10,
-   "max_exceeded_channels": 13,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "render__loopBegin__intensity__mid": {
-   "max_abs_diff": 6.0,
-   "max_mean_abs_diff": 0.00054168701171875,
-   "ssim_min": 0.9999997255,
-   "max_exceeded_pixels": 9,
-   "max_exceeded_channels": 13,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "render__pointsBillboardRender__shapeMode__texture": {
    "max_abs_diff": 4.0,
    "max_mean_abs_diff": 0.001811981201171875,

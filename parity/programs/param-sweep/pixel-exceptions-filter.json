@@ -1385,62 +1385,6 @@
    "max_exceeded_channels": 24,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "filter__warp__antialias__false": {
-   "max_abs_diff": 19.0,
-   "max_mean_abs_diff": 0.00054168701171875,
-   "ssim_min": 0.9999995618,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 8,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__warp__scale__mid": {
-   "max_abs_diff": 6.0,
-   "max_mean_abs_diff": 0.0005340576171875,
-   "ssim_min": 0.9999998509,
-   "max_exceeded_pixels": 12,
-   "max_exceeded_channels": 25,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__warp__seed__mid": {
-   "max_abs_diff": 4.0,
-   "max_mean_abs_diff": 0.00041961669921875,
-   "ssim_min": 0.9999998211860657,
-   "max_exceeded_pixels": 8,
-   "max_exceeded_channels": 16,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__warp__speed__mid": {
-   "max_abs_diff": 5.0,
-   "max_mean_abs_diff": 0.000354766845703125,
-   "ssim_min": 0.9999999432,
-   "max_exceeded_pixels": 7,
-   "max_exceeded_channels": 13,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__warp__strength__mid": {
-   "max_abs_diff": 6.0,
-   "max_mean_abs_diff": 0.000457763671875,
-   "ssim_min": 0.9999998769,
-   "max_exceeded_pixels": 10,
-   "max_exceeded_channels": 19,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__warp__wrap__clamp": {
-   "max_abs_diff": 3.0,
-   "max_mean_abs_diff": 0.00037384033203125,
-   "ssim_min": 0.9999999474,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 1,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__warp__wrap__repeat": {
-   "max_abs_diff": 5.0,
-   "max_mean_abs_diff": 0.000354766845703125,
-   "ssim_min": 0.9999999467,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__waves__strength__mid": {
    "max_abs_diff": 9.0,
    "max_mean_abs_diff": 0.0037994384765625,

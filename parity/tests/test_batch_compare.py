@@ -207,7 +207,6 @@ FILTER_EXCEPTION_CASES = {
     "filter__step",
     "filter__tetraColorArray",
     "filter__tunnel",
-    "filter__warp",
     "filter__wormhole",
 }
 
@@ -1383,14 +1382,6 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 240,
                     "mechanism": "Tunnel radial UV warp bilinear resample ties at depth-gradient boundaries (140 sparse flips).",
                 },
-                "filter__warp": {
-                    "max_abs_diff": 6,
-                    "max_mean_abs_diff": 0.001,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 9,
-                    "max_exceeded_channels": 13,
-                    "mechanism": "Domain-warp bilinear resample UV ties at warped-gradient crossing pixels (9 sparse flips).",
-                },
                 "filter__wormhole": {
                     "max_abs_diff": 197,
                     "max_mean_abs_diff": 0.41,
@@ -1411,7 +1402,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             gold.mkdir()
             cand.mkdir()
             for name in FILTER_FIXTURES:
-                # 60 strict fixtures stay byte-exact; the 16 exception cases carry
+                # 61 strict fixtures stay byte-exact; the 15 exception cases carry
                 # a single mad=2 pixel so every exception is exercised once (above
                 # the tol-1 PASS bound, inside each measured policy). Cases with
                 # allowed_exceeded_pixels pin the diff to their exact coordinate.
@@ -1444,7 +1435,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 60, "ALLOWED_NEAR": 16}, report["counts"])
+        self.assertEqual({"PASS": 61, "ALLOWED_NEAR": 15}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 
