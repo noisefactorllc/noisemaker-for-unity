@@ -473,6 +473,14 @@
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "mixer__distortion__aberration__mid": {
+   "max_abs_diff": 25.0,
+   "max_mean_abs_diff": 0.000908,
+   "ssim_min": 0.999999,
+   "max_exceeded_pixels": 18,
+   "max_exceeded_channels": 22,
+   "mechanism": "localized refraction sampling ties; reference WebGPU also differs from WebGL2 at eight pixels"
+  },
   "mixer__distortion__antialias__true": {
    "max_abs_diff": 20.0,
    "max_mean_abs_diff": 0.00173187255859375,

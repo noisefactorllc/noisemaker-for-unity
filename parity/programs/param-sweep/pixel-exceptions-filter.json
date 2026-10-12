@@ -417,6 +417,14 @@
    "max_exceeded_channels": 240,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "filter__halftone__pattern__line": {
+   "max_abs_diff": 236.0,
+   "max_mean_abs_diff": 0.267094,
+   "ssim_min": 0.993414,
+   "max_exceeded_pixels": 221,
+   "max_exceeded_channels": 663,
+   "mechanism": "45-degree line-screen boundary ties: 212/221 differing pixels lie on golden edges; reference WebGL2 and WebGPU agree exactly"
+  },
   "filter__halftone__sharpness__mid": {
    "max_abs_diff": 43.0,
    "max_mean_abs_diff": 0.00665283203125,
@@ -713,6 +721,14 @@
    "max_exceeded_channels": 21,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "filter__oilPaint__seed__mid": {
+   "max_abs_diff": 77.0,
+   "max_mean_abs_diff": 0.003415,
+   "ssim_min": 0.999996,
+   "max_exceeded_pixels": 8,
+   "max_exceeded_channels": 21,
+   "mechanism": "eight sponge fbm hash pixels differ under Metal float32 arithmetic; reference WebGL2 and WebGPU agree exactly"
+  },
   "filter__oilPaint__size__mid": {
    "max_abs_diff": 177.0,
    "max_mean_abs_diff": 0.0062103271484375,
@@ -760,6 +776,14 @@
    "max_exceeded_pixels": 17,
    "max_exceeded_channels": 36,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__pinch__aspectLens__false": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.000203,
+   "ssim_min": 0.999999,
+   "max_exceeded_pixels": 3,
+   "max_exceeded_channels": 4,
+   "mechanism": "non-square 512x256 tile: sparse float32 warp/sampling ties; the reference parameter effect is observable"
   },
   "filter__pinch__rotation__mid": {
    "max_abs_diff": 7.0,
@@ -913,6 +937,14 @@
    "max_exceeded_channels": 121,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "filter__relief__graininess__mid": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 7.7e-05,
+   "ssim_min": 0.999999,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 6,
+   "mechanism": "localized float32 rounding: 2 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
   "filter__relief__lightAngle__mid": {
    "max_abs_diff": 4.0,
    "max_mean_abs_diff": 0.00148773193359375,
@@ -1009,6 +1041,14 @@
    "max_exceeded_channels": 120,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "filter__spiral__aspectLens__false": {
+   "max_abs_diff": 6.0,
+   "max_mean_abs_diff": 0.000302,
+   "ssim_min": 0.999999,
+   "max_exceeded_pixels": 9,
+   "max_exceeded_channels": 15,
+   "mechanism": "non-square 512x256 tile: sparse float32 warp/sampling ties; the reference parameter effect is observable"
+  },
   "filter__spiral__rotation__mid": {
    "max_abs_diff": 15.0,
    "max_mean_abs_diff": 0.006725311279296875,
@@ -1073,6 +1113,14 @@
    "max_exceeded_channels": 43,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "filter__strokes__intensity__mid": {
+   "max_abs_diff": 2.0,
+   "max_mean_abs_diff": 0.001473,
+   "ssim_min": 0.999999,
+   "max_exceeded_pixels": 106,
+   "max_exceeded_channels": 109,
+   "mechanism": "localized float32 rounding: 106 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
   "filter__strokes__length__mid": {
    "max_abs_diff": 2.0,
    "max_mean_abs_diff": 0.000560760498046875,
@@ -1136,6 +1184,38 @@
    "max_exceeded_pixels": 1,
    "max_exceeded_channels": 2,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tetraColorArray__pos0__mid": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.001946,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "one pixel at a manual gradient transition; reference WebGL2 and WebGPU agree exactly"
+  },
+  "filter__tetraColorArray__pos1__mid": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.001946,
+   "ssim_min": 1.0,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 2,
+   "mechanism": "one pixel at a manual gradient transition; reference WebGL2 and WebGPU agree exactly"
+  },
+  "filter__tetraColorArray__pos2__mid": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.002919,
+   "ssim_min": 0.999969,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 3,
+   "mechanism": "one pixel at a manual gradient transition; reference WebGL2 and WebGPU agree exactly"
+  },
+  "filter__tetraColorArray__pos3__mid": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.000973,
+   "ssim_min": 0.999975,
+   "max_exceeded_pixels": 1,
+   "max_exceeded_channels": 1,
+   "mechanism": "one pixel at a manual gradient transition; reference WebGL2 and WebGPU agree exactly"
   },
   "filter__tetraColorArray__positionMode__manual": {
    "max_abs_diff": 255.0,
@@ -1224,6 +1304,14 @@
    "max_exceeded_pixels": 186,
    "max_exceeded_channels": 498,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__tunnel__aspectLens__false": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.000199,
+   "ssim_min": 0.999999,
+   "max_exceeded_pixels": 2,
+   "max_exceeded_channels": 3,
+   "mechanism": "non-square 512x256 tile: sparse float32 warp/sampling ties; the reference parameter effect is observable"
   },
   "filter__tunnel__center__mid": {
    "max_abs_diff": 13.0,

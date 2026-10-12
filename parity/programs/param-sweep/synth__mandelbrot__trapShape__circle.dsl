@@ -1,6 +1,6 @@
 search synth
 
-mandelbrot(trapShape: circle)
+mandelbrot(trapShape: circle, outputMode: orbitTrap)
   .write(o0)
 
 render(o0)

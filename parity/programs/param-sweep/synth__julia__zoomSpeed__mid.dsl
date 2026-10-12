@@ -1,6 +1,6 @@
 search synth
 
-julia(zoomSpeed: 2.5)
+julia(zoomSpeed: 2.5, zoomDepth: 1)
   .write(o0)
 
 render(o0)

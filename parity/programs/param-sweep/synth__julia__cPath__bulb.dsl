@@ -1,6 +1,6 @@
 search synth
 
-julia(cPath: bulb)
+julia(cPath: bulb, poi: manual)
   .write(o0)
 
 render(o0)

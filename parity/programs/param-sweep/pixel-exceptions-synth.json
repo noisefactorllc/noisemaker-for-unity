@@ -1,6 +1,38 @@
 {
  "schema_version": 1,
  "cases": {
+  "synth__julia__cPath__bulb": {
+   "max_abs_diff": 232.0,
+   "max_mean_abs_diff": 0.060128,
+   "ssim_min": 0.997732,
+   "max_exceeded_pixels": 26,
+   "max_exceeded_channels": 78,
+   "mechanism": "fractal escape/color boundary float32 sensitivity: 26 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
+  "synth__julia__cPath__cardioid": {
+   "max_abs_diff": 225.0,
+   "max_mean_abs_diff": 0.035523,
+   "ssim_min": 0.998113,
+   "max_exceeded_pixels": 14,
+   "max_exceeded_channels": 42,
+   "mechanism": "fractal escape/color boundary float32 sensitivity: 14 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
+  "synth__julia__cReal__mid": {
+   "max_abs_diff": 22.0,
+   "max_mean_abs_diff": 0.00245,
+   "ssim_min": 0.999997,
+   "max_exceeded_pixels": 32,
+   "max_exceeded_channels": 96,
+   "mechanism": "fractal escape/color boundary float32 sensitivity: 32 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
+  "synth__julia__cSpeed__mid": {
+   "max_abs_diff": 207.0,
+   "max_mean_abs_diff": 0.009385,
+   "ssim_min": 0.999582,
+   "max_exceeded_pixels": 4,
+   "max_exceeded_channels": 12,
+   "mechanism": "fractal escape/color boundary float32 sensitivity: 4 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
   "synth__julia__invert__true": {
    "max_abs_diff": 251.0,
    "max_mean_abs_diff": 0.0677032470703125,
@@ -16,6 +48,14 @@
    "max_exceeded_pixels": 176,
    "max_exceeded_channels": 528,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "synth__julia__lightAngle__mid": {
+   "max_abs_diff": 255.0,
+   "max_mean_abs_diff": 0.14993,
+   "ssim_min": 0.994177,
+   "max_exceeded_pixels": 457,
+   "max_exceeded_channels": 1371,
+   "mechanism": "fractal escape/color boundary float32 sensitivity: 457 pixels differ; reference WebGL2 and WebGPU agree exactly"
   },
   "synth__julia__outputMode__normalMap": {
    "max_abs_diff": 240.0,
@@ -89,6 +129,14 @@
    "max_exceeded_channels": 540,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9988)"
   },
+  "synth__julia__stripeFreq__mid": {
+   "max_abs_diff": 177.0,
+   "max_mean_abs_diff": 0.065323,
+   "ssim_min": 0.997284,
+   "max_exceeded_pixels": 494,
+   "max_exceeded_channels": 1482,
+   "mechanism": "fractal escape/color boundary float32 sensitivity: 494 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
   "synth__julia__trapShape__circle": {
    "max_abs_diff": 255.0,
    "max_mean_abs_diff": 0.056671142578125,
@@ -105,6 +153,14 @@
    "max_exceeded_channels": 108,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9982)"
   },
+  "synth__julia__zoomSpeed__mid": {
+   "max_abs_diff": 250.0,
+   "max_mean_abs_diff": 0.219956,
+   "ssim_min": 0.944209,
+   "max_exceeded_pixels": 722,
+   "max_exceeded_channels": 2166,
+   "mechanism": "fractal escape/color boundary float32 sensitivity: 722 pixels differ; reference WebGL2 and WebGPU agree exactly"
+  },
   "synth__newton__centerX__mid": {
    "max_abs_diff": 254.0,
    "max_mean_abs_diff": 0.058834075927734375,
@@ -120,6 +176,30 @@
    "max_exceeded_pixels": 170,
    "max_exceeded_channels": 510,
    "mechanism": "Newton root-basin boundary sensitivity to float32 product rounding: precise df64 product materialization on Metal changes the measured WebGL2 parity pattern at this parameter value"
+  },
+  "synth__newton__degreeRange__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.522618,
+   "ssim_min": 0.989978,
+   "max_exceeded_pixels": 472,
+   "max_exceeded_channels": 1416,
+   "mechanism": "fractal boundary float32 sensitivity; reference WebGPU differs from WebGL2 at 470 pixels (SSIM 0.989686)"
+  },
+  "synth__newton__degreeSpeed__mid": {
+   "max_abs_diff": 217.0,
+   "max_mean_abs_diff": 0.073586,
+   "ssim_min": 0.998754,
+   "max_exceeded_pixels": 82,
+   "max_exceeded_channels": 246,
+   "mechanism": "fractal boundary float32 sensitivity; reference WebGPU differs from WebGL2 at 84 pixels (SSIM 0.998728)"
+  },
+  "synth__newton__degree__mid": {
+   "max_abs_diff": 251.0,
+   "max_mean_abs_diff": 0.093934,
+   "ssim_min": 0.998604,
+   "max_exceeded_pixels": 116,
+   "max_exceeded_channels": 348,
+   "mechanism": "fractal boundary float32 sensitivity; reference WebGPU differs from WebGL2 at 141 pixels (SSIM 0.997895)"
   },
   "synth__newton__invert__true": {
    "max_abs_diff": 251.0,
@@ -201,6 +281,22 @@
    "max_exceeded_channels": 12,
    "mechanism": "Newton root-basin boundary sensitivity to float32 product rounding: precise df64 product materialization on Metal changes the measured WebGL2 parity pattern at this parameter value"
   },
+  "synth__newton__relaxRange__mid": {
+   "max_abs_diff": 252.0,
+   "max_mean_abs_diff": 0.190167,
+   "ssim_min": 0.996872,
+   "max_exceeded_pixels": 212,
+   "max_exceeded_channels": 636,
+   "mechanism": "fractal boundary float32 sensitivity; reference WebGPU differs from WebGL2 at 230 pixels (SSIM 0.996227)"
+  },
+  "synth__newton__relaxSpeed__mid": {
+   "max_abs_diff": 247.0,
+   "max_mean_abs_diff": 0.179101,
+   "ssim_min": 0.997108,
+   "max_exceeded_pixels": 202,
+   "max_exceeded_channels": 606,
+   "mechanism": "fractal boundary float32 sensitivity; reference WebGPU differs from WebGL2 at 216 pixels (SSIM 0.996571)"
+  },
   "synth__newton__relaxation__mid": {
    "max_abs_diff": 249.0,
    "max_mean_abs_diff": 0.3004302978515625,
@@ -224,6 +320,14 @@
    "max_exceeded_pixels": 112,
    "max_exceeded_channels": 336,
    "mechanism": "df64 intermediate rounding and Newton basin sensitivity: precise HLSL reduced Unity/WebGL2 differences from 124 to 112 pixels and removed the four previous Unity-only outliers; WebGL2/WebGPU differ at 140 pixels, overlapping 108 of the remaining 112, with four symmetric center-basin pixels unique to Unity; both reference backends repeat byte-identically"
+  },
+  "synth__newton__zoomSpeed__mid": {
+   "max_abs_diff": 253.0,
+   "max_mean_abs_diff": 0.127911,
+   "ssim_min": 0.997921,
+   "max_exceeded_pixels": 118,
+   "max_exceeded_channels": 354,
+   "mechanism": "fractal boundary float32 sensitivity; reference WebGPU differs from WebGL2 at 150 pixels (SSIM 0.996911)"
   }
  }
 }

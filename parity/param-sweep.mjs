@@ -48,6 +48,38 @@ const SKIP_CONTROLS = new Set(['button', 'vector3'])
 const STATE_VALUE_NAMES = new Set(['time','frame','mouse','resolution','seed','a','u1','u2','u3','u4','s1','s2','b1','b2','a1','a2','deltaTime'])
 const SKIP_TYPES = new Set(['color', 'surface', 'string'])
 
+// A changed control must be exercised in a mode where the reference shader
+// reads it. These contexts are limited to variants whose default-program
+// render was byte-identical before the controlling mode was selected.
+const CONTEXT_RULES = [
+  ['filter/edge', ['contourSide', 'level'], { kernel: 'contour' }],
+  ['filter/halftone', ['monoAngle', 'pattern'], { mode: 'mono' }],
+  ['filter/mosaicTiles', ['gapFill', 'maxOffset'], { mode: 'shifted' }],
+  ['filter/oilPaint', ['seed'], { mode: 'sponge' }],
+  ['filter/relief', ['balance', 'graininess'], { mode: 'notePaper' }],
+  ['filter/strokes', ['intensity'], { mode: 'sprayed' }],
+  ['filter/tetraColorArray', ['colorMode'], { smoothness: 1 }],
+  ['filter/tetraColorArray', ['pos0', 'pos1', 'pos2', 'pos3', 'pos4', 'pos5', 'pos6', 'pos7'], { positionMode: 'manual', colorCount: 8 }],
+  ['mixer/distortion', ['aberration'], { mode: 'reflect' }],
+  ['mixer/thresholdMix', ['rangeB', 'rangeG', 'rangeR', 'thresholdB', 'thresholdG', 'thresholdR'], { mode: 'rgb' }],
+  ['synth/julia', ['cImag', 'cPath', 'cReal'], { poi: 'manual' }],
+  ['synth/julia', ['cRadius'], { poi: 'manual', cPath: 'circle' }],
+  ['synth/julia', ['cSpeed'], { poi: 'manual', cPath: 'bulb' }],
+  ['synth/julia', ['lightAngle'], { outputMode: 'normalMap' }],
+  ['synth/julia', ['stripeFreq'], { outputMode: 'stripeAverage' }],
+  ['synth/julia', ['zoomSpeed'], { zoomDepth: 1 }],
+  ['synth/mandelbrot', ['lightAngle'], { outputMode: 'normalMap' }],
+  ['synth/mandelbrot', ['stripeFreq'], { outputMode: 'stripeAverage' }],
+  ['synth/mandelbrot', ['trapShape'], { outputMode: 'orbitTrap' }],
+  ['synth/mandelbrot', ['zoomSpeed'], { poi: 'seahorseValley', zoomDepth: 1 }],
+  ['synth/newton', ['degree'], { poi: 'manual' }],
+  ['synth/newton', ['degreeRange'], { poi: 'manual', degreeSpeed: 0.5 }],
+  ['synth/newton', ['degreeSpeed'], { poi: 'manual', degreeRange: 3 }],
+  ['synth/newton', ['relaxRange'], { relaxSpeed: 0.25 }],
+  ['synth/newton', ['relaxSpeed'], { relaxRange: 0.1 }],
+  ['synth/newton', ['zoomSpeed'], { zoomDepth: 1 }]
+]
+
 function fmtNum (v) {
   if (Number.isInteger(v)) return String(v)
   const r = Math.round(v * 1e6) / 1e6
@@ -122,7 +154,20 @@ for (const id of effectIds) {
     if (typeof picks === 'string') { exclusions.push(`${id}\t${param}\t${picks}`); continue }
     if (!picks) { exclusions.push(`${id}\t${param}\tno enumerable values`); continue }
     for (const pk of picks) {
-      const dsl = applyParam(baseDsl, def.func, param, pk.value)
+      let dsl = baseDsl
+      // The reference demo stalls compiling its own adjust(mode: hsv,
+      // rotation: 120, hueRange: 40) sample. A neighboring rotation (119)
+      // renders the same mode, so the mode variant can still be pixel graded.
+      if (id === 'filter/adjust' && param === 'mode' && pk.slug === 'hsv') {
+        dsl = applyParam(dsl, def.func, 'rotation', 119)
+      }
+      for (const [effectId, params, context] of CONTEXT_RULES) {
+        if (effectId !== id || !params.includes(param)) continue
+        for (const [contextParam, contextValue] of Object.entries(context)) {
+          dsl = applyParam(dsl, def.func, contextParam, contextValue)
+        }
+      }
+      dsl = applyParam(dsl, def.func, param, pk.value)
       if (dsl == null) { genfail++; exclusions.push(`${id}\t${param}\tcall site not found`); continue }
       const fname = `${ns}__${name}__${param}__${pk.slug}.dsl`
       writeFileSync(join(outDir, fname), dsl.endsWith('\n') ? dsl : dsl + '\n')

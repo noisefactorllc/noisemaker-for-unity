@@ -3,19 +3,21 @@
 # parameter sweep (complements the graph-level param-sweep-verify.sh).
 #
 # Renders EVERY parameter-variant program in parity/programs/param-sweep/ with
-# the reference engine (golden, pinned authority worktree) and the
+# the reference engine (golden, pinned authority checkout) and the
 # Unity/HLSL port (candidate, licensed Unity editor), then grades every variant
 # fail-closed with parity/batch-compare.py under the same per-corpus tolerance
-# policy the declared pixel gates use. The reference golden is always the
-# WebGL2 rendering (batch-golden --backend webgl2); variants the reference
+# policy the declared pixel gates use. The reference golden is WebGL2 except
+# for the canonical WGSL meshRender wireframe case; variants the reference
 # cannot render faithfully at all are excluded from grading via
 # pixel-reference-blocked.tsv, never silently.
+# meshRender wireframe uses the reference WGSL/WebGPU renderer: its GLSL/WebGL2
+# shader discards mesh interiors, while the port and canonical WGSL fill them.
 #
-#   strict  (classicNoisedeck, mixer, render)   tol 1 / SSIM >= 0.9999
-#   filter  (filter)                            tol 1 / SSIM >= 0.99
-#   synth   (synth)                             tol 1 / SSIM >= 0.92
+#   strict  (classicNoisedeck, mixer, render)   tol 1 / SSIM >= 0.99
+#   filter  (filter)                            tol 1 / SSIM >= 0.98
+#   synth   (synth)                             tol 1 / SSIM >= 0.90
 #   3d      (synth3d, filter3d)                 tol 2 / SSIM >= 0.98
-#   points  (points)                            tol 1 / SSIM >= 0.50
+#   points  (points)                            tol 1 / SSIM >= 0
 #
 # Render protocol mirrors the declared gates exactly:
 #   - default 8 warm frames from a clean state at pinned time 0.25, 256px;
@@ -24,6 +26,8 @@
 #   - meshLoader/meshRender variants are fed the shared mesh asset
 #     programs/meshes/sphere.obj on BOTH sides (--mesh / -nmMesh),
 #     exactly like render-verify.sh batch B.
+#   - aspectLens variants render a 256px tile of a 512x256 full image so the
+#     aspect control has a measurable effect on both renderers.
 #
 # Fail-closed: any FAIL, NEAR outside its measured exception budget, missing
 # image, size mismatch, corpus/manifest drift, or Unity batch that does not
@@ -105,12 +109,17 @@ fi
 #   b-main    frames 8            everything except points/* and mesh fixtures
 #   b-points  frames 60           points/* (agent/particle simulation warm-up)
 #   b-mesh    frames 8 + -nmMesh  render__meshLoader__* / render__meshRender__*
+#   b-wireframe frames 8 + mesh    canonical WGSL/WebGPU wireframe fixture
+: > "$WORK/b-aspect.tsv"
+: > "$WORK/b-wireframe.tsv"
 if [ -f "$BLOCKED" ]; then
   awk -F'\t' -v corpus="$CORPUS" -v work="$WORK" -v blocked="$BLOCKED" '
     NR == FNR { if ($0 !~ /^#/ && $0 != "") b[$1] = 1; next }
     NF >= 2 && $1 !~ /^#/ && !($1 in b) {
-      print $1 "\t" corpus "/" $2 > ((index($1, "points__") == 1) ? work "/b-points.tsv" : \
-        ((index($1, "render__meshLoader__") == 1 || index($1, "render__meshRender__") == 1) ? work "/b-mesh.tsv" : work "/b-main.tsv"))
+      print $1 "\t" corpus "/" $2 > (($1 == "render__meshRender__wireframe__wireframe") ? work "/b-wireframe.tsv" : \
+        (($1 ~ /^filter__(pinch|spiral|tunnel)__aspectLens__false$/) ? work "/b-aspect.tsv" : \
+        ((index($1, "points__") == 1) ? work "/b-points.tsv" : \
+        ((index($1, "render__meshLoader__") == 1 || index($1, "render__meshRender__") == 1) ? work "/b-mesh.tsv" : work "/b-main.tsv"))))
       count++
     }
     END { if (count == 0) exit 2; printf "%d variants\n", count > "/dev/stderr" }
@@ -118,8 +127,10 @@ if [ -f "$BLOCKED" ]; then
 else
   awk -F'\t' -v corpus="$CORPUS" -v work="$WORK" '
     NF >= 2 && $1 !~ /^#/ {
-      print $1 "\t" corpus "/" $2 > ((index($1, "points__") == 1) ? work "/b-points.tsv" : \
-        ((index($1, "render__meshLoader__") == 1 || index($1, "render__meshRender__") == 1) ? work "/b-mesh.tsv" : work "/b-main.tsv"))
+      print $1 "\t" corpus "/" $2 > (($1 == "render__meshRender__wireframe__wireframe") ? work "/b-wireframe.tsv" : \
+        (($1 ~ /^filter__(pinch|spiral|tunnel)__aspectLens__false$/) ? work "/b-aspect.tsv" : \
+        ((index($1, "points__") == 1) ? work "/b-points.tsv" : \
+        ((index($1, "render__meshLoader__") == 1 || index($1, "render__meshRender__") == 1) ? work "/b-mesh.tsv" : work "/b-main.tsv"))))
       count++
     }
     END { if (count == 0) exit 2; printf "%d variants\n", count > "/dev/stderr" }
@@ -129,11 +140,13 @@ TOTAL=$(wc -l < "$MANIFEST" | tr -d ' ')
 MAIN_N=$(wc -l < "$WORK/b-main.tsv" | tr -d ' ')
 POINTS_N=$(wc -l < "$WORK/b-points.tsv" | tr -d ' ')
 MESH_N=$(wc -l < "$WORK/b-mesh.tsv" | tr -d ' ')
-if [ "$((MAIN_N + POINTS_N + MESH_N + BLOCKED_N))" -ne "$TOTAL" ]; then
-  echo "batch split does not cover the corpus ($MAIN_N + $POINTS_N + $MESH_N + $BLOCKED_N blocked != $TOTAL)" >&2
+ASPECT_N=$(wc -l < "$WORK/b-aspect.tsv" | tr -d ' ')
+WIRE_N=$(wc -l < "$WORK/b-wireframe.tsv" | tr -d ' ')
+if [ "$((MAIN_N + POINTS_N + MESH_N + ASPECT_N + WIRE_N + BLOCKED_N))" -ne "$TOTAL" ]; then
+  echo "batch split does not cover the corpus ($MAIN_N + $POINTS_N + $MESH_N + $ASPECT_N aspect + $WIRE_N wireframe + $BLOCKED_N blocked != $TOTAL)" >&2
   exit 2
 fi
-echo "corpus: $TOTAL variants (main $MAIN_N, points $POINTS_N, mesh $MESH_N, reference-renderer blocked $BLOCKED_N)"
+echo "corpus: $TOTAL variants (main $MAIN_N, points $POINTS_N, mesh $MESH_N, aspect $ASPECT_N, wireframe $WIRE_N, reference-renderer blocked $BLOCKED_N)"
 
 # grade groups (policy mirrors the declared per-corpus gates)
 if [ -f "$BLOCKED" ]; then
@@ -165,6 +178,8 @@ fi
 
 golden_batch () { # <batch> <goldenDir> <extraGoldenArgs...>
   local batch="$1" goldDir="$2"; shift 2
+  local backend=webgl2
+  if [ "${1:-}" = --backend ]; then backend="$2"; shift 2; fi
   mkdir -p "$goldDir"
   local src="$WORK/$batch"
   if [ "${NMC_CHUNKS:-1}" -gt 1 ]; then
@@ -173,7 +188,7 @@ golden_batch () { # <batch> <goldenDir> <extraGoldenArgs...>
     echo "chunk $NMC_CHUNK/$NMC_CHUNKS of $batch: $(wc -l < "$src" | tr -d ' ') variants"
   fi
   "$NODE" "$HERE/batch-golden.mjs" "$src" "$goldDir" \
-    --size 256 --time 0.25 --backend webgl2 "$@"
+    --size 256 --time 0.25 --backend "$backend" "$@"
 }
 
 unity_batch () { # <batch> <candDir> <unityLog> <extraUnityArgs...>
@@ -233,6 +248,14 @@ case "$STAGE" in
       echo "=== goldens: mesh ($MESH_N, shared sphere.obj) ==="
       golden_batch b-mesh.tsv "$GOLD" --mesh "$MESH_OBJ"
     fi
+    if [ "$ASPECT_N" -gt 0 ]; then
+      echo "=== goldens: aspect ($ASPECT_N, full 512x256) ==="
+      golden_batch b-aspect.tsv "$GOLD" --full-width 512 --full-height 256
+    fi
+    if [ "$WIRE_N" -gt 0 ]; then
+      echo "=== goldens: canonical WGSL wireframe ($WIRE_N) ==="
+      golden_batch b-wireframe.tsv "$GOLD" --backend webgpu --mesh "$MESH_OBJ"
+    fi
     echo "golden stage complete: $(ls "$GOLD" | wc -l | tr -d ' ') goldens in $GOLD"
     ;;
   unity)
@@ -246,6 +269,19 @@ case "$STAGE" in
       if ! grep -Eq "NMParity. mesh0 loaded from $MESH_OBJ: [1-9][0-9]* vertices" "$WORK/unity-mesh.log"; then
         tail -40 "$WORK/unity-mesh.log" >&2
         echo "Unity mesh batch did not load the shared OBJ (or loaded zero vertices)" >&2
+        exit 1
+      fi
+    fi
+    if [ "$ASPECT_N" -gt 0 ]; then
+      echo "=== Unity render: aspect ($ASPECT_N, full 512x256) ==="
+      unity_batch b-aspect.tsv "$CAND" "$WORK/unity-aspect.log" -nmFullWidth 512 -nmFullHeight 256
+    fi
+    if [ "$WIRE_N" -gt 0 ]; then
+      echo "=== Unity render: canonical WGSL wireframe ($WIRE_N) ==="
+      unity_batch b-wireframe.tsv "$CAND" "$WORK/unity-wireframe.log" -nmMesh "$MESH_OBJ"
+      if ! grep -Eq "NMParity. mesh0 loaded from $MESH_OBJ: [1-9][0-9]* vertices" "$WORK/unity-wireframe.log"; then
+        tail -40 "$WORK/unity-wireframe.log" >&2
+        echo "Unity wireframe batch did not load the shared OBJ (or loaded zero vertices)" >&2
         exit 1
       fi
     fi
@@ -270,7 +306,7 @@ case "$STAGE" in
       echo "param-sweep pixel gate: FAIL (unmatched cases above; see per-group reports)" >&2
       exit 1
     fi
-    echo "param-sweep pixel gate: PASS ($((MAIN_N + POINTS_N + MESH_N)) variants graded, $BLOCKED_N reference-renderer blocked, exit 0)"
+    echo "param-sweep pixel gate: PASS ($((MAIN_N + POINTS_N + MESH_N + ASPECT_N + WIRE_N)) variants graded, $BLOCKED_N reference-renderer blocked, exit 0)"
     ;;
   *)
     echo "=== golden + Unity render: main ($MAIN_N, 8 frames) ==="
@@ -289,12 +325,27 @@ case "$STAGE" in
         exit 1
       fi
     fi
+    if [ "$ASPECT_N" -gt 0 ]; then
+      echo "=== golden + Unity render: aspect ($ASPECT_N, full 512x256) ==="
+      golden_batch b-aspect.tsv "$GOLD" --full-width 512 --full-height 256
+      unity_batch b-aspect.tsv "$CAND" "$WORK/unity-aspect.log" -nmFullWidth 512 -nmFullHeight 256
+    fi
+    if [ "$WIRE_N" -gt 0 ]; then
+      echo "=== golden + Unity render: canonical WGSL wireframe ($WIRE_N) ==="
+      golden_batch b-wireframe.tsv "$GOLD" --backend webgpu --mesh "$MESH_OBJ"
+      unity_batch b-wireframe.tsv "$CAND" "$WORK/unity-wireframe.log" -nmMesh "$MESH_OBJ"
+      if ! grep -Eq "NMParity. mesh0 loaded from $MESH_OBJ: [1-9][0-9]* vertices" "$WORK/unity-wireframe.log"; then
+        tail -40 "$WORK/unity-wireframe.log" >&2
+        echo "Unity wireframe batch did not load the shared OBJ (or loaded zero vertices)" >&2
+        exit 1
+      fi
+    fi
     echo "=== grading (fail-closed, per-corpus tolerance policy) ==="
     grade_group strict 1 0.99
     grade_group filter 1 0.98
     grade_group synth 1 0.90
     grade_group 3d 2 0.98
     grade_group points 1 0
-    echo "param-sweep pixel gate: PASS ($((MAIN_N + POINTS_N + MESH_N)) variants graded, $BLOCKED_N reference-renderer blocked, exit 0)"
+    echo "param-sweep pixel gate: PASS ($((MAIN_N + POINTS_N + MESH_N + ASPECT_N + WIRE_N)) variants graded, $BLOCKED_N reference-renderer blocked, exit 0)"
     ;;
 esac

@@ -1,7 +1,7 @@
 search filter, synth
 
 noise(seed: 1, ridges: true)
-  .halftone(pattern: line)
+  .halftone(pattern: line, mode: mono)
   .write(o0)
 
 render(o0)

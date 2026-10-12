@@ -1,7 +1,7 @@
 search filter, synth
 
 noise(seed: 1, ridges: true)
-  .mosaicTiles(maxOffset: 50)
+  .mosaicTiles(maxOffset: 50, mode: shifted)
   .write(o0)
 
 render(o0)

@@ -1,5 +1,5 @@
 search filter, synth
 
 noise()
-  .tetraColorArray(colorMode: oklch, smoothness: 0)
+  .tetraColorArray(colorMode: oklch, smoothness: 1)
   .write(o0)

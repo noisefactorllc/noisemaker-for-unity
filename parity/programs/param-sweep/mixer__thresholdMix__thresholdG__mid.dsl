@@ -4,5 +4,5 @@ noise()
 .write(o0)
 
 solid(color: #000000)
-.thresholdMix(thresholdG: 1, tex: read(o0))
+.thresholdMix(thresholdG: 1, mode: rgb, tex: read(o0))
 .write(o1)
