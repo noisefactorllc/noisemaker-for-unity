@@ -1,22 +1,6 @@
 {
  "schema_version": 1,
  "cases": {
-  "filter__bulge__antialias__false": {
-   "max_abs_diff": 255.0,
-   "max_mean_abs_diff": 0.002918243408203125,
-   "ssim_min": 0.9999695373,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__bulge__strength__mid": {
-   "max_abs_diff": 64.0,
-   "max_mean_abs_diff": 0.000732421875,
-   "ssim_min": 0.9999979537,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 3,
-   "mechanism": "single bulge-displacement sample on a texel edge of the point-filtered input (corr(gold,cand)=1.0)"
-  },
   "filter__celShading__antialias__true": {
    "max_abs_diff": 4.0,
    "max_mean_abs_diff": 9.918212890625e-05,

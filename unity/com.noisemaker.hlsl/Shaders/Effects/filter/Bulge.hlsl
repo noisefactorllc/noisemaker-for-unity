@@ -139,7 +139,7 @@ float4 NMFrag_bulge(NMVaryings i) : SV_Target
 
     // GLSL: convert distorted global UV back to tile-local for texture sampling;
     //       fract() wraps samples at tile boundaries.
-    float2 sampleUV = frac((uv * fullResolution - tileOffset) / resolution);
+    precise float2 sampleUV = frac((uv * fullResolution - tileOffset) / resolution);
 
     // Antialias: 4x supersample using distortion derivatives
     [branch]
