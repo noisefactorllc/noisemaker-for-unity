@@ -56,7 +56,7 @@ RenderTexture (not an SRP camera/feature); presenting it full-screen is the host
 |---|---|
 | `resources.js` liveness + linear-scan pool | `Graph/TexturePool.cs` — ported 1:1 (deterministic, insertion-ordered). `phys_N` numbering matches. |
 | `pipeline.js` surfaces (`o0..o7`, geo, vol, mesh) | `Pipeline/SurfaceManager.cs` — double-buffered `RenderTexture` pairs, ARGBHalf linear. |
-| 3-tier double-buffer (§10.2/10.6/10.7) + `isStateSurface` | `Pipeline/SurfaceManager.cs` — exact swap/persist predicate. |
+| 3-tier double-buffer (§10.2/10.6/10.7) + `isStateSurface` + graph feedback surfaces (noisemaker@5a8e8f67/8aa4cf64) | `Pipeline/SurfaceManager.cs` — exact swap/persist predicate. |
 | `backend.executePass` (render/MRT/points/repeat/blend) | `Backend/NMRenderBackend.cs` — `CommandBuffer` Blit / `DrawProcedural` / MRT `SetRenderTarget`. |
 | fullscreen triangle VS + default present blit | `Shaders/Include/NMFullscreen.hlsl`, `Shaders/NMBlit.shader`. |
 | per-frame uniform flow | `Pipeline/UniformBinder.cs` → `MaterialPropertyBlock` (named uniforms; see PORTING-GUIDE). |

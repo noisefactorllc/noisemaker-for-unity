@@ -66,6 +66,16 @@ namespace Noisemaker.Hlsl
         // surfaces/pool are recreated (after MRT format demotion, matching the
         // reference's "after applyMrtFormatBudget()" ordering).
         private HashSet<string> _poolable;
+
+        // Names whose pass-uniform value exists but is nonnumeric in the JS
+        // sense (Number(value) is NaN): automation/Func configs and arrays the
+        // runtime never evaluates. The reference resolveDimension
+        // (noisemaker@247f452b) falls back to the texture spec's numeric
+        // default for these so backends never allocate a NaN size; this port's
+        // numeric uniform lookup never sees them, so their presence is tracked
+        // here and consulted by TextureStore.ResolveDimension.
+        private readonly HashSet<string> _nonnumericUniforms = new HashSet<string>();
+
         private int _maxTextureSize;
         private bool _disposed;
 
@@ -250,6 +260,14 @@ namespace Noisemaker.Hlsl
         // wrong default (the agent state collapsed to 64x64 instead of stateSize=128).
         // Seed them from the graph's pass uniforms; scoped names are unique per node so
         // there is no cross-pass conflict.
+        //
+        // The same scan records every pass uniform whose value is present but
+        // nonnumeric (an automation/Func config or array the runtime never
+        // evaluates — reference collectDefaultUniforms merges those into the
+        // dimension lookups, where noisemaker@247f452b now falls back to the
+        // texture spec's numeric default). Bool pass values are numeric in the
+        // JS sense (Number(true) == 1) but are not seeded here: treating them
+        // as absent is this port's pre-range behavior.
         private void SeedScopedUniforms()
         {
             foreach (Pass pass in Graph.Passes)
@@ -259,14 +277,39 @@ namespace Noisemaker.Hlsl
                 {
                     var kv = pass.Uniforms.EntryAt(i);
                     string name = kv.Key;
+                    UniformValue v = kv.Value;
                     if (name.IndexOf("_node_", System.StringComparison.Ordinal) < 0 &&
                         name.IndexOf("_chain_", System.StringComparison.Ordinal) < 0)
+                    {
+                        if (IsNonnumericUniform(v)) _nonnumericUniforms.Add(name);
                         continue;
+                    }
                     if (_globalUniforms.ContainsKey(name)) continue;
-                    UniformValue v = kv.Value;
                     if (v.Kind == UniformValueKind.Number)
                         _globalUniforms[name] = v.Number;
+                    else if (IsNonnumericUniform(v))
+                        _nonnumericUniforms.Add(name);
                 }
+            }
+        }
+
+        // True when the JS-side Number(value) for this uniform value is NaN:
+        // objects (automation/Func configs), number arrays, and strings that
+        // do not parse as a number. Null is absent (?? paramDefault), and
+        // booleans are numeric (1/0).
+        private static bool IsNonnumericUniform(UniformValue v)
+        {
+            switch (v.Kind)
+            {
+                case UniformValueKind.Object:
+                case UniformValueKind.NumberArray:
+                    return true;
+                case UniformValueKind.String:
+                    return !double.TryParse(v.String,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out _);
+                default:
+                    return false;
             }
         }
 
@@ -294,8 +337,8 @@ namespace Noisemaker.Hlsl
             _sinkManager.Configure(new NMOutputDescriptor(_width, _height,
                 NMOutputAlphaMode.Premultiplied));
             _store.SetScreenSize(_width, _height);
-            _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup);
-            _store.AllocatePooled(Graph, UniformLookup, _poolable);
+            _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup, _nonnumericUniforms);
+            _store.AllocatePooled(Graph, UniformLookup, _poolable, _nonnumericUniforms);
             // TODO(scope): initAsyncEffects (CPU texture generation) not ported.
         }
 
@@ -346,8 +389,8 @@ namespace Noisemaker.Hlsl
                 // plan fresh alongside the recreate, like the reference does per
                 // recreateTextures call).
                 _poolable = TexturePoolability.ComputePoolable(Graph);
-                _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup);
-                _store.AllocatePooled(Graph, UniformLookup, _poolable);
+                _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup, _nonnumericUniforms);
+                _store.AllocatePooled(Graph, UniformLookup, _poolable, _nonnumericUniforms);
             }
             // TODO(scope): per-pass uniform fan-out (_node_/_chain_) and palette
             // expansion (reference §13 setUniform) not ported; the named uniform is
@@ -463,7 +506,7 @@ namespace Noisemaker.Hlsl
                 int repeatCount = ResolveRepeatCount(pass, time);
                 for (int iter = 0; iter < repeatCount; iter++)
                 {
-                    _backend.ExecutePass(_cmd, pass, _uniformLookup);
+                    _backend.ExecutePass(_cmd, pass, _uniformLookup, _nonnumericUniforms);
                     _surfaces.UpdateFrameSurfaceBindings(pass); // §10.2
                     if (repeatCount > 1)
                         _surfaces.AdoptIterationBindings(pass); // §10.6
@@ -516,7 +559,7 @@ namespace Noisemaker.Hlsl
                     int rc = ResolveRepeatCount(lp, normalizedTime);
                     for (int r = 0; r < rc; r++)
                     {
-                        _backend.ExecutePass(_cmd, lp, _uniformLookup);
+                        _backend.ExecutePass(_cmd, lp, _uniformLookup, _nonnumericUniforms);
                         _surfaces.UpdateFrameSurfaceBindings(lp); // §10.2
                         if (rc > 1)
                             _surfaces.AdoptIterationBindings(lp); // §10.6 (inner repeat)
@@ -708,8 +751,8 @@ namespace Noisemaker.Hlsl
                     TextureSpec s;
                     if (Graph.Textures.TryGetValue(texId, out s) && s != null)
                     {
-                        int lw = TextureStore.ResolveDimension(s.Width, _width, UniformLookup);
-                        int lh = TextureStore.ResolveDimension(s.Height, _height, UniformLookup);
+                        int lw = TextureStore.ResolveDimension(s.Width, _width, UniformLookup, _nonnumericUniforms);
+                        int lh = TextureStore.ResolveDimension(s.Height, _height, UniformLookup, _nonnumericUniforms);
                         if (lw != rt.width || lh != rt.height ||
                             rt.format != TextureStore.MapFormat(s.Format) ||
                             !_store.MatchesLogical3D(rt, s.Is3D))
@@ -730,11 +773,11 @@ namespace Noisemaker.Hlsl
             TextureSpec spec;
             if (!Graph.Textures.TryGetValue(specTexId, out spec) || spec == null)
                 return null;
-            int w = TextureStore.ResolveDimension(spec.Width, _width, UniformLookup);
-            int h = TextureStore.ResolveDimension(spec.Height, _height, UniformLookup);
+            int w = TextureStore.ResolveDimension(spec.Width, _width, UniformLookup, _nonnumericUniforms);
+            int h = TextureStore.ResolveDimension(spec.Height, _height, UniformLookup, _nonnumericUniforms);
             int d = 1;
             if (spec.Is3D && spec.Depth != null)
-                d = TextureStore.ResolveDimension(spec.Depth, _height, UniformLookup);
+                d = TextureStore.ResolveDimension(spec.Depth, _height, UniformLookup, _nonnumericUniforms);
             return _store.CreateOrReuse(physId, w, h, spec.Format, spec.Is3D, d);
         }
 

@@ -85,8 +85,13 @@ namespace Noisemaker.Hlsl
         // executePass — render one pass into the CommandBuffer.
         // pointCountResolver supplies the dynamic count for drawMode:"points" when
         // countUniform is set (count = stateSize*stateSize per the points convention).
+        // nonnumericUniforms: pass-uniform names present but nonnumeric (Func
+        // wrappers etc.); the reference resolveDimension falls back to the
+        // spec's numeric default for those (noisemaker@247f452b), which the
+        // viewport dims resolve through too.
         public void ExecutePass(CommandBuffer cmd, Pass pass,
-            System.Func<string, double?> uniformLookup)
+            System.Func<string, double?> uniformLookup,
+            HashSet<string> nonnumericUniforms = null)
         {
             Material mat = _registry.ResolveMaterial(pass);
             if (mat == null)
@@ -192,16 +197,16 @@ namespace Noisemaker.Hlsl
                 // no shipped effect definition authors a non-zero viewport y (test
                 // fixtures only), so orientation is unchanged for the shipped corpus.
                 float vpX = pass.ViewportX != null
-                    ? (float)TextureStore.ResolveDimension(pass.ViewportX, primary.width, uniformLookup)
+                    ? (float)TextureStore.ResolveDimension(pass.ViewportX, primary.width, uniformLookup, nonnumericUniforms)
                     : 0f;
                 float vpY = pass.ViewportY != null
-                    ? (float)TextureStore.ResolveDimension(pass.ViewportY, primary.height, uniformLookup)
+                    ? (float)TextureStore.ResolveDimension(pass.ViewportY, primary.height, uniformLookup, nonnumericUniforms)
                     : 0f;
                 int vpW = pass.ViewportWidth != null
-                    ? TextureStore.ResolveDimension(pass.ViewportWidth, primary.width, uniformLookup)
+                    ? TextureStore.ResolveDimension(pass.ViewportWidth, primary.width, uniformLookup, nonnumericUniforms)
                     : primary.width;
                 int vpH = pass.ViewportHeight != null
-                    ? TextureStore.ResolveDimension(pass.ViewportHeight, primary.height, uniformLookup)
+                    ? TextureStore.ResolveDimension(pass.ViewportHeight, primary.height, uniformLookup, nonnumericUniforms)
                     : primary.height;
                 cmd.SetViewport(new Rect(vpX, vpY, vpW, vpH));
                 cmd.SetGlobalVector(IdNmResolution, new Vector4(vpW, vpH, 0f, 0f));

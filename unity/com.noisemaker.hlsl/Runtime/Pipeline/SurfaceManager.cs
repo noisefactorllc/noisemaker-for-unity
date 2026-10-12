@@ -52,6 +52,15 @@ namespace Noisemaker.Hlsl
         private readonly Dictionary<string, string> _frameWrite =
             new Dictionary<string, string>();
 
+        // Graph feedback surfaces (reference pipeline.js _feedbackSurfaces): a
+        // surface read BEFORE it is ever written (in pass order) and also
+        // written is cross-frame feedback — end-of-frame persists its final
+        // bindings instead of swapping. A surface first written and then read
+        // is frame-local scratch (such as Lenia's clear/deposit density
+        // target) and keeps the display-style swap. Recomputed by
+        // CreateSurfaces; empty until then (reference reads it null-safely).
+        private readonly HashSet<string> _feedbackSurfaces = new HashSet<string>();
+
         private static readonly Regex MeshDataPattern =
             new Regex(@"^mesh\d+_(positions|normals|uvs)$", RegexOptions.Compiled);
         private static readonly Regex StateNodePattern =
@@ -132,7 +141,8 @@ namespace Noisemaker.Hlsl
         // Called from resize. Builds the full surface set. uniforms supplies values
         // for dim resolution of global_ overrides / dynamic globals.
         public void CreateSurfaces(RenderGraph graph, int width, int height,
-            System.Func<string, double?> uniforms)
+            System.Func<string, double?> uniforms,
+            HashSet<string> nonnumericUniforms = null)
         {
             // Collect the ordered set of double-buffered surface names.
             var names = new List<string>();
@@ -141,11 +151,20 @@ namespace Noisemaker.Hlsl
             for (int i = 0; i < 8; i++) names.Add("o" + i);
 
             // Group 2: dynamic globals scanned from passes (skip mesh-data names).
+            // The scan also classifies feedback surfaces, mirroring the
+            // reference createSurfaces (noisemaker@5a8e8f67 + 8aa4cf64): each
+            // pass contributes its inputs first, then its outputs, in pass
+            // order.
+            var readBeforeWrite = new HashSet<string>();
+            var written = new HashSet<string>();
             foreach (Pass pass in graph.Passes)
             {
-                ScanGlobals(pass.Inputs, names);
-                ScanGlobals(pass.Outputs, names);
+                ScanGlobals(pass.Inputs, names, readBeforeWrite, written);
+                ScanGlobals(pass.Outputs, names, null, written);
             }
+            _feedbackSurfaces.Clear();
+            foreach (string name in readBeforeWrite)
+                if (written.Contains(name)) _feedbackSurfaces.Add(name);
 
             // Group 3: geo0..geo7.
             for (int i = 0; i < 8; i++) AddUnique(names, "geo" + i);
@@ -157,7 +176,7 @@ namespace Noisemaker.Hlsl
             {
                 string name = names[n];
                 ResolveSurfaceSize(graph, name, width, height, uniforms,
-                    out int w, out int h, out string format);
+                    nonnumericUniforms, out int w, out int h, out string format);
 
                 string readId = "global_" + name + "_read";
                 string writeId = "global_" + name + "_write";
@@ -225,14 +244,22 @@ namespace Noisemaker.Hlsl
             return false;
         }
 
-        private static void ScanGlobals(OrderedMap<string, string> map, List<string> into)
+        // Scan a pass's inputs (readBeforeWrite != null) or outputs (null) for
+        // global surface names. Outputs mark each name as written; inputs mark
+        // a not-yet-written name as read-before-write (reference createSurfaces
+        // feedback-surface scan).
+        private static void ScanGlobals(OrderedMap<string, string> map, List<string> into,
+            HashSet<string> readBeforeWrite, HashSet<string> written)
         {
+            bool isWrite = readBeforeWrite == null;
             foreach (string texId in map.Values)
             {
                 string name = ParseGlobalName(texId);
                 if (name == null) continue;
                 if (MeshDataPattern.IsMatch(name)) continue; // mesh-data handled in group 5
                 AddUnique(into, name);
+                if (isWrite) written.Add(name);
+                else if (!written.Contains(name)) readBeforeWrite.Add(name);
             }
         }
 
@@ -246,6 +273,7 @@ namespace Noisemaker.Hlsl
         // fixed sizes and graph global_<name> overrides.
         private void ResolveSurfaceSize(RenderGraph graph, string name,
             int width, int height, System.Func<string, double?> uniforms,
+            HashSet<string> nonnumericUniforms,
             out int w, out int h, out string format)
         {
             // group defaults
@@ -262,8 +290,8 @@ namespace Noisemaker.Hlsl
             TextureSpec spec;
             if (graph.Textures.TryGetValue("global_" + name, out spec) && spec != null)
             {
-                if (spec.Width != null) w = TextureStore.ResolveDimension(spec.Width, width, uniforms);
-                if (spec.Height != null) h = TextureStore.ResolveDimension(spec.Height, height, uniforms);
+                if (spec.Width != null) w = TextureStore.ResolveDimension(spec.Width, width, uniforms, nonnumericUniforms);
+                if (spec.Height != null) h = TextureStore.ResolveDimension(spec.Height, height, uniforms, nonnumericUniforms);
                 if (!string.IsNullOrEmpty(spec.Format)) format = spec.Format;
             }
         }
@@ -338,7 +366,10 @@ namespace Noisemaker.Hlsl
             }
         }
 
-        // §10.7 end-of-frame: persist state surfaces, swap display surfaces.
+        // §10.7 end-of-frame: persist state surfaces and graph feedback
+        // surfaces (noisemaker@5a8e8f67 — so the next frame reads the latest
+        // write even when an intervening update pass was skipped), swap
+        // display surfaces.
         public void SwapBuffers(int frameIndex)
         {
             int sc = _surfaces.Count;
@@ -350,9 +381,10 @@ namespace Noisemaker.Hlsl
                 if (rec.IsMesh) continue;
                 rec.CurrentFrame = frameIndex;
 
-                if (IsStateSurface(name))
+                if (IsStateSurface(name) || _feedbackSurfaces.Contains(name))
                 {
-                    // persist final bindings (no swap) — sims continue from last buffers.
+                    // persist final bindings (no swap) — sims and feedback
+                    // continue from last buffers.
                     string fr, fw;
                     bool hasR = _frameRead.TryGetValue(name, out fr);
                     bool hasW = _frameWrite.TryGetValue(name, out fw);

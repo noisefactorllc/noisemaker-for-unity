@@ -34,9 +34,9 @@
 //  * WGSL float `%` is truncated (sign of dividend, == HLSL `fmod`). GLSL `mod`
 //    is floored (sign of divisor, == nm_mod). For the ONE place this matters —
 //    rgb2hsv's `((rgb.g - rgb.b) / delta) % 6.0` where the dividend can be
-//    negative — the WGSL and GLSL still disagree at v1.0.271, and we use
-//    `nm_mod` to match the GLSL (WebGL2) reference. cga/subpixel use the
-//    GLSL `mod` on non-negative coords, also written as nm_mod.
+//    negative — the WGSL used the truncated `%` until it joined the GLSL's
+//    floor-mod at noisemaker d6c1f98b. `nm_mod` matches both. cga/subpixel use
+//    the GLSL `mod` on non-negative coords, also written as nm_mod.
 //  * `select(0.0, delta/maxC, maxC != 0.0)` -> ternary `maxC != 0.0 ? d/m : 0`.
 //  * prng()/random(): this effect's WGSL prng does `vec3f(pcg(vec3u(p)))` WITHOUT
 //    the sign-fold present in some other effects (Variant B, 08-§1.2). NMCore
@@ -161,17 +161,21 @@ float3 nm_cnd_hsv2rgb(float3 hsv)
     float x = c * (1.0 - abs(nm_mod(h * 6.0, 2.0) - 1.0));
     float m = v - c;
     float3 rgb;
-    if (h < 1.0 / 6.0)      { rgb = float3(c, x, 0.0); }
-    else if (h < 2.0 / 6.0) { rgb = float3(x, c, 0.0); }
-    else if (h < 3.0 / 6.0) { rgb = float3(0.0, c, x); }
-    else if (h < 4.0 / 6.0) { rgb = float3(0.0, x, c); }
-    else if (h < 5.0 / 6.0) { rgb = float3(x, 0.0, c); }
-    else                    { rgb = float3(c, 0.0, x); }
+    // The GLSL's ranges, including black for a hue outside [0, 1) (only
+    // reachable for NaN hues; noisemaker d6c1f98b).
+    if (0.0 <= h && h < 1.0 / 6.0)           { rgb = float3(c, x, 0.0); }
+    else if (1.0 / 6.0 <= h && h < 2.0 / 6.0) { rgb = float3(x, c, 0.0); }
+    else if (2.0 / 6.0 <= h && h < 3.0 / 6.0) { rgb = float3(0.0, c, x); }
+    else if (3.0 / 6.0 <= h && h < 4.0 / 6.0) { rgb = float3(0.0, x, c); }
+    else if (4.0 / 6.0 <= h && h < 5.0 / 6.0) { rgb = float3(x, 0.0, c); }
+    else if (5.0 / 6.0 <= h && h < 1.0)       { rgb = float3(c, 0.0, x); }
+    else                                      { rgb = float3(0.0, 0.0, 0.0); }
     return rgb + float3(m, m, m);
 }
 
 // rgb2hsv — WGSL structure. The `% 6.0` here can have a NEGATIVE dividend; the
-// WGSL truncates it (== HLSL fmod) but the GLSL floor-mods it, so use nm_mod.
+// GLSL floor-mods it and the WGSL has followed since noisemaker d6c1f98b, so
+// use nm_mod.
 float3 nm_cnd_rgb2hsv(float3 rgb)
 {
     float maxC = max(rgb.r, max(rgb.g, rgb.b));
@@ -365,7 +369,9 @@ float3 nm_cnd_cga(float4 color, float2 st, float2 fragCoord)
     else if (o == 3.0) { c1 = dark;  c2 = light; }
     else if (o == 4.0) { c1 = light; c2 = light; }
     else if (o == 5.0) { c1 = light; c2 = white; }
-    else               { c1 = white; c2 = white; }
+    else if (o == 6.0) { c1 = white; c2 = white; }
+    // Levels outside 0..6 (input outside 0..1) keep both colors black, as
+    // the GLSL's zero-initialized c1 and c2 do (noisemaker d6c1f98b).
     float3 result = c1;
     if (nm_mod(fragCoord.x, dSize) > size)
     {

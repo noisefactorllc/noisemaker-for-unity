@@ -85,8 +85,16 @@ namespace Noisemaker.Hlsl
         // ---- resolveDimension (reference/04 §9, EXACT) --------------------
         // screenSize is W for width dims, H for height dims; uniforms supplies param/
         // screenDivide values. Returns an int >= 1.
+        //
+        // nonnumericUniforms (optional): names whose pass-uniform value exists
+        // but is nonnumeric in the JS sense (Number(value) is NaN — an
+        // automation/Func config the runtime never evaluates; noisemaker
+        // @247f452b falls back to the spec's numeric default for these so
+        // backends never allocate a NaN size). This port's numeric lookup
+        // never sees those values, so their presence is tracked separately.
         public static int ResolveDimension(Dim spec, int screenSize,
-            System.Func<string, double?> uniformLookup)
+            System.Func<string, double?> uniformLookup,
+            HashSet<string> nonnumericUniforms = null)
         {
             if (spec == null) return Mathf.Max(1, screenSize);
 
@@ -115,9 +123,38 @@ namespace Noisemaker.Hlsl
                     double value = u.HasValue ? u.Value : paramDefault;
                     if (spec.Multiply.HasValue) value *= spec.Multiply.Value;
                     if (spec.Power.HasValue) value = System.Math.Pow(value, spec.Power.Value);
-                    // hasTransform && uniforms[param]===undefined && spec.default!==undefined
-                    if (hasTransform && !u.HasValue && spec.DefaultValue.HasValue)
+                    if (!u.HasValue && spec.DefaultValue.HasValue &&
+                        (hasTransform || (nonnumericUniforms != null &&
+                                          nonnumericUniforms.Contains(spec.Param))))
+                    {
+                        // A transform AND the param absent in uniforms AND a
+                        // 'default' -> 'default' is the final computed value.
+                        // A param PRESENT but nonnumeric (Func wrapper the
+                        // runtime never evaluates) takes the spec's numeric
+                        // default too (noisemaker@247f452b), regardless of a
+                        // transform; without a default it recomputes
+                        // paramDefault through the same transforms (value
+                        // already holds exactly that).
                         value = spec.DefaultValue.Value;
+                    }
+                    // Reference guard: !Number.isFinite(Number(value)) falls
+                    // back to spec.default ?? paramDefault(+transforms). The
+                    // reachable NaN source here is Math.pow's negative-base
+                    // fractional-power result.
+                    if (!double.IsFinite(value))
+                    {
+                        if (spec.DefaultValue.HasValue)
+                        {
+                            value = spec.DefaultValue.Value;
+                        }
+                        else
+                        {
+                            value = paramDefault;
+                            if (spec.Multiply.HasValue) value *= spec.Multiply.Value;
+                            if (spec.Power.HasValue)
+                                value = System.Math.Pow(value, spec.Power.Value);
+                        }
+                    }
                     return Mathf.Max(1, (int)System.Math.Floor(value));
                 }
 
@@ -279,7 +316,7 @@ namespace Noisemaker.Hlsl
         // gets no candidate at all — those virtuals resolve to dedicated texId RTs.
         // Pass null to allocate every group (legacy behavior).
         public void AllocatePooled(RenderGraph graph, System.Func<string, double?> uniforms,
-            HashSet<string> poolable = null)
+            HashSet<string> poolable = null, HashSet<string> nonnumericUniforms = null)
         {
             // phys_N -> max (w,h,d) + first-seen provisional format/is3D.
             var maxW = new Dictionary<string, int>();
@@ -303,11 +340,11 @@ namespace Noisemaker.Hlsl
                 if (!graph.Textures.TryGetValue(virtualId, out spec) || spec == null)
                     continue; // no spec -> created lazily on demand by ResolvePhysical
 
-                int w = ResolveDimension(spec.Width, ScreenWidth, uniforms);
-                int h = ResolveDimension(spec.Height, ScreenHeight, uniforms);
+                int w = ResolveDimension(spec.Width, ScreenWidth, uniforms, nonnumericUniforms);
+                int h = ResolveDimension(spec.Height, ScreenHeight, uniforms, nonnumericUniforms);
                 int d = 1;
                 if (spec.Is3D && spec.Depth != null)
-                    d = ResolveDimension(spec.Depth, ScreenHeight, uniforms);
+                    d = ResolveDimension(spec.Depth, ScreenHeight, uniforms, nonnumericUniforms);
 
                 if (!maxW.ContainsKey(physId))
                 {

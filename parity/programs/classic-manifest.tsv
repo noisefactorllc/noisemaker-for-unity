@@ -5,6 +5,7 @@ classicNoisedeck__coalesce	--selftest/classicNoisedeck__coalesce.dsl
 classicNoisedeck__colorLab	--selftest/classicNoisedeck__colorLab.dsl
 classicNoisedeck__composite	--selftest/classicNoisedeck__composite.dsl
 classicNoisedeck__effects	--selftest/classicNoisedeck__effects.dsl
+classicNoisedeck__effectsCgaOob	--selftest/classicNoisedeck__effectsCgaOob.dsl
 classicNoisedeck__fractal	--selftest/classicNoisedeck__fractal.dsl
 classicNoisedeck__glitch	--selftest/classicNoisedeck__glitch.dsl
 classicNoisedeck__kaleido	--selftest/classicNoisedeck__kaleido.dsl
