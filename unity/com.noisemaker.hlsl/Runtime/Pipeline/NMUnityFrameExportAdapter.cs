@@ -116,6 +116,17 @@ namespace Noisemaker.Hlsl
                     texture.height + " does not match configured extent " + slot.Width + "x" +
                     slot.Height, nameof(texture));
 
+            // Older Unity editors can discard a readback target's GPU backing
+            // between submissions. Recreate it and restore the resolve uniforms.
+            if (!slot.ResolveTexture.IsCreated())
+            {
+                if (!slot.ResolveTexture.Create())
+                    throw new InvalidOperationException("Failed to recreate Unity frame export texture");
+                slot.Material.SetVector(ExtentId,
+                    new Vector4(slot.Width, slot.Height, 0f, 0f));
+                slot.Material.SetInt(AlphaModeId, (int)slot.AlphaMode);
+            }
+
             CommandBuffer commands = slot.Commands;
             commands.Clear();
             commands.SetRenderTarget(slot.ResolveTexture);
