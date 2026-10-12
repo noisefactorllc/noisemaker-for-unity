@@ -2,15 +2,14 @@
   "schema_version": 1,
   "cases": {
     "heightGrid_billboard": {
-      "max_abs_diff": 2,
-      "ssim_min": 0.9999998,
-      "max_exceeded_pixels": 2,
-      "max_exceeded_channels": 5,
+      "max_abs_diff": 6,
+      "ssim_min": 0.9999999,
+      "max_exceeded_pixels": 1,
+      "max_exceeded_channels": 4,
       "allowed_exceeded_pixels": [
-        [77, 85],
-        [248, 133]
+        [200, 92]
       ],
-      "mechanism": "Sparse float32 screen-space-derivative tie at two points-billboard sprite edge pixels; cross-GPU Metal-vs-ANGLE transcendental class."
+      "mechanism": "Sparse float32 screen-space-derivative tie at one points-billboard sprite pixel; cross-GPU Metal-vs-ANGLE transcendental class. Re-measured against reference 3f5775c6 (heightGrid Z mapping changed upstream)."
     },
     "heightmap3d_landscape": {
       "max_abs_diff": 3,
@@ -60,15 +59,14 @@
     "refract_mirror": {
       "max_abs_diff": 19,
       "ssim_min": 0.9999990208,
-      "max_exceeded_pixels": 5,
-      "max_exceeded_channels": 13,
+      "max_exceeded_pixels": 3,
+      "max_exceeded_channels": 7,
       "allowed_exceeded_pixels": [
-        [7, 44],
         [196, 50],
         [172, 102],
-        [180, 148],
-        [146, 250]
-      ]
+        [180, 148]
+      ],
+      "mechanism": "Sparse float32 mirror-edge sampling tie; cross-GPU Metal-vs-ANGLE transcendental class. Re-measured against reference 3f5775c6 (uv chain via precomputed aspectInv/invFullResolution moved the tied pixels)."
     }
   }
 }

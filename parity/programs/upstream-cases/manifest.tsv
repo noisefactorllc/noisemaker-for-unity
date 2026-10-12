@@ -32,6 +32,7 @@ filter__fibers	parity/programs/upstream-cases/filter__fibers.dsl
 filter__flipMirror	parity/programs/upstream-cases/filter__flipMirror.dsl
 filter__fxaa	parity/programs/upstream-cases/filter__fxaa.dsl
 filter__glowingEdge	parity/programs/upstream-cases/filter__glowingEdge.dsl
+filter__glyphMap	parity/programs/upstream-cases/filter__glyphMap.dsl
 filter__grade	parity/programs/upstream-cases/filter__grade.dsl
 filter__grime	parity/programs/upstream-cases/filter__grime.dsl
 filter__invert	parity/programs/upstream-cases/filter__invert.dsl
@@ -50,6 +51,7 @@ filter__prismaticAberration	parity/programs/upstream-cases/filter__prismaticAber
 filter__reindex	parity/programs/upstream-cases/filter__reindex.dsl
 filter__repeat	parity/programs/upstream-cases/filter__repeat.dsl
 filter__reverb	parity/programs/upstream-cases/filter__reverb.dsl
+filter__rotate	parity/programs/upstream-cases/filter__rotate.dsl
 filter__scale	parity/programs/upstream-cases/filter__scale.dsl
 filter__scanlineError	parity/programs/upstream-cases/filter__scanlineError.dsl
 filter__scratches	parity/programs/upstream-cases/filter__scratches.dsl
@@ -90,6 +92,8 @@ points__dla	parity/programs/upstream-cases/points__dla.dsl
 points__flock	parity/programs/upstream-cases/points__flock.dsl
 points__flow	parity/programs/upstream-cases/points__flow.dsl
 points__heightGrid	parity/programs/upstream-cases/points__heightGrid.dsl
+points__hydraulic	parity/programs/upstream-cases/points__hydraulic.dsl
+points__lenia	parity/programs/upstream-cases/points__lenia.dsl
 points__life	parity/programs/upstream-cases/points__life.dsl
 points__physarum	parity/programs/upstream-cases/points__physarum.dsl
 points__physical	parity/programs/upstream-cases/points__physical.dsl
@@ -97,6 +101,7 @@ render__meshRender	parity/programs/upstream-cases/render__meshRender.dsl
 render__pointsBillboardRender	parity/programs/upstream-cases/render__pointsBillboardRender.dsl
 render__pointsEmit	parity/programs/upstream-cases/render__pointsEmit.dsl
 render__pointsRender	parity/programs/upstream-cases/render__pointsRender.dsl
+render__render3d	parity/programs/upstream-cases/render__render3d.dsl
 render__renderLandscape3d	parity/programs/upstream-cases/render__renderLandscape3d.dsl
 render__renderLit3d	parity/programs/upstream-cases/render__renderLit3d.dsl
 synth3d__flythrough3d	parity/programs/upstream-cases/synth3d__flythrough3d.dsl

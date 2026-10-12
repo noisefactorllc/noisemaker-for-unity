@@ -211,9 +211,10 @@ float4 nm_glyphMap(float2 pos, float2 texSize, Texture2D inputTex, SamplerState 
     // Local position within the cell, mapped to 5x7 glyph grid
     float2 localPos = frac(pixelCoord / csf);
     int gx = (int)(floor(localPos.x * 5.0));
-    int gy = (int)(floor(localPos.y * 7.0));
+    // Glyph row 0 is the top row, while localPos.y runs up the cell
+    // (noisemaker c5d26740).
+    int gy = 6 - clamp((int)(floor(localPos.y * 7.0)), 0, 6);
     gx = clamp(gx, 0, 4);
-    gy = clamp(gy, 0, 6);
 
     // Sample the center of the cell for brightness
     float2 cellCenter = (cellIndex + 0.5) * csf;

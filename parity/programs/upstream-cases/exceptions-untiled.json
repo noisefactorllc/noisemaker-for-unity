@@ -26,9 +26,9 @@
       "mechanism": "Sparse shape-mask threshold rounding tie."
     },
     "filter3d__flow3d": {
-      "max_abs_diff": 35,
-      "max_mean_abs_diff": 0.001923,
-      "ssim_min": 0.999984,
+      "max_abs_diff": 110.0,
+      "max_mean_abs_diff": 0.005126953125,
+      "ssim_min": 0.9998905418,
       "max_exceeded_pixels": 2,
       "max_exceeded_channels": 6,
       "mechanism": "Sparse volume-advection sample rounding ties."
@@ -65,6 +65,14 @@
       "max_exceeded_channels": 3,
       "mechanism": "One palette reindex threshold tie."
     },
+    "filter__rotate": {
+      "max_abs_diff": 74.0,
+      "max_mean_abs_diff": 0.011810302734375,
+      "ssim_min": 0.9999238983,
+      "max_exceeded_pixels": 13,
+      "max_exceeded_channels": 38,
+      "mechanism": "Sparse wrap-resampling coordinate rounding ties."
+    },
     "filter__scanlineError": {
       "max_abs_diff": 134,
       "max_mean_abs_diff": 0.012681,
@@ -72,6 +80,14 @@
       "max_exceeded_pixels": 3,
       "max_exceeded_channels": 9,
       "mechanism": "Sparse scanline error threshold ties."
+    },
+    "filter__scratches": {
+      "max_abs_diff": 253.0,
+      "max_mean_abs_diff": 0.2776641845703125,
+      "ssim_min": 0.9960523476,
+      "max_exceeded_pixels": 94,
+      "max_exceeded_channels": 155,
+      "mechanism": "Sparse scratch line-position rounding selects different texels."
     },
     "filter__unsharpMask": {
       "max_abs_diff": 3,
@@ -98,19 +114,35 @@
       "mechanism": "Gradient-derived UVs on image diagonals select neighboring input texels at a rounding boundary; Gradient already uses nm_atan2."
     },
     "points__flock": {
-      "max_abs_diff": 242,
-      "max_mean_abs_diff": 51.236573,
-      "ssim_min": 0.044291,
-      "max_exceeded_pixels": 12412,
-      "max_exceeded_channels": 37236,
+      "max_abs_diff": 255.0,
+      "max_mean_abs_diff": 45.6529541015625,
+      "ssim_min": 0.0833298316,
+      "max_exceeded_pixels": 12636,
+      "max_exceeded_channels": 37231,
       "mechanism": "Boids neighbor-cell partition sensitivity produces divergent agent trajectories."
     },
+    "points__hydraulic": {
+      "max_abs_diff": 255.0,
+      "max_mean_abs_diff": 40.628753662109375,
+      "ssim_min": 0.0749915675,
+      "max_exceeded_pixels": 10993,
+      "max_exceeded_channels": 32325,
+      "mechanism": "Hydraulic erosion droplet trajectory float32 integration tie."
+    },
+    "points__lenia": {
+      "max_abs_diff": 234.0,
+      "max_mean_abs_diff": 0.3682098388671875,
+      "ssim_min": 0.9945624056,
+      "max_exceeded_pixels": 138,
+      "max_exceeded_channels": 341,
+      "mechanism": "Particle Lenia continuous-state convolution energy gradient amplifies cross-backend rounding."
+    },
     "points__life": {
-      "max_abs_diff": 242,
-      "max_mean_abs_diff": 133.859162,
-      "ssim_min": 0.011987,
-      "max_exceeded_pixels": 15269,
-      "max_exceeded_channels": 45807,
+      "max_abs_diff": 254.0,
+      "max_mean_abs_diff": 125.62651062011719,
+      "ssim_min": 0.0450468952,
+      "max_exceeded_pixels": 15890,
+      "max_exceeded_channels": 45854,
       "mechanism": "Particle-life neighborhood-count threshold sensitivity produces divergent agent states."
     },
     "points__physarum": {
@@ -136,22 +168,6 @@
       "max_exceeded_pixels": 4520,
       "max_exceeded_channels": 9105,
       "mechanism": "Landscape raymarch hit and lighting thresholds amplify floating-point drift."
-    },
-    "synth3d__flythrough3d": {
-      "max_abs_diff": 213,
-      "max_mean_abs_diff": 0.336976,
-      "ssim_min": 0.998586,
-      "max_exceeded_pixels": 1207,
-      "max_exceeded_channels": 2310,
-      "mechanism": "Camera-origin collision avoidance amplifies distance-estimator rounding drift."
-    },
-    "synth3d__fractal3d": {
-      "max_abs_diff": 2,
-      "max_mean_abs_diff": 0.000275,
-      "ssim_min": 0.999999,
-      "max_exceeded_pixels": 1,
-      "max_exceeded_channels": 3,
-      "mechanism": "One fractal distance-estimator rounding tie."
     },
     "synth__newton": {
       "max_abs_diff": 249,

@@ -413,7 +413,8 @@ bool r3d_isosurfaceTrace(float3 ro, float3 rd, out float outDist, out float3 out
 float3 r3d_shade(float3 p, float3 rd)
 {
     float3 n = r3d_calcNormal(p);
-    float3 lightDir = normalize(float3(1.0, 1.0, -1.0));
+    // Light from -X (volume never mirrored; noisemaker 700ac32e).
+    float3 lightDir = normalize(float3(-1.0, 1.0, -1.0));
 
     float diff = max(dot(n, lightDir), 0.0);
     float amb = 0.15;
@@ -440,7 +441,8 @@ float3 r3d_shade(float3 p, float3 rd)
 // Voxel shading with flat face normals.
 float3 r3d_shadeVoxel(float3 p, float3 rd, float3 n, int3 voxel)
 {
-    float3 lightDir = normalize(float3(1.0, 1.0, -1.0));
+    // Light from -X (volume never mirrored; noisemaker 700ac32e).
+    float3 lightDir = normalize(float3(-1.0, 1.0, -1.0));
 
     float diff = max(dot(n, lightDir), 0.0);
     float amb = 0.3;
@@ -472,14 +474,18 @@ Render3dFragmentOutput frag_render3d(NMVaryings i)
     float2 position = NM_FragCoord(i);  // gl_FragCoord.xy analog (+0.5 centered)
     float2 uv = ((position + tileOffset) - 0.5 * fullRes) / fullRes.y;
 
-    float camAngle = time * R3D_TAU * (float)orbitSpeed;
+    // Camera setup - orbiting view. (right, up, -forward) is right-handed, so
+    // screen right is world +X seen from the front and the volume is never
+    // mirrored. The orbit runs toward -X, which keeps the on-screen spin of
+    // earlier releases (noisemaker 700ac32e).
+    float camAngle = -time * R3D_TAU * (float)orbitSpeed;
     float camDist = 3.5;
     float3 ro = float3(sin(camAngle) * camDist, 0.5, cos(camAngle) * camDist);
     float3 lookAt = float3(0.0, 0.0, 0.0);
 
     float3 forward = normalize(lookAt - ro);
-    float3 right = normalize(cross(float3(0.0, 1.0, 0.0), forward));
-    float3 up = cross(forward, right);
+    float3 right = normalize(cross(forward, float3(0.0, 1.0, 0.0)));
+    float3 up = cross(right, forward);
 
     // GLSL golden uses RAW uv for the view ray (render3d.glsl):
     //   rd = normalize(forward + uv.x*right + uv.y*up)

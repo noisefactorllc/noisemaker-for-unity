@@ -61,6 +61,13 @@ namespace Noisemaker.Hlsl
         // CreateSurfaces; empty until then (reference reads it null-safely).
         private readonly HashSet<string> _feedbackSurfaces = new HashSet<string>();
 
+        // Surfaces whose graph texture spec is explicitly marked persistent
+        // (reference pipeline.js swapBuffers, noisemaker@3f5775c6: reads
+        // graph.textures.get("global_<name>")?.persistent === true). End-of-frame
+        // they persist final bindings like state/feedback surfaces instead of
+        // swapping. Recomputed by CreateSurfaces from the current graph.
+        private readonly HashSet<string> _persistentSurfaces = new HashSet<string>();
+
         private static readonly Regex MeshDataPattern =
             new Regex(@"^mesh\d+_(positions|normals|uvs)$", RegexOptions.Compiled);
         private static readonly Regex StateNodePattern =
@@ -165,6 +172,17 @@ namespace Noisemaker.Hlsl
             _feedbackSurfaces.Clear();
             foreach (string name in readBeforeWrite)
                 if (written.Contains(name)) _feedbackSurfaces.Add(name);
+
+            // Explicitly persistent texture specs (reference swapBuffers reads
+            // graph.textures "global_<name>" specs' persistent flag).
+            _persistentSurfaces.Clear();
+            for (int t = 0; t < graph.Textures.Count; t++)
+            {
+                var kv = graph.Textures.EntryAt(t);
+                if (!kv.Key.StartsWith("global_", System.StringComparison.Ordinal)) continue;
+                if (kv.Value != null && kv.Value.Persistent == true)
+                    _persistentSurfaces.Add(ParseGlobalName(kv.Key));
+            }
 
             // Group 3: geo0..geo7.
             for (int i = 0; i < 8; i++) AddUnique(names, "geo" + i);
@@ -366,10 +384,10 @@ namespace Noisemaker.Hlsl
             }
         }
 
-        // §10.7 end-of-frame: persist state surfaces and graph feedback
-        // surfaces (noisemaker@5a8e8f67 — so the next frame reads the latest
-        // write even when an intervening update pass was skipped), swap
-        // display surfaces.
+        // §10.7 end-of-frame: persist state surfaces, graph feedback surfaces,
+        // and explicitly persistent texture specs (noisemaker@5a8e8f67 +
+        // @3f5775c6 — so the next frame reads the latest write even when an
+        // intervening update pass was skipped), swap display surfaces.
         public void SwapBuffers(int frameIndex)
         {
             int sc = _surfaces.Count;
@@ -381,7 +399,8 @@ namespace Noisemaker.Hlsl
                 if (rec.IsMesh) continue;
                 rec.CurrentFrame = frameIndex;
 
-                if (IsStateSurface(name) || _feedbackSurfaces.Contains(name))
+                if (IsStateSurface(name) || _feedbackSurfaces.Contains(name) ||
+                    _persistentSurfaces.Contains(name))
                 {
                     // persist final bindings (no swap) — sims and feedback
                     // continue from last buffers.

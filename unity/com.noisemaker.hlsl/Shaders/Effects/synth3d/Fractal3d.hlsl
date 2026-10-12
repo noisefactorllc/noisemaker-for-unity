@@ -37,16 +37,12 @@
 //    (WebGL2) volume: it declares colorMode and writes grayscale for mono
 //    (colorMode 0), and its geo normal uses the outward SDF gradient,
 //    normalize(gradient + 0.000001) (GLSL: + 1e-6, the same value).
-//    One GLSL/WGSL difference remains, and we follow the WGSL:
-//      (1) GLSL applies tileOffset + renderScale to the atlas coordinate and
-//          scales volSize by renderScale (x = mod(x, scaledVolSize)); WGSL
-//          uses the raw fragment coord and volumeSize directly. We reproduce
-//          the WGSL: atlas pixel = int2(NM_FragCoord(i)), volSize = volumeSize
-//          (no renderScale). Untiled at renderScale 1 the two are identical
-//          (the atlas is volSize wide, so the GLSL x mod is a no-op); this
-//          atlas is small enough to render untiled.
-//          // TODO(verify) atlas is rendered untiled (tileOffset==0); if the
-//          // runtime tiles it, fold tileOffset in via NM_GlobalCoord.
+//    Since noisemaker 10001d79 both sources build the volume from volumeSize
+//    directly — no tileOffset/renderScale scaling, and x is the raw atlas
+//    pixel (the atlas is volSize wide, so the old GLSL x mod was a no-op):
+//    atlas pixel = int2(NM_FragCoord(i)), voxel (x, y % volSize, y / volSize).
+//    The volume is the same for every screen tile, so a large-format export
+//    builds the volume it previews.
 //  * Helpers (mandelbulb/juliaBulb/boxFold/sphereFold/mandelcube/juliaCube)
 //    ported verbatim, inline. NONE come from NMCore (no pcg/prng/random/nm_mod
 //    used by this effect) except nm_atan2. atan2 arg order copied literally:
@@ -312,22 +308,20 @@ FractalOutput frag_precompute(NMVaryings i)
     FractalOutput o;
 
     int volSize = volumeSize;
-    int scaledVolSize = (int)((float)volSize * renderScale);
-    float scaledVolSizeF = (float)scaledVolSize;
+    float volSizeF = (float)volSize;
 
-    // Atlas is scaledVolSize x (scaledVolSize * scaledVolSize)
-    // Pixel (x, y) maps to 3D coordinate (x, y % scaledVolSize, y / scaledVolSize)
-    // GLSL: ivec2(gl_FragCoord.xy + tileOffset) — truncation of the global coord.
-    float2 globalPixelCoord = NM_GlobalCoord(i);
-    int2 pixelCoord = int2(globalPixelCoord);
+    // Atlas is volSize x (volSize * volSize). Pixel (x, y) maps to voxel
+    // (x, y % volSize, y / volSize). The volume is the same for every
+    // screen tile, so a large-format export builds the volume it previews
+    // (noisemaker 10001d79).
+    int2 pixelCoord = int2(NM_FragCoord(i));
 
-    // GLSL: int(mod(float(pixelCoord.x), scaledVolSizeF)) — floored mod (nm_mod).
-    int x = (int)nm_mod((float)pixelCoord.x, scaledVolSizeF);
-    int y = pixelCoord.y % scaledVolSize;
-    int z = pixelCoord.y / scaledVolSize;
+    int x = pixelCoord.x;
+    int y = pixelCoord.y % volSize;
+    int z = pixelCoord.y / volSize;
 
     // Bounds check
-    if (x >= scaledVolSize || y >= scaledVolSize || z >= scaledVolSize)
+    if (x >= volSize || y >= volSize || z >= volSize)
     {
         o.color = float4(0.0, 0.0, 0.0, 0.0);
         o.geoOut = float4(0.5, 0.5, 0.5, 0.0);
@@ -336,7 +330,7 @@ FractalOutput frag_precompute(NMVaryings i)
 
     // Convert to normalized 3D coordinates in [-1.5, 1.5] world space
     // Slightly larger than [-1,1] to capture the full fractal
-    float3 p = (float3((float)x, (float)y, (float)z) / (scaledVolSizeF - 1.0) * 2.0 - 1.0) * 1.5;
+    float3 p = (float3((float)x, (float)y, (float)z) / (volSizeF - 1.0) * 2.0 - 1.0) * 1.5;
 
     // Julia constant from uniforms (normalized from -100..100 to -1..1)
     float3 juliaC = float3(juliaX, juliaY, juliaZ) * 0.01;

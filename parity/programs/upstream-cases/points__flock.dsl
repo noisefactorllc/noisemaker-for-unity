@@ -1,4 +1,4 @@
 search synth, points, render
 
-solid().pointsEmit(stateSize: x64).flock().pointsRender().write(o0)
+noise(seed: 1).pointsEmit(stateSize: x64).flock().pointsRender().write(o0)
 render(o0)

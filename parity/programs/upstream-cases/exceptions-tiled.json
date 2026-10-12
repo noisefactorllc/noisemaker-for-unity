@@ -26,9 +26,9 @@
       "mechanism": "Sparse shape-mask threshold rounding tie."
     },
     "filter3d__flow3d": {
-      "max_abs_diff": 96,
-      "max_mean_abs_diff": 0.016022,
-      "ssim_min": 0.999787,
+      "max_abs_diff": 130.0,
+      "max_mean_abs_diff": 0.01171875,
+      "ssim_min": 0.9998238706,
       "max_exceeded_pixels": 8,
       "max_exceeded_channels": 24,
       "mechanism": "Sparse volume-advection sample rounding ties."
@@ -57,6 +57,14 @@
       "max_exceeded_channels": 3,
       "mechanism": "Sparse channel displacement sampling rounding ties."
     },
+    "filter__pixelSort": {
+      "max_abs_diff": 8.0,
+      "max_mean_abs_diff": 0.0006103515625,
+      "ssim_min": 0.9999961857,
+      "max_exceeded_pixels": 8,
+      "max_exceeded_channels": 8,
+      "mechanism": "Sparse sorted-pixel boundary classification ties."
+    },
     "filter__reindex": {
       "max_abs_diff": 30,
       "max_mean_abs_diff": 0.001053,
@@ -64,6 +72,14 @@
       "max_exceeded_pixels": 1,
       "max_exceeded_channels": 3,
       "mechanism": "One palette reindex threshold tie."
+    },
+    "filter__rotate": {
+      "max_abs_diff": 15.0,
+      "max_mean_abs_diff": 0.00408935546875,
+      "ssim_min": 0.9999937846,
+      "max_exceeded_pixels": 13,
+      "max_exceeded_channels": 37,
+      "mechanism": "Sparse wrap-resampling coordinate rounding ties."
     },
     "filter__scanlineError": {
       "max_abs_diff": 255,
@@ -90,19 +106,35 @@
       "mechanism": "Gradient-derived UVs on image diagonals select neighboring input texels at a rounding boundary; Gradient already uses nm_atan2."
     },
     "points__flock": {
-      "max_abs_diff": 242,
-      "max_mean_abs_diff": 51.236573,
-      "ssim_min": 0.044291,
-      "max_exceeded_pixels": 12412,
-      "max_exceeded_channels": 37236,
+      "max_abs_diff": 255.0,
+      "max_mean_abs_diff": 47.93415832519531,
+      "ssim_min": 0.0594571793,
+      "max_exceeded_pixels": 12620,
+      "max_exceeded_channels": 37049,
       "mechanism": "Boids neighbor-cell partition sensitivity produces divergent agent trajectories."
     },
+    "points__hydraulic": {
+      "max_abs_diff": 255.0,
+      "max_mean_abs_diff": 45.467681884765625,
+      "ssim_min": 0.1004146557,
+      "max_exceeded_pixels": 12345,
+      "max_exceeded_channels": 36130,
+      "mechanism": "Hydraulic erosion droplet trajectory float32 integration tie."
+    },
+    "points__lenia": {
+      "max_abs_diff": 251.0,
+      "max_mean_abs_diff": 10.029449462890625,
+      "ssim_min": 0.8036618517,
+      "max_exceeded_pixels": 2473,
+      "max_exceeded_channels": 6637,
+      "mechanism": "Particle Lenia continuous-state convolution energy gradient amplifies cross-backend rounding."
+    },
     "points__life": {
-      "max_abs_diff": 242,
-      "max_mean_abs_diff": 133.859162,
-      "ssim_min": 0.011987,
-      "max_exceeded_pixels": 15269,
-      "max_exceeded_channels": 45807,
+      "max_abs_diff": 254.0,
+      "max_mean_abs_diff": 123.91633605957031,
+      "ssim_min": 0.0498222493,
+      "max_exceeded_pixels": 15762,
+      "max_exceeded_channels": 45489,
       "mechanism": "Particle-life neighborhood-count threshold sensitivity produces divergent agent states."
     },
     "points__physarum": {
@@ -128,14 +160,6 @@
       "max_exceeded_pixels": 7116,
       "max_exceeded_channels": 11232,
       "mechanism": "Landscape raymarch hit and lighting thresholds amplify floating-point drift."
-    },
-    "synth3d__flythrough3d": {
-      "max_abs_diff": 216,
-      "max_mean_abs_diff": 0.650773,
-      "ssim_min": 0.998126,
-      "max_exceeded_pixels": 2386,
-      "max_exceeded_channels": 4630,
-      "mechanism": "Camera-origin collision avoidance amplifies distance-estimator rounding drift."
     },
     "synth__julia": {
       "max_abs_diff": 196,

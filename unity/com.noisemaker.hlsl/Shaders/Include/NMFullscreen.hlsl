@@ -28,6 +28,8 @@ float  _NM_Time;            // normalized 0..1 animation time
 float  _NM_DeltaTime;       // normalized delta
 float  _NM_RenderScale;     // 1.0 untiled
 float  _NM_AspectRatio;     // fullResolution.x / fullResolution.y
+float  _NM_AspectInv;       // correctly-rounded 1.0 / aspect (noisemaker a7ba29d7)
+float2 _NM_InvFullRes;      // correctly-rounded 1.0/fullResolution per component
 int    _NM_Frame;           // integer frame index
 
 // Reference-name aliases so ported bodies can use bare `resolution`, `time`...
@@ -38,6 +40,8 @@ int    _NM_Frame;           // integer frame index
 #define deltaTime       (_NM_DeltaTime)
 #define renderScale     (_NM_RenderScale)
 #define aspectRatio     (_NM_FullResolution.x / _NM_FullResolution.y)
+#define aspectInv       (_NM_AspectInv)
+#define invFullResolution (_NM_InvFullRes)
 
 struct NMVaryings
 {

@@ -426,7 +426,8 @@ R3_FragmentOutput frag_render(NMVaryings i)
 
     // Camera setup - fixed position, volume rotates
     // Scale camera position from 0-1 UI range to world coords
-    float3 ro = cameraPosition * float3(-1.0, 1.0, 1.0) * 3.5;
+    // (no longer mirrored in X; noisemaker 78760b45)
+    float3 ro = cameraPosition * 3.5;
 
     // Camera looks at origin; handle case when at origin
     float3 forward;
@@ -439,21 +440,27 @@ R3_FragmentOutput frag_render(NMVaryings i)
         forward = normalize(-ro);  // Look toward origin
     }
     float3 worldUp = float3(0.0, 1.0, 0.0);
-    // Handle looking straight up/down
+    // Looking straight down, screen up is -Z, as it is just short of straight
+    // down, so a top-down view shows the volume's far side at the top
+    // (noisemaker 78760b45).
     if (abs(dot(forward, worldUp)) > 0.999)
     {
-        worldUp = float3(0.0, 0.0, 1.0);
+        worldUp = float3(0.0, 0.0, sign(forward.y));
     }
-    float3 right = normalize(cross(worldUp, forward));
-    float3 up = cross(forward, right);
+    // (right, up, -forward) is right-handed, so the volume is never mirrored
+    // (noisemaker 78760b45).
+    float3 right = normalize(cross(forward, worldUp));
+    float3 up = cross(right, forward);
 
     float3 rd = normalize(forward + uv.x * right + uv.y * up);
 
     // Light direction is fixed in world space (not view space)
-    float3 worldLightDir = normalize(lightDirection * float3(-1.0, 1.0, 1.0));
+    float3 worldLightDir = normalize(lightDirection);
 
-    // Rotate ray into volume space
-    float angle = time * NMR3_TAU * (float)orbitSpeed;
+    // Rotate ray into volume space. The angle is negated so the volume spins
+    // on screen in the same direction as in earlier releases
+    // (noisemaker 78760b45).
+    float angle = -time * NMR3_TAU * (float)orbitSpeed;
     float c = cos(angle);
     float s = sin(angle);
     // Rotation around Y axis

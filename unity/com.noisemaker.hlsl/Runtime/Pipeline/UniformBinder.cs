@@ -6,7 +6,8 @@
 // them through the NMFullscreen #define aliases):
 //   _NM_Resolution (float4 .xy), _NM_ScreenResolution (.xy),
 //   _NM_FullResolution (.xy), _NM_TileOffset (.xy),
-//   _NM_Time, _NM_DeltaTime, _NM_RenderScale, _NM_AspectRatio, _NM_Frame (int).
+//   _NM_Time, _NM_DeltaTime, _NM_RenderScale, _NM_AspectRatio,
+//   _NM_AspectInv, _NM_InvFullRes (float2), _NM_Frame (int).
 //
 // Per-pass uniforms + define ints are written onto a single reused MPB
 // (no per-frame allocation). Value kinds handled: number -> float, bool -> float
@@ -57,6 +58,8 @@ namespace Noisemaker.Hlsl
         private static readonly int IdDeltaTime       = Shader.PropertyToID("_NM_DeltaTime");
         private static readonly int IdRenderScale     = Shader.PropertyToID("_NM_RenderScale");
         private static readonly int IdAspectRatio     = Shader.PropertyToID("_NM_AspectRatio");
+        private static readonly int IdAspectInv       = Shader.PropertyToID("_NM_AspectInv");
+        private static readonly int IdInvFullRes      = Shader.PropertyToID("_NM_InvFullRes");
         private static readonly int IdFrame           = Shader.PropertyToID("_NM_Frame");
 
         // Set the per-frame engine globals. Use SetGlobal* so the #define-aliased
@@ -76,6 +79,15 @@ namespace Noisemaker.Hlsl
             // expose the precomputed value for any shader binding it directly.
             float aspect = fullResY != 0f ? fullResX / fullResY : 1f;
             Shader.SetGlobalFloat(IdAspectRatio, aspect);
+            // noisemaker@a7ba29d7: aspectInv and invFullResolution are CPU-computed
+            // correctly-rounded reciprocals, so shader mains multiply by them
+            // instead of evaluating an in-shader division (both reference backends
+            // then evaluate the same correctly-rounded multiply). Same math here:
+            // float division, not a reciprocal approximation.
+            Shader.SetGlobalFloat(IdAspectInv, 1f / aspect);
+            Shader.SetGlobalVector(IdInvFullRes, new Vector4(
+                fullResX != 0f ? 1f / fullResX : 0f,
+                fullResY != 0f ? 1f / fullResY : 0f, 0f, 0f));
             Shader.SetGlobalInt(IdFrame, frame);
         }
 

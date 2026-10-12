@@ -101,29 +101,48 @@ float3 nm_cnd_prng(float3 p)
     return float3(nm_pcg((uint3)p)) / 4294967295.0;
 }
 
-// mapRange — WGSL mapRange(value,inMin,inMax,outMin,outMax)
+// mapRange — WGSL mapRange(value,inMin,inMax,outMin,outMax). The final division
+// lowers differently across backends (x * rcp(span) vs a correctly-rounded
+// divide), so the reference pins the reciprocal with one Newton-Raphson step;
+// the clamp keeps the span*rmul product from fusing into the (2.0 - ...)
+// subtract. Reproduce the reference's exact expression (noisemaker a7ba29d7).
 float nm_cnd_mapRange(float value, float inMin, float inMax, float outMin, float outMax)
 {
-    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
+    float span = inMax - inMin;
+    float rmul = 1.0 / span;
+    float mc = min(max(span * rmul, -1e38), 1e38);
+    return outMin + (outMax - outMin) * ((value - inMin) * (rmul * (2.0 - mc)));
 }
 
 // rotate2D — WGSL verbatim. NOTE: uses nm_cnd_aspectRatio() (= fullResolution
 // aspect) and mapRange(rot, 0, 360, 0, 2) BEFORE multiplying by PI.
+// min/max clamps pin the evaluation order at every multiply that feeds an add
+// (relaxed math would contract those pairs into fma while standard math
+// double-rounds); they are value-exact for finite values (noisemaker a7ba29d7).
+// The final rescale multiplies by the CPU-computed reciprocal (aspectInv)
+// instead of dividing.
 float2 nm_cnd_rotate2D(float2 st_in, float rot)
 {
     float2 st = st_in;
     st.x *= nm_cnd_aspectRatio();
+    st.x = min(max(st.x, -1e38), 1e38);
     float r = nm_cnd_mapRange(rot, 0.0, 360.0, 0.0, 2.0);
     float angle = r * NM_CND_PI;
-    st -= float2(0.5 * nm_cnd_aspectRatio(), 0.5);
+    float ox = min(max(0.5 * nm_cnd_aspectRatio(), -1e38), 1e38);
+    st -= float2(ox, 0.5);
     float c = cos(angle);
     float s = sin(angle);
     // GLSL golden: mat2(cos,-sin,sin,cos) * st. GLSL mat2 is COLUMN-MAJOR, so it
     // equals (c*st.x + s*st.y, -s*st.x + c*st.y). Since upstream bb2e635c the
     // WGSL writes the same expression, so both backends rotate the same way.
-    st = float2(c * st.x + s * st.y, -s * st.x + c * st.y);
-    st += float2(0.5 * nm_cnd_aspectRatio(), 0.5);
-    st.x /= nm_cnd_aspectRatio();
+    float px = min(max(c * st.x, -1e38), 1e38);
+    float py = min(max(s * st.y, -1e38), 1e38);
+    float qx = min(max(-s * st.x, -1e38), 1e38);
+    float qy = min(max(c * st.y, -1e38), 1e38);
+    st = float2(px + py, qx + qy);
+    st += float2(ox, 0.5);
+    st.x *= aspectInv;
+    st = min(max(st, float2(-1e38, -1e38)), float2(1e38, 1e38));
     return st;
 }
 
@@ -440,22 +459,38 @@ float3 nm_cnd_bloom(float2 st)
 
 // zoomBlur — WGSL verbatim. offset = prng(vec3f(12.9898,78.233,151.7182)).x.
 // Uses nm_cnd_prng (no-fold Variant B) — nm_prng would double the inputs.
+// The reference pins the tap chain's evaluation order with min/max clamps
+// (value-exact for finite values), accumulates the 41 products separately, and
+// finishes with a Newton-Raphson-refined reciprocal (noisemaker a7ba29d7).
 float3 nm_cnd_zoomBlur(float2 st)
 {
     float3 color = float3(0.0, 0.0, 0.0);
     float total = 0.0;
     float2 toCenter = st - 0.5;
     float offset = nm_cnd_prng(float3(12.9898, 78.233, 151.7182)).x;
+    float3 products[41];
     for (float t = 0.0; t <= 40.0; t += 1.0)
     {
         float percent = (t + offset) / 40.0;
-        float weight = 4.0 * (percent - percent * percent);
+        float percentSq = min(max(percent * percent, -1e38), 1e38);
+        float weight = 4.0 * (percent - percentSq);
         float strength = nm_cnd_mapRange(effectAmt, 0.0, 20.0, 0.0, 1.0);
-        float4 tex = inputTex.Sample(sampler_inputTex, st + toCenter * percent * strength);
-        color += tex.rgb * weight;
-        total += weight;
+        float2 tapA = toCenter * percent;
+        float2 tap = min(max(tapA, float2(-1e38, -1e38)), float2(1e38, 1e38)) * strength;
+        float2 tapB = min(max(tap, float2(-1e38, -1e38)), float2(1e38, 1e38));
+        float4 tex = inputTex.Sample(sampler_inputTex, st + tapB);
+        products[int(t)] = min(max(tex.rgb * weight, float3(-1e38, -1e38, -1e38)), float3(1e38, 1e38, 1e38));
+        total += min(max(weight, -1e38), 1e38);
     }
-    return color / total;
+    [unroll]
+    for (int i = 0; i < 41; i++)
+    {
+        color += products[i];
+    }
+    float r = 1.0 / total;
+    float tr = min(max(total * r, -1e38), 1e38);
+    r = r * (2.0 - tr);
+    return color * r;
 }
 
 // periodicFunction / offsets — WGSL verbatim (unused by main but ported for
@@ -475,39 +510,52 @@ float nm_cnd_offsets(float2 st)
 // =============================================================================
 float4 NMFrag_effects(NMVaryings i) : SV_Target
 {
-    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution
+    // GLSL: uv = (gl_FragCoord.xy + tileOffset) / fullResolution, multiplied by
+    // the CPU-computed reciprocal invFullResolution (noisemaker a7ba29d7) so the
+    // uv chain never evaluates an in-shader vec2 division.
     float2 fragCoord = NM_FragCoord(i);
-    float2 uv = (fragCoord + tileOffset) / fullResolution;
+    float2 uv = (fragCoord + tileOffset) * invFullResolution;
 
-    float scale = 100.0 / scaleAmt;
+    // 100/scaleAmt as a Newton-Raphson-refined reciprocal (noisemaker a7ba29d7).
+    float sR = 1.0 / scaleAmt;
+    float sC = min(max(scaleAmt * sR, -1e38), 1e38);
+    float scale = 100.0 * (sR * (2.0 - sC));
     if (scale == 0.0) { scale = 1.0; }
 
     uv = nm_cnd_rotate2D(uv, rotation);
     uv -= 0.5;
-    precise float2 scaledUV = uv * scale;
-    uv = scaledUV;
+    uv *= scale;
+    // Clamp before the add: pins the multiply/add boundary against fma
+    // contraction (value-exact for finite values; noisemaker a7ba29d7).
+    uv = min(max(uv, float2(-1e38, -1e38)), float2(1e38, 1e38));
     uv += 0.5;
 
     float2 imageSize = resolution;
-    uv.x -= ceil((resolution.x / imageSize.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
-    uv.y += ceil((resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
-    uv.x -= nm_cnd_mapRange(offsetX, -100.0, 100.0, -resolution.x / imageSize.x * scale, resolution.x / imageSize.x * scale) * 1.5;
-    uv.y -= nm_cnd_mapRange(offsetY, -100.0, 100.0, -resolution.y / imageSize.y * scale, resolution.y / imageSize.y * scale) * 1.5;
+    // imageSize is a copy of resolution, so resolution/imageSize is a value
+    // divided by itself — use the exact 1.0 (noisemaker a7ba29d7).
+    uv.x -= ceil((scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
+    uv.y += ceil((scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
+    // Pin the offset-shift evaluation order with scalar clamps (value-exact).
+    float shiftXv = min(max(nm_cnd_mapRange(offsetX, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
+    float shiftYv = min(max(nm_cnd_mapRange(offsetY, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
+    uv -= float2(shiftXv, shiftYv);
     uv = frac(uv);
 
     // flip/mirror — runtime branch on FLIP (compile-time const in reference).
+    // uv.y runs up the frame, so "up to down" keeps uv.y > 0.5 and reflects it
+    // onto the bottom half (mirror conditions swapped at noisemaker a7ba29d7).
     [branch]
     if (FLIP == 1)       { uv = 1.0 - uv; }
     else if (FLIP == 2)  { uv.x = 1.0 - uv.x; }
     else if (FLIP == 3)  { uv.y = 1.0 - uv.y; }
     else if (FLIP == 11) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } }
     else if (FLIP == 12) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } }
-    else if (FLIP == 13) { if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 14) { if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 15) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 16) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 13) { if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 14) { if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 15) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 16) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
 
     // Sample at the transformed uv (scale, rotation, offset, flip), mapped into
     // this tile's input texture, as the GLSL origcolor does since 326193cf.

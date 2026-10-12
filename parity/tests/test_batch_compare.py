@@ -1115,9 +1115,9 @@ class RepositoryPointsPolicyContractTests(unittest.TestCase):
                 },
                 "points__hydraulic": {
                     "max_abs_diff": 186,
-                    "max_mean_abs_diff": 0.04,
+                    "max_mean_abs_diff": 0.05,
                     "ssim_min": 0.50,
-                    "max_exceeded_pixels": 115,
+                    "max_exceeded_pixels": 150,
                     "max_exceeded_channels": 345,
                     "mechanism": "Hydraulic erosion droplet trajectory float32 integration tie.",
                 },

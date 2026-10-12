@@ -73,10 +73,20 @@ namespace Noisemaker.Hlsl.Editor
                         pipeline.SetVector("_NM_Resolution", new Vector4(Size, Size, 0, 0));
                         bool tiled = name.Contains("Tiled");
                         bool wide = name.EndsWith("TiledWide");
-                        pipeline.SetVector("_NM_FullResolution", new Vector4(tiled ? Size * 2 : Size, tiled && !wide ? Size * 2 : Size, 0, 0));
+                        float fullW = tiled ? Size * 2 : Size;
+                        float fullH = tiled && !wide ? Size * 2 : Size;
+                        pipeline.SetVector("_NM_FullResolution", new Vector4(fullW, fullH, 0, 0));
                         pipeline.SetVector("_NM_TileOffset", tiled ? new Vector4(Size / 2, wide ? 0 : Size / 2, 0, 0) : Vector4.zero);
                         pipeline.SetFloat("_NM_RenderScale", name.EndsWith("Scaled") ? 2f : 1f);
-                        pipeline.SetFloat("_NM_AspectRatio", 1f);
+                        // Aspect comes from the full image dimensions when tiling
+                        // (upstream pipeline.js updateGlobalUniforms), so the wide
+                        // tiled case is 2, not 1. Mirror UniformBinder's CPU-computed
+                        // reciprocals (noisemaker a7ba29d7): the pipeline uv chain
+                        // multiplies by them instead of dividing in-shader.
+                        float aspect = fullH != 0f ? fullW / fullH : 1f;
+                        pipeline.SetFloat("_NM_AspectRatio", aspect);
+                        pipeline.SetFloat("_NM_AspectInv", 1f / aspect);
+                        pipeline.SetVector("_NM_InvFullRes", new Vector4(1f / fullW, 1f / fullH, 0, 0));
                         pipeline.SetFloat("_NM_Time", 0.25f);
                         if (name == "Snow")
                         {
