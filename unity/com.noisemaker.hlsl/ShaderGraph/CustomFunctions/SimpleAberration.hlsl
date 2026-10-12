@@ -35,16 +35,12 @@ void NM_SimpleAberration_float(
     out float4        Out)
 {
     displacement = Displacement; // write the module-scope uniform before sampling
-
-    // Untiled node usage: globalPixel = UV * Resolution, fullResolution = Resolution,
-    // tileOffset = 0. texSize is the input's own dimensions (WGSL textureDimensions).
+    uint texW, texH;
+    InputTex.tex.GetDimensions(texW, texH);
+    float2 texSize = float2(texW, texH);
+    _NM_FullResolution = float4(texSize, 0.0, 0.0);
     _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
-    _NM_FullResolution = float4(Resolution, 0.0, 0.0);
-
-    uint tw, th;
-    InputTex.tex.GetDimensions(tw, th);
-    Out = nm_simpleAberration(InputTex.tex, SS.samplerstate, UV * Resolution,
-                              float2((float)tw, (float)th));
+    Out = nm_simpleAberration(InputTex.tex, SS.samplerstate, UV * texSize, texSize);
 }
 
 #endif // NM_SIMPLEABERRATION_SG_INCLUDED

@@ -47,15 +47,8 @@ int NOISE_TYPE;     // was globals.type.define = "NOISE_TYPE"
 int LOOP_OFFSET;    // was globals.loopOffset.define = "LOOP_OFFSET"
 
 // PI / TAU exactly as in the WGSL source.
-// SRP Core's Macros.hlsl #defines PI (3.14159265358979323846); guard so the
-// Shader Graph Custom Function context (which includes SRP Core) keeps one
-// definition while the runtime .shader path (no SRP Core) uses these locals.
-#ifndef PI
-static const float PI  = 3.14159265359;
-#endif
-#ifndef TAU
-static const float TAU = 6.28318530718;
-#endif
+static const float NMN_PI  = 3.14159265359;
+static const float NMN_TAU = 6.28318530718;
 
 // -----------------------------------------------------------------------------
 // Effect-local helpers (ported verbatim from noise.wgsl). `modulo`, `map`,
@@ -342,7 +335,7 @@ float nmn_circles(float2 st, float freq, float aspect)
 float nmn_rings(float2 st, float freq, float aspect)
 {
     float dist = length(st - float2(0.5 * aspect, 0.5));
-    return cos(dist * PI * freq);
+    return cos(dist * NMN_PI * freq);
 }
 
 float nmn_diamonds(float2 st, float freq, float2 pos, float aspect)
@@ -351,15 +344,15 @@ float nmn_diamonds(float2 st, float freq, float2 pos, float aspect)
     float2 stt = pos / resolution.y;
     stt -= float2(0.5 * aspect, 0.5);
     stt *= freq;
-    return (cos(stt.x * PI) + cos(stt.y * PI));
+    return (cos(stt.x * NMN_PI) + cos(stt.y * NMN_PI));
 }
 
 // shape(): atan2(stt.x, stt.y) — copy arg order LITERALLY (spec H3).
 float nmn_shape(float2 st, int sides, float blend, float aspect)
 {
     float2 stt = st * 2.0 - float2(aspect, 1.0);
-    float a = atan2(stt.x, stt.y) + PI;
-    float r = TAU / (float)sides;
+    float a = atan2(stt.x, stt.y) + NMN_PI;
+    float r = NMN_TAU / (float)sides;
     return cos(floor(0.5 + a / r) * r - a) * length(stt) * blend;
 }
 

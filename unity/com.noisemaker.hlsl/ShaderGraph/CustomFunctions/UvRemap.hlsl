@@ -29,6 +29,10 @@
 // targets (the runtime allocates outputTex == input size) these coincide.
 // =============================================================================
 
+Texture2D inputTex;
+SamplerState sampler_inputTex;
+Texture2D tex;
+SamplerState sampler_tex;
 #include "../../Shaders/Effects/mixer/UvRemap.hlsl"
 
 void NM_UvRemap_float(
@@ -53,10 +57,17 @@ void NM_UvRemap_float(
     float4 colorA = InputTex.Sample(SS, UV);
     float4 colorB = Tex.Sample(SS, UV);
 
-    Out = nm_uvRemap(
-        colorA, colorB,
-        InputTex.tex, SS.samplerstate,
-        Tex.tex,      SS.samplerstate);
+    inputTex = InputTex.tex;
+    sampler_inputTex = SS.samplerstate;
+    tex = Tex.tex;
+    sampler_tex = SS.samplerstate;
+
+    uint texW, texH;
+    InputTex.tex.GetDimensions(texW, texH);
+    _NM_Resolution = float4(texW, texH, 0.0, 0.0);
+    _NM_FullResolution = _NM_Resolution;
+    _NM_TileOffset = float4(0.0, 0.0, 0.0, 0.0);
+    Out = nm_uvRemap(colorA, colorB);
 }
 
 #endif // NM_UVREMAP_SG_INCLUDED

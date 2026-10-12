@@ -29,6 +29,10 @@
 // frac() before sampling, as the GLSL and (since upstream bc3b9f53) the WGSL do.
 // =============================================================================
 
+Texture2D inputTex;
+SamplerState sampler_inputTex;
+Texture2D tex;
+SamplerState sampler_tex;
 #include "../../Shaders/Effects/classicNoisedeck/Coalesce.hlsl"
 
 void NM_Coalesce_float(

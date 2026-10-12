@@ -57,21 +57,14 @@ float hueRange;     // global "hueRange"
 float intensity;    // global "intensity"
 
 // PI / TAU exactly as in the WGSL source.
-// SRP Core's Macros.hlsl #defines PI; guard so the Shader Graph Custom Function
-// context keeps one definition while the runtime path uses these locals.
-#ifndef PI
-static const float PI  = 3.14159265359;
-#endif
-#ifndef TAU
-static const float TAU = 6.28318530718;
-#endif
+static const float NMMS_TAU = 6.28318530718;
 
 // modulo / map are bit-identical to NMCore nm_mod / nm_map (shared).
 
 // ---- periodicFunction (THIS effect's sin variant; NOT NMCore cos) -----------
 float nmms_periodicFunction(float p)
 {
-    return nm_map(sin(p * TAU), -1.0, 1.0, 0.0, 1.0);
+    return nm_map(sin(p * NMMS_TAU), -1.0, 1.0, 0.0, 1.0);
 }
 
 // ---- brightnessContrast -----------------------------------------------------

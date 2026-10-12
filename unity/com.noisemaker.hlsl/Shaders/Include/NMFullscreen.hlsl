@@ -53,7 +53,12 @@ struct NMVaryings
 // together (blendMode: inputTex was 1 render, tex/o0 was 2). Counter-flipping clip.y
 // by _ProjectionParams.x makes EVERY pass store the SAME orientation regardless of
 // render depth, so all downstream sampling is consistent.
+#if !defined(BUILTIN_SHADER_VARIABLES_INCLUDED) && \
+    !defined(UNIVERSAL_SHADER_VARIABLES_INCLUDED) && \
+    !defined(UNITY_SHADER_VARIABLES_INCLUDED) && \
+    !defined(SHADERVARIABLESGLOBAL_CS_HLSL)
 float4 _ProjectionParams;
+#endif
 
 // Fullscreen triangle from SV_VertexID. Matches reference positions:
 //   id 0 -> uv(0,0) clip(-1,-1)   id 1 -> uv(2,0) clip(3,-1)   id 2 -> uv(0,2) clip(-1,3)

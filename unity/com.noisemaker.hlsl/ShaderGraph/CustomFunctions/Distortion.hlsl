@@ -26,6 +26,10 @@
 // so the Sobel kernel spacing matches the reference.
 // =============================================================================
 
+Texture2D inputTex;
+SamplerState sampler_inputTex;
+Texture2D tex;
+SamplerState sampler_tex;
 #include "../../Shaders/Effects/mixer/Distortion.hlsl"
 
 void NM_Distortion_float(
