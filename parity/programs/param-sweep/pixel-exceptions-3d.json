@@ -81,14 +81,6 @@
    "max_exceeded_channels": 16435,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.99)"
   },
-  "synth3d__flythrough3d__volumeSize__x16": {
-   "max_abs_diff": 156.0,
-   "max_mean_abs_diff": 0.16760635375976562,
-   "ssim_min": 0.9979624946,
-   "max_exceeded_pixels": 1645,
-   "max_exceeded_channels": 2543,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9979)"
-  },
   "synth3d__flythrough3d__volumeSize__x32": {
    "max_abs_diff": 178.0,
    "max_mean_abs_diff": 0.29461669921875,

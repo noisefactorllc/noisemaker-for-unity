@@ -221,6 +221,35 @@ struct FT3_FractalResult
     float iterRatio;
 };
 
+// Metal's native acos/atan2 drift far enough from the reference GLSL path to
+// move Mandelbulb escape boundaries. Reduce atan to |t| <= sqrt(2)-1, then
+// evaluate its alternating series below float32 rounding error.
+float ft3_atan2Accurate(float y, float x)
+{
+    float ax = abs(x);
+    float ay = abs(y);
+    if (ax == 0.0 && ay == 0.0) return 0.0;
+    float ratio = min(ax, ay) / max(ax, ay);
+    float t = ratio / (1.0 + sqrt(1.0 + ratio * ratio));
+    float q = t * t;
+    float poly = 1.0 / 21.0;
+    poly = 1.0 / 19.0 - q * poly;
+    poly = 1.0 / 17.0 - q * poly;
+    poly = 1.0 / 15.0 - q * poly;
+    poly = 1.0 / 13.0 - q * poly;
+    poly = 1.0 / 11.0 - q * poly;
+    poly = 1.0 / 9.0 - q * poly;
+    poly = 1.0 / 7.0 - q * poly;
+    poly = 1.0 / 5.0 - q * poly;
+    poly = 1.0 / 3.0 - q * poly;
+    poly = 1.0 / 1.0 - q * poly;
+    float angle = 2.0 * t * poly;
+    if (ay > ax) angle = FT3_PI * 0.5 - angle;
+    if (x < 0.0) angle = FT3_PI - angle;
+    if (y < 0.0) angle = -angle;
+    return angle;
+}
+
 FT3_FractalResult ft3_mandelbulb(float3 pos, float n, int maxIter, float bail)
 {
     float3 z = pos;
@@ -236,8 +265,10 @@ FT3_FractalResult ft3_mandelbulb(float3 pos, float n, int maxIter, float bail)
 
         trap = min(trap, r);
 
-        float theta = acos(z.z / r);
-        float phi = atan2(z.y, z.x);
+        float cosTheta = z.z / r;
+        float theta = ft3_atan2Accurate(
+            sqrt(max(0.0, 1.0 - cosTheta * cosTheta)), cosTheta);
+        float phi = ft3_atan2Accurate(z.y, z.x);
 
         dr = pow(r, n - 1.0) * n * dr + 1.0;
 
