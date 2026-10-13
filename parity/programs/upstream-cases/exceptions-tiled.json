@@ -1,30 +1,6 @@
 {
   "schema_version": 1,
   "cases": {
-    "classicNoisedeck__coalesce": {
-      "max_abs_diff": 3,
-      "max_mean_abs_diff": 0.000245,
-      "ssim_min": 0.999999,
-      "max_exceeded_pixels": 2,
-      "max_exceeded_channels": 4,
-      "mechanism": "Two sparse nonlinear blend rounding ties at the tolerance boundary."
-    },
-    "classicNoisedeck__refract": {
-      "max_abs_diff": 11,
-      "max_mean_abs_diff": 0.000718,
-      "ssim_min": 0.999999,
-      "max_exceeded_pixels": 4,
-      "max_exceeded_channels": 9,
-      "mechanism": "Sparse refraction coordinate rounding selects adjacent bilinear samples."
-    },
-    "classicNoisedeck__shapeMixer": {
-      "max_abs_diff": 3,
-      "max_mean_abs_diff": 0.000474,
-      "ssim_min": 0.999999,
-      "max_exceeded_pixels": 4,
-      "max_exceeded_channels": 6,
-      "mechanism": "Sparse shape-mask threshold rounding tie."
-    },
     "filter3d__flow3d": {
       "max_abs_diff": 130.0,
       "max_mean_abs_diff": 0.01171875,
@@ -64,14 +40,6 @@
       "max_exceeded_pixels": 5600,
       "max_exceeded_channels": 12300,
       "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
-    },
-    "filter__reindex": {
-      "max_abs_diff": 30,
-      "max_mean_abs_diff": 0.001053,
-      "ssim_min": 0.999992,
-      "max_exceeded_pixels": 1,
-      "max_exceeded_channels": 3,
-      "mechanism": "One palette reindex threshold tie."
     },
     "filter__rotate": {
       "max_abs_diff": 15.0,

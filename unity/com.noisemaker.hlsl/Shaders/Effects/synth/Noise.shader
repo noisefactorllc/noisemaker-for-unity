@@ -5,8 +5,8 @@ Shader "Noisemaker/synth/noise"
     //
     // The runtime binds per-effect params via MaterialPropertyBlock by the
     // names declared in Noise.hlsl (scaleX, scaleY, seed, loopScale, speed,
-    // octaves, ridges, wrap, colorMode, NOISE_TYPE, LOOP_OFFSET). The Properties
-    // block below is for inspector visibility only.
+    // octaves, ridges, wrap, colorMode, NOISE_TYPE, LOOP_OFFSET). The registry
+    // also selects a material keyword for each declared NOISE_TYPE choice.
 
 
     SubShader
@@ -27,6 +27,7 @@ Shader "Noisemaker/synth/noise"
             #pragma vertex NMVertFullscreen
             #pragma fragment frag_noise
             #pragma target 4.5
+            #pragma multi_compile_local _ NM_NOISE_TYPE_0 NM_NOISE_TYPE_1 NM_NOISE_TYPE_2 NM_NOISE_TYPE_3 NM_NOISE_TYPE_4 NM_NOISE_TYPE_5 NM_NOISE_TYPE_6 NM_NOISE_TYPE_10 NM_NOISE_TYPE_11
             // Full 32-bit float parity — never downgrade to half/min16float.
             #pragma exclude_renderers gles
 

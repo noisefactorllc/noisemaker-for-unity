@@ -41,7 +41,8 @@ namespace Noisemaker.Hlsl
         // key = shaderName + "" + progName  ->  pass index
         private readonly Dictionary<string, int> _passIndex =
             new Dictionary<string, int>();
-        // Reusable Material per shader (avoids per-frame Material allocs).
+        // Reusable Material per shader and, for synth/noise, per type keyword.
+        // Distinct materials preserve variants across deferred CommandBuffer draws.
         private readonly Dictionary<string, Material> _materials =
             new Dictionary<string, Material>();
 
@@ -109,12 +110,21 @@ namespace Noisemaker.Hlsl
         public Material ResolveMaterial(Pass pass)
         {
             string name = ShaderNameForPass(pass);
+            int noiseType = -1;
+            if (pass.Namespace == "synth" && pass.Func == "noise")
+            {
+                if (!pass.Defines.TryGetValue("NOISE_TYPE", out noiseType)) noiseType = 10;
+                if (noiseType < 0 || (noiseType > 6 && noiseType != 10 && noiseType != 11))
+                    noiseType = -1;
+            }
+            string materialKey = noiseType >= 0 ? name + "|type=" + noiseType : name;
             Material m;
-            if (_materials.TryGetValue(name, out m) && m != null) return m;
+            if (_materials.TryGetValue(materialKey, out m) && m != null) return m;
             Shader sh = ResolveShader(pass);
             if (sh == null) return null;
             m = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
-            _materials[name] = m;
+            if (noiseType >= 0) m.EnableKeyword("NM_NOISE_TYPE_" + noiseType);
+            _materials[materialKey] = m;
             return m;
         }
 

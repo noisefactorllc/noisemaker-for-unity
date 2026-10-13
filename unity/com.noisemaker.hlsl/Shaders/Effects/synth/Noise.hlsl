@@ -14,8 +14,9 @@
 //    shape, offset, …) is this effect's own version, inline here.
 //  - Full 32-bit float only. `nm_mod` not `fmod`. `asuint` for the float-bits
 //    jitter reinterpret; `(uint)` for numeric truncation of lattice coords.
-//  - NOISE_TYPE / LOOP_OFFSET are runtime int uniforms branched with [branch]
-//    (the WGSL already keeps all variants and relies on const-folding). Defaults
+//  - NOISE_TYPE uses a local shader keyword for each declared choice, matching
+//    the reference's compile-time define. Unknown values retain the runtime
+//    dispatch. LOOP_OFFSET remains a runtime int uniform. Defaults are
 //    NOISE_TYPE=10 (simplex), LOOP_OFFSET=300 (value-noise offset).
 //  - select(b,a,cond) (WGSL) -> cond ? a : b (HLSL). atan2 arg order copied
 //    literally. st divides by fullResolution.y (height).
@@ -35,7 +36,8 @@ int   ridges;       // globals.ridges.uniform   (boolean -> int, tested >0.5 bel
 int   wrap;         // globals.wrap.uniform      (boolean -> int, tested >0.5 below)
 int   colorMode;    // globals.colorMode.uniform
 
-// Compile-time defines in the reference; modeled as runtime int uniforms here.
+// The registry selects one keyword variant per declared noise type. The int
+// uniform remains for the fallback variant and graph uniform compatibility.
 // Defaults match the GLSL/WGSL fallbacks (see PORTING-GUIDE §"Uniform model").
 #ifndef NM_NOISE_TYPE_DEFAULT
 #define NM_NOISE_TYPE_DEFAULT 10
@@ -45,6 +47,28 @@ int   colorMode;    // globals.colorMode.uniform
 #endif
 int NOISE_TYPE;     // was globals.type.define = "NOISE_TYPE"
 int LOOP_OFFSET;    // was globals.loopOffset.define = "LOOP_OFFSET"
+
+#if defined(NM_NOISE_TYPE_0)
+#define NMN_TYPE 0
+#elif defined(NM_NOISE_TYPE_1)
+#define NMN_TYPE 1
+#elif defined(NM_NOISE_TYPE_2)
+#define NMN_TYPE 2
+#elif defined(NM_NOISE_TYPE_3)
+#define NMN_TYPE 3
+#elif defined(NM_NOISE_TYPE_4)
+#define NMN_TYPE 4
+#elif defined(NM_NOISE_TYPE_5)
+#define NMN_TYPE 5
+#elif defined(NM_NOISE_TYPE_6)
+#define NMN_TYPE 6
+#elif defined(NM_NOISE_TYPE_10)
+#define NMN_TYPE 10
+#elif defined(NM_NOISE_TYPE_11)
+#define NMN_TYPE 11
+#else
+#define NMN_TYPE NOISE_TYPE
+#endif
 
 // PI / TAU exactly as in the WGSL source.
 static const float NMN_PI  = 3.14159265359;
@@ -299,27 +323,27 @@ float nmn_sineNoise(float2 st, float2 freq, float s, float blend)
     return (x + y) * 0.5 + 0.5;
 }
 
-// value() dispatch by NOISE_TYPE (runtime branch; const-folds when uniform fixed).
+// value() dispatch by the selected compile-time type, or runtime fallback.
 float nmn_value(float2 st, float2 freq, float s, float blend)
 {
-    [branch] if (NOISE_TYPE == 3)  { return nmn_catmullRom3x3ValueNoise(st, freq, s, blend); }
-    [branch] if (NOISE_TYPE == 4)  { return nmn_catmullRom4x4ValueNoise(st, freq, s, blend); }
-    [branch] if (NOISE_TYPE == 5)  { return nmn_cubic3x3ValueNoise(st, freq, s, blend); }
-    [branch] if (NOISE_TYPE == 6)  { return nmn_bicubicValue(st, freq, s, blend); }
-    [branch] if (NOISE_TYPE == 10) { return nmn_simplexValue(st, freq, s, blend); }
-    [branch] if (NOISE_TYPE == 11) { return nmn_sineNoise(st, freq, s, blend); }
+    [branch] if (NMN_TYPE == 3)  { return nmn_catmullRom3x3ValueNoise(st, freq, s, blend); }
+    [branch] if (NMN_TYPE == 4)  { return nmn_catmullRom4x4ValueNoise(st, freq, s, blend); }
+    [branch] if (NMN_TYPE == 5)  { return nmn_cubic3x3ValueNoise(st, freq, s, blend); }
+    [branch] if (NMN_TYPE == 6)  { return nmn_bicubicValue(st, freq, s, blend); }
+    [branch] if (NMN_TYPE == 10) { return nmn_simplexValue(st, freq, s, blend); }
+    [branch] if (NMN_TYPE == 11) { return nmn_sineNoise(st, freq, s, blend); }
 
     float2 lattice = st * freq;
     float x1y1 = nmn_constantFromLattice(lattice, freq, s, blend);
-    [branch] if (NOISE_TYPE == 0) { return x1y1; }
+    [branch] if (NMN_TYPE == 0) { return x1y1; }
 
     float x2y1 = nmn_constantOffset(lattice, freq, s, blend, int2(1, 0));
     float x1y2 = nmn_constantOffset(lattice, freq, s, blend, int2(0, 1));
     float x2y2 = nmn_constantOffset(lattice, freq, s, blend, int2(1, 1));
     float2 fr = frac(lattice);
-    float aa = nmn_blendLinearOrCosine(x1y1, x2y1, fr.x, NOISE_TYPE);
-    float bb = nmn_blendLinearOrCosine(x1y2, x2y2, fr.x, NOISE_TYPE);
-    return nmn_blendLinearOrCosine(aa, bb, fr.y, NOISE_TYPE);
+    float aa = nmn_blendLinearOrCosine(x1y1, x2y1, fr.x, NMN_TYPE);
+    float bb = nmn_blendLinearOrCosine(x1y2, x2y2, fr.x, NMN_TYPE);
+    return nmn_blendLinearOrCosine(aa, bb, fr.y, NMN_TYPE);
 }
 
 // ---- offset() shape helpers ----------------------------------------------
@@ -452,13 +476,13 @@ float4 nm_noise(float2 fragCoord, float2 tileOff, float2 fullRes)
     float2 freq = float2(1.0, 1.0);
     float2 lf   = float2(1.0, 1.0);
 
-    if (NOISE_TYPE == 11)
+    if (NMN_TYPE == 11)
     {
         freq.x = nm_map(scaleX, 1.0, 100.0, 40.0, 1.0);
         freq.y = nm_map(scaleY, 1.0, 100.0, 40.0, 1.0);
         lf = float2(nm_map(loopScale, 1.0, 100.0, 10.0, 1.0), nm_map(loopScale, 1.0, 100.0, 10.0, 1.0));
     }
-    else if (NOISE_TYPE == 10)
+    else if (NMN_TYPE == 10)
     {
         freq.x = nm_map(scaleX, 1.0, 100.0, 6.0, 0.5);
         freq.y = nm_map(scaleY, 1.0, 100.0, 6.0, 0.5);
@@ -474,12 +498,12 @@ float4 nm_noise(float2 fragCoord, float2 tileOff, float2 fullRes)
     if (LOOP_OFFSET == 300)
     {
         float2 nominalFreq = float2(1.0, 1.0);
-        if (NOISE_TYPE == 11)
+        if (NMN_TYPE == 11)
         {
             float base = nm_map(75.0, 1.0, 100.0, 40.0, 1.0);
             nominalFreq = float2(base, base);
         }
-        else if (NOISE_TYPE == 10)
+        else if (NMN_TYPE == 10)
         {
             float base = nm_map(75.0, 1.0, 100.0, 6.0, 0.5);
             nominalFreq = float2(base, base);
@@ -492,7 +516,7 @@ float4 nm_noise(float2 fragCoord, float2 tileOff, float2 fullRes)
         lf *= freq / nominalFreq;
     }
 
-    if (NOISE_TYPE != 4 && NOISE_TYPE != 10 && wrap > 0.5)
+    if (NMN_TYPE != 4 && NMN_TYPE != 10 && wrap > 0.5)
     {
         freq = floor(freq);
         if (LOOP_OFFSET == 300)

@@ -199,13 +199,11 @@ FILTER_EXCEPTION_CASES = {
     "filter__lensWarp",
     "filter__octaveWarp",
     "filter__pinch",
-    "filter__posterize",
     "filter__reindex",
     "filter__rotate",
     "filter__scanlineError",
     "filter__spiral",
     "filter__step",
-    "filter__tetraColorArray",
     "filter__tunnel",
     "filter__wormhole",
 }
@@ -222,10 +220,7 @@ RENDER_MESH_FIXTURES = {
     "render__meshLoader",
     "render__meshRender",
 }
-RENDER_EXCEPTION_CASES = {
-    "render__loopBegin",
-    "render__loopEnd",
-}
+RENDER_EXCEPTION_CASES = set()
 
 
 def write_png(path, rgba, size=(16, 16), changed=None):
@@ -1051,14 +1046,6 @@ class RepositoryMixerPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 27,
                     "mechanism": "Sparse bilinear displacement UV tie at Voronoi cell boundary pixels.",
                 },
-                "mixer__thresholdMix": {
-                    "max_abs_diff": 223,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 1,
-                    "max_exceeded_channels": 3,
-                    "allowed_exceeded_pixels": [[39, 119]],
-                    "mechanism": "Step/cutoff threshold boundary tie at exactly one borderline noise luminance pixel.",
-                },
             },
             policy["cases"],
         )
@@ -1074,8 +1061,6 @@ class RepositoryMixerPolicyContractTests(unittest.TestCase):
                 changed = None
                 if name == "mixer__distortion":
                     changed = [(0, 0, (130, 127, 127, 255))]
-                elif name == "mixer__thresholdMix":
-                    changed = [(39, 119, (130, 127, 127, 255))]
                 write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
                 write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
 
@@ -1092,7 +1077,7 @@ class RepositoryMixerPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 10, "ALLOWED_NEAR": 2}, report["counts"])
+        self.assertEqual({"PASS": 11, "ALLOWED_NEAR": 1}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 
@@ -1307,14 +1292,6 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 24,
                     "mechanism": "Radial pinch displacement bilinear resample UV ties near the pinch center (13 sparse flips).",
                 },
-                "filter__posterize": {
-                    "max_abs_diff": 2,
-                    "max_mean_abs_diff": 0.001,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 2,
-                    "max_exceeded_channels": 2,
-                    "mechanism": "Posterize quantization step boundary tie at two level-crossing pixels.",
-                },
                 "filter__reindex": {
                     "max_abs_diff": 37,
                     "max_mean_abs_diff": 0.003,
@@ -1355,15 +1332,6 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 11,
                     "mechanism": "Step/threshold quantization boundary tie at 11 scattered level-crossing pixels.",
                 },
-                "filter__tetraColorArray": {
-                    "max_abs_diff": 255,
-                    "max_mean_abs_diff": 0.001,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 1,
-                    "max_exceeded_channels": 1,
-                    "allowed_exceeded_pixels": [[39, 119]],
-                    "mechanism": "Single-channel clamp/lookup tie at exactly one knife-edge noise-field pixel [39, 119] (same coordinate as the mixer thresholdMix tie).",
-                },
                 "filter__tunnel": {
                     "max_abs_diff": 13,
                     "max_mean_abs_diff": 0.004,
@@ -1392,13 +1360,12 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             gold.mkdir()
             cand.mkdir()
             for name in FILTER_FIXTURES:
-                # 61 strict fixtures stay byte-exact; the 15 exception cases carry
+                # 63 strict fixtures stay byte-exact; the 13 exception cases carry
                 # a single mad=2 pixel so every exception is exercised once (above
                 # the tol-1 PASS bound, inside each measured policy). Cases with
                 # allowed_exceeded_pixels pin the diff to their exact coordinate.
                 pinned = {
                     "filter__lensWarp": (178, 225),
-                    "filter__tetraColorArray": (39, 119),
                 }
                 if name in pinned:
                     x, y = pinned[name]
@@ -1425,7 +1392,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 61, "ALLOWED_NEAR": 15}, report["counts"])
+        self.assertEqual({"PASS": 63, "ALLOWED_NEAR": 13}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 
@@ -1475,27 +1442,7 @@ class RepositoryRenderPolicyContractTests(unittest.TestCase):
         policy = json.loads(RENDER_EXCEPTIONS.read_text())
         self.assertEqual(1, policy["schema_version"])
         self.assertEqual(set(policy["cases"]), RENDER_EXCEPTION_CASES)
-        self.assertEqual(
-            {
-                "render__loopBegin": {
-                    "max_abs_diff": 9,
-                    "max_mean_abs_diff": 0.001,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 10,
-                    "max_exceeded_channels": 14,
-                    "mechanism": "Loop-carried domain-warp bilinear resample UV ties (same warp tie class and coordinates as filter/warp; 10 sparse flips).",
-                },
-                "render__loopEnd": {
-                    "max_abs_diff": 9,
-                    "max_mean_abs_diff": 0.001,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 10,
-                    "max_exceeded_channels": 14,
-                    "mechanism": "Same loop/warp program as render/loopBegin; identical measured budget.",
-                },
-            },
-            policy["cases"],
-        )
+        self.assertEqual({}, policy["cases"])
 
     def test_repository_render_policy_is_exercised_by_the_real_grader(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -1506,11 +1453,8 @@ class RepositoryRenderPolicyContractTests(unittest.TestCase):
             cand.mkdir()
             all_fixtures = RENDER_FIXTURES | RENDER_MESH_FIXTURES
             for name in all_fixtures:
-                # renderLit3d and the two mesh fixtures are byte-exact strict
-                # passes; the two loop fixtures carry a single mad=2 pixel so
-                # each exception is exercised once (above the tol-1 PASS bound,
-                # inside the measured policy).
-                changed = [(0, 0, (129, 127, 127, 255))] if name in RENDER_EXCEPTION_CASES else None
+                # All five render fixtures now pass at the byte tolerance.
+                changed = None
                 write_png(gold / f"{name}.golden.png", (127, 127, 127, 255), size=(256, 256))
                 write_png(cand / f"{name}.png", (127, 127, 127, 255), size=(256, 256), changed=changed)
 
@@ -1529,7 +1473,7 @@ class RepositoryRenderPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 3, "ALLOWED_NEAR": 2}, report["counts"])
+        self.assertEqual({"PASS": 5}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

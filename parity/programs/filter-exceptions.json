@@ -48,14 +48,6 @@
       "max_exceeded_channels": 24,
       "mechanism": "Radial pinch displacement bilinear resample UV ties near the pinch center (13 sparse flips)."
     },
-    "filter__posterize": {
-      "max_abs_diff": 2,
-      "max_mean_abs_diff": 0.001,
-      "ssim_min": 0.9999,
-      "max_exceeded_pixels": 2,
-      "max_exceeded_channels": 2,
-      "mechanism": "Posterize quantization step boundary tie at two level-crossing pixels."
-    },
     "filter__reindex": {
       "max_abs_diff": 37,
       "max_mean_abs_diff": 0.003,
@@ -95,15 +87,6 @@
       "max_exceeded_pixels": 11,
       "max_exceeded_channels": 11,
       "mechanism": "Step/threshold quantization boundary tie at 11 scattered level-crossing pixels."
-    },
-    "filter__tetraColorArray": {
-      "max_abs_diff": 255,
-      "max_mean_abs_diff": 0.001,
-      "ssim_min": 0.9999,
-      "max_exceeded_pixels": 1,
-      "max_exceeded_channels": 1,
-      "allowed_exceeded_pixels": [[39, 119]],
-      "mechanism": "Single-channel clamp/lookup tie at exactly one knife-edge noise-field pixel [39, 119] (same coordinate as the mixer thresholdMix tie)."
     },
     "filter__tunnel": {
       "max_abs_diff": 13,

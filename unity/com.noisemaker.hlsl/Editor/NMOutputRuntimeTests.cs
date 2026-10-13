@@ -134,6 +134,7 @@ namespace Noisemaker.Hlsl.Editor
                 TestSinkManager();
                 TestFrameExportQueue();
                 TestDeviceLimitPolicy();
+                TestNoiseTypeMaterialVariants();
                 TestPipelineSinkIntegration();
                 TestMeshChainScopeResolution();
                 TestMeshRenderShadedOutput();
@@ -146,6 +147,38 @@ namespace Noisemaker.Hlsl.Editor
             catch (Exception error)
             {
                 FailAndExit(error);
+            }
+        }
+
+        private static void TestNoiseTypeMaterialVariants()
+        {
+            PreloadPackageShaders();
+            var registry = new NMShaderRegistry();
+            try
+            {
+                var simplex = new Pass { Namespace = "synth", Func = "noise", ProgName = "noise" };
+                simplex.Defines.Add("NOISE_TYPE", 10);
+                var sine = new Pass { Namespace = "synth", Func = "noise", ProgName = "noise" };
+                sine.Defines.Add("NOISE_TYPE", 11);
+
+                Material simplexMaterial = registry.ResolveMaterial(simplex);
+                Material sineMaterial = registry.ResolveMaterial(sine);
+                Check(simplexMaterial != null && sineMaterial != null,
+                    "noise type materials must resolve");
+                Check(!ReferenceEquals(simplexMaterial, sineMaterial),
+                    "different noise types must retain distinct materials for deferred draws");
+                Check(ReferenceEquals(simplexMaterial, registry.ResolveMaterial(simplex)),
+                    "noise type material must be cached");
+                Check(simplexMaterial.IsKeywordEnabled("NM_NOISE_TYPE_10") &&
+                      !simplexMaterial.IsKeywordEnabled("NM_NOISE_TYPE_11"),
+                    "simplex material must select only the simplex variant");
+                Check(sineMaterial.IsKeywordEnabled("NM_NOISE_TYPE_11") &&
+                      !sineMaterial.IsKeywordEnabled("NM_NOISE_TYPE_10"),
+                    "sine material must select only the sine variant");
+            }
+            finally
+            {
+                registry.Dispose();
             }
         }
 

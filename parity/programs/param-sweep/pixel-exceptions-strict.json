@@ -465,14 +465,6 @@
    "max_exceeded_channels": 8,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "mixer__applyMode__mode__hue": {
-   "max_abs_diff": 2.0,
-   "max_mean_abs_diff": 0.000244140625,
-   "ssim_min": 0.9999997019767761,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 1,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "mixer__cellSplit__seed__mid": {
    "max_abs_diff": 159.0,
    "max_mean_abs_diff": 0.001285552978515625,
