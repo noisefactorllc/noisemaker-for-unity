@@ -135,7 +135,7 @@ float4 NMFrag_tunnel(NMVaryings i) : SV_Target
     r -= scale * 0.15;
 
     // Create tunnel coordinates
-    float2 tunnelCoords = nm_tunnel_smod2(float2(
+    precise float2 tunnelCoords = nm_tunnel_smod2(float2(
         0.3 / r + time * speed,
         a / NM_TUNNEL_PI + time * rotation
     ), 1.0);
