@@ -193,7 +193,7 @@ float2 nm_octaveWarp_warpCoord(float2 fragPos, float2 texSize)
         );
     }
 
-    float2 finalUV = float2(
+    precise float2 finalUV = float2(
         nm_octaveWarp_wrapFloat(sampleCoord.x, width, (int)wrap),
         nm_octaveWarp_wrapFloat(sampleCoord.y, height, (int)wrap)
     ) / texSize;
