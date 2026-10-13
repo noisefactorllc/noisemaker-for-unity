@@ -548,7 +548,7 @@ float4 NMFrag_kaleido(NMVaryings i) : SV_Target
     // WGSL: uv = position.xy / u.resolution.y. GLSL: (gl_FragCoord + tileOffset)
     // / fullResolution.y. Divide by HEIGHT; uv.x spans [0, aspect] (H13).
     float2 globalCoord = NM_GlobalCoord(i);
-    float2 uv = globalCoord / fullResolution.y;
+    precise float2 uv = globalCoord / fullResolution.y;
 
     float lf = kl_map(loopScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap != 0) { lf = floor(lf); }
