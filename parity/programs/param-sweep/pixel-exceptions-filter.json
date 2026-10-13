@@ -841,22 +841,6 @@
    "max_exceeded_channels": 7,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "filter__pondRipples__antialias__false": {
-   "max_abs_diff": 17.0,
-   "max_mean_abs_diff": 0.000499725341796875,
-   "ssim_min": 0.9999996423721313,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 10,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__pondRipples__ridges__mid": {
-   "max_abs_diff": 9.0,
-   "max_mean_abs_diff": 0.000438690185546875,
-   "ssim_min": 0.9999998952,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 5,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__pondRipples__speed__mid": {
    "max_abs_diff": 9.0,
    "max_mean_abs_diff": 0.000690460205078125,
@@ -871,14 +855,6 @@
    "ssim_min": 0.9999997615814209,
    "max_exceeded_pixels": 18,
    "max_exceeded_channels": 33,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__pondRipples__style__outFromCenter": {
-   "max_abs_diff": 4.0,
-   "max_mean_abs_diff": 0.000324249267578125,
-   "ssim_min": 0.9999999451,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 4,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "filter__posterize__antialias__false": {

@@ -73,7 +73,7 @@ float4 nm_pond_ripples(Texture2D tex, SamplerState ss, float2 pos)
         uv = clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
     }
 
-    float2 sampleUV = uv;
+    precise float2 sampleUV = uv;
     if (isTile)
         sampleUV = clamp((uv * fullDims - tileOffset) / texSize, float2(0.0, 0.0), float2(1.0, 1.0));
 
