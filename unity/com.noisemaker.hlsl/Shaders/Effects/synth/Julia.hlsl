@@ -123,7 +123,7 @@ float2 nmj_df64_split(float a)
 
 float2 nmj_df64_mul(float2 a, float2 b)
 {
-    float p = a.x * b.x;
+    precise float p = a.x * b.x;
     float2 as_ = nmj_df64_split(a.x);
     float2 bs  = nmj_df64_split(b.x);
     float e = ((as_.x * bs.x - p) + as_.x * bs.y + as_.y * bs.x) + as_.y * bs.y;
@@ -133,7 +133,7 @@ float2 nmj_df64_mul(float2 a, float2 b)
 
 float2 nmj_df64_mul_f(float2 a, float b)
 {
-    float p = a.x * b;
+    precise float p = a.x * b;
     float2 as_ = nmj_df64_split(a.x);
     float2 bs  = nmj_df64_split(b);
     float e = ((as_.x * bs.x - p) + as_.x * bs.y + as_.y * bs.x) + as_.y * bs.y;

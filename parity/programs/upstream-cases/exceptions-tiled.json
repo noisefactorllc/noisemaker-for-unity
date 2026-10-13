@@ -177,14 +177,6 @@
       "max_exceeded_channels": 11232,
       "mechanism": "Landscape raymarch hit and lighting thresholds amplify floating-point drift."
     },
-    "synth__julia": {
-      "max_abs_diff": 196,
-      "max_mean_abs_diff": 0.017945,
-      "ssim_min": 0.999735,
-      "max_exceeded_pixels": 2,
-      "max_exceeded_channels": 6,
-      "mechanism": "Two Julia escape-basin boundary classification ties."
-    },
     "synth__newton": {
       "max_abs_diff": 245,
       "max_mean_abs_diff": 0.021241,
