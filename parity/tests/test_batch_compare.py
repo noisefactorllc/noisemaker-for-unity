@@ -198,7 +198,6 @@ FILTER_EXCEPTION_CASES = {
     "filter__degauss",
     "filter__lensWarp",
     "filter__octaveWarp",
-    "filter__pinch",
     "filter__reindex",
     "filter__rotate",
     "filter__scanlineError",
@@ -1284,14 +1283,6 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 27,
                     "mechanism": "Octaved domain-warp bilinear resample UV ties at warped-gradient crossing pixels (16 sparse flips).",
                 },
-                "filter__pinch": {
-                    "max_abs_diff": 11,
-                    "max_mean_abs_diff": 0.001,
-                    "ssim_min": 0.9999,
-                    "max_exceeded_pixels": 13,
-                    "max_exceeded_channels": 24,
-                    "mechanism": "Radial pinch displacement bilinear resample UV ties near the pinch center (13 sparse flips).",
-                },
                 "filter__reindex": {
                     "max_abs_diff": 37,
                     "max_mean_abs_diff": 0.003,
@@ -1360,7 +1351,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             gold.mkdir()
             cand.mkdir()
             for name in FILTER_FIXTURES:
-                # 63 strict fixtures stay byte-exact; the 13 exception cases carry
+                # 64 strict fixtures stay byte-exact; the 12 exception cases carry
                 # a single mad=2 pixel so every exception is exercised once (above
                 # the tol-1 PASS bound, inside each measured policy). Cases with
                 # allowed_exceeded_pixels pin the diff to their exact coordinate.
@@ -1392,7 +1383,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 63, "ALLOWED_NEAR": 13}, report["counts"])
+        self.assertEqual({"PASS": 64, "ALLOWED_NEAR": 12}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

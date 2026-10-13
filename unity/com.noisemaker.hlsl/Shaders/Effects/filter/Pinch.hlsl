@@ -128,7 +128,7 @@ float4 NMFrag_pinch(NMVaryings i) : SV_Target
 
     // Convert distorted global UV back to tile-local for texture sampling.
     // Clamp to tile bounds so wrap modes don't sample past tile coverage.
-    float2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
+    precise float2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
 
     [branch]
     if (antialias != 0)

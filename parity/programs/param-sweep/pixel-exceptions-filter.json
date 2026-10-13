@@ -609,30 +609,6 @@
    "max_exceeded_channels": 36,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "filter__pinch__aspectLens__false": {
-   "max_abs_diff": 4.0,
-   "max_mean_abs_diff": 0.000203,
-   "ssim_min": 0.999999,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 4,
-   "mechanism": "non-square 512x256 tile: sparse float32 warp/sampling ties; the reference parameter effect is observable"
-  },
-  "filter__pinch__rotation__mid": {
-   "max_abs_diff": 7.0,
-   "max_mean_abs_diff": 0.0004119873046875,
-   "ssim_min": 0.9999997615814209,
-   "max_exceeded_pixels": 8,
-   "max_exceeded_channels": 14,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "filter__pinch__strength__mid": {
-   "max_abs_diff": 7.0,
-   "max_mean_abs_diff": 0.000476837158203125,
-   "ssim_min": 0.9999998177,
-   "max_exceeded_pixels": 7,
-   "max_exceeded_channels": 12,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__plasticWrap__detail__mid": {
    "max_abs_diff": 21.0,
    "max_mean_abs_diff": 0.004055023193359375,
