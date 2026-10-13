@@ -1,62 +1,6 @@
 {
  "schema_version": 1,
  "cases": {
-  "classicNoisedeck__cellRefract__amount__mid": {
-   "max_abs_diff": 3.0,
-   "max_mean_abs_diff": 2.288818359375e-05,
-   "ssim_min": 0.9999999907,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 2,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__cellRefract__cellScale__mid": {
-   "max_abs_diff": 8.0,
-   "max_mean_abs_diff": 0.0001678466796875,
-   "ssim_min": 0.9999998331,
-   "max_exceeded_pixels": 5,
-   "max_exceeded_channels": 10,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__cellRefract__scale__mid": {
-   "max_abs_diff": 18.0,
-   "max_mean_abs_diff": 0.00096893310546875,
-   "ssim_min": 0.9999967081,
-   "max_exceeded_pixels": 7,
-   "max_exceeded_channels": 21,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__cellRefract__shape__circle": {
-   "max_abs_diff": 29.0,
-   "max_mean_abs_diff": 0.000560760498046875,
-   "ssim_min": 0.9999973258,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 9,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__cellRefract__shape__octagon": {
-   "max_abs_diff": 11.0,
-   "max_mean_abs_diff": 0.000255584716796875,
-   "ssim_min": 0.9999993443489075,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 8,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__cellRefract__shape__triangle": {
-   "max_abs_diff": 22.0,
-   "max_mean_abs_diff": 0.00045013427734375,
-   "ssim_min": 0.9999979862,
-   "max_exceeded_pixels": 4,
-   "max_exceeded_channels": 11,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "classicNoisedeck__cellRefract__speed__mid": {
-   "max_abs_diff": 4.0,
-   "max_mean_abs_diff": 3.4332275390625e-05,
-   "ssim_min": 0.9999999814,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 2,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "classicNoisedeck__coalesce__blendMode__hueAB": {
    "max_abs_diff": 2.0,
    "max_mean_abs_diff": 0.000354766845703125,

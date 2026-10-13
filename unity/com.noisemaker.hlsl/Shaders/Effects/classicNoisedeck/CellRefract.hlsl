@@ -322,7 +322,7 @@ float4 NMFrag_cellRefract(NMVaryings i) : SV_Target
     }
 
     // Convert warped global UV to tile-local UV (GLSL form; identity untiled).
-    float2 localUV = (st * fullResolution - tileOffset) / texSize;
+    precise float2 localUV = (st * fullResolution - tileOffset) / texSize;
     float4 color = inputTex.Sample(sampler_inputTex, localUV);
 
     float ew = effectWidth;
