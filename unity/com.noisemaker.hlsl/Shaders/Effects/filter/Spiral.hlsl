@@ -139,7 +139,7 @@ float4 NMFrag_spiral(NMVaryings i) : SV_Target
 
     // Convert distorted global UV back to tile-local for texture sampling,
     // clamped to tile bounds (GLSL). Identity untiled.
-    float2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
+    precise float2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
 
     [branch]
     if (antialias != 0)

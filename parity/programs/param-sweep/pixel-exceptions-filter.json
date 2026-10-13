@@ -1017,14 +1017,6 @@
    "max_exceeded_channels": 81,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "filter__spiral__antialias__false": {
-   "max_abs_diff": 45.0,
-   "max_mean_abs_diff": 0.00478363037109375,
-   "ssim_min": 0.9999889255,
-   "max_exceeded_pixels": 46,
-   "max_exceeded_channels": 120,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__spiral__aspectLens__false": {
    "max_abs_diff": 6.0,
    "max_mean_abs_diff": 0.000302,
