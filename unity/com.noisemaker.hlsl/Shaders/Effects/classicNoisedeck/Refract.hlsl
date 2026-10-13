@@ -377,7 +377,7 @@ float4 NMFrag_refract(NMVaryings i) : SV_Target
     }
 
     // Convert warped global UV to local UV for sampling
-    float2 warpedLocalUV = (uv * fullResolution - tileOffset) / dims;
+    precise float2 warpedLocalUV = (uv * fullResolution - tileOffset) / dims;
     float4 color = inputTex.Sample(sampler_inputTex, warpedLocalUV);
     color = float4(nm_refract_blend_colors(inputColor, color), color.a);
 
