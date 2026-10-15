@@ -17,30 +17,6 @@
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0000)"
   },
-  "filter3d__palette3d__offset__mid": {
-   "max_abs_diff": 3.0,
-   "max_mean_abs_diff": 0.00066375732421875,
-   "ssim_min": 0.9999997019767761,
-   "max_exceeded_pixels": 3,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "synth3d__cell3d__seed__mid": {
-   "max_abs_diff": 6.0,
-   "max_mean_abs_diff": 9e-05,
-   "ssim_min": 0.99999978,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0); pass 31 fixed the Metal fp contraction in Cell3d.hlsl hash3, residual is the same sparse-tie class as its siblings"
-  },
-  "synth3d__cell3d__variation__mid": {
-   "max_abs_diff": 8.0,
-   "max_mean_abs_diff": 0.000225067138671875,
-   "ssim_min": 0.9999997615814209,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0); single tie pixel [119,63], re-pinned at the 2026-10-04 fresh full-corpus re-render (reference webgl2-vs-webgpu agree within 1 at this case; the Unity candidate is byte-identical to its pass-31 render)"
-  },
   "synth3d__cellularAutomata3d__ruleIndex__rule678": {
    "max_abs_diff": 166.0,
    "max_mean_abs_diff": 0.18372344970703125,
@@ -73,14 +49,6 @@
    "max_exceeded_channels": 9677,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9938)"
   },
-  "synth3d__flythrough3d__iterations__mid": {
-   "max_abs_diff": 189.0,
-   "max_mean_abs_diff": 0.7101058959960938,
-   "ssim_min": 0.9915565993,
-   "max_exceeded_pixels": 5497,
-   "max_exceeded_channels": 11911,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9914)"
-  },
   "synth3d__flythrough3d__power__mid": {
    "max_abs_diff": 165.0,
    "max_mean_abs_diff": 0.3933563232421875,
@@ -97,14 +65,6 @@
    "max_exceeded_channels": 9678,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9943)"
   },
-  "synth3d__flythrough3d__speed__mid": {
-   "max_abs_diff": 183.0,
-   "max_mean_abs_diff": 0.5198097229003906,
-   "ssim_min": 0.995096857,
-   "max_exceeded_pixels": 4706,
-   "max_exceeded_channels": 9589,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.995)"
-  },
   "synth3d__flythrough3d__voiSize__mid": {
    "max_abs_diff": 160.0,
    "max_mean_abs_diff": 0.25730133056640625,
@@ -120,14 +80,6 @@
    "max_exceeded_pixels": 7310,
    "max_exceeded_channels": 16435,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.99)"
-  },
-  "synth3d__flythrough3d__volumeSize__x32": {
-   "max_abs_diff": 178.0,
-   "max_mean_abs_diff": 0.29461669921875,
-   "ssim_min": 0.9980075417,
-   "max_exceeded_pixels": 3060,
-   "max_exceeded_channels": 5758,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.998)"
   },
   "synth3d__fractal3d__colorMode__iteration": {
    "max_abs_diff": 3.0,
@@ -168,22 +120,6 @@
    "max_exceeded_pixels": 1,
    "max_exceeded_channels": 3,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0000)"
-  },
-  "synth3d__noise3d__scale__mid": {
-   "max_abs_diff": 69.0,
-   "max_mean_abs_diff": 0.00146484375,
-   "ssim_min": 0.9999899864196777,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
-  "synth3d__reactionDiffusion3d__volumeSize__x128": {
-   "max_abs_diff": 5.0,
-   "max_mean_abs_diff": 0.0001373291015625,
-   "ssim_min": 0.9999999373,
-   "max_exceeded_pixels": 1,
-   "max_exceeded_channels": 3,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
   "synth3d__shape3d__colorMode__rgb": {
    "max_abs_diff": 15.0,
