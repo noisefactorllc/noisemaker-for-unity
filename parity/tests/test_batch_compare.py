@@ -331,6 +331,31 @@ class BatchCompareContractTests(unittest.TestCase):
         self.assert_single_result(data, "PASS")
         self.assertEqual(data["counts"], {"PASS": 1})
 
+    def test_global_thresholds_require_finite_values_in_range(self):
+        write_png(self.gold / "sample.golden.png", (0, 0, 0, 255))
+        write_png(self.cand / "sample.png", (255, 255, 255, 255))
+        invalid_values = {
+            "--tolerance": ("nan", "inf", "-inf", "-1", "256"),
+            "--ssim-min": ("nan", "inf", "-inf", "-0.01", "1.01"),
+        }
+
+        for option, values in invalid_values.items():
+            for value in values:
+                with self.subTest(option=option, value=value):
+                    completed, data = self.compare(f"{option}={value}")
+                    self.assertEqual(completed.returncode, 2, completed.stdout)
+                    self.assertIsNone(data)
+                    self.assertIn(option, completed.stderr)
+
+        self.write_pair()
+        for tolerance, ssim_min in ((0, 1), (255, 0)):
+            with self.subTest(tolerance=tolerance, ssim_min=ssim_min):
+                completed, data = self.compare(
+                    f"--tolerance={tolerance}", f"--ssim-min={ssim_min}"
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assert_single_result(data, "PASS")
+
     def test_near_without_exception_fails(self):
         self.write_pair([(3, 4, (129, 127, 127, 255))])
 

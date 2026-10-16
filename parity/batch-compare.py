@@ -248,6 +248,11 @@ def main():
     ap.add_argument("--manifest", type=Path, default=None)
     args = ap.parse_args()
 
+    if not math.isfinite(args.tolerance) or not 0 <= args.tolerance <= 255:
+        ap.error("--tolerance must be a finite number between 0 and 255")
+    if not math.isfinite(args.ssim_min) or not 0 <= args.ssim_min <= 1:
+        ap.error("--ssim-min must be a finite number between 0 and 1")
+
     goldens = sorted(args.goldDir.glob("*.golden.png"))
     cand_names = {p.name[:-len(".png")] for p in args.candDir.glob("*.png")}
     gold_names = {g.name[:-len(".golden.png")] for g in goldens}
