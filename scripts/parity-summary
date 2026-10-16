@@ -1,0 +1,444 @@
+#!/usr/bin/env python3
+"""Render selected canonical corpus/name IDs and retain their parity evidence."""
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from collections import defaultdict
+from dataclasses import asdict, dataclass, replace
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+FIELDS = ("expected", "executed", "exact", "strict", "near", "defer", "skip", "fail", "missing")
+
+
+@dataclass(frozen=True)
+class Protocol:
+    size: int = 256
+    time: float = 0.25
+    frames: int = 8
+    backend: str = "webgl2"
+    mesh: str = ""
+    tile_x: int = 0
+    tile_y: int = 0
+    full_width: int = 0
+    full_height: int = 0
+    render_scale: int = 1
+
+
+@dataclass(frozen=True)
+class Case:
+    id: str
+    name: str
+    dsl: str
+    protocol: Protocol
+    tolerance: float
+    ssim_min: float
+    exceptions: str = ""
+    deferred: str = ""
+
+
+def manifest_rows(path, base):
+    rows = []
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        if not line.strip() or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 2 or not re.fullmatch(r"[A-Za-z0-9_-]+", parts[0]):
+            raise ValueError(f"invalid manifest row {path}:{number}")
+        name, relative = parts
+        dsl = base / relative
+        if not dsl.is_file() or dsl.is_symlink():
+            raise ValueError(f"missing regular fixture: {dsl}")
+        if any(row[0] == name or row[1] == str(dsl) for row in rows):
+            raise ValueError(f"duplicate manifest row {path}:{number}")
+        rows.append((name, str(dsl)))
+    if not rows:
+        raise ValueError(f"empty manifest: {path}")
+    return rows
+
+
+def catalog(root):
+    programs = root / "parity/programs"
+    cases = []
+
+    def add(prefix, manifest, tolerance=1, ssim=0.9999, policy="", protocol=Protocol(), base=None):
+        for name, dsl in manifest_rows(programs / manifest, base or root):
+            cases.append(Case(f"{prefix}/{name}", name, dsl, protocol, tolerance, ssim,
+                              str(programs / policy) if policy else ""))
+
+    add("root", "manifest.tsv", policy="exceptions.json")
+    add("3d", "3d-manifest.tsv", 2, 0.98, "3d-exceptions.json")
+    for group, ssim in (("classic", 0.9999), ("synth", 0.92), ("mixer", 0.9999),
+                        ("points", 0.50), ("filter", 0.99), ("render", 0.9999)):
+        add(group, f"{group}-manifest.tsv", ssim=ssim, policy=f"{group}-exceptions.json",
+            protocol=Protocol(frames=60 if group == "points" else 8))
+    sphere = str(programs / "meshes/sphere.obj")
+    add("render", "render-mesh-manifest.tsv", policy="render-exceptions.json", protocol=Protocol(mesh=sphere))
+    add("v104", "v104/manifest.tsv", policy="v104/exceptions.json", protocol=Protocol(size=127))
+    add("v104-tiled", "v104/tiled-manifest.tsv", tolerance=0,
+        protocol=Protocol(size=127, tile_x=1536, tile_y=2048, full_width=4096, full_height=4096))
+
+    blocked = {}
+    for line in (programs / "param-sweep/pixel-reference-blocked.tsv").read_text().splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        name, reason = line.split("\t", 1)
+        if name in blocked or not reason.strip():
+            raise ValueError("invalid reference-blocked manifest")
+        blocked[name] = reason
+    sweep = manifest_rows(programs / "param-sweep/manifest.tsv", programs / "param-sweep")
+    if set(blocked) - {name for name, _ in sweep}:
+        raise ValueError("reference-blocked manifest names an unknown case")
+    for name, dsl in sweep:
+        namespace = name.split("__", 1)[0]
+        group = {"points": "points", "synth3d": "3d", "filter3d": "3d",
+                 "synth": "synth", "filter": "filter"}.get(namespace, "strict")
+        ssim = {"points": 0, "3d": 0.98, "synth": 0.90, "filter": 0.98, "strict": 0.99}[group]
+        protocol = Protocol(frames=60 if namespace == "points" else 8)
+        if name.startswith(("render__meshLoader__", "render__meshRender__")):
+            protocol = replace(protocol, mesh=sphere)
+        if name == "render__meshRender__wireframe__wireframe":
+            protocol = replace(protocol, backend="webgpu")
+        if re.fullmatch(r"filter__(pinch|spiral|tunnel)__aspectLens__false", name):
+            protocol = replace(protocol, full_width=512, full_height=256)
+        cases.append(Case(f"param-sweep/{name}", name, dsl, protocol, 2 if group == "3d" else 1,
+                          ssim, str(programs / f"param-sweep/pixel-exceptions-{group}.json"), blocked.get(name, "")))
+
+    cube = str(programs / "upstream-cases/cube.obj")
+    for prefix, protocol in (("upstream", Protocol(size=128, mesh=cube)),
+                             ("upstream-tiled", Protocol(size=128, mesh=cube, tile_x=37, tile_y=23,
+                                                        full_width=256, full_height=256))):
+        mode = "tiled" if prefix.endswith("-tiled") else "untiled"
+        add(prefix, "upstream-cases/manifest.tsv", ssim=0,
+            policy=f"upstream-cases/exceptions-{mode}.json", protocol=protocol)
+    add("upstream-flow60", "upstream-cases/flow60-manifest.tsv", ssim=0,
+        policy="upstream-cases/flow60-exceptions.json", protocol=Protocol(size=128, frames=60))
+    for mode in ("scaled", "origin", "shifted", "equal-shifted", "zoom-budget", "glyph-cap"):
+        full = 128 if mode in ("scaled", "equal-shifted") else 512
+        shift = mode in ("shifted", "equal-shifted")
+        protocol = Protocol(size=128, full_width=full, full_height=full, render_scale=3,
+                            tile_x=37 if shift else 0, tile_y=23 if shift else 0)
+        if mode == "zoom-budget":
+            protocol = Protocol(size=512, full_width=4096, full_height=4096, tile_x=256, tile_y=256)
+        if mode == "glyph-cap":
+            protocol = replace(protocol, render_scale=32)
+        before = len(cases)
+        add(f"tile-{mode}", "tile-sync/zoom-budget.tsv" if mode == "zoom-budget" else "tile-sync/manifest.tsv",
+            protocol=protocol)
+        if mode == "glyph-cap":
+            cases[before:] = [case for case in cases[before:] if case.name == "glyphMap"]
+    if len({case.id for case in cases}) != len(cases):
+        raise ValueError("duplicate canonical case ID")
+    return cases
+
+
+def select_cases(cases, requested):
+    by_id = {case.id: case for case in cases}
+    if len(set(requested)) != len(requested):
+        raise ValueError("duplicate requested case ID")
+    unknown = set(requested) - set(by_id)
+    if unknown:
+        raise ValueError("unknown canonical case ID: " + ", ".join(sorted(unknown)))
+    return [by_id[name] for name in requested] if requested else cases
+
+
+def git(root, *args):
+    return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
+
+
+def validate_authority(root, reference):
+    match = re.search(r'^REFERENCE_SHA="([a-f0-9]{40})"$', (root / "scripts/test").read_text(), re.M)
+    if not match or git(reference, "rev-parse", "HEAD") != match[1]:
+        raise ValueError("reference must match the pinned authority in scripts/test")
+    if git(reference, "status", "--porcelain=v1", "--untracked-files=all"):
+        raise ValueError("reference must be clean")
+    return match[1]
+
+
+def validate_inputs(root, reference, cases):
+    authoritative = {f"{path.parent.parent.name}__{path.parent.name}": path
+                     for path in (reference / "shaders/effects").glob("*/*/parity-case.json")}
+    upstream = {case.name: case for case in cases if case.id.startswith("upstream/")}
+    if set(upstream) != set(authoritative):
+        raise ValueError("upstream manifest differs from the pinned authority case set")
+    for name, case in upstream.items():
+        if Path(case.dsl).read_text() != json.loads(authoritative[name].read_text())["dsl"]:
+            raise ValueError(f"fixture differs from the pinned authority: {case.id}")
+    for mesh in {case.protocol.mesh for case in cases if case.protocol.mesh}:
+        if Path(mesh).read_bytes() != (reference / "share/meshes" / Path(mesh).name).read_bytes():
+            raise ValueError(f"mesh differs from the pinned authority: {mesh}")
+
+
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def package_files(package):
+    files = {}
+    if not package.is_dir() or package.is_symlink():
+        raise ValueError(f"regular package directory is missing: {package}")
+    for path in package.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(f"package contains a symbolic link: {path}")
+        if path.is_file():
+            files[path.relative_to(package).as_posix()] = sha256(path)
+    return files
+
+
+def validate_package(root, project):
+    source = package_files(root / "unity/com.noisemaker.hlsl")
+    embedded = package_files(project / "Packages/com.noisemaker.hlsl")
+    # Unity creates .meta files for existing source files during import.
+    extra = set(embedded) - set(source)
+    if any(embedded.get(name) != value for name, value in source.items()) or any(
+            not name.endswith(".meta") or not (root / "unity/com.noisemaker.hlsl" / name[:-5]).exists()
+            for name in extra):
+        raise ValueError("embedded Unity package differs from the current source package")
+    return hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest()
+
+
+def validate_project(project):
+    settings = project / "ProjectSettings/ProjectSettings.asset"
+    if settings.is_symlink() or not settings.is_file():
+        raise ValueError("parity requires a regular project with Linear color settings")
+    values = re.findall(r"^\s*m_ActiveColorSpace:\s*(\S+)\s*$", settings.read_text(), re.M)
+    if values != ["1"]:
+        raise ValueError("parity requires Linear color space (m_ActiveColorSpace: 1)")
+
+
+def source_identity(root):
+    names = subprocess.check_output(["git", "-C", str(root), "ls-files", "--cached", "--others",
+                                     "--exclude-standard", "-z"]).decode().split("\0")
+    digest = hashlib.sha256()
+    for name in sorted(set(names) - {""}):
+        path = root / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"source must contain a regular file: {name}")
+        digest.update(name.encode() + b"\0" + path.read_bytes() + b"\0")
+    return {"revision": git(root, "rev-parse", "HEAD"), "tree_sha256": digest.hexdigest(),
+            "status": git(root, "status", "--porcelain=v1", "--untracked-files=all")}
+
+
+def comparator(root):
+    spec = importlib.util.spec_from_file_location("unity_batch_compare", root / "parity/batch-compare.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_batch(root, cases, universe, work):
+    work.mkdir(parents=True, exist_ok=False)
+    gold, cand = work / "golden", work / "candidate"
+    gold.mkdir()
+    cand.mkdir()
+    first = cases[0]
+    p = first.protocol
+    manifest = work / "manifest.tsv"
+    manifest.write_text("".join(f"{case.name}\t{case.dsl}\n" for case in cases))
+    render_manifest = work / "render.tsv"
+    render_manifest.write_text("".join(f"{case.dsl}\t{cand / (case.name + '.png')}\n" for case in cases))
+    commands = []
+
+    def run(argv, label):
+        with (work / f"{label}.log").open("w") as log:
+            result = subprocess.run(list(map(str, argv)), cwd=root, stdout=log, stderr=subprocess.STDOUT)
+        commands.append({"argv": list(map(str, argv)), "exit_code": result.returncode, "log": f"{label}.log"})
+        (work / "commands.json").write_text(json.dumps(commands, indent=2) + "\n")
+        return result.returncode
+
+    def records(status, reason):
+        return [{"id": case.id, "name": case.name, "status": status, "executed": False,
+                 "reason": reason, "protocol": asdict(case.protocol)} for case in cases]
+
+    flags = ["--size", p.size, "--time", p.time, "--frames", p.frames, "--backend", p.backend,
+             "--tile-x", p.tile_x, "--tile-y", p.tile_y, "--full-width", p.full_width,
+             "--full-height", p.full_height, "--render-scale", p.render_scale]
+    unity_flags = ["-nmSize", p.size, "-nmTime", p.time, "-nmFrames", p.frames,
+                   "-nmTileX", p.tile_x, "-nmTileY", p.tile_y, "-nmFullWidth", p.full_width,
+                   "-nmFullHeight", p.full_height, "-nmRenderScale", p.render_scale]
+    if p.mesh:
+        flags += ["--mesh", p.mesh]
+        unity_flags += ["-nmMesh", p.mesh]
+    if run([os.environ.get("NODE", "node"), root / "parity/batch-golden.mjs", manifest, gold, *flags], "golden"):
+        return records("fail", "reference renderer failed")
+    unity_log = work / "unity.log"
+    gi_cache = work / "gi-cache"
+    gi_cache.mkdir()
+    if run([os.environ["UNITY"], "-batchmode", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
+            "-logFile", unity_log, "-giCustomCacheLocation", gi_cache.resolve(),
+            "-executeMethod", "Noisemaker.Hlsl.Editor.NMParityRunner.RenderDslBatchFromCommandLine",
+            "-nmManifest", render_manifest, *unity_flags], "unity-process"):
+        return records("fail", "Unity renderer failed")
+    text = unity_log.read_text() if unity_log.is_file() else ""
+    if "[NMParity] Project color space is not Linear;" in text:
+        return records("fail", "Unity did not use the required Linear color space")
+    if f"[NMParity] dsl batch done: {len(cases)} ok, 0 fail" not in text:
+        return records("fail", "Unity did not confirm the requested render count")
+    if p.mesh and not re.search(r"NMParity. mesh0 loaded from " + re.escape(p.mesh) + r": [1-9][0-9]* vertices", text):
+        return records("fail", "Unity did not load the declared mesh")
+    argv = [os.environ.get("PYTHON", sys.executable), root / "parity/batch-compare.py", gold, cand,
+            "--out", work / "report.json", "--manifest", manifest,
+            "--tolerance", first.tolerance, "--ssim-min", first.ssim_min]
+    policy = {}
+    if first.exceptions:
+        names = [case.name for case in universe if case.exceptions == first.exceptions]
+        policy = comparator(root).load_exceptions(Path(first.exceptions), names, first.ssim_min)
+        policy = {case.name: policy[case.name] for case in cases if case.name in policy}
+        filtered = work / "exceptions.json"
+        filtered.write_text(json.dumps({"schema_version": 1, "cases": policy}, indent=2) + "\n")
+        argv += ["--exceptions", filtered]
+    rc = run(argv, "compare")
+    if not (work / "report.json").is_file():
+        failed = records("fail", "comparator produced no valid report")
+        for case, record in zip(cases, failed):
+            if not (gold / f"{case.name}.golden.png").is_file() or not (cand / f"{case.name}.png").is_file():
+                record.update(status="missing", reason="a requested render is missing")
+        return failed
+    report = json.loads((work / "report.json").read_text())
+    results = {result["name"]: result for result in report["results"]}
+    if set(results) != {case.name for case in cases}:
+        return records("fail", "comparator report does not cover the requested case set")
+    output = []
+    for case in cases:
+        result = results[case.name]
+        cls = result["cls"]
+        status = ("exact" if result["max_abs_diff"] == 0 else "strict") if cls == "PASS" else (
+            "defer" if cls == "ALLOWED_NEAR" else "fail")
+        explained_failure = any(row["cls"] not in ("PASS", "ALLOWED_NEAR") for row in results.values())
+        if case.name in report["unused_exceptions"] or (rc and not explained_failure and not report["unused_exceptions"]):
+            status = "fail"
+        golden, candidate = gold / f"{case.name}.golden.png", cand / f"{case.name}.png"
+        output.append({"id": case.id, "name": case.name, "status": status, "executed": True,
+                       "metrics": result, "bounds": policy.get(case.name), "protocol": asdict(case.protocol),
+                       "tolerance": case.tolerance, "ssim_min": case.ssim_min,
+                       "golden": str(golden), "candidate": str(candidate),
+                       "golden_sha256": sha256(golden), "candidate_sha256": sha256(candidate),
+                       "visual_verdict": "unreviewed" if cls == "ALLOWED_NEAR" else "not_required"})
+    return output
+
+
+def apply_visual_review(records, receipt, provenance):
+    if (set(receipt) != {"schema_version", "source", "authority", "cases"}
+            or type(receipt["schema_version"]) is not int or receipt["schema_version"] != 1
+            or not isinstance(receipt["cases"], dict)
+            or any(receipt[key] != provenance[key] for key in ("source", "authority"))):
+        raise ValueError("visual review must match the current source and pinned authority")
+    reviewed = []
+    fields = ("protocol", "metrics", "bounds", "golden_sha256", "candidate_sha256")
+    for record in records:
+        record = dict(record)
+        verdict = receipt["cases"].get(record["id"], {})
+        if (record["status"] == "defer" and record.get("visual_verdict") == "unreviewed"
+                and isinstance(verdict, dict) and set(verdict) == {*fields, "verdict", "reviewer"}
+                and verdict["verdict"] == "same" and isinstance(verdict["reviewer"], str)
+                and verdict["reviewer"].strip() and all(verdict[key] == record[key] for key in fields)):
+            record.update(status="near", visual_verdict="same", visual_reviewer=verdict["reviewer"])
+        reviewed.append(record)
+    return reviewed
+
+
+def load_visual_review(path):
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate visual review key: {key}")
+            result[key] = value
+        return result
+    receipt = json.loads(path.read_text(), object_pairs_hook=unique_object)
+    if not isinstance(receipt, dict):
+        raise ValueError("visual review must be an object")
+    return receipt
+
+
+def count_results(records):
+    counts = dict.fromkeys(FIELDS, 0)
+    counts["expected"] = len(records)
+    for record in records:
+        counts[record["status"]] += 1
+        counts["executed"] += bool(record["executed"])
+    return counts
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("cases", nargs="*", help="canonical corpus/name IDs; no IDs selects the complete catalog")
+    args = parser.parse_args()
+    records, evidence = [], None
+    try:
+        universe = catalog(ROOT)
+        selected = select_cases(universe, args.cases)
+        records = [{"id": case.id, "name": case.name, "status": "missing", "executed": False,
+                    "reason": "render did not execute"} for case in selected]
+        reference = Path(os.environ["NM_REFERENCE_ROOT"]).resolve()
+        project = Path(os.environ["UNITY_PROJECT"]).resolve()
+        os.environ["NM_REFERENCE_ROOT"] = str(reference)
+        os.environ["UNITY_PROJECT"] = str(project)
+        authority = validate_authority(ROOT, reference)
+        validate_inputs(ROOT, reference, universe)
+        source = source_identity(ROOT)
+        package = validate_package(ROOT, project)
+        validate_project(project)
+        evidence_root = Path(os.environ.get("NM_PARITY_EVIDENCE_ROOT", "/workspace/evidence"
+                                          if Path("/workspace/evidence").is_dir() else tempfile.gettempdir())).resolve()
+        if evidence_root == ROOT or ROOT in evidence_root.parents:
+            raise ValueError("parity evidence must be outside the checkout")
+        evidence_root.mkdir(parents=True, exist_ok=True)
+        evidence = Path(tempfile.mkdtemp(prefix="unity-parity-", dir=evidence_root))
+        provenance = {"source": source, "authority": authority, "package_sha256": package,
+                      "reference_root": str(reference), "unity_project": str(project),
+                      "unity": os.environ["UNITY"], "cases": [asdict(case) for case in selected]}
+        (evidence / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
+        (evidence / "source.patch").write_text(git(ROOT, "diff", "HEAD", "--binary") + "\n")
+        groups = defaultdict(list)
+        output = {}
+        for case in selected:
+            if case.deferred:
+                output[case.id] = {"id": case.id, "name": case.name, "status": "defer", "executed": False,
+                                   "reason": case.deferred}
+            else:
+                groups[(case.protocol, case.tolerance, case.ssim_min, case.exceptions)].append(case)
+        for number, cases in enumerate(groups.values(), 1):
+            print(f"render batch {number}/{len(groups)}: {len(cases)} requested cases", flush=True)
+            try:
+                batch = run_batch(ROOT, cases, universe, evidence / f"batch-{number:03d}")
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                batch = [{"id": case.id, "name": case.name, "status": "fail", "executed": False,
+                          "reason": str(exc)} for case in cases]
+            output.update({record["id"]: record for record in batch})
+            records = [output.get(case.id, record) for case, record in zip(selected, records)]
+            (evidence / "results.json").write_text(json.dumps(records, indent=2) + "\n")
+        if os.environ.get("NM_PARITY_VISUAL_REVIEW"):
+            receipt = load_visual_review(Path(os.environ["NM_PARITY_VISUAL_REVIEW"]))
+            records = apply_visual_review(records, receipt, provenance)
+            (evidence / "visual-review.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        if (source_identity(ROOT) != source or validate_authority(ROOT, reference) != authority
+                or validate_package(ROOT, project) != package):
+            raise ValueError("source changed during the parity run")
+        validate_project(project)
+    except (KeyError, OSError, ValueError, subprocess.SubprocessError) as exc:
+        print(f"parity-summary: {exc}", file=sys.stderr)
+        for record in records:
+            if record["status"] in ("exact", "strict", "near"):
+                record.update(status="fail", reason=str(exc))
+        failed = True
+    else:
+        failed = False
+    counts = count_results(records)
+    if evidence:
+        (evidence / "results.json").write_text(json.dumps(records, indent=2) + "\n")
+        (evidence / "summary.json").write_text(json.dumps(counts, indent=2) + "\n")
+        print(f"PARITY-EVIDENCE {evidence}")
+    print("PARITY-SUMMARY " + json.dumps(counts, separators=(",", ":")))
+    return int(failed or not counts["expected"] or any(counts[field] for field in ("defer", "skip", "fail", "missing")))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
