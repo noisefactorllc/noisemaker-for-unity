@@ -118,8 +118,16 @@ def load_exceptions(path, compared_names, global_ssim_min):
     def invalid(message):
         raise ValueError(f"invalid exceptions document: {message}")
 
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                invalid(f"duplicate key: {key!r}")
+            result[key] = value
+        return result
+
     try:
-        document = json.loads(path.read_text())
+        document = json.loads(path.read_text(), object_pairs_hook=unique_object)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         invalid(str(exc))
 

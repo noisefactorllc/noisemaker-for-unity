@@ -375,6 +375,38 @@ class BatchCompareContractTests(unittest.TestCase):
         self.assert_single_result(data, "ALLOWED_NEAR")
         self.assertEqual(data["counts"], {"ALLOWED_NEAR": 1})
 
+    def test_exception_rejects_duplicate_json_keys(self):
+        self.write_pair([(3, 4, (129, 127, 127, 255))])
+        bounds = json.dumps(exception_document()["cases"]["sample"])
+        stricter_bounds = json.dumps(exception_document(max_abs_diff=1)["cases"]["sample"])
+        documents = {
+            "schema_version": (
+                '{"schema_version":2,"schema_version":1,"cases":{"sample":' + bounds + '}}'
+            ),
+            "cases": (
+                '{"schema_version":1,"cases":{"sample":' + stricter_bounds
+                + '},"cases":{"sample":' + bounds + '}}'
+            ),
+            "sample": (
+                '{"schema_version":1,"cases":{"sample":' + stricter_bounds
+                + ',"sample":' + bounds + '}}'
+            ),
+            "max_abs_diff": (
+                '{"schema_version":1,"cases":{"sample":'
+                + bounds.replace('"max_abs_diff": 2', '"max_abs_diff": 1,"max_abs_diff": 2')
+                + '}}'
+            ),
+        }
+
+        for key, document in documents.items():
+            with self.subTest(key=key):
+                exceptions = self.write_exception(document)
+                completed, data = self.compare("--exceptions", str(exceptions))
+                self.assertEqual(completed.returncode, 2, completed.stdout)
+                self.assertIsNone(data)
+                self.assertIn("duplicate key", completed.stderr)
+                self.assertIn(key, completed.stderr)
+
     def test_manifest_exact_fixture_set_passes(self):
         self.write_pair()
         manifest = self.write_manifest(["sample\tparity/programs/noise.dsl"])
