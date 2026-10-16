@@ -39,7 +39,8 @@ Shader "Noisemaker/filter/glyphMap"
                 inputTex.GetDimensions(tw, th);
                 float2 texSize = float2(tw, th);
                 float2 pos = NM_FragCoord(i);
-                return nm_glyphMap(pos, texSize, inputTex, sampler_inputTex);
+                return nm_glyphMap(pos, texSize, inputTex, sampler_inputTex,
+                                   fullResolution, tileOffset, renderScale);
             }
             ENDHLSL
         }

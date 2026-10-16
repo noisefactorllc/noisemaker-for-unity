@@ -329,14 +329,15 @@ float crt_wrap_unit(float value)
 
 float crt_blend_linear(float a, float b, float t)
 {
-    return lerp(a, b, clamp(t, 0.0, 1.0));
+    t = clamp(t, 0.0, 1.0);
+    return mad(b, t, mad(-a, t, a));
 }
 
 float crt_blend_cosine(float a, float b, float value)
 {
     float clamped = clamp(value, 0.0, 1.0);
     float weight  = (1.0 - cos(clamped * CRT_PI)) * 0.5;
-    return lerp(a, b, weight);
+    return mad(b, weight, mad(-a, weight, a));
 }
 
 float3 crt_rgb_to_hsv(float3 rgb)
@@ -642,7 +643,8 @@ float4 NMFrag_crt(NMVaryings i) : SV_Target
     color = clamp((color - local_mean) * 1.25 + local_mean, (float3)0.0, (float3)1.0);
 
     // Final alpha-blend with original
-    color = lerp(base_color, color, alphaVal);
+    float3 effectColor8 = floor(clamp(color, 0.0, 1.0) * 255.0 + 0.5) / 255.0;
+    color = lerp(base_color, effectColor8, alphaVal);
     return float4(color, base_sample.w);
 }
 

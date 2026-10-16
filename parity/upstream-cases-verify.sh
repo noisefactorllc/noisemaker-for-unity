@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pixel gate for all 130 noisemaker@3f5775c6 effect parity cases at the
+# Pixel gate for all 143 noisemaker@6cb1a3c3 effect parity cases at the
 # GAP-030 capture settings. Stage modes allow WebGL2 and Unity on separate hosts.
 set -euo pipefail
 
@@ -18,7 +18,7 @@ if [ "${1:-}" = --stage ]; then
 fi
 WORK="${1:?provide a work directory}"
 : "${NM_REFERENCE_ROOT:?set NM_REFERENCE_ROOT to pinned noisemaker checkout}"
-REFERENCE_SHA=3f5775c64d55c31906eab114087e09827cb2a1cc
+REFERENCE_SHA=6cb1a3c3e21010db956d41e7a6d57a02b0be1e7d
 if [ "$(git -C "$NM_REFERENCE_ROOT" rev-parse HEAD)" != "$REFERENCE_SHA" ]; then
   echo "reference checkout must be noisemaker@$REFERENCE_SHA" >&2
   exit 2
@@ -41,9 +41,9 @@ root, ref = map(Path, sys.argv[1:])
 corpus = root / 'parity/programs/upstream-cases'
 sources = sorted((ref / 'shaders/effects').glob('*/*/parity-case.json'))
 rows = [line.split('\t') for line in (corpus / 'manifest.tsv').read_text().splitlines()]
-assert len(sources) == len(rows) == 130, 'upstream case count changed'
+assert len(sources) == len(rows) == 143, 'upstream case count changed'
 expected = {f'{p.parent.parent.name}__{p.parent.name}': p for p in sources}
-assert len(expected) == 130 and len({row[0] for row in rows}) == 130
+assert len(expected) == 143 and len({row[0] for row in rows}) == 143
 assert {p.name for p in corpus.glob('*.dsl')} == {
     f'{row[0]}.dsl' for row in rows}, 'fixture DSL set differs from manifest'
 for name, path in rows:
@@ -53,7 +53,7 @@ for name, path in rows:
 assert (corpus / 'cube.obj').read_bytes() == (ref / 'share/meshes/cube.obj').read_bytes()
 assert (corpus / 'flow60-manifest.tsv').read_text() == (
     'points__flow\tparity/programs/upstream-cases/points__flow.dsl\n')
-print('130 pinned upstream cases and cube mesh verified')
+print('143 pinned upstream cases and cube mesh verified')
 PY
 
 if [ "$STAGE" = unity ] || [ "$STAGE" = all ]; then
@@ -98,7 +98,7 @@ for mode in untiled tiled; do
         -nmManifest "$RENDER_MANIFEST" -nmSize 128 -nmTime 0.25 -nmFrames 8 \
         -nmMesh "$CORPUS/cube.obj"
     fi
-    if ! grep -Fq '[NMParity] dsl batch done: 130 ok, 0 fail' "$WORK/unity-$mode.log"; then
+    if ! grep -Fq '[NMParity] dsl batch done: 143 ok, 0 fail' "$WORK/unity-$mode.log"; then
       tail -80 "$WORK/unity-$mode.log" >&2
       exit 1
     fi
@@ -112,7 +112,7 @@ for mode in untiled tiled; do
 done
 
 # The original GAP-030 Flow miss grew over 60 updates. Keep that longer run
-# alongside the 130-case eight-frame gate so the canvas-stride fix is covered.
+# alongside the 143-case eight-frame gate so the canvas-stride fix is covered.
 FLOW60_MANIFEST="$CORPUS/flow60-manifest.tsv"
 FLOW60_GOLD="$WORK/gold-flow60"
 FLOW60_CAND="$WORK/candidate-flow60"
@@ -140,3 +140,59 @@ if [ "$STAGE" = grade ] || [ "$STAGE" = all ]; then
     --out "$WORK/report-flow60.json" --tolerance 1 --ssim-min 0 \
     --manifest "$FLOW60_MANIFEST" --exceptions "$CORPUS/flow60-exceptions.json"
 fi
+
+# Exercise the tile-dependent sampling and cell-size boundaries changed upstream.
+TILE_SYNC="$HERE/programs/tile-sync/manifest.tsv"
+for mode in scaled origin shifted equal-shifted zoom-budget glyph-cap; do
+  CASE_MANIFEST="$TILE_SYNC"
+  FULL=512
+  TILE_X=0
+  TILE_Y=0
+  SCALE=3
+  SIZE=128
+  case "$mode" in
+    scaled) FULL=128 ;;
+    shifted) TILE_X=37; TILE_Y=23 ;;
+    equal-shifted) FULL=128; TILE_X=37; TILE_Y=23 ;;
+    zoom-budget)
+      FULL=4096; TILE_X=256; TILE_Y=256; SCALE=1; SIZE=512
+      CASE_MANIFEST="$HERE/programs/tile-sync/zoom-budget.tsv"
+      ;;
+    glyph-cap)
+      SCALE=32
+      CASE_MANIFEST="$WORK/glyph-cap.tsv"
+      awk -F '\t' '$1 == "glyphMap"' "$TILE_SYNC" > "$CASE_MANIFEST"
+      ;;
+  esac
+  GOLD="$WORK/gold-$mode"
+  CAND="$WORK/candidate-$mode"
+  mkdir -p "$GOLD" "$CAND"
+  if [ "$STAGE" = goldens ] || [ "$STAGE" = all ]; then
+    cd "$ROOT"
+    "$NODE" "$HERE/batch-golden.mjs" "$CASE_MANIFEST" "$GOLD" \
+      --size "$SIZE" --time 0.25 --frames 8 --backend webgl2 \
+      --tile-x "$TILE_X" --tile-y "$TILE_Y" \
+      --full-width "$FULL" --full-height "$FULL" --render-scale "$SCALE"
+  fi
+  if [ "$STAGE" = unity ] || [ "$STAGE" = all ]; then
+    RENDER_MANIFEST="$WORK/unity-$mode.tsv"
+    awk -F '\t' -v root="$ROOT" -v out="$CAND" \
+      '{print root "/" $2 "\t" out "/" $1 ".png"}' "$CASE_MANIFEST" > "$RENDER_MANIFEST"
+    "$UNITY" -batchmode -quit -projectPath "$UNITY_PROJECT" \
+      -logFile "$WORK/unity-$mode.log" \
+      -executeMethod Noisemaker.Hlsl.Editor.NMParityRunner.RenderDslBatchFromCommandLine \
+      -nmManifest "$RENDER_MANIFEST" -nmSize "$SIZE" -nmTime 0.25 -nmFrames 8 \
+      -nmTileX "$TILE_X" -nmTileY "$TILE_Y" \
+      -nmFullWidth "$FULL" -nmFullHeight "$FULL" -nmRenderScale "$SCALE"
+    COUNT="$(wc -l < "$CASE_MANIFEST" | tr -d ' ')"
+    if ! grep -Fq "[NMParity] dsl batch done: $COUNT ok, 0 fail" "$WORK/unity-$mode.log"; then
+      tail -80 "$WORK/unity-$mode.log" >&2
+      exit 1
+    fi
+  fi
+  if [ "$STAGE" = grade ] || [ "$STAGE" = all ]; then
+    "$PYTHON" "$HERE/batch-compare.py" "$GOLD" "$CAND" \
+      --out "$WORK/report-$mode.json" --tolerance 1 --ssim-min 0.9999 \
+      --manifest "$CASE_MANIFEST"
+  fi
+done

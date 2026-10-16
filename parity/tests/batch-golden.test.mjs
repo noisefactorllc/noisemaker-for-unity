@@ -22,7 +22,9 @@ function fakePage (backendName = 'webgpu') {
   globalThis.window = {
     __noisemakerRenderingPipeline: {
       backend, graph: { id: 'compiled', renderSurface: 'o2' },
-      surfaces: new Map([['o2', { read: 'actual-output' }]]), render: () => {}
+      surfaces: new Map([['o2', { read: 'actual-output' }]]), render: () => {},
+      initAsyncEffects: () => {}, checkAsyncRegen: () => {},
+      whenAsyncInitsSettled: async () => {}
     }
   }
   globalThis.document = { getElementById: () => ({ dispatchEvent () {}, click () {} }) }
@@ -91,4 +93,31 @@ test('CLI exits nonzero when a manifest item cannot be rendered', () => {
     assert.match(result.stdout, /0 ok, 1 fail/)
     assert.match(result.stderr, /GOLDEN-FAIL.*ENOENT/)
   } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('CPU overlays restart after clear and settle before frame zero', async () => {
+  const { page } = fakePage()
+  const events = []
+  const pipeline = window.__noisemakerRenderingPipeline
+  const uniforms = { density: 0.8, seed: 2 }
+  pipeline.graph.passes = [{ nodeId: 'overlay-node', effectKey: 'filter.fibers', uniforms }]
+  pipeline.backend.textures.set('overlay-texture', {})
+  pipeline.backend.clearTexture = id => events.push(['clear', id])
+  pipeline.initAsyncEffects = () => events.push(['init'])
+  pipeline.checkAsyncRegen = (...args) => events.push(['regen', ...args])
+  let ready = false
+  pipeline.whenAsyncInitsSettled = async () => {
+    await Promise.resolve()
+    ready = true
+    events.push(['ready'])
+  }
+  pipeline.render = () => {
+    assert.equal(ready, true, 'frame rendered before overlay upload')
+    events.push(['render'])
+  }
+  await renderOne(page, 'shape()', 1, 0.25, 'old', 1, 0, null, null, null, 'webgpu')
+  assert.deepEqual(events, [
+    ['clear', 'overlay-texture'], ['init'],
+    ['regen', 'overlay-node', 'filter.fibers', uniforms], ['ready'], ['render']
+  ])
 })

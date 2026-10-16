@@ -247,6 +247,7 @@ void NM_Glitch_float(
         frac((float2(blueOffset, lensedCoords.y) * fullRes - offset) / texSize));
 
     float4 color = float4(red.r, green.g, blue.b, green.a);
+    color.rgb = floor(clamp(color.rgb, 0.0, 1.0) * 255.0 + 0.5) / 255.0;
 
     // ---- scanlines() / snow() ----
     color = nmsg_glitch_scanlines(color, globalUV, fullRes, ScanlinesAmt, Time, (int)Seed);

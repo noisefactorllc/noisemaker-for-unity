@@ -193,12 +193,16 @@ float nmsg_crt_wrap_unit(float value)
     return wrapped;
 }
 
-float nmsg_crt_blend_linear(float a, float b, float t) { return lerp(a, b, clamp(t, 0.0, 1.0)); }
+float nmsg_crt_blend_linear(float a, float b, float t)
+{
+    t = clamp(t, 0.0, 1.0);
+    return mad(b, t, mad(-a, t, a));
+}
 float nmsg_crt_blend_cosine(float a, float b, float value)
 {
     float clamped = clamp(value, 0.0, 1.0);
     float weight  = (1.0 - cos(clamped * NMSG_CRT_PI)) * 0.5;
-    return lerp(a, b, weight);
+    return mad(b, weight, mad(-a, weight, a));
 }
 
 float3 nmsg_crt_rgb_to_hsv(float3 rgb)
@@ -320,7 +324,8 @@ void NM_Crt_float(
 {
     float alphaVal = clamp(Alpha, 0.0, 1.0);
 
-    float4 base_sample4 = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, UV);
+    int2 pixelCoord = (int2)(UV * Resolution);
+    float4 base_sample4 = InputTex.tex.Load(int3(pixelCoord, 0));
     float3 base_color   = base_sample4.xyz;
 
     if (alphaVal == 0.0)
@@ -335,8 +340,7 @@ void NM_Crt_float(
     float height_f  = max(fullRes.y / rs, 1.0);
     float seed_f    = Seed;
 
-    // Pixel coords from UV (same derivation as NM_FragCoord + TileOffset / rs)
-    float2 pixelCoord = UV * Resolution;
+    // Match the reference integer pixel indices before the tile transform.
     float x = (pixelCoord.x + TileOffset.x) / rs;
     float y = (pixelCoord.y + TileOffset.y) / rs;
 
@@ -373,9 +377,8 @@ void NM_Crt_float(
         float red_x = min(x + displacement_pixels, width_f - 1.0);
         red_x = nmsg_crt_blend_linear(red_x, x, gradient);
         float red_sample_x = nmsg_crt_blend_cosine(x, red_x, aber_mask);
-        // TODO(verify): SG uses UV-based sample; runtime uses integer Load with tileOffset
-        float2 red_uv = float2((red_sample_x * rs - TileOffset.x) / Resolution.x, UV.y);
-        float3 red_base_col = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, red_uv).xyz;
+        float red_sample_local_x = red_sample_x * RenderScale - TileOffset.x;
+        float3 red_base_col = InputTex.tex.Load(int3((int)red_sample_local_x, pixelCoord.y, 0)).xyz;
         float2 red_offsets = nmsg_crt_compute_lens_offsets(float2(red_sample_x, y), width_f, height_f, freq, Time, Speed, displacement, seed_f);
         float red_scan_val = nmsg_crt_sample_scanline_bilinear(red_sample_x + red_offsets.x, y + red_offsets.y, width_f, height_f, scanline_base);
         float3 red_blended = lerp(red_base_col, (red_base_col + red_scan_val) * red_scan_val, 0.5);
@@ -386,8 +389,8 @@ void NM_Crt_float(
         float blue_x = max(x - displacement_pixels, 0.0);
         blue_x = nmsg_crt_blend_linear(x, blue_x, gradient);
         float blue_sample_x = nmsg_crt_blend_cosine(x, blue_x, aber_mask);
-        float2 blue_uv = float2((blue_sample_x * rs - TileOffset.x) / Resolution.x, UV.y);
-        float3 blue_base_col = SAMPLE_TEXTURE2D(InputTex.tex, SS.samplerstate, blue_uv).xyz;
+        float blue_sample_local_x = blue_sample_x * RenderScale - TileOffset.x;
+        float3 blue_base_col = InputTex.tex.Load(int3((int)blue_sample_local_x, pixelCoord.y, 0)).xyz;
         float2 blue_offsets = nmsg_crt_compute_lens_offsets(float2(blue_sample_x, y), width_f, height_f, freq, Time, Speed, displacement, seed_f);
         float blue_scan_val = nmsg_crt_sample_scanline_bilinear(blue_sample_x + blue_offsets.x, y + blue_offsets.y, width_f, height_f, scanline_base);
         float3 blue_blended = lerp(blue_base_col, (blue_base_col + blue_scan_val) * blue_scan_val, 0.5);
@@ -409,7 +412,8 @@ void NM_Crt_float(
     float local_mean = (color.x + color.y + color.z) * NMSG_CRT_INV_THREE;
     color = clamp((color - local_mean) * 1.25 + local_mean, (float3)0.0, (float3)1.0);
 
-    color = lerp(base_color, color, alphaVal);
+    float3 effectColor8 = floor(clamp(color, 0.0, 1.0) * 255.0 + 0.5) / 255.0;
+    color = lerp(base_color, effectColor8, alphaVal);
     Out = float4(color, base_sample4.w);
 }
 

@@ -105,9 +105,6 @@ namespace Noisemaker.Hlsl.Compiler
 
         // Deprecated effect aliases (reference/01 §8.4): "<ns>.<func>" -> replacement name.
         private readonly Dictionary<string, string> _effectAliases = new Dictionary<string, string>();
-        // Param aliases (reference/01 §8.5): opName -> { oldParam: newParam } (ordered).
-        private readonly Dictionary<string, OrderedMap<string, string>> _paramAliases =
-            new Dictionary<string, OrderedMap<string, string>>();
         private static readonly HashSet<string> BundledAudioEffectKeys =
             new HashSet<string> { "synth.scope", "synth.spectrum" };
 
@@ -175,26 +172,7 @@ namespace Noisemaker.Hlsl.Compiler
             string oldName = opName.Contains(".")
                 ? opName.Substring(opName.LastIndexOf('.') + 1) : opName;
             return "effect '" + oldName + "' is deprecated, use '" + newName +
-                   "' instead. Aliases will be removed on 2026-09-01.";
-        }
-
-        // reference/01 §8.5 resolveParamAliases — mutates kwargs in place; returns warnings.
-        public List<string> ResolveParamAliases(string opName, OrderedKwargs kwargs)
-        {
-            var warnings = new List<string>();
-            OrderedMap<string, string> aliases;
-            if (!_paramAliases.TryGetValue(opName, out aliases)) return warnings;
-            foreach (string oldName in aliases.Keys)
-            {
-                if (!kwargs.Has(oldName)) continue;
-                string newName = aliases[oldName];
-                if (!kwargs.Has(newName))
-                    kwargs.Set(newName, kwargs.Get(oldName));
-                kwargs.Remove(oldName);
-                warnings.Add("param '" + oldName + "' is deprecated, use '" + newName +
-                             "' instead. Aliases will be removed on 2026-09-01.");
-            }
-            return warnings;
+                   "' instead.";
         }
 
         // --- loading --------------------------------------------------------
@@ -220,6 +198,8 @@ namespace Noisemaker.Hlsl.Compiler
         public void Register(JsonValue def)
         {
             if (def == null || def.Kind != JsonKind.Object) return;
+            if (def.Has("paramAliases"))
+                throw new ArgumentException("paramAliases is no longer supported", nameof(def));
 
             var e = new EffectDefinition
             {
@@ -315,16 +295,6 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 _starterOps.Add(func);
                 if (ns != null) _starterOps.Add(ns + "." + func);
-            }
-
-            // paramAliases: { oldParam: newParam }
-            JsonValue pa = def.Get("paramAliases");
-            if (pa != null && pa.Kind == JsonKind.Object && ns != null)
-            {
-                var map = new OrderedMap<string, string>();
-                foreach (var kv in pa.AsObject)
-                    if (kv.Value.Kind == JsonKind.String) map.Add(kv.Key, kv.Value.AsString);
-                _paramAliases[ns + "." + func] = map;
             }
 
             // deprecatedBy + hidden -> effect alias (reference/01 §8.4).

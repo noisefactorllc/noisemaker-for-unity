@@ -8,7 +8,6 @@
 //   S004 error  Cannot assign null or undefined
 //   S005 error  Illegal chain structure
 //   S006 error  Starter chain missing write() call
-//   S007 warning Deprecated parameter alias
 //   S008 warning Deprecated effect
 //
 // Pure C#, no UnityEngine.
@@ -96,7 +95,6 @@ namespace Noisemaker.Hlsl.Compiler
                 { "S004", new Entry("Cannot assign null or undefined", DiagnosticSeverity.Error, "semantic") },
                 { "S005", new Entry("Illegal chain structure", DiagnosticSeverity.Error, "semantic") },
                 { "S006", new Entry("Starter chain missing write() call", DiagnosticSeverity.Error, "semantic") },
-                { "S007", new Entry("Deprecated parameter alias", DiagnosticSeverity.Warning, "semantic") },
                 { "S008", new Entry("Deprecated effect", DiagnosticSeverity.Warning, "semantic") },
                 { "R001", new Entry("Runtime error", DiagnosticSeverity.Error, "runtime") },
             };

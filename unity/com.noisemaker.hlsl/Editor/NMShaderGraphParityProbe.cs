@@ -35,7 +35,8 @@ namespace Noisemaker.Hlsl.Editor
                     if (name != "Snow" && name != "Polar" && name != "Tunnel" &&
                         name != "Spiral" && name != "Refract" && name != "CellRefract" &&
                         name != "Kaleido" && name != "KaleidoShadow" &&
-                        !name.StartsWith("Glitch") && !name.StartsWith("Effects"))
+                        !name.StartsWith("Glitch") && !name.StartsWith("Effects") &&
+                        !name.StartsWith("GlyphMap") && !name.StartsWith("Crt"))
                         throw new InvalidOperationException("unknown parity case " + name);
                     Shader graphShader = AssetDatabase.LoadAssetAtPath<Shader>(file.Replace('\\', '/'));
                     string family = name == "Refract" || name == "CellRefract" || name.StartsWith("Kaleido") ||
@@ -43,7 +44,9 @@ namespace Noisemaker.Hlsl.Editor
                         ? "classicNoisedeck" : "filter";
                     string shaderName = name == "KaleidoShadow" ? "Kaleido" :
                         name.StartsWith("Glitch") ? "Glitch" :
-                        name.StartsWith("Effects") ? "Effects" : name;
+                        name.StartsWith("Effects") ? "Effects" :
+                        name.StartsWith("GlyphMap") ? "GlyphMap" :
+                        name.StartsWith("Crt") ? "Crt" : name;
                     Shader pipelineShader = AssetDatabase.LoadAssetAtPath<Shader>(
                         "Packages/com.noisemaker.hlsl/Shaders/Effects/" + family + "/" + shaderName + ".shader");
                     if (graphShader == null || pipelineShader == null)
@@ -62,6 +65,14 @@ namespace Noisemaker.Hlsl.Editor
                             graph.SetFloat("_NMParityStrength", -100f);
                         if (name == "EffectsScaleMid")
                             graph.SetFloat("_NMParityScaleAmt", 212.5f);
+                        if (name.StartsWith("Crt"))
+                        {
+                            graph.SetFloat("_NMParityAlpha", 0.5f);
+                            graph.SetFloat("_NMParitySpeed", 1f);
+                            graph.SetFloat("_NMParitySeed", 1f);
+                            graph.SetFloat("_NMParityTime", 0.25f);
+                            graph.SetFloat("_NMParityRenderScale", name.EndsWith("Scaled") ? 2f : 1f);
+                        }
                         pipeline.SetTexture("inputTex", input);
                         ShaderUtil.CompilePass(graph, 0, true);
                         ShaderUtil.CompilePass(pipeline, 0, true);
@@ -158,6 +169,19 @@ namespace Noisemaker.Hlsl.Editor
                             pipeline.SetInt("DIRECTION", 2);
                             pipeline.SetInt("KERNEL", name == "KaleidoShadow" ? 6 : 0);
                             pipeline.SetFloat("effectWidth", 0f);
+                        }
+                        else if (name.StartsWith("GlyphMap"))
+                        {
+                            pipeline.SetInt("cellSize", name == "GlyphMapSmall" ? 4 :
+                                name == "GlyphMapLarge" ? 32 : 16);
+                            pipeline.SetInt("seed", 1);
+                            pipeline.SetInt("colorMode", 1);
+                        }
+                        else if (name.StartsWith("Crt"))
+                        {
+                            pipeline.SetFloat("alpha", 0.5f);
+                            pipeline.SetFloat("speed", 1f);
+                            pipeline.SetInt("seed", 1);
                         }
                         else if (name.StartsWith("Glitch"))
                         {

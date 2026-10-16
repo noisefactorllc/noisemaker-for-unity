@@ -35,6 +35,7 @@ namespace CompilerContractTests
             TestAudioTaggedEffectRequirements();
             TestChainedVariableAlias();
             TestFilterAdjustAndExpiredEffects();
+            TestRetiredParameterAliases();
             TestOutputSurfaceRangeEnforcement();
             TestHlslIncludeDirectivesResolve();
             TestDiagnosticSourceColumnsAndLocations();
@@ -639,6 +640,53 @@ namespace CompilerContractTests
             catch (Exception ex)
             {
                 Check(false, "TestFilterAdjustAndExpiredEffects: " + ex.Message);
+            }
+        }
+
+        private static void TestRetiredParameterAliases()
+        {
+            var reg = EffectRegistry.LoadFromDirectory(Path.Combine(
+                Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects"));
+            var cases = new[]
+            {
+                (source: "search synth\nnoise(xScale: 4).write(o0)", argument: "xScale"),
+                (source: "search synth\nnoise(xScale: 4, scaleX: 8).write(o0)", argument: "xScale"),
+                (source: "search synth, mixer\nnoise().write(o0)\nread(o0).blendMode(mixAmt: 4).write(o1)", argument: "mixAmt")
+            };
+            foreach (var item in cases)
+            {
+                var result = Validator.Validate(Parser.Parse(Lexer.Lex(item.source), reg), reg);
+                bool unknown = false;
+                bool aliasWarning = false;
+                foreach (var diagnostic in result.Diagnostics)
+                {
+                    if (diagnostic.Code == "S001" && diagnostic.Message.Contains(item.argument)) unknown = true;
+                    if (diagnostic.Code == "S007") aliasWarning = true;
+                }
+                Check(unknown, "retired argument " + item.argument + " fails with S001");
+                Check(!aliasWarning, "retired argument " + item.argument + " is not remapped with S007");
+            }
+            try
+            {
+                var graph = DslCompiler.Compile("search synth, mixer\nnoise(scaleX: 4).write(o0)\nread(o0).blendMode(mix: 8).write(o1)", reg);
+                var noise = graph.Passes.Find(pass => pass.EffectKey == "synth.noise");
+                var blend = graph.Passes.Find(pass => pass.EffectKey == "mixer.blendMode");
+                Check(noise != null && noise.Uniforms["scaleX"].Number == 4, "canonical scaleX reaches the render graph");
+                Check(blend != null && blend.Uniforms["mixAmt"].Number == 8, "canonical mix reaches the render graph");
+            }
+            catch (Exception ex) { Check(false, "canonical parameter compilation: " + ex.Message); }
+
+            foreach (string aliases in new[] { "{}", "{\"xScale\":\"scaleX\"}" })
+            {
+                var portable = new EffectRegistry();
+                bool rejected = false;
+                try
+                {
+                    portable.Register(JsonValue.Parse("{\"name\":\"Alias probe\",\"namespace\":\"user\",\"func\":\"aliasProbe\",\"paramAliases\":" + aliases + ",\"globals\":{},\"passes\":[]}"));
+                }
+                catch (ArgumentException ex) { rejected = ex.Message.Contains("paramAliases"); }
+                Check(rejected, "definition parameter alias metadata is rejected: " + aliases);
+                Check(portable.GetEffect("user.aliasProbe") == null, "rejected alias metadata does not register a partial effect");
             }
         }
 

@@ -24,10 +24,9 @@
 //  * Coordinate / sampling parity: the WGSL divides the cell-center sample coord
 //    by the INPUT TEXTURE's own dimensions (textureDimensions(inputTex)), NOT
 //    fullResolution. We mirror that with inputTex.GetDimensions in the .shader.
-//  * tileOffset: the non-tiling path (length(tileOffset) == 0) is the common case
-//    and must be byte-identical to the pre-tile shader. We reproduce the WGSL
-//    tile branch literally (renderScale-scaled cell clamped to [1,512], global
-//    pixel grid, edge-clamped sample uv).
+//  * Tiling detection compares fullResolution with the input texture size,
+//    including the origin tile. Cell scaling applies on every frame; only
+//    tiled frames cap the scaled size at 512 and clamp the sample UV.
 //  * Determinism: variant selection from cellHash; WGSL only special-cases
 //    variant == 2 (the GLSL variant==1 branch is a no-op self-assign and omitted
 //    by the WGSL — we follow the WGSL).
@@ -190,18 +189,17 @@ float nm_glyphMap_glyphPixel(int g, int x, int y)
 // pass and any wrapper share identical math. Ported VERBATIM from glyphMap.wgsl
 // main().
 // -----------------------------------------------------------------------------
-float4 nm_glyphMap(float2 pos, float2 texSize, Texture2D inputTex, SamplerState ss)
+float4 nm_glyphMap(float2 pos, float2 texSize, Texture2D inputTex, SamplerState ss,
+                   float2 frameSize, float2 frameOffset, float frameScale)
 {
-    float2 tileOffsetLocal = tileOffset;
-    bool isTile = length(tileOffsetLocal) > 0.0;
-    // Non-tiling path is byte-identical to the previous shader. When tiling,
-    // mirror glsl/glyphMap.glsl: global pixel grid + renderScale-scaled cell
-    // (clamped to 512) so cells align across tiles.
-    float2 pixelCoord = pos;
-    int cs = max(cellSize, 1);
+    float2 tileOffsetLocal = frameOffset;
+    bool isTile = any(frameSize != texSize);
+    // Match the GLSL cell scaling for every frame. Tiled frames use a global
+    // pixel grid and cap the scaled cell size at 512, including the origin tile.
+    float2 pixelCoord = pos + tileOffsetLocal;
+    int cs = max((int)((float)cellSize * frameScale), 1);
     if (isTile) {
-        pixelCoord = pos + tileOffsetLocal;
-        cs = clamp((int)((float)cellSize * renderScale), 1, 512);
+        cs = min(cs, 512);
     }
     float csf = (float)cs;
 
@@ -218,9 +216,9 @@ float4 nm_glyphMap(float2 pos, float2 texSize, Texture2D inputTex, SamplerState 
 
     // Sample the center of the cell for brightness
     float2 cellCenter = (cellIndex + 0.5) * csf;
-    float2 sampleUV = cellCenter / texSize;
+    float2 sampleUV = (cellCenter - tileOffsetLocal) / texSize;
     if (isTile) {
-        sampleUV = clamp((cellCenter - tileOffsetLocal) / texSize, float2(0.0, 0.0), float2(1.0, 1.0));
+        sampleUV = clamp(sampleUV, float2(0.0, 0.0), float2(1.0, 1.0));
     }
     float4 srcColor = inputTex.Sample(ss, sampleUV);
 

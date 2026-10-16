@@ -15,6 +15,8 @@
 //   * other texIds -> the pooled phys_N RT via graph.allocations (else the texId RT).
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Noisemaker.Hlsl.Compiler;
@@ -37,6 +39,19 @@ namespace Noisemaker.Hlsl
         private readonly NMMeshData _meshData; // uploadMeshData path (mesh surfaces)
         private readonly NMSinkManager _sinkManager;
         private readonly EffectRegistry _effectRegistry;
+        private readonly Dictionary<string, OverlayJob> _overlayJobs =
+            new Dictionary<string, OverlayJob>();
+        private System.Exception _overlayFailure;
+
+        private sealed class OverlayJob
+        {
+            public string NodeId, TextureId, EffectKey;
+            public int Width, Height;
+            public double Density, Seed;
+            public long DueTicks;
+            public CancellationTokenSource Cancellation;
+            public Task<Color32[]> Task;
+        }
 
         private int _width, _height;
         public int Width { get { return _width; } }
@@ -339,7 +354,192 @@ namespace Noisemaker.Hlsl
             _store.SetScreenSize(_width, _height);
             _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup, _nonnumericUniforms);
             _store.AllocatePooled(Graph, UniformLookup, _poolable, _nonnumericUniforms);
-            // TODO(scope): initAsyncEffects (CPU texture generation) not ported.
+            InitCpuOverlays(false);
+        }
+
+        private void InitCpuOverlays(bool debounce)
+        {
+            CancelCpuOverlayJobs();
+            _overlayFailure = null;
+            var seen = new HashSet<string>();
+            foreach (Pass pass in Graph.Passes)
+            {
+                if (string.IsNullOrEmpty(pass.NodeId) ||
+                    !NMWormOverlay.Supports(pass.EffectKey) || !seen.Add(pass.NodeId))
+                    continue;
+
+                string texId;
+                if (!pass.Inputs.TryGetValue("overlayTex", out texId))
+                    throw new System.InvalidOperationException("CPU overlay has no overlayTex: " + pass.Id);
+                RenderTexture target = ResolvePhysical(texId);
+                if (target == null)
+                    throw new System.InvalidOperationException("CPU overlay texture missing: " + texId);
+
+                double densityDefault = pass.EffectKey == "filter.scratches" ? 0.3 : 0.5;
+                double density = OverlayParameter(pass, "density", densityDefault);
+                double seed = OverlayParameter(pass, "seed", 1.0);
+                // Small parity/export rasters finish in place. For large live
+                // rasters, compute away from the Unity thread and coalesce
+                // successive parameter changes until the next render.
+                if ((long)target.width * target.height >= 1024L * 1024L)
+                {
+                    _overlayJobs[pass.NodeId] = new OverlayJob {
+                        NodeId = pass.NodeId, TextureId = texId,
+                        EffectKey = pass.EffectKey,
+                        Width = target.width, Height = target.height,
+                        Density = density, Seed = seed,
+                        DueTicks = System.Diagnostics.Stopwatch.GetTimestamp() +
+                            (debounce ? System.Diagnostics.Stopwatch.Frequency / 10 : 0),
+                        Cancellation = new CancellationTokenSource()
+                    };
+                }
+                else
+                {
+                    try
+                    {
+                        UploadCpuOverlay(pass.NodeId, target,
+                            NMWormOverlay.Render(pass.EffectKey,
+                                target.width, target.height, density, seed));
+                    }
+                    catch (System.Exception error)
+                    {
+                        _overlayFailure = error;
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private void UploadCpuOverlay(string nodeId, RenderTexture target, Color32[] pixels)
+        {
+            var source = new Texture2D(target.width, target.height,
+                TextureFormat.RGBA32, false, true) {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "Noisemaker " + nodeId + " overlay"
+            };
+            try
+            {
+                source.SetPixels32(pixels);
+                source.Apply(false, true);
+                RenderTexture previousActive = RenderTexture.active;
+                try { Graphics.Blit(source, target); }
+                finally { RenderTexture.active = previousActive; }
+            }
+            finally { DestroyOverlayUpload(source); }
+        }
+
+        private void CancelCpuOverlayJobs()
+        {
+            foreach (OverlayJob job in _overlayJobs.Values)
+            {
+                job.Cancellation.Cancel();
+                job.Cancellation.Dispose();
+            }
+            _overlayJobs.Clear();
+        }
+
+        // Called by the driver even when Animate is off. Unity texture uploads
+        // remain on its thread; only the CPU tracer runs in the background.
+        public void PumpCpuOverlays()
+        {
+            PumpCpuOverlays(false);
+        }
+
+        private void PumpCpuOverlays(bool forceStart)
+        {
+            if (_overlayJobs.Count == 0 || _disposed) return;
+            var finished = new List<string>();
+            System.Exception error = null;
+            foreach (OverlayJob job in _overlayJobs.Values)
+            {
+                if (job.Task == null)
+                {
+                    if (!forceStart &&
+                        System.Diagnostics.Stopwatch.GetTimestamp() < job.DueTicks)
+                        continue;
+                    CancellationToken token = job.Cancellation.Token;
+                    job.Task = Task.Run(() => NMWormOverlay.Render(job.EffectKey,
+                        job.Width, job.Height, job.Density, job.Seed, token), token);
+                }
+                if (!job.Task.IsCompleted) continue;
+                try
+                {
+                    Color32[] pixels = job.Task.GetAwaiter().GetResult();
+                    RenderTexture target = ResolvePhysical(job.TextureId);
+                    if (target == null || target.width != job.Width ||
+                        target.height != job.Height)
+                        throw new System.InvalidOperationException(
+                            "CPU overlay target changed: " + job.TextureId);
+                    UploadCpuOverlay(job.NodeId, target, pixels);
+                }
+                catch (System.Exception e)
+                {
+                    if (error == null) error = e;
+                }
+                finally
+                {
+                    job.Cancellation.Dispose();
+                    finished.Add(job.NodeId);
+                }
+            }
+            foreach (string nodeId in finished)
+                _overlayJobs.Remove(nodeId);
+            if (error != null)
+            {
+                _overlayFailure = error;
+                throw error;
+            }
+        }
+
+        // Explicit Render and cubemap calls are synchronous. They wait for the
+        // overlay so no requested frame is silently dropped or read back blank.
+        private void CompleteCpuOverlays()
+        {
+            if (_overlayFailure != null)
+                throw new System.InvalidOperationException(
+                    "CPU overlay generation failed", _overlayFailure);
+            while (_overlayJobs.Count > 0)
+            {
+                PumpCpuOverlays(true);
+                if (_overlayJobs.Count == 0) break;
+                var tasks = new List<Task>(_overlayJobs.Count);
+                foreach (OverlayJob job in _overlayJobs.Values)
+                    tasks.Add(job.Task);
+                try { Task.WaitAll(tasks.ToArray()); }
+                catch (System.AggregateException) { /* Pump surfaces the original error. */ }
+            }
+            PumpCpuOverlays(true);
+            if (_overlayFailure != null)
+                throw new System.InvalidOperationException(
+                    "CPU overlay generation failed", _overlayFailure);
+        }
+
+        public bool CpuOverlaysReady
+        {
+            get { return _overlayJobs.Count == 0 && _overlayFailure == null; }
+        }
+
+        public System.Exception CpuOverlayFailure
+        {
+            get { return _overlayFailure; }
+        }
+
+        private static double OverlayParameter(Pass pass, string name, double fallback)
+        {
+            UniformValue value;
+            return pass.Uniforms.TryGetValue(name, out value) &&
+                   value.Kind == UniformValueKind.Number ? value.Number : fallback;
+        }
+
+        private static void DestroyOverlayUpload(Texture2D texture)
+        {
+            if (texture == null) return;
+#if UNITY_EDITOR
+            Object.DestroyImmediate(texture);
+#else
+            Object.Destroy(texture);
+#endif
         }
 
         // ---- host API: uniforms -------------------------------------------
@@ -358,6 +558,24 @@ namespace Noisemaker.Hlsl
             if (IsVolumeSizeUniform(name))
                 value = ClampVolumeSize(value);
             _globalUniforms[name] = value;
+
+            // CPU overlays consume density and seed during generation, rather
+            // than in their blend shader. Match the reference's host uniform
+            // path by updating every matching pass before regenerating them.
+            bool overlayParamChanged = false;
+            if (name == "density" || name == "seed")
+            {
+                foreach (Pass pass in Graph.Passes)
+                {
+                    if (!NMWormOverlay.Supports(pass.EffectKey)) continue;
+                    UniformValue current;
+                    if (!pass.Uniforms.TryGetValue(name, out current) ||
+                        current.Kind != UniformValueKind.Number ||
+                        current.Number == value) continue;
+                    pass.Uniforms[name] = UniformValue.Of(value);
+                    overlayParamChanged = true;
+                }
+            }
 
             bool affectsDimensions = DimensionReferencesParam(name);
             if (IsVolumeSizeUniform(name))
@@ -392,6 +610,8 @@ namespace Noisemaker.Hlsl
                 _surfaces.CreateSurfaces(Graph, _width, _height, UniformLookup, _nonnumericUniforms);
                 _store.AllocatePooled(Graph, UniformLookup, _poolable, _nonnumericUniforms);
             }
+            if (overlayParamChanged && _width > 0 && _height > 0)
+                InitCpuOverlays(true);
             // TODO(scope): per-pass uniform fan-out (_node_/_chain_) and palette
             // expansion (reference §13 setUniform) not ported; the named uniform is
             // bound at the pass level from graph.uniforms.
@@ -453,6 +673,8 @@ namespace Noisemaker.Hlsl
         // ---- per-frame render (reference/04 §10) --------------------------
         public void Render(float time, double? presentationTimestampMilliseconds = null)
         {
+            PumpCpuOverlays();
+            if (!CpuOverlaysReady) CompleteCpuOverlays();
             double wallTimeMilliseconds =
                 (double)System.Diagnostics.Stopwatch.GetTimestamp() * 1000.0 /
                 System.Diagnostics.Stopwatch.Frequency;
@@ -764,7 +986,25 @@ namespace Noisemaker.Hlsl
                 return CreateLazyPhysical(phys, texId);
             }
             RenderTexture direct = _store.Get(texId);
-            if (direct != null) return direct;
+            if (direct != null)
+            {
+                // First-read CPU overlays are allocated lazily under their
+                // virtual id, so AllocatePooled does not resize them. Resolve
+                // their current graph dimensions before reusing a direct RT.
+                TextureSpec spec;
+                if (Graph.Textures.TryGetValue(texId, out spec) && spec != null)
+                {
+                    int width = TextureStore.ResolveDimension(spec.Width, _width,
+                        UniformLookup, _nonnumericUniforms);
+                    int height = TextureStore.ResolveDimension(spec.Height, _height,
+                        UniformLookup, _nonnumericUniforms);
+                    if (direct.width != width || direct.height != height ||
+                        direct.format != TextureStore.MapFormat(spec.Format) ||
+                        !_store.MatchesLogical3D(direct, spec.Is3D))
+                        return CreateLazyPhysical(texId, texId);
+                }
+                return direct;
+            }
             return CreateLazyPhysical(texId, texId);
         }
 
@@ -971,6 +1211,7 @@ namespace Noisemaker.Hlsl
         {
             if (_disposed) return;
             _disposed = true;
+            CancelCpuOverlayJobs();
             System.Exception firstError = null;
             System.Action<System.Action> cleanup = action =>
             {

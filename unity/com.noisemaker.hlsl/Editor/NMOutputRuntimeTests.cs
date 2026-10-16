@@ -137,6 +137,10 @@ namespace Noisemaker.Hlsl.Editor
                 TestPipelineSinkIntegration();
                 TestMeshChainScopeResolution();
                 TestMeshRenderShadedOutput();
+                TestCpuOverlayCanvasPrimitives();
+                TestCpuOverlayLifecycle();
+                TestLargeCpuOverlayExplicitRender();
+                TestLargeRendererExplicitFrame();
                 StartGpuExportTest();
             }
             catch (Exception error)
@@ -444,6 +448,212 @@ namespace Noisemaker.Hlsl.Editor
         // shades the far one — visible normals point -z, diffuse clamps to zero,
         // and the interior collapses to a flat ambient+rim field (measured
         // 131/255 = 0.514 on the parity sphere).
+        [Serializable]
+        private sealed class CanvasStrokeCase
+        {
+            public string name;
+            public double x0, y0, x1, y1, width, r, g, b, a, exposure;
+            public int repeats;
+        }
+
+        [Serializable]
+        private sealed class CanvasStrokeCases
+        {
+            public int width, height;
+            public CanvasStrokeCase[] cases;
+        }
+
+        private static void TestCpuOverlayCanvasPrimitives()
+        {
+            var package = UnityEditor.PackageManager.PackageInfo.FindForAssetPath(
+                "Packages/com.noisemaker.hlsl");
+            Check(package != null, "CPU stroke fixture package is missing");
+            string directory = System.IO.Path.Combine(package.resolvedPath, "Editor/Fixtures/CpuOverlay");
+            var fixtures = JsonUtility.FromJson<CanvasStrokeCases>(
+                System.IO.File.ReadAllText(System.IO.Path.Combine(directory, "cases.json")));
+            var type = typeof(NMPipeline).Assembly.GetType("Noisemaker.Hlsl.NMWormOverlay", true);
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+            var inkType = type.GetNestedType("Ink", flags);
+            var stroke = type.GetMethod("Stroke", flags | System.Reflection.BindingFlags.Static);
+            Check(inkType != null && stroke != null, "CPU stroke implementation is missing");
+            foreach (var fixture in fixtures.cases)
+            {
+                var pixels = new Color32[fixtures.width * fixtures.height];
+                object ink = Activator.CreateInstance(inkType,
+                    flags | System.Reflection.BindingFlags.Instance, null,
+                    new object[] { fixture.r, fixture.g, fixture.b, fixture.a }, null);
+                for (int repeat = 0; repeat < fixture.repeats; repeat++)
+                    stroke.Invoke(null, new object[] { pixels, fixtures.width, fixtures.height,
+                        fixture.x0, fixture.y0, fixture.x1, fixture.y1,
+                        fixture.width, ink, fixture.exposure });
+                byte[] expected = System.IO.File.ReadAllBytes(
+                    System.IO.Path.Combine(directory, fixture.name + ".rgba"));
+                Check(expected.Length == pixels.Length * 4, "CPU stroke fixture size is invalid");
+                int maximum = 0;
+                for (int y = 0; y < fixtures.height; y++)
+                for (int x = 0; x < fixtures.width; x++)
+                {
+                    Color32 pixel = pixels[(fixtures.height - 1 - y) * fixtures.width + x];
+                    int at = (y * fixtures.width + x) * 4;
+                    int alpha = expected[at + 3];
+                    int red = (expected[at] * alpha + 127) / 255;
+                    int green = (expected[at + 1] * alpha + 127) / 255;
+                    int blue = (expected[at + 2] * alpha + 127) / 255;
+                    maximum = Math.Max(maximum, Math.Abs(pixel.r - red));
+                    maximum = Math.Max(maximum, Math.Abs(pixel.g - green));
+                    maximum = Math.Max(maximum, Math.Abs(pixel.b - blue));
+                    maximum = Math.Max(maximum, Math.Abs(pixel.a - expected[at + 3]));
+                }
+                Check(maximum <= 1, "CPU Canvas stroke " + fixture.name + " max byte difference " + maximum);
+                Debug.Log("[NMOutputRuntimeTests] CPU Canvas stroke " + fixture.name + " max=" + maximum);
+            }
+        }
+
+        private static void TestCpuOverlayLifecycle()
+        {
+            PreloadPackageShaders();
+            RenderGraph graph = Noisemaker.Hlsl.Compiler.DslCompiler.Compile(
+                "search synth, filter\n\nsolid(color: #2b2b2b).scratches(density: 0.3, seed: 1).write(o0)\nrender(o0)",
+                LoadEffectRegistry());
+            string overlayId = null;
+            foreach (Pass pass in graph.Passes)
+                if (pass.EffectKey == "filter.scratches")
+                    pass.Inputs.TryGetValue("overlayTex", out overlayId);
+            Check(!string.IsNullOrEmpty(overlayId), "scratches graph has no overlayTex input");
+
+            var pipeline = new NMPipeline(graph);
+            try
+            {
+                pipeline.Init(64, 64);
+                int nonzero;
+                ulong initial = OverlayFingerprint(pipeline.ResolveRead(overlayId), out nonzero);
+                Check(nonzero > 0, "CPU overlay is empty after Init");
+
+                pipeline.SetUniform("density", 0.8);
+                ulong changedDensity = OverlayFingerprint(pipeline.ResolveRead(overlayId), out nonzero);
+                Check(nonzero > 0 && changedDensity != initial,
+                    "density update did not regenerate CPU overlay");
+
+                pipeline.SetUniform("seed", 2);
+                ulong changedSeed = OverlayFingerprint(pipeline.ResolveRead(overlayId), out nonzero);
+                Check(nonzero > 0 && changedSeed != changedDensity,
+                    "seed update did not regenerate CPU overlay");
+
+                pipeline.Resize(128, 128);
+                RenderTexture resized = pipeline.ResolveRead(overlayId);
+                Check(resized != null && resized.width == 128 && resized.height == 128,
+                    "CPU overlay did not resize with the pipeline");
+                OverlayFingerprint(resized, out nonzero);
+                Check(nonzero > 0, "CPU overlay is empty after Resize");
+            }
+            finally { pipeline.Dispose(); }
+        }
+
+        private static void TestLargeCpuOverlayExplicitRender()
+        {
+            PreloadPackageShaders();
+            RenderGraph graph = Noisemaker.Hlsl.Compiler.DslCompiler.Compile(
+                "search synth, filter\n\nsolid(color: #2b2b2b).strayHair(density: 0.5, seed: 1).write(o0)\nrender(o0)",
+                LoadEffectRegistry());
+            string overlayId = null;
+            foreach (Pass pass in graph.Passes)
+                if (pass.EffectKey == "filter.strayHair")
+                    pass.Inputs.TryGetValue("overlayTex", out overlayId);
+            Check(!string.IsNullOrEmpty(overlayId), "strayHair graph has no overlayTex input");
+
+            var pipeline = new NMPipeline(graph);
+            try
+            {
+                pipeline.Init(1024, 1024);
+                Check(!pipeline.CpuOverlaysReady,
+                    "large overlay was not scheduled asynchronously");
+                pipeline.Render(0.25f);
+                Check(pipeline.CpuOverlaysReady,
+                    "explicit render returned before large overlay completed");
+                int nonzero;
+                ulong initial = OverlayFingerprint(pipeline.ResolveRead(overlayId), out nonzero);
+                Check(nonzero > 0, "large CPU overlay is empty after render");
+
+                pipeline.SetUniform("seed", 2);
+                Check(!pipeline.CpuOverlaysReady,
+                    "large seed change was not scheduled asynchronously");
+                pipeline.Render(0.25f);
+                ulong changed = OverlayFingerprint(pipeline.ResolveRead(overlayId), out nonzero);
+                Check(pipeline.CpuOverlaysReady && nonzero > 0 && changed != initial,
+                    "large seed change was not ready for explicit render");
+            }
+            finally { pipeline.Dispose(); }
+        }
+
+        private static void TestLargeRendererExplicitFrame()
+        {
+            PreloadPackageShaders();
+            var gameObject = new GameObject("NM explicit overlay test");
+            gameObject.SetActive(false);
+            try
+            {
+                var renderer = gameObject.AddComponent<NMRenderer>();
+                renderer.Dsl = "search synth, filter\n\nsolid(color: #2b2b2b).strayHair(density: 0.5, seed: 1).write(o0)\nrender(o0)";
+                renderer.EffectsDirectory = System.IO.Path.GetFullPath(
+                    "Packages/com.noisemaker.hlsl/Effects");
+                renderer.RenderWidth = renderer.RenderHeight = 1024;
+                renderer.Animate = false;
+                gameObject.SetActive(true);
+                renderer.Rebuild();
+                Check(renderer.Pipeline != null && !renderer.Pipeline.CpuOverlaysReady,
+                    "large renderer overlay was not scheduled");
+                var sink = new RecordingSink();
+                renderer.Pipeline.AddSink(sink);
+
+                renderer.RenderFrame(0.25f);
+                Check(renderer.Output != null && renderer.Pipeline.CpuOverlaysReady &&
+                    renderer.Pipeline.FrameIndex == 1,
+                    "explicit RenderFrame returned before its output was ready");
+                renderer.RenderFrame(0.5f, 4321.5);
+                Check(renderer.Output != null && renderer.Pipeline.FrameIndex == 2 &&
+                    sink.Submissions == 2 && sink.LastTimestamp == 4321.5,
+                    "explicit frames lost their output or presentation timestamp");
+
+                renderer.Resize(512, 512);
+                renderer.RenderFrame(0.75f);
+                Check(renderer.Output != null && renderer.Output.width == 512 &&
+                    renderer.Output.height == 512,
+                    "explicit frame after resize exposed stale output dimensions");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(gameObject); }
+        }
+
+        private static ulong OverlayFingerprint(RenderTexture source, out int nonzeroAlpha)
+        {
+            Check(source != null, "CPU overlay texture missing");
+            RenderTexture previous = RenderTexture.active;
+            var readback = new Texture2D(source.width, source.height,
+                TextureFormat.RGBA32, false, true);
+            try
+            {
+                RenderTexture.active = source;
+                readback.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0);
+                readback.Apply();
+                Color32[] pixels = readback.GetPixels32();
+                nonzeroAlpha = 0;
+                ulong hash = 14695981039346656037UL;
+                foreach (Color32 pixel in pixels)
+                {
+                    if (pixel.a != 0) nonzeroAlpha++;
+                    hash = (hash ^ pixel.r) * 1099511628211UL;
+                    hash = (hash ^ pixel.g) * 1099511628211UL;
+                    hash = (hash ^ pixel.b) * 1099511628211UL;
+                    hash = (hash ^ pixel.a) * 1099511628211UL;
+                }
+                return hash;
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                UnityEngine.Object.DestroyImmediate(readback);
+            }
+        }
+
         private static void TestMeshRenderShadedOutput()
         {
             PreloadPackageShaders();

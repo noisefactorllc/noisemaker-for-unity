@@ -297,6 +297,7 @@ float4 NMFrag_glitch(NMVaryings i) : SV_Target
 
     float4 color = g_glitch(uv, aspectRatioV, time, (float)xChonk, (float)yChonk,
                             glitchiness, (float)aspectLens, distortion, aberration);
+    color.rgb = floor(clamp(color.rgb, 0.0, 1.0) * 255.0 + 0.5) / 255.0;
     if (scanlinesAmt != 0)
     {
         // GLSL scanlines() scales the hatch by fullResolution.y.

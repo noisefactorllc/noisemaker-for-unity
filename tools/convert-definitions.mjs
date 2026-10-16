@@ -6,7 +6,7 @@
 //   unity/com.noisemaker.hlsl/Effects/<ns>/<func>.json
 //
 // The emitted shape matches the hand-written Tier-1 files (Effects/synth/*.json):
-//   { name, namespace, func, tags, description, paramAliases,
+//   { name, namespace, func, tags, description,
 //     globals{ <key>: { type, default, uniform, define, min, max, choices } },
 //     passes[ { name, program, inputs, outputs, uniforms } ],
 //     textures{ <id>: { width, height, [depth], [is3D], format } } }
@@ -181,7 +181,6 @@ function convertEffect (instance, namespace, name) {
   def.starter = !!(mentry && mentry.starter)
   if (instance.tags) def.tags = instance.tags
   if (instance.description) def.description = instance.description
-  def.paramAliases = instance.paramAliases || {}
   def.globals = projectGlobals(instance.globals)
   def.passes = (instance.passes || []).map(projectPass)
   def.textures = projectTextures(instance.textures, false) || {}

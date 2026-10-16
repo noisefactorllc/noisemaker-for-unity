@@ -55,7 +55,8 @@ void NM_GlyphMap_float(
     float2 texSize = float2(tw, th);
     float2 pos = UV * texSize;
 
-    Out = nm_glyphMap(pos, texSize, InputTex.tex, SS.samplerstate);
+    Out = nm_glyphMap(pos, texSize, InputTex.tex, SS.samplerstate,
+                      texSize, float2(0.0, 0.0), 1.0);
 }
 
 #endif // NM_GLYPHMAP_SG_INCLUDED

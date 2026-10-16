@@ -1,4 +1,5 @@
 classicNoisedeck__bitEffects	parity/programs/upstream-cases/classicNoisedeck__bitEffects.dsl
+classicNoisedeck__caustic	parity/programs/upstream-cases/classicNoisedeck__caustic.dsl
 classicNoisedeck__cellNoise	parity/programs/upstream-cases/classicNoisedeck__cellNoise.dsl
 classicNoisedeck__cellRefract	parity/programs/upstream-cases/classicNoisedeck__cellRefract.dsl
 classicNoisedeck__coalesce	parity/programs/upstream-cases/classicNoisedeck__coalesce.dsl
@@ -8,6 +9,7 @@ classicNoisedeck__fractal	parity/programs/upstream-cases/classicNoisedeck__fract
 classicNoisedeck__glitch	parity/programs/upstream-cases/classicNoisedeck__glitch.dsl
 classicNoisedeck__kaleido	parity/programs/upstream-cases/classicNoisedeck__kaleido.dsl
 classicNoisedeck__lensDistortion	parity/programs/upstream-cases/classicNoisedeck__lensDistortion.dsl
+classicNoisedeck__moodscape	parity/programs/upstream-cases/classicNoisedeck__moodscape.dsl
 classicNoisedeck__noise	parity/programs/upstream-cases/classicNoisedeck__noise.dsl
 classicNoisedeck__noise3d	parity/programs/upstream-cases/classicNoisedeck__noise3d.dsl
 classicNoisedeck__refract	parity/programs/upstream-cases/classicNoisedeck__refract.dsl
@@ -16,10 +18,13 @@ classicNoisedeck__shapes	parity/programs/upstream-cases/classicNoisedeck__shapes
 classicNoisedeck__shapes3d	parity/programs/upstream-cases/classicNoisedeck__shapes3d.dsl
 classicNoisedeck__splat	parity/programs/upstream-cases/classicNoisedeck__splat.dsl
 filter3d__flow3d	parity/programs/upstream-cases/filter3d__flow3d.dsl
+filter3d__palette3d	parity/programs/upstream-cases/filter3d__palette3d.dsl
 filter__adjust	parity/programs/upstream-cases/filter__adjust.dsl
 filter__bloom	parity/programs/upstream-cases/filter__bloom.dsl
 filter__blur	parity/programs/upstream-cases/filter__blur.dsl
 filter__bulge	parity/programs/upstream-cases/filter__bulge.dsl
+filter__celShading	parity/programs/upstream-cases/filter__celShading.dsl
+filter__chromaticAberration	parity/programs/upstream-cases/filter__chromaticAberration.dsl
 filter__chrome	parity/programs/upstream-cases/filter__chrome.dsl
 filter__convolutionFeedback	parity/programs/upstream-cases/filter__convolutionFeedback.dsl
 filter__corrupt	parity/programs/upstream-cases/filter__corrupt.dsl
@@ -35,14 +40,17 @@ filter__glowingEdge	parity/programs/upstream-cases/filter__glowingEdge.dsl
 filter__glyphMap	parity/programs/upstream-cases/filter__glyphMap.dsl
 filter__grade	parity/programs/upstream-cases/filter__grade.dsl
 filter__grime	parity/programs/upstream-cases/filter__grime.dsl
+filter__historicPalette	parity/programs/upstream-cases/filter__historicPalette.dsl
 filter__invert	parity/programs/upstream-cases/filter__invert.dsl
 filter__lensWarp	parity/programs/upstream-cases/filter__lensWarp.dsl
 filter__lighting	parity/programs/upstream-cases/filter__lighting.dsl
+filter__lowPoly	parity/programs/upstream-cases/filter__lowPoly.dsl
 filter__normalMap	parity/programs/upstream-cases/filter__normalMap.dsl
 filter__normalize	parity/programs/upstream-cases/filter__normalize.dsl
 filter__octaveWarp	parity/programs/upstream-cases/filter__octaveWarp.dsl
 filter__osd	parity/programs/upstream-cases/filter__osd.dsl
 filter__outline	parity/programs/upstream-cases/filter__outline.dsl
+filter__palette	parity/programs/upstream-cases/filter__palette.dsl
 filter__pinch	parity/programs/upstream-cases/filter__pinch.dsl
 filter__pixelSort	parity/programs/upstream-cases/filter__pixelSort.dsl
 filter__polar	parity/programs/upstream-cases/filter__polar.dsl
@@ -66,6 +74,7 @@ filter__spinBlur	parity/programs/upstream-cases/filter__spinBlur.dsl
 filter__spiral	parity/programs/upstream-cases/filter__spiral.dsl
 filter__spookyTicker	parity/programs/upstream-cases/filter__spookyTicker.dsl
 filter__strayHair	parity/programs/upstream-cases/filter__strayHair.dsl
+filter__text	parity/programs/upstream-cases/filter__text.dsl
 filter__texture	parity/programs/upstream-cases/filter__texture.dsl
 filter__tile	parity/programs/upstream-cases/filter__tile.dsl
 filter__tint	parity/programs/upstream-cases/filter__tint.dsl
@@ -79,6 +88,7 @@ filter__waves	parity/programs/upstream-cases/filter__waves.dsl
 filter__wobble	parity/programs/upstream-cases/filter__wobble.dsl
 filter__zoomBlur	parity/programs/upstream-cases/filter__zoomBlur.dsl
 mixer__alphaMask	parity/programs/upstream-cases/mixer__alphaMask.dsl
+mixer__applyMode	parity/programs/upstream-cases/mixer__applyMode.dsl
 mixer__blendMode	parity/programs/upstream-cases/mixer__blendMode.dsl
 mixer__centerMask	parity/programs/upstream-cases/mixer__centerMask.dsl
 mixer__focusBlur	parity/programs/upstream-cases/mixer__focusBlur.dsl
@@ -104,11 +114,13 @@ render__pointsRender	parity/programs/upstream-cases/render__pointsRender.dsl
 render__render3d	parity/programs/upstream-cases/render__render3d.dsl
 render__renderLandscape3d	parity/programs/upstream-cases/render__renderLandscape3d.dsl
 render__renderLit3d	parity/programs/upstream-cases/render__renderLit3d.dsl
+synth3d__cell3d	parity/programs/upstream-cases/synth3d__cell3d.dsl
 synth3d__flythrough3d	parity/programs/upstream-cases/synth3d__flythrough3d.dsl
 synth3d__fractal3d	parity/programs/upstream-cases/synth3d__fractal3d.dsl
 synth3d__heightmap3d	parity/programs/upstream-cases/synth3d__heightmap3d.dsl
 synth3d__noise3d	parity/programs/upstream-cases/synth3d__noise3d.dsl
 synth3d__shape3d	parity/programs/upstream-cases/synth3d__shape3d.dsl
+synth__cell	parity/programs/upstream-cases/synth__cell.dsl
 synth__cellularAutomata	parity/programs/upstream-cases/synth__cellularAutomata.dsl
 synth__curl	parity/programs/upstream-cases/synth__curl.dsl
 synth__julia	parity/programs/upstream-cases/synth__julia.dsl
@@ -118,6 +130,7 @@ synth__mnca	parity/programs/upstream-cases/synth__mnca.dsl
 synth__modPattern	parity/programs/upstream-cases/synth__modPattern.dsl
 synth__navierStokes	parity/programs/upstream-cases/synth__navierStokes.dsl
 synth__newton	parity/programs/upstream-cases/synth__newton.dsl
+synth__noise	parity/programs/upstream-cases/synth__noise.dsl
 synth__osc2d	parity/programs/upstream-cases/synth__osc2d.dsl
 synth__pattern	parity/programs/upstream-cases/synth__pattern.dsl
 synth__polygon	parity/programs/upstream-cases/synth__polygon.dsl

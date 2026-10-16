@@ -157,6 +157,18 @@ export async function renderOne (page, dsl, size, time, lastId, frames = 8, time
       // identical to the Unity 8×Render(0.25)-from-zero contract.
       p.frameIndex = 0
       p.lastTime = 0
+
+      // Async CPU overlays are textures too. Clearing the backend above erases
+      // any upload that began during compile/resize, while an in-flight trace
+      // can race the readback. Restart after the clear with each step's compiled
+      // parameters, then wait for the final upload before rendering frame 0.
+      p.initAsyncEffects()
+      for (const pass of p.graph?.passes || []) {
+        if (pass.nodeId && pass.effectKey) {
+          p.checkAsyncRegen(pass.nodeId, pass.effectKey, pass.uniforms || {})
+        }
+      }
+      await p.whenAsyncInitsSettled()
     }
     // MESH FIXTURES — load the shared OBJ into the mesh surface AFTER the
     // zeroing (so the upload is the last write, exactly like the Unity side's

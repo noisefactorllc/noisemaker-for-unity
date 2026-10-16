@@ -234,11 +234,11 @@ float3 nm_cnd_pixellate(float2 uv_in, float sizeIn)
     if (size < 1.0) { return inputTex.Sample(sampler_inputTex, nm_cnd_localUV(uv_in)).rgb; }
     size *= 4.0;
     // GLSL: dx = size * (1.0 / resolution.x)
-    float dx = size * (1.0 / resolution.x);
-    float dy = size * (1.0 / resolution.y);
+    float dx = size * (1.0 / fullResolution.x);
+    float dy = size * (1.0 / fullResolution.y);
     float2 uv = uv_in - 0.5;
     float2 coord = float2(dx * floor(uv.x / dx), dy * floor(uv.y / dy)) + 0.5;
-    return inputTex.Sample(sampler_inputTex, coord).rgb;
+    return inputTex.Sample(sampler_inputTex, nm_cnd_localUV(coord)).rgb;
 }
 
 // desaturate — WGSL verbatim.
@@ -252,7 +252,7 @@ float3 nm_cnd_desaturate(float3 color)
 // tile, as the GLSL does: ((uv + offset * effectAmt) * fullResolution - tileOffset) / textureSize.
 float3 nm_cnd_convolve(float2 uv, float kernel[9], bool divide)
 {
-    float2 steps = 1.0 / resolution;
+    float2 steps = 1.0 / fullResolution;
     float2 offsets[9] = {
         float2(-steps.x, -steps.y), float2(0.0, -steps.y), float2(steps.x, -steps.y),
         float2(-steps.x, 0.0),      float2(0.0, 0.0),      float2(steps.x, 0.0),
@@ -357,9 +357,8 @@ float3 nm_cnd_convolutionEffect(float3 color, float2 uv)
 }
 
 // cga — GLSL. pixelDensity scales by renderScale, the aspect is the
-// fullResolution aspect, and the dither checker uses mod(gl_FragCoord.xy,
-// dSize) (fragCoord = NM_FragCoord, the tile-local pixel coord). The GLSL
-// samples (sx, sy) with no tile mapping. mod -> nm_mod.
+// fullResolution aspect, and the dither checker uses full-image coordinates.
+// The snapped block sample maps back into the tile. mod -> nm_mod.
 float3 nm_cnd_cga(float4 color, float2 st, float2 fragCoord)
 {
     float amt = nm_cnd_mapRange(effectAmt, 0.0, 20.0, 0.0, 5.0);
@@ -367,13 +366,13 @@ float3 nm_cnd_cga(float4 color, float2 st, float2 fragCoord)
     float pixelDensity = amt * renderScale;
     float size = 2.0 * pixelDensity;
     float dSize = 2.0 * size;
-    float amount = resolution.x / size;
+    float amount = fullResolution.x / size;
     float d = 1.0 / amount;
     float ar = fullResolution.x / fullResolution.y;
     float sx = floor(st.x / d) * d;
     d = ar / amount;
     float sy = floor(st.y / d) * d;
-    float4 base = inputTex.Sample(sampler_inputTex, float2(sx, sy));
+    float4 base = inputTex.Sample(sampler_inputTex, nm_cnd_localUV(float2(sx, sy)));
     float lum = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
     float o = floor(6.0 * lum);
     float3 black = float3(0.0, 0.0, 0.0);
@@ -392,13 +391,13 @@ float3 nm_cnd_cga(float4 color, float2 st, float2 fragCoord)
     // Levels outside 0..6 (input outside 0..1) keep both colors black, as
     // the GLSL's zero-initialized c1 and c2 do (noisemaker d6c1f98b).
     float3 result = c1;
-    if (nm_mod(fragCoord.x, dSize) > size)
+    if (nm_mod(fragCoord.x + tileOffset.x, dSize) > size)
     {
-        if (nm_mod(fragCoord.y, dSize) > size) { result = c1; } else { result = c2; }
+        if (nm_mod(fragCoord.y + tileOffset.y, dSize) > size) { result = c1; } else { result = c2; }
     }
     else
     {
-        if (nm_mod(fragCoord.y, dSize) > size) { result = c2; } else { result = c1; }
+        if (nm_mod(fragCoord.y + tileOffset.y, dSize) > size) { result = c2; } else { result = c1; }
     }
     return result;
 }
@@ -410,7 +409,7 @@ float3 nm_cnd_subpixel(float2 st, float scaleIn)
     float scale = nm_cnd_mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0) * renderScale;
     float3 orig = nm_cnd_pixellate(st, 4.0 * scale);
     float3 color = orig;
-    float2 coord = floor(st * resolution);
+    float2 coord = floor(st * fullResolution);
     float m = nm_mod(coord.x, 4.0 * scale);
     if (nm_mod(coord.y, 4.0 * scale) <= 1.0 * scale)
     {
@@ -441,13 +440,13 @@ float3 nm_cnd_subpixel(float2 st, float scaleIn)
 float3 nm_cnd_bloom(float2 st)
 {
     float3 sum = float3(0.0, 0.0, 0.0);
-    float3 orig = inputTex.Sample(sampler_inputTex, st).rgb;
+    float3 orig = inputTex.Sample(sampler_inputTex, nm_cnd_localUV(st)).rgb;
     float strength = nm_cnd_mapRange(effectAmt, 0.0, 20.0, 0.0, 0.25);
     for (int i = -4; i < 4; i++)
     {
         for (int j = -3; j < 3; j++)
         {
-            sum += inputTex.Sample(sampler_inputTex, st + float2((float)j, (float)i) * 0.004).rgb * strength;
+            sum += inputTex.Sample(sampler_inputTex, nm_cnd_localUV(st + float2((float)j, (float)i) * 0.004)).rgb * strength;
         }
     }
     float3 color;
@@ -478,7 +477,12 @@ float3 nm_cnd_zoomBlur(float2 st)
         float2 tapA = toCenter * percent;
         float2 tap = min(max(tapA, float2(-1e38, -1e38)), float2(1e38, 1e38)) * strength;
         float2 tapB = min(max(tap, float2(-1e38, -1e38)), float2(1e38, 1e38));
-        float4 tex = inputTex.Sample(sampler_inputTex, st + tapB);
+        if (tileOffset.x != 0.0 || tileOffset.y != 0.0)
+        {
+            float2 tapBudget = 256.0 * invFullResolution;
+            tapB = min(max(tapB, -tapBudget), tapBudget);
+        }
+        float4 tex = inputTex.Sample(sampler_inputTex, nm_cnd_localUV(st + tapB));
         products[int(t)] = min(max(tex.rgb * weight, float3(-1e38, -1e38, -1e38)), float3(1e38, 1e38, 1e38));
         total += min(max(weight, -1e38), 1e38);
     }
@@ -530,8 +534,8 @@ float4 NMFrag_effects(NMVaryings i) : SV_Target
     uv = min(max(uv, float2(-1e38, -1e38)), float2(1e38, 1e38));
     uv += 0.5;
 
-    float2 imageSize = resolution;
-    // imageSize is a copy of resolution, so resolution/imageSize is a value
+    float2 imageSize = fullResolution;
+    // imageSize is the full-image size; its self-division is a value
     // divided by itself — use the exact 1.0 (noisemaker a7ba29d7).
     uv.x -= ceil((scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
     uv.y += ceil((scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);

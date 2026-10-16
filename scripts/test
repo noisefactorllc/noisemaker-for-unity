@@ -32,10 +32,10 @@ for arg in "$@"; do
   esac
 done
 
-# Reference authority: noisemaker 3f5775c6, the pinned authority the committed
+# Reference authority: noisemaker 6cb1a3c3, the pinned authority the committed
 # parity corpora are recorded against (synced from 5976b7a6 / v1.0.271).
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="3f5775c64d55c31906eab114087e09827cb2a1cc"
+REFERENCE_SHA="6cb1a3c3e21010db956d41e7a6d57a02b0be1e7d"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"

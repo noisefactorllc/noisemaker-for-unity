@@ -41,14 +41,6 @@
       "max_exceeded_channels": 15,
       "mechanism": "Repeated exp and weighted-sum rounding accumulates over feedback frames."
     },
-    "filter__crt": {
-      "max_abs_diff": 50,
-      "max_mean_abs_diff": 0.038071,
-      "ssim_min": 0.999957,
-      "max_exceeded_pixels": 252,
-      "max_exceeded_channels": 343,
-      "mechanism": "A ring around the centre selects a neighboring colour texel at a truncation boundary."
-    },
     "filter__degauss": {
       "max_abs_diff": 4,
       "max_mean_abs_diff": 0.000962,
@@ -56,6 +48,14 @@
       "max_exceeded_pixels": 7,
       "max_exceeded_channels": 7,
       "mechanism": "Sparse channel displacement sampling rounding ties."
+    },
+    "filter__fibers": {
+      "max_abs_diff": 50,
+      "max_mean_abs_diff": 1.0,
+      "ssim_min": 0.9994,
+      "max_exceeded_pixels": 5600,
+      "max_exceeded_channels": 12300,
+      "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
     },
     "filter__reindex": {
       "max_abs_diff": 49,
@@ -82,12 +82,20 @@
       "mechanism": "Sparse scanline error threshold ties."
     },
     "filter__scratches": {
-      "max_abs_diff": 253.0,
-      "max_mean_abs_diff": 0.2776641845703125,
-      "ssim_min": 0.9960523476,
-      "max_exceeded_pixels": 94,
-      "max_exceeded_channels": 155,
-      "mechanism": "Sparse scratch line-position rounding selects different texels."
+      "max_abs_diff": 22,
+      "max_mean_abs_diff": 0.086,
+      "ssim_min": 0.99995,
+      "max_exceeded_pixels": 660,
+      "max_exceeded_channels": 1160,
+      "mechanism": "CPU hairline coverage and accumulated premultiplied byte blending differ from software Canvas."
+    },
+    "filter__strayHair": {
+      "max_abs_diff": 8,
+      "max_mean_abs_diff": 0.0027,
+      "ssim_min": 0.99999,
+      "max_exceeded_pixels": 15,
+      "max_exceeded_channels": 34,
+      "mechanism": "Identical seeded hair path; accumulated premultiplied byte rounding differs on 15 covered pixels."
     },
     "filter__unsharpMask": {
       "max_abs_diff": 3,

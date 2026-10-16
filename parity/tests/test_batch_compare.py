@@ -1572,18 +1572,8 @@ class EffectDefinitionSpecificationTests(unittest.TestCase):
                             self.VALID_TYPES,
                             msg=f"Effect {eff_name} global '{k}' has unexpected type '{g_type}'",
                         )
-                if "paramAliases" in defn:
-                    self.assertIsInstance(
-                        defn["paramAliases"],
-                        dict,
-                        msg=f"Effect {eff_name} 'paramAliases' not a dict",
-                    )
-                    for alias, target in defn["paramAliases"].items():
-                        self.assertIn(
-                            target,
-                            globals_dict,
-                            msg=f"Effect {eff_name} alias '{alias}' -> '{target}' not found in globals",
-                        )
+                self.assertNotIn("paramAliases", defn,
+                                 msg=f"Effect {eff_name} contains retired parameter alias metadata")
 
 
 class BatchGoldenBackendTests(unittest.TestCase):

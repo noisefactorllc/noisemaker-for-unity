@@ -161,6 +161,8 @@ namespace Noisemaker.Hlsl
         private void LateUpdate()
         {
             if (_pipeline == null) return;
+            _pipeline.PumpCpuOverlays();
+            if (!_pipeline.CpuOverlaysReady) return;
             if (ShouldDeferRender()) return;
 
             if (Animate)

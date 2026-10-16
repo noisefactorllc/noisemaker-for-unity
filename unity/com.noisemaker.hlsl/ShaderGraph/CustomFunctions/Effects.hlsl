@@ -176,16 +176,17 @@ float3 nmsg_cnd_pixellate(UnityTexture2D tex, UnitySamplerState ss, float2 uv_in
     if (size < 1.0) { return SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
         nmsg_cnd_localUV(uv_in, tile.fullResolution, tile.tileOffset, tile.texSize)).rgb; }
     size *= 4.0;
-    float dx = size * (1.0 / res.x);
-    float dy = size * (1.0 / res.y);
+    float dx = size * (1.0 / tile.fullResolution.x);
+    float dy = size * (1.0 / tile.fullResolution.y);
     float2 uv = uv_in - 0.5;
     float2 coord = float2(dx * floor(uv.x / dx), dy * floor(uv.y / dy)) + 0.5;
-    return SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, coord).rgb;
+    return SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
+        nmsg_cnd_localUV(coord, tile.fullResolution, tile.tileOffset, tile.texSize)).rgb;
 }
 
 float3 nmsg_cnd_convolve(UnityTexture2D tex, UnitySamplerState ss, float2 uv, float kernel[9], bool divide, float effectAmt, float2 res, NMSG_CndTile tile)
 {
-    float2 steps = 1.0 / res;
+    float2 steps = 1.0 / tile.fullResolution;
     float2 offsets[9] = {
         float2(-steps.x, -steps.y), float2(0.0, -steps.y), float2(steps.x, -steps.y),
         float2(-steps.x, 0.0),      float2(0.0, 0.0),      float2(steps.x, 0.0),
@@ -272,20 +273,21 @@ float3 nmsg_cnd_convolutionEffect(UnityTexture2D tex, UnitySamplerState ss, floa
     return color;
 }
 
-float3 nmsg_cnd_cga(UnityTexture2D tex, UnitySamplerState ss, float4 color, float2 st, float2 fragCoord, float effectAmt, float2 res, float2 fullResolution, float renderScale)
+float3 nmsg_cnd_cga(UnityTexture2D tex, UnitySamplerState ss, float4 color, float2 st, float2 fragCoord, float effectAmt, float2 res, float2 fullResolution, float renderScale, NMSG_CndTile tile)
 {
     float amt = nmsg_cnd_mapRange(effectAmt, 0.0, 20.0, 0.0, 5.0);
     if (amt < 0.01) { return color.rgb; }
     float pixelDensity = amt * renderScale;
     float size = 2.0 * pixelDensity;
     float dSize = 2.0 * size;
-    float amount = res.x / size;
+    float amount = fullResolution.x / size;
     float d = 1.0 / amount;
     float ar = fullResolution.x / fullResolution.y;
     float sx = floor(st.x / d) * d;
     d = ar / amount;
     float sy = floor(st.y / d) * d;
-    float4 base = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, float2(sx, sy));
+    float4 base = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
+        nmsg_cnd_localUV(float2(sx, sy), tile.fullResolution, tile.tileOffset, tile.texSize));
     float lum = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
     float o = floor(6.0 * lum);
     float3 black = float3(0.0, 0.0, 0.0);
@@ -301,8 +303,8 @@ float3 nmsg_cnd_cga(UnityTexture2D tex, UnitySamplerState ss, float4 color, floa
     else if (o == 4.0) { c1 = light; c2 = light; }
     else if (o == 5.0) { c1 = light; c2 = white; }
     else               { c1 = white; c2 = white; }
-    float fx = fragCoord.x;
-    float fy = fragCoord.y;
+    float fx = fragCoord.x + tile.tileOffset.x;
+    float fy = fragCoord.y + tile.tileOffset.y;
     float3 result = c1;
     if (nm_mod(fx, dSize) > size)
     {
@@ -320,7 +322,7 @@ float3 nmsg_cnd_subpixel(UnityTexture2D tex, UnitySamplerState ss, float2 st, fl
     float scale = nmsg_cnd_mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0) * renderScale;
     float3 orig = nmsg_cnd_pixellate(tex, ss, st, 4.0 * scale, res, tile);
     float3 color = orig;
-    float2 coord = floor(st * res);
+    float2 coord = floor(st * tile.fullResolution);
     float m = nm_mod(coord.x, 4.0 * scale);
     if (nm_mod(coord.y, 4.0 * scale) <= scale)    { color *= float3(0.0, 0.0, 0.0); }
     else if (m <= scale)                            { color *= float3(1.0, 0.0, 0.0); }
@@ -331,16 +333,19 @@ float3 nmsg_cnd_subpixel(UnityTexture2D tex, UnitySamplerState ss, float2 st, fl
     return lerp(orig, color, factor);
 }
 
-float3 nmsg_cnd_bloom(UnityTexture2D tex, UnitySamplerState ss, float2 st, float effectAmt)
+float3 nmsg_cnd_bloom(UnityTexture2D tex, UnitySamplerState ss, float2 st, float effectAmt, NMSG_CndTile tile)
 {
     float3 sum = float3(0.0, 0.0, 0.0);
-    float3 orig = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, st).rgb;
+    float3 orig = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
+        nmsg_cnd_localUV(st, tile.fullResolution, tile.tileOffset, tile.texSize)).rgb;
     float strength = nmsg_cnd_mapRange(effectAmt, 0.0, 20.0, 0.0, 0.25);
     for (int i = -4; i < 4; i++)
     {
         for (int j = -3; j < 3; j++)
         {
-            sum += SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, st + float2((float)j, (float)i) * 0.004).rgb * strength;
+            sum += SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
+                nmsg_cnd_localUV(st + float2((float)j, (float)i) * 0.004,
+                    tile.fullResolution, tile.tileOffset, tile.texSize)).rgb * strength;
         }
     }
     float3 color;
@@ -352,7 +357,7 @@ float3 nmsg_cnd_bloom(UnityTexture2D tex, UnitySamplerState ss, float2 st, float
 
 // Mirrors the runtime nm_cnd_zoomBlur: pinned tap chain, separate product
 // accumulation, Newton-Raphson-refined reciprocal (noisemaker a7ba29d7).
-float3 nmsg_cnd_zoomBlur(UnityTexture2D tex, UnitySamplerState ss, float2 st, float effectAmt)
+float3 nmsg_cnd_zoomBlur(UnityTexture2D tex, UnitySamplerState ss, float2 st, float effectAmt, NMSG_CndTile tile)
 {
     float3 color = float3(0.0, 0.0, 0.0);
     float total = 0.0;
@@ -368,7 +373,14 @@ float3 nmsg_cnd_zoomBlur(UnityTexture2D tex, UnitySamplerState ss, float2 st, fl
         float2 tapA = toCenter * percent;
         float2 tap = min(max(tapA, float2(-1e38, -1e38)), float2(1e38, 1e38)) * strength;
         float2 tapB = min(max(tap, float2(-1e38, -1e38)), float2(1e38, 1e38));
-        float4 texv = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate, st + tapB);
+        if (tile.tileOffset.x != 0.0 || tile.tileOffset.y != 0.0)
+        {
+            float2 tapBudget = 256.0 * float2(nmsg_cnd_reciprocal(tile.fullResolution.x),
+                                             nmsg_cnd_reciprocal(tile.fullResolution.y));
+            tapB = min(max(tapB, -tapBudget), tapBudget);
+        }
+        float4 texv = SAMPLE_TEXTURE2D(tex.tex, ss.samplerstate,
+            nmsg_cnd_localUV(st + tapB, tile.fullResolution, tile.tileOffset, tile.texSize));
         products[int(t)] = min(max(texv.rgb * weight, float3(-1e38, -1e38, -1e38)), float3(1e38, 1e38, 1e38));
         total += min(max(weight, -1e38), 1e38);
     }
@@ -440,8 +452,8 @@ void NM_Effects_float(
     uv = min(max(uv, float2(-1e38, -1e38)), float2(1e38, 1e38));
     uv += 0.5;
 
-    float2 imageSize = res;
-    // imageSize is a copy of res, so res/imageSize is a value divided by itself
+    float2 imageSize = fullRes;
+    // imageSize is the full-image size; its self-division is a value divided by itself
     // — use the exact 1.0 (noisemaker a7ba29d7).
     uv.x -= ceil((scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
     uv.y += ceil((scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
@@ -474,10 +486,10 @@ void NM_Effects_float(
         [branch]
         if (Effect == 100)      { color = float4(nmsg_cnd_pixellate(InputTex, SS, uv, EffectAmt, res, tile), color.a); }
         else if (Effect == 110) { color = float4(nmsg_cnd_posterize(color.rgb, EffectAmt), color.a); }
-        else if (Effect == 200) { color = float4(nmsg_cnd_cga(InputTex, SS, color, uv, fragCoord, EffectAmt, res, fullRes, scaleFactor), color.a); }
+        else if (Effect == 200) { color = float4(nmsg_cnd_cga(InputTex, SS, color, uv, fragCoord, EffectAmt, res, fullRes, scaleFactor, tile), color.a); }
         else if (Effect == 210) { color = float4(nmsg_cnd_subpixel(InputTex, SS, uv, EffectAmt, res, scaleFactor, tile), color.a); }
-        else if (Effect == 220) { color = float4(nmsg_cnd_bloom(InputTex, SS, uv, EffectAmt), color.a); }
-        else if (Effect == 230) { color = float4(nmsg_cnd_zoomBlur(InputTex, SS, uv, EffectAmt), color.a); }
+        else if (Effect == 220) { color = float4(nmsg_cnd_bloom(InputTex, SS, uv, EffectAmt, tile), color.a); }
+        else if (Effect == 230) { color = float4(nmsg_cnd_zoomBlur(InputTex, SS, uv, EffectAmt, tile), color.a); }
         else                    { color = float4(nmsg_cnd_convolutionEffect(InputTex, SS, color.rgb, uv, Effect, EffectAmt, res, tile), color.a); }
     }
 

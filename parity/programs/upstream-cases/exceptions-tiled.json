@@ -57,13 +57,13 @@
       "max_exceeded_channels": 3,
       "mechanism": "Sparse channel displacement sampling rounding ties."
     },
-    "filter__pixelSort": {
-      "max_abs_diff": 8.0,
-      "max_mean_abs_diff": 0.0006103515625,
-      "ssim_min": 0.9999961857,
-      "max_exceeded_pixels": 8,
-      "max_exceeded_channels": 8,
-      "mechanism": "Sparse sorted-pixel boundary classification ties."
+    "filter__fibers": {
+      "max_abs_diff": 50,
+      "max_mean_abs_diff": 1.0,
+      "ssim_min": 0.9994,
+      "max_exceeded_pixels": 5600,
+      "max_exceeded_channels": 12300,
+      "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
     },
     "filter__reindex": {
       "max_abs_diff": 30,
@@ -88,6 +88,22 @@
       "max_exceeded_pixels": 6,
       "max_exceeded_channels": 18,
       "mechanism": "Sparse scanline error threshold ties."
+    },
+    "filter__scratches": {
+      "max_abs_diff": 22,
+      "max_mean_abs_diff": 0.067,
+      "ssim_min": 0.99992,
+      "max_exceeded_pixels": 730,
+      "max_exceeded_channels": 910,
+      "mechanism": "CPU hairline coverage and accumulated premultiplied byte blending differ from software Canvas."
+    },
+    "filter__strayHair": {
+      "max_abs_diff": 8,
+      "max_mean_abs_diff": 0.0027,
+      "ssim_min": 0.99999,
+      "max_exceeded_pixels": 15,
+      "max_exceeded_channels": 34,
+      "mechanism": "Identical seeded hair path; accumulated premultiplied byte rounding differs on 15 covered pixels."
     },
     "filter__unsharpMask": {
       "max_abs_diff": 2,

@@ -778,11 +778,6 @@ namespace Noisemaker.Hlsl.Compiler
         private void ResolveArgs(List<Step> chain, OpSpec spec, CallNode call, string opName, Node original, StepArgs args, string writeName)
         {
             OrderedKwargs kw = call.Kwargs;
-            if (kw != null)
-            {
-                List<string> warnings = _reg.ResolveParamAliases(opName, kw);
-                foreach (string w in warnings) PushDiag("S007", call, w);
-            }
             var seen = new HashSet<string>();
             List<ParamDef> specArgs = spec.Args;
 

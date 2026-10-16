@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 
@@ -39,6 +40,9 @@ CASES = {
                "Glitchiness": 0, "Aberration": 0, "XChonk": 1, "YChonk": 1,
                "Seed": 1, "ScanlinesAmt": 0, "SnowAmt": 0, "VignetteAmt": 0,
                "Distortion": 0, "AspectLens": 0},
+    "GlyphMap": {"CellSize": 16, "Seed": 1, "ColorMode": 1},
+    "Crt": {"Resolution": SIZE, "FullResolution": SIZE, "TileOffset": 0,
+            "RenderScale": 1, "Time": 0.25, "Alpha": 0.5, "Speed": 1, "Seed": 1},
     "Effects": {"Resolution": SIZE, "Effect": 0, "Flip": 0,
                 "FullResolution": SIZE, "TileOffset": 0, "RenderScale": 1,
                 "EffectAmt": 1, "ScaleAmt": 100, "Rotation": 0,
@@ -69,6 +73,10 @@ CASES["EffectsCgaScaled"] = dict(CASES["EffectsCga"], RenderScale=2)
 CASES["EffectsSubpixelScaled"] = dict(CASES["EffectsSubpixel"], RenderScale=2)
 CASES["EffectsSubpixelSaved"] = {key: value for key, value in CASES["EffectsSubpixel"].items()
                                 if key not in ("FullResolution", "TileOffset", "RenderScale")}
+CASES["GlyphMapSmall"] = dict(CASES["GlyphMap"], CellSize=4)
+CASES["GlyphMapLarge"] = dict(CASES["GlyphMap"], CellSize=32)
+CASES["CrtTiled"] = dict(CASES["Crt"], FullResolution=512, TileOffset=128)
+CASES["CrtScaled"] = dict(CASES["Crt"], RenderScale=2)
 QUANTIZE_GUID = "e25ed175a52b4600bffb0b0607a2a91e"
 
 
@@ -120,10 +128,14 @@ def parity_graph(wrapper: Path, template, uv_node, uv_slot, sampler_node, sample
                     value = {component: value for component in components}
             slot["m_Value"] = value
             slot["m_DefaultValue"] = value
-    if (wrapper.stem == "Effects" and (defaults["Effect"] == 210 or defaults["ScaleAmt"] != 100)) or wrapper.stem == "Spiral":
-        ids = lambda suffix: hashlib.md5((wrapper.stem + ":parity:" + suffix).encode()).hexdigest()
-        parameter = "Strength" if wrapper.stem == "Spiral" else (
-            "ScaleAmt" if defaults["ScaleAmt"] != 100 else "EffectAmt")
+    parameters = []
+    if wrapper.stem == "Crt":
+        parameters = ["Alpha", "Speed", "Seed", "Time", "RenderScale"]
+    elif (wrapper.stem == "Effects" and (defaults["Effect"] == 210 or defaults["ScaleAmt"] != 100)) or wrapper.stem == "Spiral":
+        parameters = ["Strength" if wrapper.stem == "Spiral" else (
+            "ScaleAmt" if defaults["ScaleAmt"] != 100 else "EffectAmt")]
+    for parameter in parameters:
+        ids = lambda suffix: hashlib.md5((wrapper.stem + ":parity:" + parameter + ":" + suffix).encode()).hexdigest()
         node = copy.deepcopy(property_node)
         slot = copy.deepcopy(property_slot)
         prop = copy.deepcopy(scalar_property)
@@ -132,7 +144,7 @@ def parity_graph(wrapper: Path, template, uv_node, uv_slot, sampler_node, sample
         node["m_Property"] = {"m_Id": ids("property")}
         slot["m_ObjectId"] = ids("property-slot")
         prop["m_ObjectId"] = ids("property")
-        prop["m_Guid"] = {"m_GuidSerialized": "f3a9552c-21f4-4187-b26a-4ebfa6d8d96a"}
+        prop["m_Guid"] = {"m_GuidSerialized": str(uuid.UUID(ids("guid")))}
         prop["m_Name"] = parameter
         prop["m_DefaultReferenceName"] = "_NMParity" + parameter
         prop["m_OverrideReferenceName"] = "_NMParity" + parameter
@@ -243,7 +255,9 @@ def main():
         "  assetBundleName: \n  assetBundleVariant: \n"
     )
     for name, defaults in CASES.items():
-        wrapper_name = {"KaleidoShadow": "Kaleido", "GlitchActive": "Glitch",
+        wrapper_name = {"GlyphMapSmall": "GlyphMap", "GlyphMapLarge": "GlyphMap",
+                        "CrtTiled": "Crt", "CrtScaled": "Crt",
+                        "KaleidoShadow": "Kaleido", "GlitchActive": "Glitch",
                         "GlitchTiled": "Glitch", "GlitchTiledWide": "Glitch",
                         "GlitchLegacy": "Glitch",
                         "GlitchSaved": "Glitch",
