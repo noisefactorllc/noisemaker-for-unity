@@ -97,22 +97,6 @@
       "max_exceeded_channels": 40,
       "mechanism": "Gradient-derived UVs on image diagonals select neighboring input texels at a rounding boundary; Gradient already uses nm_atan2."
     },
-    "points__flock": {
-      "max_abs_diff": 255.0,
-      "max_mean_abs_diff": 45.65296936035156,
-      "ssim_min": 0.0833295867,
-      "max_exceeded_pixels": 12636,
-      "max_exceeded_channels": 37231,
-      "mechanism": "Boids neighbor-cell partition sensitivity produces divergent agent trajectories."
-    },
-    "points__hydraulic": {
-      "max_abs_diff": 255.0,
-      "max_mean_abs_diff": 40.62770080566406,
-      "ssim_min": 0.0749781704,
-      "max_exceeded_pixels": 10992,
-      "max_exceeded_channels": 32321,
-      "mechanism": "Hydraulic erosion droplet trajectory float32 integration tie."
-    },
     "points__lenia": {
       "max_abs_diff": 234.0,
       "max_mean_abs_diff": 0.3682098388671875,
@@ -120,14 +104,6 @@
       "max_exceeded_pixels": 138,
       "max_exceeded_channels": 341,
       "mechanism": "Particle Lenia continuous-state convolution energy gradient amplifies cross-backend rounding."
-    },
-    "points__life": {
-      "max_abs_diff": 254.0,
-      "max_mean_abs_diff": 125.62651062011719,
-      "ssim_min": 0.0450468952,
-      "max_exceeded_pixels": 15890,
-      "max_exceeded_channels": 45854,
-      "mechanism": "Particle-life neighborhood-count threshold sensitivity produces divergent agent states."
     },
     "points__physarum": {
       "max_abs_diff": 253,
@@ -144,14 +120,6 @@
       "max_exceeded_pixels": 2,
       "max_exceeded_channels": 2,
       "mechanism": "Sparse billboard raster coverage rounding ties."
-    },
-    "render__renderLandscape3d": {
-      "max_abs_diff": 249,
-      "max_mean_abs_diff": 3.941422,
-      "ssim_min": 0.988102,
-      "max_exceeded_pixels": 4520,
-      "max_exceeded_channels": 9105,
-      "mechanism": "Landscape raymarch hit and lighting thresholds amplify floating-point drift."
     },
     "synth__newton": {
       "max_abs_diff": 249,

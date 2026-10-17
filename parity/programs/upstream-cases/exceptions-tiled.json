@@ -97,14 +97,6 @@
       "max_exceeded_channels": 19,
       "mechanism": "Gradient-derived UVs on image diagonals select neighboring input texels at a rounding boundary; Gradient already uses nm_atan2."
     },
-    "points__flock": {
-      "max_abs_diff": 255.0,
-      "max_mean_abs_diff": 47.93415832519531,
-      "ssim_min": 0.0594571793,
-      "max_exceeded_pixels": 12620,
-      "max_exceeded_channels": 37049,
-      "mechanism": "Boids neighbor-cell partition sensitivity produces divergent agent trajectories."
-    },
     "points__hydraulic": {
       "max_abs_diff": 255.0,
       "max_mean_abs_diff": 45.467681884765625,
@@ -121,14 +113,6 @@
       "max_exceeded_channels": 6637,
       "mechanism": "Particle Lenia continuous-state convolution energy gradient amplifies cross-backend rounding."
     },
-    "points__life": {
-      "max_abs_diff": 254.0,
-      "max_mean_abs_diff": 123.91633605957031,
-      "ssim_min": 0.0498222493,
-      "max_exceeded_pixels": 15762,
-      "max_exceeded_channels": 45489,
-      "mechanism": "Particle-life neighborhood-count threshold sensitivity produces divergent agent states."
-    },
     "points__physarum": {
       "max_abs_diff": 251,
       "max_mean_abs_diff": 3.632721,
@@ -144,14 +128,6 @@
       "max_exceeded_pixels": 1,
       "max_exceeded_channels": 1,
       "mechanism": "Sparse billboard raster coverage rounding ties."
-    },
-    "render__renderLandscape3d": {
-      "max_abs_diff": 215,
-      "max_mean_abs_diff": 4.814332,
-      "ssim_min": 0.978588,
-      "max_exceeded_pixels": 7116,
-      "max_exceeded_channels": 11232,
-      "mechanism": "Landscape raymarch hit and lighting thresholds amplify floating-point drift."
     },
     "synth__newton": {
       "max_abs_diff": 245,
