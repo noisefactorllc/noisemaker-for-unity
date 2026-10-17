@@ -99,18 +99,18 @@
     },
     "points__flock": {
       "max_abs_diff": 255.0,
-      "max_mean_abs_diff": 45.6529541015625,
-      "ssim_min": 0.0833298316,
+      "max_mean_abs_diff": 45.65296936035156,
+      "ssim_min": 0.0833295867,
       "max_exceeded_pixels": 12636,
       "max_exceeded_channels": 37231,
       "mechanism": "Boids neighbor-cell partition sensitivity produces divergent agent trajectories."
     },
     "points__hydraulic": {
       "max_abs_diff": 255.0,
-      "max_mean_abs_diff": 40.628753662109375,
-      "ssim_min": 0.0749915675,
-      "max_exceeded_pixels": 10993,
-      "max_exceeded_channels": 32325,
+      "max_mean_abs_diff": 40.62770080566406,
+      "ssim_min": 0.0749781704,
+      "max_exceeded_pixels": 10992,
+      "max_exceeded_channels": 32321,
       "mechanism": "Hydraulic erosion droplet trajectory float32 integration tie."
     },
     "points__lenia": {

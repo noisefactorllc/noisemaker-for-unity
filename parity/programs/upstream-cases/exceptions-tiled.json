@@ -41,6 +41,14 @@
       "max_exceeded_channels": 12300,
       "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
     },
+    "filter__pixelSort": {
+      "max_abs_diff": 8.0,
+      "max_mean_abs_diff": 0.0006103515625,
+      "ssim_min": 0.9999961857,
+      "max_exceeded_pixels": 8,
+      "max_exceeded_channels": 8,
+      "mechanism": "Sparse sort-key ties at tile-shifted rows reorder a few equal-luminance pixels."
+    },
     "filter__rotate": {
       "max_abs_diff": 15.0,
       "max_mean_abs_diff": 0.00408935546875,

@@ -196,13 +196,16 @@ FILTER_EXCEPTION_CASES = {
     "filter__convolutionFeedback",
     "filter__crt",
     "filter__degauss",
+    "filter__fibers",
     "filter__lensWarp",
     "filter__octaveWarp",
     "filter__reindex",
     "filter__rotate",
     "filter__scanlineError",
+    "filter__scratches",
     "filter__spiral",
     "filter__step",
+    "filter__strayHair",
     "filter__tunnel",
     "filter__wormhole",
 }
@@ -1267,6 +1270,30 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
                     "max_exceeded_channels": 175,
                     "mechanism": "Barrel-warp bilinear resample UV boundary ties at high-curvature pixels (175 single-channel flips).",
                 },
+                "filter__fibers": {
+                    "max_abs_diff": 18.0,
+                    "max_mean_abs_diff": 0.3702735900878906,
+                    "ssim_min": 0.9984417898,
+                    "max_exceeded_pixels": 12182,
+                    "max_exceeded_channels": 24006,
+                    "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas.",
+                },
+                "filter__scratches": {
+                    "max_abs_diff": 16.0,
+                    "max_mean_abs_diff": 0.062290191650390625,
+                    "ssim_min": 0.9992522108,
+                    "max_exceeded_pixels": 1552,
+                    "max_exceeded_channels": 4656,
+                    "mechanism": "CPU hairline coverage and accumulated premultiplied byte blending differ from software Canvas.",
+                },
+                "filter__strayHair": {
+                    "max_abs_diff": 4.0,
+                    "max_mean_abs_diff": 0.000583648681640625,
+                    "ssim_min": 0.9999819221,
+                    "max_exceeded_pixels": 28,
+                    "max_exceeded_channels": 48,
+                    "mechanism": "Skia software Canvas2D stroke coverage and Unity CPU supersampled capsule rasterization differ at anti-aliased edge pixels.",
+                },
                 "filter__lensWarp": {
                     "max_abs_diff": 3,
                     "ssim_min": 0.9999,
@@ -1351,7 +1378,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
             gold.mkdir()
             cand.mkdir()
             for name in FILTER_FIXTURES:
-                # 64 strict fixtures stay byte-exact; the 12 exception cases carry
+                # 61 strict fixtures stay byte-exact; the 15 exception cases carry
                 # a single mad=2 pixel so every exception is exercised once (above
                 # the tol-1 PASS bound, inside each measured policy). Cases with
                 # allowed_exceeded_pixels pin the diff to their exact coordinate.
@@ -1383,7 +1410,7 @@ class RepositoryFilterPolicyContractTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual({"PASS": 64, "ALLOWED_NEAR": 12}, report["counts"])
+        self.assertEqual({"PASS": 61, "ALLOWED_NEAR": 15}, report["counts"])
         self.assertEqual([], report["unused_exceptions"])
 
 

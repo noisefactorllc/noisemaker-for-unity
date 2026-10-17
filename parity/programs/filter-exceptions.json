@@ -24,6 +24,14 @@
       "max_exceeded_channels": 175,
       "mechanism": "Barrel-warp bilinear resample UV boundary ties at high-curvature pixels (175 single-channel flips)."
     },
+    "filter__fibers": {
+      "max_abs_diff": 18.0,
+      "max_mean_abs_diff": 0.3702735900878906,
+      "ssim_min": 0.9984417898,
+      "max_exceeded_pixels": 12182,
+      "max_exceeded_channels": 24006,
+      "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
+    },
     "filter__lensWarp": {
       "max_abs_diff": 3,
       "ssim_min": 0.9999,
@@ -64,6 +72,14 @@
       "max_exceeded_channels": 36,
       "mechanism": "Scanline displacement floor() boundary tie: combined_error lands within 1 ULP of a shift-quantization boundary in 12 scattered rows, displacing the sampled texel by one pixel (all 3 channels)."
     },
+    "filter__scratches": {
+      "max_abs_diff": 16.0,
+      "max_mean_abs_diff": 0.062290191650390625,
+      "ssim_min": 0.9992522108,
+      "max_exceeded_pixels": 1552,
+      "max_exceeded_channels": 4656,
+      "mechanism": "CPU hairline coverage and accumulated premultiplied byte blending differ from software Canvas."
+    },
     "filter__spiral": {
       "max_abs_diff": 15,
       "max_mean_abs_diff": 0.007,
@@ -79,6 +95,14 @@
       "max_exceeded_pixels": 11,
       "max_exceeded_channels": 11,
       "mechanism": "Step/threshold quantization boundary tie at 11 scattered level-crossing pixels."
+    },
+    "filter__strayHair": {
+      "max_abs_diff": 4.0,
+      "max_mean_abs_diff": 0.000583648681640625,
+      "ssim_min": 0.9999819221,
+      "max_exceeded_pixels": 28,
+      "max_exceeded_channels": 48,
+      "mechanism": "Skia software Canvas2D stroke coverage and Unity CPU supersampled capsule rasterization differ at anti-aliased edge pixels."
     },
     "filter__tunnel": {
       "max_abs_diff": 13,

@@ -81,14 +81,6 @@
    "max_exceeded_channels": 1366,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
-  "filter__crt__seed__mid": {
-   "max_abs_diff": 29.0,
-   "max_mean_abs_diff": 0.017223358154296875,
-   "ssim_min": 0.9999843538,
-   "max_exceeded_pixels": 444,
-   "max_exceeded_channels": 732,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
-  },
   "filter__crt__speed__mid": {
    "max_abs_diff": 28.0,
    "max_mean_abs_diff": 0.021739959716796875,
@@ -264,6 +256,30 @@
    "max_exceeded_pixels": 1628,
    "max_exceeded_channels": 4641,
    "mechanism": "iterated feedback-buffer float32 chaos (corr(gold,cand)=0.9871)"
+  },
+  "filter__fibers__alpha__mid": {
+   "max_abs_diff": 37.0,
+   "max_mean_abs_diff": 0.7236595153808594,
+   "ssim_min": 0.9984253777,
+   "max_exceeded_pixels": 17152,
+   "max_exceeded_channels": 38171,
+   "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
+  },
+  "filter__fibers__density__mid": {
+   "max_abs_diff": 18.0,
+   "max_mean_abs_diff": 0.3702735900878906,
+   "ssim_min": 0.9984417898,
+   "max_exceeded_pixels": 12182,
+   "max_exceeded_channels": 24006,
+   "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
+  },
+  "filter__fibers__seed__mid": {
+   "max_abs_diff": 20.0,
+   "max_mean_abs_diff": 0.37198638916015625,
+   "ssim_min": 0.9983896376,
+   "max_exceeded_pixels": 12124,
+   "max_exceeded_channels": 24093,
+   "mechanism": "Identical seeded worm paths; CPU round-stroke coverage and premultiplied byte compositing differ from software Canvas."
   },
   "filter__grade__preset__solarize": {
    "max_abs_diff": 9.0,
@@ -729,6 +745,30 @@
    "max_exceeded_channels": 81,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
   },
+  "filter__scratches__alpha__mid": {
+   "max_abs_diff": 11.0,
+   "max_mean_abs_diff": 0.031299591064453125,
+   "ssim_min": 0.9993137512,
+   "max_exceeded_pixels": 734,
+   "max_exceeded_channels": 2202,
+   "mechanism": "CPU hairline coverage and accumulated premultiplied byte blending differ from software Canvas."
+  },
+  "filter__scratches__density__mid": {
+   "max_abs_diff": 16.0,
+   "max_mean_abs_diff": 0.0848236083984375,
+   "ssim_min": 0.9992378367,
+   "max_exceeded_pixels": 2118,
+   "max_exceeded_channels": 6354,
+   "mechanism": "CPU hairline coverage and accumulated premultiplied byte blending differ from software Canvas."
+  },
+  "filter__scratches__seed__mid": {
+   "max_abs_diff": 34.0,
+   "max_mean_abs_diff": 0.058319091796875,
+   "ssim_min": 0.9993130332,
+   "max_exceeded_pixels": 1494,
+   "max_exceeded_channels": 4482,
+   "mechanism": "CPU hairline coverage and accumulated premultiplied byte blending differ from software Canvas."
+  },
   "filter__spiral__aspectLens__false": {
    "max_abs_diff": 6.0,
    "max_mean_abs_diff": 0.000302,
@@ -784,6 +824,30 @@
    "max_exceeded_pixels": 24,
    "max_exceeded_channels": 24,
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+  },
+  "filter__strayHair__alpha__mid": {
+   "max_abs_diff": 8.0,
+   "max_mean_abs_diff": 0.0011444091796875,
+   "ssim_min": 0.9999377214,
+   "max_exceeded_pixels": 34,
+   "max_exceeded_channels": 79,
+   "mechanism": "Skia software Canvas2D stroke coverage and Unity CPU supersampled capsule rasterization differ at anti-aliased edge pixels."
+  },
+  "filter__strayHair__density__mid": {
+   "max_abs_diff": 4.0,
+   "max_mean_abs_diff": 0.000583648681640625,
+   "ssim_min": 0.9999819221,
+   "max_exceeded_pixels": 28,
+   "max_exceeded_channels": 48,
+   "mechanism": "Skia software Canvas2D stroke coverage and Unity CPU supersampled capsule rasterization differ at anti-aliased edge pixels."
+  },
+  "filter__strayHair__seed__mid": {
+   "max_abs_diff": 11.0,
+   "max_mean_abs_diff": 0.00025177001953125,
+   "ssim_min": 0.9999833629,
+   "max_exceeded_pixels": 6,
+   "max_exceeded_channels": 13,
+   "mechanism": "Skia software Canvas2D stroke coverage and Unity CPU supersampled capsule rasterization differ at anti-aliased edge pixels."
   },
   "filter__strokes__balance__mid": {
    "max_abs_diff": 2.0,
