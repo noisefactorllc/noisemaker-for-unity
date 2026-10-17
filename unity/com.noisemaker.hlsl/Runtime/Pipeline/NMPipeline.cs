@@ -273,8 +273,12 @@ namespace Noisemaker.Hlsl
         // params (e.g. stateSize_node_2 sizing pointsEmit's xyz/vel/rgba state textures)
         // are unresolvable at surface-creation time and ResolveDimension falls back to a
         // wrong default (the agent state collapsed to 64x64 instead of stateSize=128).
-        // Seed them from the graph's pass uniforms; scoped names are unique per node so
-        // there is no cross-pass conflict.
+        // Seed them from the graph's pass uniforms. A scoped name can repeat across the
+        // effects of one particle pipeline (pointsEmit's passes carry stateSize_node_1 =
+        // its stateSize, the downstream life passes carry life's own stateSize), and
+        // collectDefaultUniforms merges the passes in order with Object.assign, so the
+        // LAST pass's value sizes the shared textures. Values a host set before Init
+        // keep precedence.
         //
         // The same scan records every pass uniform whose value is present but
         // nonnumeric (an automation/Func config or array the runtime never
@@ -285,6 +289,7 @@ namespace Noisemaker.Hlsl
         // as absent is this port's pre-range behavior.
         private void SeedScopedUniforms()
         {
+            var merged = new Dictionary<string, UniformValue>();
             foreach (Pass pass in Graph.Passes)
             {
                 int n = pass.Uniforms.Count;
@@ -299,12 +304,16 @@ namespace Noisemaker.Hlsl
                         if (IsNonnumericUniform(v)) _nonnumericUniforms.Add(name);
                         continue;
                     }
-                    if (_globalUniforms.ContainsKey(name)) continue;
-                    if (v.Kind == UniformValueKind.Number)
-                        _globalUniforms[name] = v.Number;
-                    else if (IsNonnumericUniform(v))
-                        _nonnumericUniforms.Add(name);
+                    merged[name] = v;
                 }
+            }
+            foreach (var kv in merged)
+            {
+                if (_globalUniforms.ContainsKey(kv.Key)) continue;
+                if (kv.Value.Kind == UniformValueKind.Number)
+                    _globalUniforms[kv.Key] = kv.Value.Number;
+                else if (IsNonnumericUniform(kv.Value))
+                    _nonnumericUniforms.Add(kv.Key);
             }
         }
 

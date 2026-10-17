@@ -63,6 +63,10 @@
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
+// Canvas size: the reference binds `resolution` to the pipeline (canvas) size for
+// every pass, while _NM_Resolution tracks the render target, which is the
+// smaller agent state texture during the agent pass.
+float4 _NM_ScreenResolution;
 
 // ---- Input state samplers (rebound per pass per definition.js inputs{}) ------
 // agent:       xyzTex, velTex, rgbaTex   (all Load — integer texel fetch)
@@ -181,6 +185,7 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     uint tw, th;
     xyzTex.GetDimensions(tw, th);
     int2 stateSize = int2((int)tw, (int)th);
+    float2 canvasRes = _NM_ScreenResolution.xy;
 
     // Read input state from pipeline (rgba32f, point Load)
     float4 xyz  = xyzTex.Load(int3(coord, 0));
@@ -201,7 +206,7 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     uint boidId = (uint)coord.x + (uint)coord.y * (uint)stateSize.x;
 
     // Convert normalized to pixel coords for the algorithm
-    float2 pos = float2(px, py) * resolution;
+    float2 pos = float2(px, py) * canvasRes;
     float2 velocity = float2(vx, vy);
 
     // If not alive, pass through unchanged
@@ -234,7 +239,7 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     int alignmentCount = 0;
     int cohesionCount = 0;
 
-    int2 myCell = flock_getGridCell(pos, resolution);
+    int2 myCell = flock_getGridCell(pos, canvasRes);
     float perceptionSq = perceptionRadius * perceptionRadius;
     float separationSq = separationRadius * separationRadius;
 
@@ -277,17 +282,17 @@ FlockAgentOutputs frag_agent(NMVaryings i)
                 // Skip dead agents
                 if (otherXyz.w < 0.5) continue;
 
-                float2 otherPos = otherXyz.xy * resolution;
+                float2 otherPos = otherXyz.xy * canvasRes;
                 float2 otherVelocity = otherVel.xy;
 
                 // Calculate distance (with wrapping if needed)
                 float2 diff = otherPos - pos;
                 if (boundaryMode == 0)
                 {
-                    if (diff.x > resolution.x * 0.5) { diff.x -= resolution.x; }
-                    if (diff.x < -resolution.x * 0.5) { diff.x += resolution.x; }
-                    if (diff.y > resolution.y * 0.5) { diff.y -= resolution.y; }
-                    if (diff.y < -resolution.y * 0.5) { diff.y += resolution.y; }
+                    if (diff.x > canvasRes.x * 0.5) { diff.x -= canvasRes.x; }
+                    if (diff.x < -canvasRes.x * 0.5) { diff.x += canvasRes.x; }
+                    if (diff.y > canvasRes.y * 0.5) { diff.y -= canvasRes.y; }
+                    if (diff.y < -canvasRes.y * 0.5) { diff.y += canvasRes.y; }
                 }
 
                 float distSq = dot(diff, diff);
@@ -377,18 +382,18 @@ FlockAgentOutputs frag_agent(NMVaryings i)
         {
             wallForce.x = turnStrength * (1.0 - pos.x / wallMargin);
         }
-        else if (pos.x > resolution.x - wallMargin)
+        else if (pos.x > canvasRes.x - wallMargin)
         {
-            wallForce.x = -turnStrength * (1.0 - (resolution.x - pos.x) / wallMargin);
+            wallForce.x = -turnStrength * (1.0 - (canvasRes.x - pos.x) / wallMargin);
         }
 
         if (pos.y < wallMargin)
         {
             wallForce.y = turnStrength * (1.0 - pos.y / wallMargin);
         }
-        else if (pos.y > resolution.y - wallMargin)
+        else if (pos.y > canvasRes.y - wallMargin)
         {
-            wallForce.y = -turnStrength * (1.0 - (resolution.y - pos.y) / wallMargin);
+            wallForce.y = -turnStrength * (1.0 - (canvasRes.y - pos.y) / wallMargin);
         }
 
         steer += wallForce;
@@ -404,11 +409,11 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     // Boundary wrap
     if (boundaryMode == 0)
     {
-        pos = flock_wrapPosition(pos, resolution);
+        pos = flock_wrapPosition(pos, canvasRes);
     }
     else
     {
-        pos = clamp(pos, float2(1.0, 1.0), resolution - float2(1.0, 1.0));
+        pos = clamp(pos, float2(1.0, 1.0), canvasRes - float2(1.0, 1.0));
     }
 
     // Update age
@@ -417,8 +422,8 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     // === END ORIGINAL ALGORITHM ===
 
     // Convert back to normalized coords
-    float newPx = pos.x / resolution.x;
-    float newPy = pos.y / resolution.y;
+    float newPx = pos.x / canvasRes.x;
+    float newPy = pos.y / canvasRes.y;
 
     FlockAgentOutputs o;
     o.xyz  = float4(newPx, newPy, xyz.z, 1.0);

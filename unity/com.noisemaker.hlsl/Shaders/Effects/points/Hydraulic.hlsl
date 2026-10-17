@@ -71,6 +71,10 @@
 // =============================================================================
 
 #include "../../Include/NMFullscreen.hlsl"
+// Canvas size: the reference binds `resolution` to the pipeline (canvas) size for
+// every pass, while _NM_Resolution tracks the render target, which is the
+// smaller agent state texture during the agent pass.
+float4 _NM_ScreenResolution;
 
 // ---- Input textures (rebound per pass by the runtime per definition inputs{})
 // agent:       xyzTex/velTex/rgbaTex (Load, rgba32f state) + inputTex (Load).
@@ -180,6 +184,7 @@ HydraulicAgentOut frag_agent(NMVaryings i)
     uint sw, sh;
     xyzTex.GetDimensions(sw, sh);
     int2 stateSize = int2((int)sw, (int)sh);
+    float2 canvasRes = _NM_ScreenResolution.xy;
     int2 coord = int2(i.uv * float2(stateSize));
 
     // Read input state from pipeline
@@ -199,14 +204,14 @@ HydraulicAgentOut frag_agent(NMVaryings i)
     float vz = vel.z;
     float seed_f = vel.w;
 
-    int width = (int)resolution.x;
-    int height = (int)resolution.y;
+    int width = (int)canvasRes.x;
+    int height = (int)canvasRes.y;
 
     uint agent_id = (uint)coord.x + (uint)coord.y * (uint)stateSize.x;
 
     // Convert normalized to pixel coords for the algorithm
-    float x = px * resolution.x;
-    float y = py * resolution.y;
+    float x = px * canvasRes.x;
+    float y = py * canvasRes.y;
 
     HydraulicAgentOut o;
 
@@ -285,16 +290,16 @@ HydraulicAgentOut frag_agent(NMVaryings i)
     // === END GRADIENT ALGORITHM ===
 
     // Integrate position with velocity (in pixel space)
-    x = hyd_wrap_float(x + vx, resolution.x);
-    y = hyd_wrap_float(y + vy, resolution.y);
+    x = hyd_wrap_float(x + vx, canvasRes.x);
+    y = hyd_wrap_float(y + vy, canvasRes.y);
 
     // Convert back to normalized coords [0,1]
-    float newPx = x / resolution.x;
-    float newPy = y / resolution.y;
+    float newPx = x / canvasRes.x;
+    float newPy = y / canvasRes.y;
 
     // Output: position updated, velocity in normalized space for compatibility
-    float normVx = vx / resolution.x;
-    float normVy = vy / resolution.y;
+    float normVx = vx / canvasRes.x;
+    float normVy = vy / canvasRes.y;
 
     o.xyz = float4(newPx, newPy, xyz.z, alive);
     o.vel = float4(normVx, normVy, vz, seed_f);
