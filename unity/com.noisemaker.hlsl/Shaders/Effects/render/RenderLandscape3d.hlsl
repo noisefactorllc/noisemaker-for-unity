@@ -45,9 +45,10 @@
 Texture2D volumeCache;   SamplerState sampler_volumeCache;
 Texture2D analyticalGeo; SamplerState sampler_analyticalGeo;
 
-#ifndef FILTERING
-#define FILTERING 1
-#endif
+// FILTERING (definition `define: "FILTERING"`) is bound per draw as a runtime int, like
+// VIEW_MODE (PORTING-GUIDE). A compile-time default here ignored the graph's
+// isosurface variant (FILTERING 0) and always ray-marched voxels.
+int    FILTERING;           // globals.filtering (define) default 1 (voxel)
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 int    volumeSize;         // globals.volumeSize        default 64
@@ -314,7 +315,7 @@ LandscapeOutput land_renderPerspective(float2 uv)
         else if (nearT.x >= nearT.z) { normal.x = -(float)stepDir.x; }
         else { normal.z = -(float)stepDir.z; }
     }
-    // FILTERING is injected as a constant when the runtime compiles a variant.
+    // FILTERING is the bound define int for this pass variant.
     if (FILTERING == 0)
     {
         Land_IsoHit hit = land_traceIsosurface(origin, direction, distance, leave);
