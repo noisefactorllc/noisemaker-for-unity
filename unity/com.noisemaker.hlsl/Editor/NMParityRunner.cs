@@ -612,6 +612,9 @@ namespace Noisemaker.Hlsl.Editor
                 catch (Exception e) { Debug.LogWarning("[NMParity] skip " + path + ": " + e.Message); }
             }
             Debug.Log("[NMParity] registry loaded " + n + " effect defs.");
+            // Pipelines built from the compiled graphs size particle state from the
+            // effect definitions (NMPipeline.ApplyStepBroadcasts).
+            NMPipeline.FallbackEffectRegistry = reg;
             return reg;
         }
 

@@ -273,12 +273,8 @@ namespace Noisemaker.Hlsl
         // params (e.g. stateSize_node_2 sizing pointsEmit's xyz/vel/rgba state textures)
         // are unresolvable at surface-creation time and ResolveDimension falls back to a
         // wrong default (the agent state collapsed to 64x64 instead of stateSize=128).
-        // Seed them from the graph's pass uniforms. A scoped name can repeat across the
-        // effects of one particle pipeline (pointsEmit's passes carry stateSize_node_1 =
-        // its stateSize, the downstream life passes carry life's own stateSize), and
-        // collectDefaultUniforms merges the passes in order with Object.assign, so the
-        // LAST pass's value sizes the shared textures. Values a host set before Init
-        // keep precedence.
+        // Seed them from the graph's pass uniforms. ApplyStepBroadcasts then applies the
+        // reference renderer's step-parameter broadcast for particle state sizes.
         //
         // The same scan records every pass uniform whose value is present but
         // nonnumeric (an automation/Func config or array the runtime never
@@ -289,7 +285,7 @@ namespace Noisemaker.Hlsl
         // as absent is this port's pre-range behavior.
         private void SeedScopedUniforms()
         {
-            var merged = new Dictionary<string, UniformValue>();
+            var hostSet = new HashSet<string>(_globalUniforms.Keys);
             foreach (Pass pass in Graph.Passes)
             {
                 int n = pass.Uniforms.Count;
@@ -304,18 +300,64 @@ namespace Noisemaker.Hlsl
                         if (IsNonnumericUniform(v)) _nonnumericUniforms.Add(name);
                         continue;
                     }
-                    merged[name] = v;
+                    if (_globalUniforms.ContainsKey(name)) continue;
+                    if (v.Kind == UniformValueKind.Number)
+                        _globalUniforms[name] = v.Number;
+                    else if (IsNonnumericUniform(v))
+                        _nonnumericUniforms.Add(name);
                 }
             }
-            foreach (var kv in merged)
+            ApplyStepBroadcasts(hostSet);
+        }
+
+        // Reference renderer applyStepParameterValues (renderer/canvas.js): after the
+        // program compiles, each step's declared parameter values are written to its
+        // passes, and a pass that also owns a texture sized by that parameter
+        // (pass.scopedParams) broadcasts the value to every pass sharing the scoped
+        // name, in pass order. collectDefaultUniforms then sizes the shared textures
+        // from the LAST broadcast. So pointsEmit(stateSize: x64).life() sizes the
+        // particle state from life's own stateSize (256), while
+        // pointsEmit(stateSize: x64).physical().pointsBillboardRender() keeps 64:
+        // physical owns no state-sized texture and pointsBillboardRender does not
+        // declare stateSize. Limited to stateSize: volumeSize keeps its explicit
+        // inheritance handling and chain zoom has a single owner per chain. Needs the
+        // effect definitions; without them the first pass's value stands.
+        private void ApplyStepBroadcasts(HashSet<string> hostSet)
+        {
+            EffectRegistry registry = _effectRegistry ?? FallbackEffectRegistry;
+            if (registry == null) return;
+            foreach (Pass pass in Graph.Passes)
             {
-                if (_globalUniforms.ContainsKey(kv.Key)) continue;
-                if (kv.Value.Kind == UniformValueKind.Number)
-                    _globalUniforms[kv.Key] = kv.Value.Number;
-                else if (IsNonnumericUniform(kv.Value))
-                    _nonnumericUniforms.Add(kv.Key);
+                if (pass.ScopedParams == null || pass.StepIndex == null) continue;
+                string scopedName;
+                if (!pass.ScopedParams.TryGetValue("stateSize", out scopedName)) continue;
+                if (hostSet.Contains(scopedName)) continue;
+                if (!DeclaresUniform(registry, pass, "stateSize")) continue;
+                UniformValue value;
+                if (!pass.Uniforms.TryGetValue("stateSize", out value) ||
+                    value.Kind != UniformValueKind.Number) continue;
+                _globalUniforms[scopedName] = value.Number;
             }
         }
+
+        private static bool DeclaresUniform(EffectRegistry registry, Pass pass, string uniform)
+        {
+            EffectDefinition def = registry.GetEffect(pass.EffectKey);
+            if (def == null && !string.IsNullOrEmpty(pass.Namespace) && !string.IsNullOrEmpty(pass.Func))
+                def = registry.GetEffect(pass.Namespace + "." + pass.Func);
+            if (def == null || def.Globals == null || def.Globals.Kind != JsonKind.Object) return false;
+            foreach (var kv in def.Globals.AsObject)
+            {
+                JsonValue u = kv.Value != null && kv.Value.Kind == JsonKind.Object ? kv.Value.Get("uniform") : null;
+                string name = u != null && u.Kind == JsonKind.String ? u.AsString : kv.Key;
+                if (name == uniform) return true;
+            }
+            return false;
+        }
+
+        // Effect definitions for hosts that build pipelines from compiled graphs without
+        // passing a registry (the editor parity runner sets this once it loads them).
+        public static EffectRegistry FallbackEffectRegistry { get; set; }
 
         // True when the JS-side Number(value) for this uniform value is NaN:
         // objects (automation/Func configs), number arrays, and strings that
