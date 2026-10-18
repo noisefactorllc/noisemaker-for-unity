@@ -386,8 +386,7 @@ def main():
         source = source_identity(ROOT)
         package = validate_package(ROOT, project)
         validate_project(project)
-        evidence_root = Path(os.environ.get("NM_PARITY_EVIDENCE_ROOT", "/workspace/evidence"
-                                          if Path("/workspace/evidence").is_dir() else tempfile.gettempdir())).resolve()
+        evidence_root = Path(os.environ.get("NM_PARITY_EVIDENCE_ROOT", tempfile.gettempdir())).resolve()
         if evidence_root == ROOT or ROOT in evidence_root.parents:
             raise ValueError("parity evidence must be outside the checkout")
         evidence_root.mkdir(parents=True, exist_ok=True)
