@@ -814,6 +814,27 @@ namespace Noisemaker.Hlsl.Compiler
                     continue;
                 }
 
+                // vec2(x, y) on a vec2 parameter, and vec4(x, y, z, w) on a
+                // vec4 parameter. The loader registers vec4 parameters as
+                // `color` (EffectRegistry's only type rewrite); their default
+                // keeps its four components. Any other form, including a
+                // wrong component count, takes the per-type branches below.
+                if (node is CallNode vecCall && vecCall.Args.Count == (vecCall.Name == "vec2" ? 2 : 4)
+                    && ((def.Type == "vec2" && vecCall.Name == "vec2")
+                        || (def.Type == "color" && vecCall.Name == "vec4"
+                            && def.Default != null && def.Default.Kind == JsonKind.Array
+                            && def.Default.AsArray.Count == 4)))
+                {
+                    var components = new List<double>();
+                    foreach (Node arg in vecCall.Args)
+                    {
+                        if (arg is NumberNode num) components.Add(num.Value);
+                        else { PushDiag("S002", arg, "Argument out of range for '" + def.Name + "' in " + call.Name + "()"); components.Add(0); }
+                    }
+                    args.Set(argKey, ArgValue.OfArray(components));
+                    continue;
+                }
+
                 switch (def.Type)
                 {
                     case "surface": ResolveSurfaceArg(chain, def, node, call, args, argKey, writeName); break;

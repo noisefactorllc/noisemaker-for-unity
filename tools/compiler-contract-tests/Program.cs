@@ -55,6 +55,7 @@ namespace CompilerContractTests
             TestGap005PassFieldsContract();
             TestGap006TexturePoolability();
             TestGap016GraphPreflight();
+            TestVec2Vec4CallArgs();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -2575,6 +2576,69 @@ namespace CompilerContractTests
             GraphPreflight.Preflight(vgraph, 4096, 0);
             Check(vgraph.Passes[0].Uniforms["volumeSize"].Number == 5000,
                 "GAP-016 clamp prediction does not mutate uniforms");
+        }
+
+        // GAP-009 (noisemaker bf66e1b8): vec2(x, y) resolves on a vec2
+        // parameter, and vec4(x, y, z, w) on a color parameter whose default
+        // keeps four components (the loader registers vec4 parameters as
+        // `color`). Any other form, including a wrong component count, takes
+        // the per-type branches (numeric fall-through for vec2, S002 for
+        // color) exactly as before.
+        private static void TestVec2Vec4CallArgs()
+        {
+            var reg = new EffectRegistry();
+            reg.Register(JsonValue.Parse(
+                "{\"name\":\"Vec Probe\",\"namespace\":\"synth\",\"func\":\"vecProbe\",\"starter\":false," +
+                "\"globals\":{" +
+                "\"size2\":{\"type\":\"vec2\",\"default\":[1024,1024],\"uniform\":\"size2\"}," +
+                "\"tint4\":{\"type\":\"color\",\"default\":[0,0,1,1],\"uniform\":\"tint4\"}," +
+                "\"bg3\":{\"type\":\"color\",\"default\":[1,1,1],\"uniform\":\"bg3\"}}," +
+                "\"passes\":[]}"));
+
+            (string source, string param, double[] expected, int expectedS002)[] cases =
+            {
+                ("search synth\nvecProbe(size2: vec2(1, 2)).write(o0)", "size2", new[] { 1.0, 2.0 }, 0),
+                ("search synth\nvecProbe(vec2(3, 4)).write(o0)", "size2", new[] { 3.0, 4.0 }, 0),
+                ("search synth\nvecProbe(tint4: vec4(0.25, 0.5, 0.75, 1)).write(o0)", "tint4", new[] { 0.25, 0.5, 0.75, 1.0 }, 0),
+                ("search synth\nvecProbe(size2: vec2(1, 2, 3)).write(o0)", "size2", new[] { 1024.0, 1024.0 }, 1),
+                ("search synth\nvecProbe(size2: vec3(1, 2, 3)).write(o0)", "size2", new[] { 1024.0, 1024.0 }, 1),
+                ("search synth\nvecProbe(size2: vec4(1, 2, 3, 4)).write(o0)", "size2", new[] { 1024.0, 1024.0 }, 1),
+                ("search synth\nvecProbe(bg3: vec4(1, 1, 1, 1)).write(o0)", "bg3", new[] { 1.0, 1.0, 1.0 }, 1)
+            };
+
+            foreach (var item in cases)
+            {
+                try
+                {
+                    var result = Validator.Validate(Parser.Parse(Lexer.Lex(item.source), reg), reg);
+                    int s002 = 0;
+                    foreach (var diagnostic in result.Diagnostics)
+                        if (diagnostic.Code == "S002") s002++;
+                    Check(s002 == item.expectedS002,
+                        $"vec2/vec4 S002 count {s002} == {item.expectedS002} for " + item.source);
+                    Step step = null;
+                    foreach (var s in result.Plans[0].Chain)
+                        if (s.Op == "synth.vecProbe") step = s;
+                    Check(step != null, "vec2/vec4 vecProbe step present for " + item.source);
+                    if (step != null)
+                    {
+                        ArgValue arg = step.Args.Get(item.param);
+                        Check(arg != null && arg.Kind == ArgKind.NumberArray,
+                            $"vec2/vec4 '{item.param}' resolves to a number array for " + item.source);
+                        if (arg != null && arg.Kind == ArgKind.NumberArray)
+                        {
+                            bool equal = arg.NumberArray.Count == item.expected.Length;
+                            for (int i = 0; equal && i < item.expected.Length; i++)
+                                equal = arg.NumberArray[i] == item.expected[i];
+                            Check(equal, $"vec2/vec4 '{item.param}' components for " + item.source);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "vec2/vec4 case compiled: " + item.source + " (" + ex.Message + ")");
+                }
+            }
         }
 
         private static void CheckApprox(double actual, double expected, double tolerance, string label)
