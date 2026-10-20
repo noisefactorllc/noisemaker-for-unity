@@ -110,12 +110,22 @@ class ParitySummaryTests(unittest.TestCase):
             with patch.dict(os.environ, env):
                 self.summary.run_batch(ROOT, cases, cases, work / "batch")
             commands = json.loads((work / "batch/commands.json").read_text())
+            self.assertTrue(all(isinstance(command["seconds"], (int, float)) and command["seconds"] >= 0
+                                for command in commands))
             unity = next(command["argv"] for command in commands if "-nmManifest" in command["argv"])
             self.assertIn("-giCustomCacheLocation", unity)
             cache = Path(unity[unity.index("-giCustomCacheLocation") + 1])
             self.assertTrue(cache.is_absolute())
             self.assertTrue(cache.is_dir())
             self.assertEqual(cache.parent, (work / "batch").resolve())
+            imports = [command for command in commands
+                       if "-quit" in command["argv"] and "-nmManifest" not in command["argv"]]
+            self.assertEqual(len(imports), 1)
+            project = unity[unity.index("-projectPath") + 1]
+            self.assertEqual(imports[0]["argv"][imports[0]["argv"].index("-projectPath") + 1], project)
+            self.assertEqual(imports[0]["argv"][imports[0]["argv"].index("-giCustomCacheLocation") + 1],
+                             unity[unity.index("-giCustomCacheLocation") + 1])
+            self.assertTrue((work / "batch/unity-import.log").is_file())
 
     def test_gamma_runtime_warning_cannot_produce_a_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -244,6 +254,9 @@ import sys
 from pathlib import Path
 from PIL import Image
 args = sys.argv[1:]
+if '-quit' in args and '-nmManifest' not in args and '-projectPath' in args:
+    Path(args[args.index('-logFile') + 1]).write_text('[NMParity] import ok\\n')
+    sys.exit(0)
 if '-nmManifest' in args:
     mode = os.environ.get('NM_TEST_RENDER_MODE', '')
     manifest = Path(args[args.index('-nmManifest') + 1])
