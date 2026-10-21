@@ -256,13 +256,14 @@ selftest_total="$(grep -c $'\t--selftest/' "$GRAPH/programs.tsv" || true)"
 echo "programs: $graph_total ($selftest_total --selftest, $((graph_total - selftest_total)) fixtures)"
 
 oracle_fail=0
-while IFS=$'\t' read -r key dsl; do
-  if ! node tools/export-graph.mjs --file "$ROOT/$dsl" "$GRAPH/ref/$key.json" > "$GRAPH/ref/$key.log" 2>&1; then
-    echo "ORACLE FAIL $dsl: $(tail -n 1 "$GRAPH/ref/$key.log")"
-    oracle_fail=$((oracle_fail + 1))
-  fi
-done < "$GRAPH/programs.tsv"
-echo "oracle: $((graph_total - oracle_fail)) ok, $oracle_fail failed"
+{
+  awk -F'\t' -v root="$ROOT" -v out="$GRAPH/ref" '{ printf "%s/%s.json\t%s/%s\t%s\n", out, $1, root, $2, $2 }' \
+    "$GRAPH/programs.tsv"
+} > "$GRAPH/oracle.tsv"
+node tools/export-graph.mjs --batch "$GRAPH/oracle.tsv" --fails "$GRAPH/oracle-fails.tsv" \
+  2>&1 | tee "$GRAPH/oracle-batch.log" || oracle_fail=1
+oracle_bad="$(sed -n 's/^oracle: [0-9]* ok, \([0-9]*\) failed$/\1/p' "$GRAPH/oracle-batch.log" || true)"
+[ -n "$oracle_bad" ] || oracle_bad=1  # a missing summary line is itself a failure
 
 "$DOTNET" build -c Release tools/graphdump > "$GRAPH/build.log" 2>&1 \
   || { cat "$GRAPH/build.log"; die "tools/graphdump failed to build"; }
@@ -273,29 +274,12 @@ cs_status=0
   2>&1 | tee "$GRAPH/dump.log" || cs_status=$?
 
 diff_status=0
-python3 - "$GRAPH" <<'PYEOF' || diff_status=$?
-import os, subprocess, sys
-graph = sys.argv[1]
-rows = [l.rstrip('\n').split('\t') for l in open(f'{graph}/programs.tsv')]
-ok = 0
-bad = []
-for key, dsl in rows:
-    ref, cs = f'{graph}/ref/{key}.json', f'{graph}/cs/{key}.json'
-    if not (os.path.exists(ref) and os.path.exists(cs)):
-        bad.append((dsl, 'missing graph'))
-        continue
-    r = subprocess.run([sys.executable, 'parity/graph-diff.py', ref, cs, f'--name={dsl}'],
-                       capture_output=True, text=True)
-    if r.returncode == 0:
-        ok += 1
-    else:
-        bad.append((dsl, ' | '.join((r.stdout + r.stderr).strip().splitlines()[:3])))
-for dsl, msg in bad:
-    print(f'GRAPH FAIL {dsl}: {msg[:300]}')
-print(f'graph parity: {ok} graph-clean, {len(bad)} FAIL/missing, of {len(rows)} programs')
-sys.exit(1 if bad else 0)
-PYEOF
-[ "$oracle_fail" -eq 0 ] || die "graph parity: $oracle_fail reference oracle failures"
+awk -F'\t' -v ref="$GRAPH/ref" -v cs="$GRAPH/cs" \
+  '{ printf "%s/%s.json\t%s/%s.json\t%s\n", ref, $1, cs, $1, $2 }' \
+  "$GRAPH/programs.tsv" > "$GRAPH/diff.tsv"
+python3 parity/graph-diff.py --batch "$GRAPH/diff.tsv" --results "$GRAPH/diff-results.tsv" \
+  2>&1 | tee "$GRAPH/diff-batch.log" || diff_status=$?
+[ "$oracle_bad" -eq 0 ] || die "graph parity: $oracle_bad reference oracle failures"
 [ "$cs_status" -eq 0 ] || die "graph parity: C# graphdump reported failures"
 [ "$diff_status" -eq 0 ] || die "graph parity: structural differences or missing graphs"
 SUMMARY+=("graph     $graph_total/$graph_total graph-clean ($selftest_total --selftest + $((graph_total - selftest_total)) fixtures)")

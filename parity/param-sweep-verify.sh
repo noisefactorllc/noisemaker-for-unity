@@ -35,34 +35,14 @@ fi
 echo "corpus matches committed fixtures: $(wc -l < "$OUT/manifest.tsv") variants"
 
 echo "=== [2/4] oracle graphs (reference compiler) ==="
-python3 - "$OUT" "$ROOT" <<'PYEOF'
-import subprocess, sys
-from concurrent.futures import ThreadPoolExecutor
-import os
-out, root = sys.argv[1], sys.argv[2]
-lines = [l.rstrip('\n').split('\t') for l in open(f'{out}/manifest.tsv')]
-
-def oracle(job):
-    name, rel = job
-    dsl = f'{out}/{rel}'
-    r = subprocess.run(['node', f'{root}/tools/export-graph.mjs', '--file', dsl, f'{out}/ref/{name}.ref.json'], capture_output=True, text=True)
-    return name, r
-
-# Same per-variant oracle command and fail-closed aggregation as before; the
-# 1900 node spawns are independent, so run them concurrently to keep the whole
-# gate inside CI time budgets (coverage and verdicts are unchanged).
-with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:
-    results = list(pool.map(oracle, lines))
-bad = []
-for name, r in results:
-    if r.returncode != 0:
-        bad.append((name, (r.stderr or r.stdout).strip().splitlines()[-1][:200] if (r.stderr or r.stdout).strip() else '?'))
-with open(f'{out}/oracle-fails.tsv', 'w') as f:
-    for n, e in bad:
-        f.write(f'{n}\t{e}\n')
-print(f'oracle ok: {len(lines) - len(bad)}, failed: {len(bad)}')
-sys.exit(1 if bad else 0)
-PYEOF
+# One batch process bootstraps the reference once and compiles every variant;
+# the per-variant command, verdicts and fail-closed aggregation are unchanged.
+awk -F'\t' -v out="$OUT" '{ printf "%s/ref/%s.ref.json\t%s/%s\t%s\n", out, $1, out, $2, $1 }' \
+  "$OUT/manifest.tsv" > "$OUT/oracle.tsv"
+node "$ROOT/tools/export-graph.mjs" --batch "$OUT/oracle.tsv" --fails "$OUT/oracle-fails.tsv" \
+  > "$OUT/oracle.log" 2>&1 || { cat "$OUT/oracle.log"; exit 1; }
+grep -E '^ORACLE FAIL' "$OUT/oracle.log" || true
+grep -E '^oracle: ' "$OUT/oracle.log"
 
 echo "=== [3/4] C# live-compiler graphs (graphdump, no Unity) ==="
 cd "$ROOT"
@@ -71,52 +51,22 @@ awk -F'\t' -v out="$OUT" '{printf "%s/%s\t%s/cs/%s.cs.json\n", out, $2, out, $1}
 "$DOTNET" tools/graphdump/bin/Release/net8.0/graphdump.dll unity/com.noisemaker.hlsl/Effects "$OUT/dump.tsv" 2>&1 | tee "$OUT/dump.log"
 
 echo "=== [4/4] structural diff (fail-closed) ==="
-python3 - "$OUT" <<'PYEOF'
-import os, subprocess, sys
-from concurrent.futures import ThreadPoolExecutor
-out = sys.argv[1]
-lines = [l.rstrip('\n').split('\t') for l in open(f'{out}/manifest.tsv')]
-
-def diff(job):
-    name, rel = job
-    ref, cs = f'{out}/ref/{name}.ref.json', f'{out}/cs/{name}.cs.json'
-    if not os.path.exists(ref) or not os.path.exists(cs):
-        return name, 'missing graph'
-    r = subprocess.run(['python3', 'parity/graph-diff.py', ref, cs], capture_output=True, text=True)
-    if r.returncode == 0:
-        return name, None
-    msg = (r.stdout + r.stderr).strip().splitlines()
-    return name, (msg[1][:200] if len(msg) > 1 else 'delta')
-
-# Same per-variant diff command and fail-closed aggregation as before; the
-# 1900 python spawns are independent, so run them concurrently (verdicts and
-# outputs are unchanged).
-with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:
-    outcomes = list(pool.map(diff, lines))
-ok = fail = missing = 0
-fails = []
-for (name, _), (n2, status) in zip(lines, outcomes):
-    if status is None:
-        ok += 1
-    elif status == 'missing graph':
-        missing += 1; fails.append((name, 'missing graph'))
-    else:
-        fail += 1
-        fails.append((name, status))
-fail_names = {n for n, _ in fails}
-with open(f'{out}/results.tsv', 'w') as f:
-    f.write(f'# param-sweep per-variant results (fail-closed gate)\n'
-            f'# variants: {len(lines)}  graph-clean: {ok}  FAIL: {fail}  missing: {missing}\n')
-    for name, rel in lines:
-        if name in fail_names:
-            msg = dict(fails).get(name, 'FAIL')
-            status = 'MISSING' if msg == 'missing graph' else 'FAIL'
-        else:
-            status = 'PASS'
-        f.write(f'{name}\t{status}\n')
-with open(f'{out}/report.txt', 'w') as f:
-    for n, m in fails:
-        f.write(f'{n}\t{m}\n')
-print(f'param sweep: {ok} graph-clean, {fail} FAIL, {missing} missing, of {len(lines)} variants')
-sys.exit(1 if (fail or missing) else 0)
-PYEOF
+# One batch process diffs every variant pair in-process; the per-variant
+# command, verdicts and fail-closed aggregation are unchanged.
+cd "$ROOT"
+awk -F'\t' -v out="$OUT" '{ printf "%s/ref/%s.ref.json\t%s/cs/%s.cs.json\t%s\n", out, $1, out, $1, $1 }' \
+  "$OUT/manifest.tsv" > "$OUT/diff.tsv"
+python3 parity/graph-diff.py --batch "$OUT/diff.tsv" --results "$OUT/results.raw.tsv" \
+  > "$OUT/diff.log" 2>&1 || { cat "$OUT/diff.log"; exit 1; }
+grep -E '^GRAPH FAIL' "$OUT/diff.log" || true
+ok="$(awk -F'\t' '$2 == "PASS"' "$OUT/results.raw.tsv" | wc -l | tr -d ' ')"
+fail="$(awk -F'\t' '$2 == "FAIL"' "$OUT/results.raw.tsv" | wc -l | tr -d ' ')"
+missing="$(awk -F'\t' '$2 == "MISSING"' "$OUT/results.raw.tsv" | wc -l | tr -d ' ')"
+{
+  printf '# param-sweep per-variant results (fail-closed gate)\n'
+  printf '# variants: %s  graph-clean: %s  FAIL: %s  missing: %s\n' "$(wc -l < "$OUT/manifest.tsv" | tr -d ' ')" "$ok" "$fail" "$missing"
+  cat "$OUT/results.raw.tsv"
+} > "$OUT/results.tsv"
+awk -F'\t' '$2 != "PASS" { print $1 "\t" ($3 != "" ? $3 : $2) }' "$OUT/results.raw.tsv" > "$OUT/report.txt"
+echo "param sweep: $ok graph-clean, $fail FAIL, $missing missing, of $((ok + fail + missing)) variants"
+[ "$fail" -eq 0 ] && [ "$missing" -eq 0 ] || exit 1

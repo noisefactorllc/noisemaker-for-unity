@@ -326,10 +326,59 @@ export async function exportGraph (dsl) {
 }
 
 // ---------------------------------------------------------------------------
+// Batch mode: one reference bootstrap, many programs. Each TSV row is
+//   <out.json>\t<program.dsl>\t<label>
+// Side effects match the single-program run: <out>.log carries the program's
+// captured error output (empty on success), and --fails writes <label>\t<msg>
+// rows for failed programs. Coverage and verdicts are unchanged; the per-program
+// node startup and the reference bootstrap are paid once instead of per program.
+// ---------------------------------------------------------------------------
+async function runBatch (tsvPath, failsPath) {
+  const rows = readFileSync(tsvPath, 'utf8').split('\n').filter(l => l.trim())
+  const { compileGraph, defineMap } = await bootstrapReference()
+  const fails = []
+  let ok = 0
+  for (const line of rows) {
+    const [outPath, dslPath, label = dslPath] = line.split('\t')
+    const logPath = outPath.replace(/\.json$/, '.log')
+    try {
+      const dsl = readFileSync(dslPath, 'utf8')
+      const normalized = normalizeGraph(compileGraph(dsl), defineMap)
+      writeFileSync(outPath, JSON.stringify(normalized, null, 2) + '\n')
+      writeFileSync(logPath, '')
+      ok++
+    } catch (err) {
+      const raw = String(err?.message || err).trim()
+      const msg = raw.split('\n').pop()
+      writeFileSync(logPath, `${err?.stack || raw}\n`)
+      fails.push([label, msg])
+      process.stderr.write(`ORACLE FAIL ${label}: ${msg}\n`)
+    }
+  }
+  if (failsPath) {
+    writeFileSync(failsPath, fails.map(([l, m]) => `${l}\t${m}`).join('\n') + (fails.length ? '\n' : ''))
+  }
+  process.stderr.write(`oracle: ${ok} ok, ${fails.length} failed\n`)
+  return fails.length
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 async function main () {
   const argv = process.argv.slice(2)
+  if (argv[0] === '--batch') {
+    const batchIdx = argv.indexOf('--batch')
+    const failsIdx = argv.indexOf('--fails')
+    const tsvPath = batchIdx >= 0 ? argv[batchIdx + 1] : null
+    const failsPath = failsIdx >= 0 && argv[failsIdx + 1] ? argv[failsIdx + 1] : undefined
+    if (!tsvPath || tsvPath.startsWith('--')) {
+      process.stderr.write('usage: node export-graph.mjs --batch jobs.tsv [--fails fails.tsv]\n')
+      process.exit(2)
+    }
+    const failed = await runBatch(tsvPath, failsPath)
+    process.exit(failed ? 1 : 0)
+  }
   if (argv.length === 0) {
     process.stderr.write('usage: node export-graph.mjs "<dsl>" [out.json]\n' +
       '       node export-graph.mjs --file program.dsl [out.json]\n')
