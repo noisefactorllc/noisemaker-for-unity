@@ -29,7 +29,9 @@
 //   raymarch — it only steps the CA.
 //
 // MULTI-FRAME FEEDBACK: 1 pass per frame. The persistent ('global_') state atlas
-//   global_ca_state (r=alive, g=age, b=alive, a=1) is BOTH the pass input
+//   global_ca_state packs via ca_packState: mono mode writes (alive, alive,
+//   alive, 1) — frame-identical to the pre-GAP-004 port — and age mode writes
+//   (alive, age, 0, 1). The atlas is BOTH the pass input
 //   (stateTex) and output. The runtime ping-pongs it across frames so each frame
 //   reads the previous frame's volume (reference 04 §10.2/§10.7; isStateSurface
 //   matches because the name contains "state"/"ca_state"). seedTex is the
@@ -82,6 +84,7 @@ float speed;          // globals.speed        default 1   (WGSL f32)
 float density;        // globals.density      default 50
 float weight;         // globals.weight       default 0
 int   resetState;     // globals.resetState   boolean (1/0), tested != 0
+int   colorMode;      // globals.colorMode    default 0 (mono), 1 (age)
 
 // =============================================================================
 // PASS: simulate — step the 3D CA volume atlas (frag_simulate)
@@ -115,6 +118,20 @@ float4 ca_sampleState(int3 voxel, int volSize)
 float4 ca_sampleSeed(int3 voxel, int volSize)
 {
     return seedTex.Load(int3(ca_atlasTexel(voxel, volSize), 0));
+}
+
+// The state keeps alive in red and age in green. render3d reads density from
+// red and shades with the RGB color unless it is gray, so mono writes alive to
+// every channel, and age keeps the age in green and shades young cells red and
+// older cells toward yellow. (Ported from noisemaker@668b82ea1f7b: glsl/ and
+// wgsl/ packState.)
+float4 ca_packState(float alive, float age)
+{
+    // mode 0: (alive, alive, alive, 1.0)
+    // mode 1: (alive, age, 0.0, 1.0)
+    if (colorMode == 0)
+        return float4(alive, alive, alive, 1.0);
+    return float4(alive, age, 0.0, 1.0);
 }
 
 // Moore neighborhood (26 neighbors). Loop bounds inclusive (-1..1), verbatim.
@@ -261,7 +278,7 @@ float4 frag_simulate(NMVaryings i) : SV_Target
             }
         }
 
-        return float4(alive, alive, alive, 1.0);
+        return ca_packState(alive, age);
     }
 
     // Count neighbors by neighborhood mode.
@@ -321,7 +338,7 @@ float4 frag_simulate(NMVaryings i) : SV_Target
         finalAlive = lerp(finalAlive, seedLum, weight * 0.01);
     }
 
-    return float4(finalAlive, finalAlive, finalAlive, 1.0);
+    return ca_packState(finalAlive, finalAge);
 }
 
 #endif // NM_EFFECT_CELLULARAUTOMATA3D_INCLUDED

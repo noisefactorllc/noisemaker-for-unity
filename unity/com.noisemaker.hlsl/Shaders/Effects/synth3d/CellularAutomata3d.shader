@@ -9,10 +9,11 @@ Shader "Noisemaker/synth3d/cellularAutomata3d"
     // ZWrite Off / ZTest Always / Cull Off, exactly like the GPGPU sim
     // exemplars (NavierStokes / reactionDiffusion).
     //
-    // The persistent state atlas global_ca_state (r=alive, g=age, b=alive, a=1)
-    // is BOTH the input (stateTex) and the output; the runtime ping-pongs it so
-    // each frame reads the previous frame's volume (reference 04 §10.2/§10.7,
-    // isStateSurface matches on "state"). seedTex is the upstream 'source'
+    // The persistent state atlas global_ca_state is BOTH the input (stateTex)
+    // and the output; the runtime ping-pongs it so each frame reads the previous
+    // frame's volume (reference 04 §10.2/§10.7, isStateSurface matches on
+    // "state"). Mono packs (r=alive, g=alive, b=alive, a=1); age packs
+    // (r=alive, g=age, b=0, a=1) — see ca_packState in CellularAutomata3d.hlsl. seedTex is the upstream 'source'
     // volume (inputTex3d), used for first-frame / reset seeding and optional
     // weight blending. The runtime rebinds stateTex/seedTex and sets the named
     // uniforms via MaterialPropertyBlock by reference name. Downstream
