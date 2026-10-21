@@ -64,6 +64,7 @@ Texture2D    xyzTex;     SamplerState sampler_xyzTex;
 Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
 Texture2D    inputTex;   SamplerState sampler_inputTex;
+Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // stateSize is sizing-only (UI control:false, inherited from pointsEmit).
@@ -75,6 +76,7 @@ float speed;       // globals.speed     default 1.0
 int   stateSize;   // globals.stateSize default 256 (sizing-only; unused in body)
 int   viewMode;    // globals.viewMode  default 1   (forwarded; unused in body)
 int   seed;        // engine/inherited integer seed (u.seed in WGSL)
+float diffuseActive; // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
 
 // =============================================================================
 // Shared agent helpers (inlined VERBATIM from wgsl/agent.wgsl)
@@ -91,6 +93,16 @@ uint attractor_hash_uint(uint seedU)
 float attractor_hash(uint seedU)
 {
     return (float)attractor_hash_uint(seedU) / 4294967295.0;
+}
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 attractor_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
 }
 
 // Lorenz attractor (classic butterfly)
@@ -242,7 +254,7 @@ AttractorAgentOut frag_agent(NMVaryings i)
 
         o.outXYZ  = float4(newX, newY, newZ, 1.0);
         o.outVel  = vel;
-        o.outRGBA = col;
+        o.outRGBA = diffuseActive > 0.5 ? attractor_selectedDiffuse(frac(float2(newX, newY))) : col;
         return o;
     }
 
@@ -273,7 +285,7 @@ AttractorAgentOut frag_agent(NMVaryings i)
 
     o.outXYZ  = float4(newPos, 1.0);
     o.outVel  = vel;
-    o.outRGBA = col;
+    o.outRGBA = diffuseActive > 0.5 ? attractor_selectedDiffuse(frac(newPos.xy)) : col;
     return o;
 }
 

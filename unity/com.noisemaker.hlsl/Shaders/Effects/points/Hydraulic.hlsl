@@ -83,6 +83,8 @@ Texture2D xyzTex;    SamplerState sampler_xyzTex;
 Texture2D velTex;    SamplerState sampler_velTex;
 Texture2D rgbaTex;   SamplerState sampler_rgbaTex;
 Texture2D inputTex;  SamplerState sampler_inputTex;
+Texture2D heightTex;  SamplerState sampler_heightTex;
+Texture2D diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // resolution is the engine global (NMFullscreen alias) — the INPUT/chain size.
@@ -90,6 +92,18 @@ float stride;       // globals.stride       default 10   (min 1, max 1000)
 float quantize;     // globals.quantize     boolean (1.0/0.0), tested > 0.5
 float inverse;      // globals.inverse      boolean (1.0/0.0), tested > 0.5
 float inputWeight;  // globals.inputWeight  default 100  (min 0, max 100)
+float fieldActive;  // globals.heightTex colorModeUniform (1 when heightTex is wired)
+float diffuseActive; // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 hydraulic_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 
 // =============================================================================
 // MRT output struct for the agent pass (WGSL @location 0/1/2).
@@ -162,7 +176,9 @@ float4 hyd_fetch_texel(int x, int y, int width, int height)
 {
     int wrapped_x = hyd_wrap_int(x, width);
     int wrapped_y = hyd_wrap_int(y, height);
-    return inputTex.Load(int3(wrapped_x, wrapped_y, 0));
+    return fieldActive > 0.5
+        ? heightTex.Load(int3(wrapped_x, wrapped_y, 0))
+        : inputTex.Load(int3(wrapped_x, wrapped_y, 0));
 }
 
 float hyd_luminance_at(int x, int y, int width, int height)
@@ -303,7 +319,7 @@ HydraulicAgentOut frag_agent(NMVaryings i)
 
     o.xyz = float4(newPx, newPy, xyz.z, alive);
     o.vel = float4(normVx, normVy, vz, seed_f);
-    o.rgba = rgba;
+    o.rgba = diffuseActive > 0.5 ? hydraulic_selectedDiffuse(float2(newPx, newPy)) : rgba;
     return o;
 }
 

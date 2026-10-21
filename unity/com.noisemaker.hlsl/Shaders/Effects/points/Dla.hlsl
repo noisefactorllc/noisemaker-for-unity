@@ -70,11 +70,25 @@ Texture2D velTex;    SamplerState sampler_velTex;
 Texture2D rgbaTex;   SamplerState sampler_rgbaTex;
 Texture2D gridTex;   SamplerState sampler_gridTex;
 Texture2D inputTex;  SamplerState sampler_inputTex;
+Texture2D fieldTex;  SamplerState sampler_fieldTex;
+Texture2D diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 float anchorDensity;  // globals.anchorDensity default 0.5
 float stride;         // globals.stride        default 15
 float inputWeight;    // globals.inputWeight   default 15
+float fieldActive;    // globals.fieldTex colorModeUniform (1 when fieldTex is wired)
+float diffuseActive;  // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 dla_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 float decay;          // globals.decay         default 0.25
 float deposit;        // globals.deposit       default 17.5
 float attrition;      // globals.attrition     default 7.5
@@ -285,10 +299,11 @@ DlaAgentOutputs frag_agent(NMVaryings i)
     if (inputW > 0.0)
     {
         uint iw, ih;
-        inputTex.GetDimensions(iw, ih);
+        if (fieldActive > 0.5) { fieldTex.GetDimensions(iw, ih); }
+        else { inputTex.GetDimensions(iw, ih); }
         float2 inputDimsF = float2((float)iw, (float)ih);
         int2 inputCoord = int2(dla_wrap01(pos) * inputDimsF);
-        float4 inputVal = inputTex.Load(int3(inputCoord, 0));
+        float4 inputVal = fieldActive > 0.5 ? fieldTex.Load(int3(inputCoord, 0)) : inputTex.Load(int3(inputCoord, 0));
         float2 inputDir = inputVal.xy * 2.0 - 1.0;
         if (length(inputDir) > 0.01)
         {
@@ -330,21 +345,21 @@ DlaAgentOutputs frag_agent(NMVaryings i)
         // Agent stuck: mark dead for respawn, flag justStuck for deposit.
         o.outXYZ = float4(candidate, 0.0, 0.0);          // w=0 signals death
         o.outVel = float4(seed, 1.0, 0.0, agentRand);    // y=1 "just stuck"
-        o.outRGBA = rgba;
+        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : rgba;
     }
     else if (needsRespawn)
     {
         // Attrition death: mark for respawn.
         o.outXYZ = float4(candidate, 0.0, 0.0);          // w=0 signals death
         o.outVel = float4(seed, 0.0, 0.0, agentRand);    // y=0, not stuck
-        o.outRGBA = rgba;
+        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : rgba;
     }
     else
     {
         // Continue walking.
         o.outXYZ = float4(candidate, 0.0, 1.0);          // w=1 alive
         o.outVel = float4(seed, 0.0, 0.0, agentRand);
-        o.outRGBA = rgba;
+        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : rgba;
     }
     return o;
 }

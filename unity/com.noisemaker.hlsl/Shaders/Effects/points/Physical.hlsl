@@ -80,6 +80,7 @@ Texture2D    inputTex;   SamplerState sampler_inputTex;
 Texture2D    xyzTex;     SamplerState sampler_xyzTex;
 Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
+Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // agent uses: gravity, wind, energy, drag, deviation, wander, plus engine
@@ -93,6 +94,17 @@ float energy;      // globals.energy     default 0.5
 float drag;        // globals.drag       default 0.15
 float deviation;   // globals.deviation  default 0.75
 float wander;      // globals.wander     default 0.25
+float diffuseActive; // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 physical_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 
 // =============================================================================
 // PASS: agent — physics integration (MRT: outXYZ / outVel / outRGBA)
@@ -237,7 +249,7 @@ PhysicalAgentOutputs frag_agent(NMVaryings i)
     {
         o.xyz  = float4(px, py, pz, 1.0);
         o.vel  = float4(vx, vy, vz, seed_f);
-        o.rgba = rgba;
+        o.rgba = diffuseActive > 0.5 ? physical_selectedDiffuse(float2(px, py)) : rgba;
     }
     return o;
 }

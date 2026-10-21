@@ -75,6 +75,7 @@ Texture2D    xyzTex;     SamplerState sampler_xyzTex;
 Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
 Texture2D    inputTex;   SamplerState sampler_inputTex;
+Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 float separation;        // default 2.0
@@ -87,6 +88,17 @@ float maxForce;          // default 0.3
 int   boundaryMode;      // default 0 (wrap), 1 = softWall
 float wallMargin;        // default 50
 float noiseWeight;       // default 0.1
+float diffuseActive;     // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 flock_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 
 // =============================================================================
 // PASS: agent — boids flocking state update (frag_agent), MRT 3 outputs
@@ -428,7 +440,7 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     FlockAgentOutputs o;
     o.xyz  = float4(newPx, newPy, xyz.z, 1.0);
     o.vel  = float4(velocity, age, seed);
-    o.rgba = rgba;
+    o.rgba = diffuseActive > 0.5 ? flock_selectedDiffuse(o.xyz.xy) : rgba;
     return o;
 }
 

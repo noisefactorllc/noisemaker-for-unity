@@ -84,6 +84,8 @@ Texture2D velTex;     SamplerState sampler_velTex;
 Texture2D rgbaTex;    SamplerState sampler_rgbaTex;
 Texture2D trailTex;   SamplerState sampler_trailTex;
 Texture2D inputTex;   SamplerState sampler_inputTex;
+Texture2D fieldTex;   SamplerState sampler_fieldTex;
+Texture2D diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 float moveSpeed;        // globals.moveSpeed       default 1.78
@@ -94,6 +96,18 @@ float inputWeight;      // globals.inputWeight     default 0
 float deposit;          // globals.deposit         default 0.5
 float decay;            // globals.decay           default 0.1
 int   resetState;       // globals.resetState      boolean (1/0), tested != 0
+float fieldActive;      // globals.fieldTex colorModeUniform (1 when fieldTex is wired)
+float diffuseActive;    // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 physarum_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 
 static const float PHYS_TAU = 6.28318530718;
 
@@ -141,7 +155,10 @@ float phys_sampleExternalField(float2 uv, float weight)
 {
     if (weight <= 0.0) { return 0.0; }
     float blend = clamp(weight * 0.01, 0.0, 1.0);
-    return phys_luminance(inputTex.SampleLevel(sampler_inputTex, uv, 0.0).rgb) * blend * 0.05;
+    float3 field = fieldActive > 0.5
+        ? fieldTex.SampleLevel(sampler_fieldTex, uv, 0.0).rgb
+        : inputTex.SampleLevel(sampler_inputTex, uv, 0.0).rgb;
+    return phys_luminance(field) * blend * 0.05;
 }
 
 // =============================================================================
@@ -256,7 +273,10 @@ PhysAgentOutputs frag_agent(NMVaryings i)
     float blend = clamp(inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0)
     {
-        float localInput = phys_luminance(inputTex.SampleLevel(sampler_inputTex, pos, 0.0).rgb);
+        float3 field = fieldActive > 0.5
+            ? fieldTex.SampleLevel(sampler_fieldTex, pos, 0.0).rgb
+            : inputTex.SampleLevel(sampler_inputTex, pos, 0.0).rgb;
+        float localInput = phys_luminance(field);
         // Invert: slow in bright, fast in dark.
         speedScale = lerp(1.0, lerp(1.8, 0.35, localInput), blend);
     }
@@ -270,7 +290,7 @@ PhysAgentOutputs frag_agent(NMVaryings i)
 
     o.outXYZ  = float4(newPos, newHeading, 1.0);   // alive = 1
     o.outVel  = float4(0.0, 0.0, newAge, seed);
-    o.outRGBA = rgba;                              // color unchanged
+    o.outRGBA = diffuseActive > 0.5 ? physarum_selectedDiffuse(o.outXYZ.xy) : rgba;                              // color unchanged
     return o;
 }
 

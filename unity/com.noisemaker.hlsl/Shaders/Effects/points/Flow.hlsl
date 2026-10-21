@@ -70,6 +70,8 @@ Texture2D    inputTex;   SamplerState sampler_inputTex;
 Texture2D    xyzTex;     SamplerState sampler_xyzTex;
 Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
+Texture2D    fieldTex;   SamplerState sampler_fieldTex;
+Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // agent uses: behavior, stride, strideDeviation, kink, quantize, inputWeight,
@@ -83,6 +85,18 @@ float strideDeviation;   // globals.strideDeviation  default 0.05
 float kink;              // globals.kink             default 1
 float quantize;          // globals.quantize         boolean (1.0/0.0), tested > 0.5
 float inputWeight;       // globals.inputWeight      default 100
+float fieldActive;       // globals.fieldTex colorModeUniform (1 when fieldTex is wired)
+float diffuseActive;     // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 flow_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 
 // =============================================================================
 // PASS: agent — flow-field agent update (MRT: outXYZ/outVel/outRGBA)
@@ -212,12 +226,15 @@ FlowAgentOutputs frag_agent(NMVaryings i)
     }
 
     // Sample input texture at current position for flow direction (texel fetch).
+    // fieldActive > 0.5: the independent fieldTex surface drives direction
+    // (reference flow/glsl/agent.glsl).
     uint tw, th;
-    inputTex.GetDimensions(tw, th);
+    if (fieldActive > 0.5) { fieldTex.GetDimensions(tw, th); }
+    else { inputTex.GetDimensions(tw, th); }
     int2 texSize = int2((int)tw, (int)th);
     int2 texCoord = int2((int)(px * (float)texSize.x), (int)(py * (float)texSize.y));
     texCoord = clamp(texCoord, int2(0, 0), texSize - int2(1, 1));
-    float4 texel = inputTex.Load(int3(texCoord, 0));
+    float4 texel = fieldActive > 0.5 ? fieldTex.Load(int3(texCoord, 0)) : inputTex.Load(int3(texCoord, 0));
     float inputLuma = flow_oklab_l(texel.rgb);
 
     // inputWeight controls how much the input texture biases the flow direction.
@@ -258,7 +275,7 @@ FlowAgentOutputs frag_agent(NMVaryings i)
     FlowAgentOutputs o;
     o.xyz  = float4(newX, newY, pz, 1.0);
     o.vel  = float4(0.0, 0.0, rotRand, strideRand);
-    o.rgba = rgba;
+    o.rgba = diffuseActive > 0.5 ? flow_selectedDiffuse(o.xyz.xy) : rgba;
     return o;
 }
 

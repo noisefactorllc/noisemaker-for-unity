@@ -85,6 +85,7 @@ Texture2D    rgbaTex;       SamplerState sampler_rgbaTex;
 Texture2D    dataTex;       SamplerState sampler_dataTex;
 Texture2D    forceMatrix;   SamplerState sampler_forceMatrix;
 Texture2D    inputTex;      SamplerState sampler_inputTex;
+Texture2D    diffuseTex;    SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -------
 // Booleans are bound as int 1/0 and tested != 0 exactly as the GLSL/WGSL do.
@@ -99,6 +100,14 @@ int   boundaryMode;     // globals.boundaryMode     default 0 (wrap)
 float matrixSeed;       // globals.matrixSeed       default 42
 int   symmetricForces;  // globals.symmetricForces  boolean (1/0)
 int   useTypeColor;     // globals.useTypeColor     boolean (1/0)
+float diffuseActive;    // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL/GLSL: if (diffuseActive > 0.5) outRGBA = texture(diffuseTex, pos);
+// Diffuse takes priority over useTypeColor (reference life/glsl/agent.glsl).
+float4 life_diffuseSample(float2 uv)
+{
+    return diffuseTex.Sample(sampler_diffuseTex, uv);
+}
 
 // =============================================================================
 // SHARED HASH (effect-specific PCG variant — verbatim, NOT NMCore)
@@ -456,7 +465,11 @@ LifeAgentOutputs frag_agent(NMVaryings i)
     age += 0.016;
 
     float4 outColor = rgba;
-    if (useTypeColor != 0)
+    if (diffuseActive > 0.5)
+    {
+        outColor = life_diffuseSample(pos);
+    }
+    else if (useTypeColor != 0)
     {
         outColor = float4(life_typeColor((int)typeId, typeCount), 1.0);
     }

@@ -67,6 +67,7 @@ Texture2D    xyzTex;    SamplerState sampler_xyzTex;
 Texture2D    velTex;    SamplerState sampler_velTex;
 Texture2D    rgbaTex;   SamplerState sampler_rgbaTex;
 Texture2D    inputTex;  SamplerState sampler_inputTex;
+Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 // stateSize is NOT consumed in-shader (texSize comes from textureDimensions),
@@ -77,6 +78,17 @@ int   mode;        // globals.mode      default 0 (0=standard, 1=anti)
 float centerX;     // globals.centerX   default -0.5
 float centerY;     // globals.centerY   default 0
 float zoom;        // globals.zoom      default 1.0
+float diffuseActive; // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 buddhabrot_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 
 // =============================================================================
 // Verbatim core helpers (this effect's OWN PCG-style hash — inline, per effect)
@@ -220,7 +232,9 @@ AgentOutputs frag_agent(NMVaryings i)
 
         o.outXYZ = float4(screen, 0.5, 1.0);
         o.outVel = float4(cRe, cIm, 1.0, escapeStep);
-        o.outRGBA = float4(brightness, brightness, brightness, 1.0);
+        o.outRGBA = diffuseActive > 0.5
+            ? float4(buddhabrot_selectedDiffuse(screen).rgb * brightness, 1.0)
+            : float4(brightness, brightness, brightness, 1.0);
         return o;
     }
 
@@ -267,7 +281,7 @@ AgentOutputs frag_agent(NMVaryings i)
 
     o.outXYZ = float4(screenA, 0.5, 1.0);
     o.outVel = float4(cReA, cImA, step, escapeStepA);
-    o.outRGBA = col;
+    o.outRGBA = diffuseActive > 0.5 ? float4(buddhabrot_selectedDiffuse(screenA).rgb * 0.03, 1.0) : col;
     return o;
 }
 

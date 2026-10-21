@@ -86,6 +86,7 @@ Texture2D    rgbaTex;      SamplerState sampler_rgbaTex;
 Texture2D    fieldTex;     SamplerState sampler_fieldTex;
 Texture2D    densityTex;   SamplerState sampler_densityTex;
 Texture2D    inputTex;     SamplerState sampler_inputTex;
+Texture2D    diffuseTex;   SamplerState sampler_diffuseTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // deposit:    depositAmount
@@ -98,6 +99,17 @@ float muG;            // globals.muG           default 0.25
 float sigmaG;         // globals.sigmaG        default 0.15
 float repulsion;      // globals.repulsion     default 0.5
 float dt;             // globals.dt            default 0.25
+float diffuseActive;  // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
+
+// WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
+float4 lenia_selectedDiffuse(float2 uv)
+{
+    uint dw, dh;
+    diffuseTex.GetDimensions(dw, dh);
+    float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
+    int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
+    return diffuseTex.Load(int3(pixel, 0));
+}
 float searchRadius;   // globals.searchRadius  default 25.0
 float depositAmount;  // globals.depositAmount default 3.6
 
@@ -360,7 +372,7 @@ AgentFieldOutput frag_agentField(NMVaryings i)
     // Output.
     o.outXYZ = float4(newPos, xyz.z, 1.0);
     o.outVel = float4(velocity, age, vel.w);
-    o.outRGBA = rgba;
+    o.outRGBA = diffuseActive > 0.5 ? lenia_selectedDiffuse(o.outXYZ.xy) : rgba;
 
     return o;
 }
