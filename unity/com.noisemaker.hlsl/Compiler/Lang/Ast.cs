@@ -102,6 +102,11 @@ namespace Noisemaker.Hlsl.Compiler
         public override NodeKind Kind { get { return NodeKind.VarAssign; } }
         public string Name { get; set; }
         public Node Expr { get; set; }
+        // Statement order: the number of plans written before this let (upstream
+        // parser.js attaches a non-enumerable planIndex with the same meaning). The
+        // validator declares lets whose PlanIndex <= the current plan index, so a
+        // statement only sees the lets written before it.
+        public int PlanIndex { get; set; }
     }
 
     public sealed class IfStmtNode : Node
@@ -289,6 +294,13 @@ namespace Noisemaker.Hlsl.Compiler
         public override NodeKind Kind { get { return NodeKind.Ident; } }
         public string Name { get; set; }
         public string VarRef { get; set; }
+        // Private source position (upstream parser.js attaches a non-enumerable
+        // 'position' to primary Idents). Deliberately not LocLine/LocCol: the public
+        // AST shape carries no location for identifiers and diagnostics other than
+        // the read-before-let S003 get none either. Only the validator's S003 path
+        // reads this.
+        internal int? SourceLine { get; set; }
+        internal int? SourceCol { get; set; }
     }
 
     public sealed class MemberNode : Node

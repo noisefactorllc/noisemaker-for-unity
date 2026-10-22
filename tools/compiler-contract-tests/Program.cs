@@ -39,6 +39,8 @@ namespace CompilerContractTests
             TestOutputSurfaceRangeEnforcement();
             TestHlslIncludeDirectivesResolve();
             TestDiagnosticSourceColumnsAndLocations();
+            TestLetOrderReadsBeforeLet();
+            TestLetReassignmentOrder();
             TestStructuredLexerDiagnostics();
             TestStructuredParserDiagnostics();
             TestStructuredParserDiagnosticsP003Automation();
@@ -296,8 +298,12 @@ namespace CompilerContractTests
 
         private static void TestClonePreservesSelectors()
         {
+            // Clone is an instance method (it propagates the readsBeforeLet marker);
+            // build a Validator directly for the reflection probe.
+            var validator = (Validator)Activator.CreateInstance(typeof(Validator),
+                BindingFlags.NonPublic | BindingFlags.Instance, null, new object[] { null }, null);
             MethodInfo clone = typeof(Validator).GetMethod(
-                "Clone", BindingFlags.NonPublic | BindingFlags.Static);
+                "Clone", BindingFlags.NonPublic | BindingFlags.Instance);
             var midi = new MidiNode
             {
                 Channel = new NumberNode { Value = 1 },
@@ -312,8 +318,8 @@ namespace CompilerContractTests
                 Id = new StringNode { Value = "device-b" },
             };
 
-            var midiClone = (MidiNode)clone.Invoke(null, new object[] { midi });
-            var audioClone = (AudioNode)clone.Invoke(null, new object[] { audio });
+            var midiClone = (MidiNode)clone.Invoke(validator, new object[] { midi });
+            var audioClone = (AudioNode)clone.Invoke(validator, new object[] { audio });
 
             Check(((StringNode)midiClone.Name).Value == "Controller", "cloned MIDI name selector");
             Check(((StringNode)midiClone.Id).Value == "port-a", "cloned MIDI id selector");
@@ -849,6 +855,105 @@ namespace CompilerContractTests
             catch (Exception ex)
             {
                 Check(false, "TestDiagnosticSourceColumnsAndLocations: " + ex.Message);
+            }
+        }
+
+        private static void TestLetOrderReadsBeforeLet()
+        {
+            try
+            {
+                string effectsDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects");
+                if (!Directory.Exists(effectsDir))
+                {
+                    effectsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl", "Effects"));
+                }
+                var reg = EffectRegistry.LoadFromDirectory(effectsDir);
+                // A statement that reads a let declared later gets S003 "Variable used
+                // before assignment" at the identifier, with its source location
+                // (upstream validator.js reportReadsBeforeLet). The generic
+                // surface-argument S003 for the same identifier is suppressed.
+                string source = "search synth\nnoise(scaleX: x).write(o0)\nlet x = 20";
+                var program = Parser.Parse(Lexer.Lex(source), reg);
+                var result = Validator.Validate(program, reg);
+                Diagnostic readDiag = null;
+                int s003Count = 0;
+                foreach (var d in result.Diagnostics)
+                {
+                    if (d.Code != "S003") continue;
+                    s003Count++;
+                    if (readDiag == null) readDiag = d;
+                }
+                Check(s003Count == 1, "read before let yields exactly one S003 (got " + s003Count + ")");
+                Check(readDiag != null && readDiag.Identifier == "x", "S003 identifier is x");
+                Check(readDiag != null && readDiag.Message == "Variable used before assignment: 'x'",
+                    "S003 message is the read-before-assignment one (got " + (readDiag != null ? readDiag.Message : "null") + ")");
+                Check(readDiag != null && readDiag.Location != null && readDiag.Location.Line == 2 && readDiag.Location.Column == 15,
+                    "S003 location is the identifier (got line " + (readDiag != null && readDiag.Location != null ? readDiag.Location.Line.ToString() : "none")
+                    + " col " + (readDiag != null && readDiag.Location != null ? readDiag.Location.Column.ToString() : "none") + ")");
+                foreach (var d in result.Diagnostics)
+                    Check(!(d.Message != null && d.Message.Contains("Undefined variable")),
+                        "generic undefined-variable S003 for the same identifier is suppressed");
+
+                // Side effect 1: the identifier position stays private. The public
+                // AST (and therefore the _ast JSON via AddNodeMetadata) carries no
+                // loc for identifiers; upstream stores position non-enumerably.
+                var chainStmt = (ChainStatementNode)program.Plans[0];
+                var noiseCall = (CallNode)chainStmt.Chain[0];
+                var xIdent = (IdentNode)noiseCall.Kwargs.Get("scaleX");
+                Check(xIdent.LocLine == null && xIdent.LocCol == null,
+                    "public Ident node carries no location (LocLine/LocCol null)");
+
+                // Side effect 2: diagnostics on identifiers other than the
+                // read-before-let S003 get no location (upstream pushDiag reads no
+                // position for them). An undefined identifier in a numeric argument
+                // produces the default-message S003 without a location.
+                string plainSource = "search synth\nnoise(scaleX: y).write(o0)";
+                var plainProgram = Parser.Parse(Lexer.Lex(plainSource), reg);
+                var plainResult = Validator.Validate(plainProgram, reg);
+                Diagnostic plainDiag = null;
+                foreach (var d in plainResult.Diagnostics)
+                {
+                    if (d.Code == "S003" && d.Identifier == "y") { plainDiag = d; break; }
+                }
+                Check(plainDiag != null, "undefined non-let identifier still diagnosed S003");
+                Check(plainDiag != null && plainDiag.Message == "Variable used before assignment: 'y'",
+                    "undefined non-let identifier keeps the default-message S003 (got " + (plainDiag != null ? plainDiag.Message : "null") + ")");
+                Check(plainDiag != null && plainDiag.Location == null && plainDiag.Line == null && plainDiag.Column == null,
+                    "generic identifier S003 carries no location");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestLetOrderReadsBeforeLet: " + ex.Message);
+            }
+        }
+
+        private static void TestLetReassignmentOrder()
+        {
+            try
+            {
+                string effectsDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects");
+                if (!Directory.Exists(effectsDir))
+                {
+                    effectsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl", "Effects"));
+                }
+                var reg = EffectRegistry.LoadFromDirectory(effectsDir);
+                // A later let reassigns a name that an earlier statement used: each
+                // statement sees the lets written before it and the latest assignment
+                // of a name wins, so no read-before-assignment S003 is reported.
+                string source = "search synth\nlet x = 10\nnoise(scaleX: x).write(o0)\nlet x = 20\nnoise(scaleX: x).write(o1)";
+                var program = Parser.Parse(Lexer.Lex(source), reg);
+                var result = Validator.Validate(program, reg);
+                int s003Count = 0;
+                foreach (var d in result.Diagnostics)
+                {
+                    if (d.Code == "S003") s003Count++;
+                }
+                Check(s003Count == 0, "reads of a reassigned name compile without S003 (got " + s003Count + ")");
+                Check(result.Plans.Count == 2, "both plans compile (got " + result.Plans.Count + ")");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestLetReassignmentOrder: " + ex.Message);
             }
         }
 

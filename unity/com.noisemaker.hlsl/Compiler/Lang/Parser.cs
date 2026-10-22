@@ -180,7 +180,13 @@ namespace Noisemaker.Hlsl.Compiler
                 }
                 Node stmt = ParseStatement();
                 if (leadingComments.Count > 0 && stmt != null) stmt.LeadingComments = leadingComments;
-                if (stmt is VarAssignNode va) vars.Add(va);
+                if (stmt is VarAssignNode va)
+                {
+                    // Statement order: the number of plans written before this let
+                    // (upstream parser.js planIndex, reference/01 §6.2).
+                    va.PlanIndex = plans.Count;
+                    vars.Add(va);
+                }
                 else if (stmt != null) plans.Add(stmt);
                 while (Peek().Type == TokenType.SEMICOLON) Advance();
             }
@@ -1051,7 +1057,10 @@ namespace Noisemaker.Hlsl.Compiler
                         path.Add(next.Lexeme);
                     }
                     if (path.Count > 1) return new MemberNode { Path = path };
-                    return new IdentNode { Name = path[0] };
+                    // Private source position for structured diagnostics (upstream
+                    // parser.js attaches a non-enumerable position on primary Idents);
+                    // the public AST shape is unchanged.
+                    return new IdentNode { Name = path[0], SourceLine = token.Line, SourceCol = token.Col };
                 }
                 case TokenType.OUTPUT_REF: Advance(); return new OutputRefNode { Name = token.Lexeme };
                 case TokenType.SOURCE_REF: Advance(); return new SurfaceRefNode(NodeKind.SourceRef) { Name = token.Lexeme };

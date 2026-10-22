@@ -60,6 +60,14 @@ namespace Noisemaker.Hlsl.Compiler
         private readonly List<Diagnostic> _diagnostics = new List<Diagnostic>();
         private readonly Dictionary<string, Node> _symbols = new Dictionary<string, Node>();
         private readonly HashSet<string> _reportedAutomationCycles = new HashSet<string>();
+        // Identifier nodes that already received their S003 for a read before the let
+        // (upstream validator.js readsBeforeLet WeakSet). pushDiag suppresses any other
+        // diagnostic raised on those nodes.
+        private readonly HashSet<Node> _readsBeforeLet = new HashSet<Node>();
+        // Names of the lets that come after the statement currently being compiled
+        // (upstream validator.js pendingLets).
+        private HashSet<string> _pendingLets = new HashSet<string>();
+        private int _nextVar;
         private List<string> _searchOrder;
         private int _tempIndex;
         private const int MaxAutomationDepth = 8;
@@ -78,15 +86,21 @@ namespace Noisemaker.Hlsl.Compiler
             if (_searchOrder == null || _searchOrder.Count == 0)
                 throw new Exception("Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.");
 
-            ProcessVars(ast.Vars);
+            // Statements compile in order (upstream validator.js plan loop). Each one
+            // sees the lets written before it, and the latest assignment of a name
+            // wins. Lets that come after the last statement are still declared, so
+            // their own checks run.
+            var topLevelVars = ast.Vars != null ? ast.Vars : new List<VarAssignNode>();
+            var planStmts = ast.Plans != null ? ast.Plans : new List<Node>();
 
             var plans = new List<Plan>();
-            if (ast.Plans != null)
-                foreach (Node stmt in ast.Plans)
-                {
-                    Plan p = CompileStmt(stmt);
-                    if (p != null) plans.Add(p);
-                }
+            for (int index = 0; index < planStmts.Count; index++)
+            {
+                DeclareVarsBefore(topLevelVars, index);
+                Plan p = CompileStmt(planStmts[index]);
+                if (p != null) plans.Add(p);
+            }
+            DeclareVarsBefore(topLevelVars, int.MaxValue);
 
             return new ValidateResult
             {
@@ -101,6 +115,7 @@ namespace Noisemaker.Hlsl.Compiler
 
         private void PushDiag(string code, Node node, string message = null)
         {
+            if (node != null && _readsBeforeLet.Contains(node)) return;
             if (message == null) message = DiagnosticTable.DefaultMessage(code);
             string identName = ExtractIdentifierName(node);
             string enriched = message;
@@ -147,41 +162,98 @@ namespace Noisemaker.Hlsl.Compiler
 
         // --- vars / symbols (reference/02 §3) -------------------------------
 
-        private void ProcessVars(List<VarAssignNode> vars)
+        private void ProcessVar(VarAssignNode v)
         {
-            if (vars == null) return;
-            foreach (VarAssignNode v in vars)
+            Node expr = Substitute(Clone(v.Expr), new List<string> { v.Name });
+            if (expr != null && IsStarterChain(expr))
             {
-                Node expr = Substitute(Clone(v.Expr), new List<string> { v.Name });
-                if (expr != null && IsStarterChain(expr))
+                Node head = FirstChainCall(expr);
+                if (head != null) PushDiag("S006", head);
+            }
+            if (expr == null || (expr is IdentNode idn && (idn.Name == "null" || idn.Name == "undefined")))
+            {
+                PushDiag("S004", v);
+                return;
+            }
+            if (expr is IdentNode ie && !_symbols.ContainsKey(ie.Name) && !StateValues.Contains(ie.Name)
+                && _reg.GetOp(ie.Name) == null && !CanResolveOpName(ie.Name))
+            {
+                PushDiag("S003", ie);
+                return;
+            }
+            if (expr is ChainNode cn && cn.Chain.Count == 1)
+            {
+                _symbols[v.Name] = cn.Chain[0];
+            }
+            else if (expr is MemberNode mn)
+            {
+                double? resolved = ResolveEnumNumber(mn.Path);
+                if (resolved.HasValue) _symbols[v.Name] = new NumberNode { Value = resolved.Value };
+                else _symbols[v.Name] = expr;
+            }
+            else
+            {
+                _symbols[v.Name] = expr;
+            }
+        }
+
+        // Top-level lets are declared in statement order (upstream declareVarsBefore).
+        // `pendingLets` holds the names of the lets that come after the current plan.
+        private void DeclareVarsBefore(List<VarAssignNode> topLevelVars, int planIndex)
+        {
+            while (_nextVar < topLevelVars.Count && topLevelVars[_nextVar].PlanIndex <= planIndex)
+            {
+                ProcessVar(topLevelVars[_nextVar++]);
+            }
+            _pendingLets = new HashSet<string>();
+            for (int i = _nextVar; i < topLevelVars.Count; i++) _pendingLets.Add(topLevelVars[i].Name);
+        }
+
+        // A statement that reads a variable before any let assigns it gets S003
+        // "Variable used before assignment" at the identifier, with its source
+        // location. Other diagnostics for that identifier node are not added
+        // (upstream reportReadsBeforeLet + the readsBeforeLet set in pushDiag).
+        private void ReportReadsBeforeLet(Node node)
+        {
+            if (_pendingLets.Count == 0 || node == null) return;
+            if (node is IdentNode ident)
+            {
+                if (_pendingLets.Contains(ident.Name) && !_symbols.ContainsKey(ident.Name)
+                    && _readsBeforeLet.Add(ident))
                 {
-                    Node head = FirstChainCall(expr);
-                    if (head != null) PushDiag("S006", head);
+                    // Upstream pushes S003 on a fresh {type:'Ident', name, loc} built
+                    // from the private position, so only this diagnostic carries a
+                    // location and the public AST is untouched.
+                    var located = new IdentNode { Name = ident.Name, LocLine = ident.SourceLine, LocCol = ident.SourceCol };
+                    PushDiag("S003", located);
                 }
-                if (expr == null || (expr is IdentNode idn && (idn.Name == "null" || idn.Name == "undefined")))
+                return;
+            }
+            foreach (Node child in ChildNodes(node)) ReportReadsBeforeLet(child);
+        }
+
+        // Upstream reportReadsBeforeLet walks Object.values(node) generically; walk
+        // public Node-valued properties, node lists and ordered kwargs the same way.
+        private static IEnumerable<Node> ChildNodes(Node node)
+        {
+            foreach (System.Reflection.PropertyInfo prop in node.GetType().GetProperties())
+            {
+                if (prop.Name == "Kind") continue;
+                object value;
+                try { value = prop.GetValue(node); } catch { continue; }
+                if (value is Node child) yield return child;
+                else if (value is IEnumerable<Node> list)
                 {
-                    PushDiag("S004", v);
-                    continue;
+                    foreach (Node item in list)
+                        if (item != null) yield return item;
                 }
-                if (expr is IdentNode ie && !_symbols.ContainsKey(ie.Name) && !StateValues.Contains(ie.Name)
-                    && _reg.GetOp(ie.Name) == null && !CanResolveOpName(ie.Name))
+                else if (value is OrderedKwargs kwargs)
                 {
-                    PushDiag("S003", ie);
-                    continue;
-                }
-                if (expr is ChainNode cn && cn.Chain.Count == 1)
-                {
-                    _symbols[v.Name] = cn.Chain[0];
-                }
-                else if (expr is MemberNode mn)
-                {
-                    double? resolved = ResolveEnumNumber(mn.Path);
-                    if (resolved.HasValue) _symbols[v.Name] = new NumberNode { Value = resolved.Value };
-                    else _symbols[v.Name] = expr;
-                }
-                else
-                {
-                    _symbols[v.Name] = expr;
+                    foreach (string key in kwargs.Keys)
+                    {
+                        Node kv = kwargs.Get(key);
+                        if (kv != null) yield return kv;
+                    }
                 }
             }
         }
@@ -236,7 +308,7 @@ namespace Noisemaker.Hlsl.Compiler
 
         // JSON deep-clone analog (reference/02 §2.6). Only the node shapes that flow
         // through substitution in the first-cut scope are cloned structurally.
-        private static Node Clone(Node node)
+        private Node Clone(Node node)
         {
             Node copy;
             switch (node)
@@ -299,10 +371,15 @@ namespace Noisemaker.Hlsl.Compiler
             copy.LocLine = node.LocLine;
             copy.LocCol = node.LocCol;
             copy.LocColumn = node.LocColumn;
+            // Upstream's processChain shallow-copies the call and substitute() hands
+            // unknown identifiers through unchanged, so the readsBeforeLet set (keyed
+            // by node identity) still suppresses follow-up diagnostics on the
+            // processed copy. Our Clone is deep, so propagate the marker.
+            if (node != null && _readsBeforeLet.Contains(node)) _readsBeforeLet.Add(copy);
             return copy;
         }
 
-        private static CallNode CloneCall(CallNode call)
+        private CallNode CloneCall(CallNode call)
         {
             var c = new CallNode { Name = call.Name, Namespace = call.Namespace };
             foreach (Node a in call.Args) c.Args.Add(Clone(a));
@@ -518,6 +595,7 @@ namespace Noisemaker.Hlsl.Compiler
         private Plan CompileChainStatement(ChainStatementNode stmt)
         {
             var chain = new List<Step>();
+            foreach (Node chainCall in stmt.Chain) ReportReadsBeforeLet(chainCall);
             var chainNode = new ChainNode { Chain = stmt.Chain };
             bool hasWrite = stmt.Write != null || stmt.Write3d != null;
 
