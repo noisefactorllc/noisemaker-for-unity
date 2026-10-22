@@ -1126,8 +1126,18 @@ namespace Noisemaker.Hlsl.Compiler
 
         private static bool IsParticleTex(string name)
         {
-            return name == "global_xyz" || name == "global_vel" || name == "global_rgba" ||
-                   name == "global_points_trail" || name == "global_life_data";
+            // Mirrors expander.js's particle-texture pattern (reference 27a2b58f):
+            // global_(xyz|vel|rgba|points_trail|life_data|[a-z]+_base_color).
+            if (name == null) return false;
+            if (name == "global_xyz" || name == "global_vel" || name == "global_rgba" ||
+                name == "global_points_trail" || name == "global_life_data")
+                return true;
+            if (!name.StartsWith("global_") || !name.EndsWith("_base_color")) return false;
+            string behavior = name.Substring("global_".Length, name.Length - "global_".Length - "_base_color".Length);
+            if (behavior.Length == 0) return false;
+            foreach (char c in behavior)
+                if (!(c >= 'a' && c <= 'z')) return false;
+            return true;
         }
         // Mirrors expander.js TEXTURE_ARG_KINDS (upstream ad984822): every surface-ref
         // kind, including "pipeline" (a surface global defaulted to inputTex/inputColor
@@ -1301,8 +1311,10 @@ namespace Noisemaker.Hlsl.Compiler
                                           texName != null && !texName.StartsWith("global_"))
                     ? _currentParticlePipelineId : scopeSuffix;
                 string scoped = d.Param + "_" + dimensionScope;
-                scopedParamMap.Add(d.Param, scoped);
-                return Dim.FromParam(scoped, d.ParamDefault, d.Multiply, d.Power, d.DefaultValue);
+                // An inherited dimension reads the scope's value and never writes
+                // this effect's own value over it (reference 27a2b58f).
+                if (!d.Inherit) scopedParamMap.Add(d.Param, scoped);
+                return Dim.FromParam(scoped, d.ParamDefault, d.Multiply, d.Power, d.DefaultValue, d.Inherit);
             }
             if (d.Kind == DimKind.ScreenDivide && d.ScreenDivide != null)
             {

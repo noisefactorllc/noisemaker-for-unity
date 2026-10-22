@@ -81,6 +81,7 @@ Texture2D    xyzTex;     SamplerState sampler_xyzTex;
 Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
 Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D    baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // agent uses: gravity, wind, energy, drag, deviation, wander, plus engine
@@ -106,16 +107,46 @@ float4 physical_selectedDiffuse(float2 uv)
     return diffuseTex.Load(int3(pixel, 0));
 }
 
+// WGSL spawnColor: the color render/pointsEmit gives an agent spawned at pos.
+float4 physical_spawnColor(float2 pos)
+{
+    uint dw, dh;
+    inputTex.GetDimensions(dw, dh);
+    int2 coord = (int2)(pos * float2((float)dw, (float)dh));
+    float4 sampled = inputTex.Load(int3(coord, 0));
+    return sampled.a > 0.0 ? sampled : float4(1.0, 1.0, 1.0, 1.0);
+}
+
+// WGSL baseColor: the agent's color without a diffuse map. baseColorTex keeps
+// it (alpha > 0) while a diffuse map is active and is cleared otherwise, so
+// this is rgba unless the agent still carries a diffuse color and has not
+// respawned.
+float4 physical_baseColor(int2 coord, float4 rgba, float2 pos)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    if (kept.a == 0.0) return rgba;
+    float4 spawn = physical_spawnColor(pos);
+    float4 spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawn, 0.0, 1.0) * 255.0));
+    return all(spawnDelta <= float4(1.0, 1.0, 1.0, 1.0)) ? rgba : kept;
+}
+
+float4 physical_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
+}
+
 // =============================================================================
-// PASS: agent — physics integration (MRT: outXYZ / outVel / outRGBA)
-// MRT output struct: location 0 = xyz, 1 = vel, 2 = rgba (matches drawBuffers:3
-// and definition.js outputs{ outXYZ:color, outVel:color1, outRGBA:color2 }).
+// PASS: agent — physics integration (MRT: outXYZ / outVel / outRGBA / outBaseColor)
+// MRT output struct: location 0 = xyz, 1 = vel, 2 = rgba, 3 = baseColor
+// (matches drawBuffers:4 and definition.js outputs{ outXYZ:color, outVel:color1,
+// outRGBA:color2, outBaseColor:color3 }).
 // =============================================================================
 struct PhysicalAgentOutputs
 {
-    float4 xyz  : SV_Target0;
-    float4 vel  : SV_Target1;
-    float4 rgba : SV_Target2;
+    float4 xyz       : SV_Target0;
+    float4 vel       : SV_Target1;
+    float4 rgba      : SV_Target2;
+    float4 baseColor : SV_Target3;
 };
 
 // Effect-local PRNG (verbatim from agent.wgsl -- do NOT substitute NMCore pcg).
@@ -177,6 +208,7 @@ PhysicalAgentOutputs frag_agent(NMVaryings i)
     float4 xyz  = xyzTex.Load(int3(coord, 0));
     float4 vel  = velTex.Load(int3(coord, 0));
     float4 rgba = rgbaTex.Load(int3(coord, 0));
+    float4 base = physical_baseColor(coord, rgba, xyz.xy);
 
     // Extract components (positions in normalized coords [0,1]).
     float px = xyz.x;
@@ -196,6 +228,7 @@ PhysicalAgentOutputs frag_agent(NMVaryings i)
         deadOut.xyz  = xyz;
         deadOut.vel  = vel;
         deadOut.rgba = rgba;
+        deadOut.baseColor = physical_keptBaseColor(base);
         return deadOut;
     }
 
@@ -249,8 +282,9 @@ PhysicalAgentOutputs frag_agent(NMVaryings i)
     {
         o.xyz  = float4(px, py, pz, 1.0);
         o.vel  = float4(vx, vy, vz, seed_f);
-        o.rgba = diffuseActive > 0.5 ? physical_selectedDiffuse(float2(px, py)) : rgba;
+        o.rgba = diffuseActive > 0.5 ? physical_selectedDiffuse(float2(px, py)) : base;
     }
+    o.baseColor = physical_keptBaseColor(base);
     return o;
 }
 

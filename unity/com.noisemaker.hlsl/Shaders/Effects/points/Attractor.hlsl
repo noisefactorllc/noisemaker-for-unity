@@ -65,6 +65,7 @@ Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
 Texture2D    inputTex;   SamplerState sampler_inputTex;
 Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D    baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // stateSize is sizing-only (UI control:false, inherited from pointsEmit).
@@ -103,6 +104,19 @@ float4 attractor_selectedDiffuse(float2 uv)
     float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
     int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
     return diffuseTex.Load(int3(pixel, 0));
+}
+
+// WGSL baseColor: the agent's color without a diffuse map. baseColorTex keeps
+// it (alpha > 0) while a diffuse map is active and is cleared otherwise.
+float4 attractor_baseColor(int2 coord, float4 col)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    return kept.a == 0.0 ? col : kept;
+}
+
+float4 attractor_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
 }
 
 // Lorenz attractor (classic butterfly)
@@ -222,6 +236,7 @@ struct AttractorAgentOut
     float4 outXYZ  : SV_Target0;
     float4 outVel  : SV_Target1;
     float4 outRGBA : SV_Target2;
+    float4 outBaseColor : SV_Target3;
 };
 
 AttractorAgentOut frag_agent(NMVaryings i)
@@ -255,6 +270,7 @@ AttractorAgentOut frag_agent(NMVaryings i)
         o.outXYZ  = float4(newX, newY, newZ, 1.0);
         o.outVel  = vel;
         o.outRGBA = diffuseActive > 0.5 ? attractor_selectedDiffuse(frac(float2(newX, newY))) : col;
+        o.outBaseColor = attractor_keptBaseColor(col);
         return o;
     }
 
@@ -264,6 +280,7 @@ AttractorAgentOut frag_agent(NMVaryings i)
         o.outXYZ  = pos;
         o.outVel  = vel;
         o.outRGBA = col;
+        o.outBaseColor = attractor_keptBaseColor(attractor_baseColor(coord, col));
         return o;
     }
 
@@ -283,9 +300,11 @@ AttractorAgentOut frag_agent(NMVaryings i)
         );
     }
 
+    float4 base = attractor_baseColor(coord, col);
     o.outXYZ  = float4(newPos, 1.0);
     o.outVel  = vel;
-    o.outRGBA = diffuseActive > 0.5 ? attractor_selectedDiffuse(frac(newPos.xy)) : col;
+    o.outRGBA = diffuseActive > 0.5 ? attractor_selectedDiffuse(frac(newPos.xy)) : base;
+    o.outBaseColor = attractor_keptBaseColor(base);
     return o;
 }
 

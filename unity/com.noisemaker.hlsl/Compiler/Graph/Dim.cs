@@ -26,6 +26,11 @@ namespace Noisemaker.Hlsl.Compiler.Graph
     {
         public DimKind Kind { get; private set; }
 
+        // Shared `inherit` field (reference 27a2b58f): a Param/ScreenDivide dim with
+        // `inherit: true` reads the scope's value and never writes this effect's own
+        // value over it (the scope's scopedParamMap keeps the upstream value).
+        public bool Inherit { get; private set; }
+
         // Number
         public double Number { get; private set; }
 
@@ -66,7 +71,7 @@ namespace Noisemaker.Hlsl.Compiler.Graph
             new Dim { Kind = DimKind.Percent, Percent = pct };
 
         public static Dim FromParam(string param, double? paramDefault, double? multiply,
-                                    double? power, double? defaultValue) =>
+                                    double? power, double? defaultValue, bool inherit = false) =>
             new Dim
             {
                 Kind = DimKind.Param,
@@ -74,7 +79,8 @@ namespace Noisemaker.Hlsl.Compiler.Graph
                 ParamDefault = paramDefault,
                 Multiply = multiply,
                 Power = power,
-                DefaultValue = defaultValue
+                DefaultValue = defaultValue,
+                Inherit = inherit
             };
 
         public static Dim FromScreenDivide(string screenDivide, double? defaultValue) =>

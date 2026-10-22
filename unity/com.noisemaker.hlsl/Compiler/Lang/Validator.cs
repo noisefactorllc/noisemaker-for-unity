@@ -859,6 +859,23 @@ namespace Noisemaker.Hlsl.Compiler
             var seen = new HashSet<string>();
             List<ParamDef> specArgs = spec.Args;
 
+            // Resolve deprecated param aliases in-place with new-name-wins (canvas.js parity).
+            if (kw != null && spec.ParamAliases.Count > 0)
+            {
+                foreach (var alias in spec.ParamAliases)
+                {
+                    string oldName = alias.Key;
+                    if (!kw.Has(oldName)) continue;
+                    string newName = alias.Value;
+                    // If the new name is NOT already present, migrate the value.
+                    if (!kw.Has(newName)) kw.Set(newName, kw.Get(oldName));
+                    // Always remove the old key.
+                    kw.Remove(oldName);
+                    // Always produce a warning.
+                    PushDiag("S007", call, $"param '{oldName}' is deprecated, use '{newName}' instead. Aliases will be removed on 2027-06-01.");
+                }
+            }
+
             for (int i = 0; i < specArgs.Count; i++)
             {
                 ParamDef def = specArgs[i];

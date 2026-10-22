@@ -78,6 +78,7 @@ float4 _NM_ScreenResolution;
 
 // ---- Input textures (rebound per pass by the runtime per definition inputs{})
 // agent:       xyzTex/velTex/rgbaTex (Load, rgba32f state) + inputTex (Load).
+//              + heightTex (Load) + diffuseTex (Load) + baseColorTex (Load).
 // passthrough: inputTex (Sample).
 Texture2D xyzTex;    SamplerState sampler_xyzTex;
 Texture2D velTex;    SamplerState sampler_velTex;
@@ -85,6 +86,7 @@ Texture2D rgbaTex;   SamplerState sampler_rgbaTex;
 Texture2D inputTex;  SamplerState sampler_inputTex;
 Texture2D heightTex;  SamplerState sampler_heightTex;
 Texture2D diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // resolution is the engine global (NMFullscreen alias) — the INPUT/chain size.
@@ -105,15 +107,43 @@ float4 hydraulic_selectedDiffuse(float2 uv)
     return diffuseTex.Load(int3(pixel, 0));
 }
 
+// Color render/pointsEmit gives an agent spawned at pos (WGSL spawnColor).
+float4 hydraulic_spawnColor(float2 pos)
+{
+    uint dw, dh;
+    inputTex.GetDimensions(dw, dh);
+    float4 sampled = inputTex.Load(int3((int2)(pos * float2((float)dw, (float)dh)), 0));
+    return sampled.a > 0.0 ? sampled : float4(1.0, 1.0, 1.0, 1.0);
+}
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise, so this is rgba
+// unless the agent still carries a diffuse color and has not respawned.
+float4 hydraulic_baseColor(int2 coord, float4 rgba, float2 pos)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    if (kept.a == 0.0) return rgba;
+    float4 spawn = hydraulic_spawnColor(pos);
+    float4 spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawn, 0.0, 1.0) * 255.0));
+    return all(spawnDelta <= float4(1.0, 1.0, 1.0, 1.0)) ? rgba : kept;
+}
+
+float4 hydraulic_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
+}
+
 // =============================================================================
-// MRT output struct for the agent pass (WGSL @location 0/1/2).
-// drawBuffers:3 — outXYZ→SV_Target0, outVel→SV_Target1, outRGBA→SV_Target2.
+// MRT output struct for the agent pass (WGSL @location 0/1/2/3).
+// drawBuffers:4 — outXYZ→SV_Target0, outVel→SV_Target1, outRGBA→SV_Target2,
+// baseColor→SV_Target3.
 // =============================================================================
 struct HydraulicAgentOut
 {
     float4 xyz  : SV_Target0;
     float4 vel  : SV_Target1;
     float4 rgba : SV_Target2;
+    float4 baseColor : SV_Target3;
 };
 
 // =============================================================================
@@ -207,6 +237,7 @@ HydraulicAgentOut frag_agent(NMVaryings i)
     float4 xyz = xyzTex.Load(int3(coord, 0));
     float4 vel = velTex.Load(int3(coord, 0));
     float4 rgba = rgbaTex.Load(int3(coord, 0));
+    float4 base = hydraulic_baseColor(coord, rgba, xyz.xy);
 
     // Extract components
     // xyz stores normalized coords [0,1], convert to pixel coords for algorithm
@@ -237,6 +268,7 @@ HydraulicAgentOut frag_agent(NMVaryings i)
         o.xyz = xyz;
         o.vel = vel;
         o.rgba = rgba;
+        o.baseColor = hydraulic_keptBaseColor(base);
         return o;
     }
 
@@ -319,7 +351,8 @@ HydraulicAgentOut frag_agent(NMVaryings i)
 
     o.xyz = float4(newPx, newPy, xyz.z, alive);
     o.vel = float4(normVx, normVy, vz, seed_f);
-    o.rgba = diffuseActive > 0.5 ? hydraulic_selectedDiffuse(float2(newPx, newPy)) : rgba;
+    o.rgba = diffuseActive > 0.5 ? hydraulic_selectedDiffuse(float2(newPx, newPy)) : base;
+    o.baseColor = hydraulic_keptBaseColor(base);
     return o;
 }
 

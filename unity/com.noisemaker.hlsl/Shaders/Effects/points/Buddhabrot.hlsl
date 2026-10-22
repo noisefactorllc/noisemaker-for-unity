@@ -68,6 +68,7 @@ Texture2D    velTex;    SamplerState sampler_velTex;
 Texture2D    rgbaTex;   SamplerState sampler_rgbaTex;
 Texture2D    inputTex;  SamplerState sampler_inputTex;
 Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D    baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 // stateSize is NOT consumed in-shader (texSize comes from textureDimensions),
@@ -80,6 +81,18 @@ float centerY;     // globals.centerY   default 0
 float zoom;        // globals.zoom      default 1.0
 float diffuseActive; // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
 
+// WGSL baseColor: the agent's color without a diffuse map. baseColorTex keeps
+// it (alpha > 0) while a diffuse map is active and is cleared otherwise.
+float4 buddhabrot_baseColor(int2 coord, float4 col)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    return kept.a == 0.0 ? col : kept;
+}
+
+float4 buddhabrot_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
+}
 // WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
 float4 buddhabrot_selectedDiffuse(float2 uv)
 {
@@ -133,6 +146,7 @@ struct AgentOutputs
     float4 outXYZ  : SV_Target0;
     float4 outVel  : SV_Target1;
     float4 outRGBA : SV_Target2;
+    float4 outBaseColor : SV_Target3;
 };
 
 AgentOutputs frag_agent(NMVaryings i)
@@ -154,6 +168,7 @@ AgentOutputs frag_agent(NMVaryings i)
         o.outXYZ = pos;
         o.outVel = vel;
         o.outRGBA = col;
+        o.outBaseColor = buddhabrot_keptBaseColor(buddhabrot_baseColor(coord, col));
         return o;
     }
 
@@ -175,6 +190,7 @@ AgentOutputs frag_agent(NMVaryings i)
             o.outXYZ = float4(pos.xy, 0.0, 0.0);
             o.outVel = vel;
             o.outRGBA = float4(0.0, 0.0, 0.0, 0.0);
+            o.outBaseColor = float4(0.0, 0.0, 0.0, 0.0);
             return o;
         }
 
@@ -224,6 +240,7 @@ AgentOutputs frag_agent(NMVaryings i)
             o.outXYZ = float4(pos.xy, 0.0, 0.0);
             o.outVel = vel;
             o.outRGBA = float4(0.0, 0.0, 0.0, 0.0);
+            o.outBaseColor = float4(0.0, 0.0, 0.0, 0.0);
             return o;
         }
 
@@ -235,6 +252,7 @@ AgentOutputs frag_agent(NMVaryings i)
         o.outRGBA = diffuseActive > 0.5
             ? float4(buddhabrot_selectedDiffuse(screen).rgb * brightness, 1.0)
             : float4(brightness, brightness, brightness, 1.0);
+        o.outBaseColor = buddhabrot_keptBaseColor(float4(brightness, brightness, brightness, 1.0));
         return o;
     }
 
@@ -269,6 +287,7 @@ AgentOutputs frag_agent(NMVaryings i)
             o.outXYZ = float4(pos.xy, 0.0, 0.0);
             o.outVel = float4(0.0, 0.0, step, 0.0);
             o.outRGBA = float4(0.0, 0.0, 0.0, 0.0);
+            o.outBaseColor = float4(0.0, 0.0, 0.0, 0.0);
             return o;
         }
 
@@ -281,7 +300,9 @@ AgentOutputs frag_agent(NMVaryings i)
 
     o.outXYZ = float4(screenA, 0.5, 1.0);
     o.outVel = float4(cReA, cImA, step, escapeStepA);
-    o.outRGBA = diffuseActive > 0.5 ? float4(buddhabrot_selectedDiffuse(screenA).rgb * 0.03, 1.0) : col;
+    float4 base = buddhabrot_baseColor(coord, col);
+    o.outRGBA = diffuseActive > 0.5 ? float4(buddhabrot_selectedDiffuse(screenA).rgb * 0.03, 1.0) : base;
+    o.outBaseColor = buddhabrot_keptBaseColor(base);
     return o;
 }
 

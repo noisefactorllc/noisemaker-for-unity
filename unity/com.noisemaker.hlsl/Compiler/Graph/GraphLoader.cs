@@ -351,7 +351,8 @@ namespace Noisemaker.Hlsl.Compiler.Graph
                         GetNullableNumber(d, "paramDefault"),
                         GetNullableNumber(d, "multiply"),
                         GetNullableNumber(d, "power"),
-                        GetNullableNumber(d, "default"));
+                        GetNullableNumber(d, "default"),
+                        GetBool(d, "inherit", false));
                 }
                 if (d.Has("screenDivide"))
                 {

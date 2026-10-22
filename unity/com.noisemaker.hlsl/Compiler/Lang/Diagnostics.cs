@@ -95,6 +95,7 @@ namespace Noisemaker.Hlsl.Compiler
                 { "S004", new Entry("Cannot assign null or undefined", DiagnosticSeverity.Error, "semantic") },
                 { "S005", new Entry("Illegal chain structure", DiagnosticSeverity.Error, "semantic") },
                 { "S006", new Entry("Starter chain missing write() call", DiagnosticSeverity.Error, "semantic") },
+                { "S007", new Entry("Deprecated parameter alias", DiagnosticSeverity.Warning, "semantic") },
                 { "S008", new Entry("Deprecated effect", DiagnosticSeverity.Warning, "semantic") },
                 { "R001", new Entry("Runtime error", DiagnosticSeverity.Error, "runtime") },
             };

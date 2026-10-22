@@ -84,8 +84,9 @@ Texture2D velTex;     SamplerState sampler_velTex;
 Texture2D rgbaTex;    SamplerState sampler_rgbaTex;
 Texture2D trailTex;   SamplerState sampler_trailTex;
 Texture2D inputTex;   SamplerState sampler_inputTex;
-Texture2D fieldTex;   SamplerState sampler_fieldTex;
+Texture2D heightTex;  SamplerState sampler_heightTex;
 Texture2D diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 float moveSpeed;        // globals.moveSpeed       default 1.78
@@ -96,7 +97,7 @@ float inputWeight;      // globals.inputWeight     default 0
 float deposit;          // globals.deposit         default 0.5
 float decay;            // globals.decay           default 0.1
 int   resetState;       // globals.resetState      boolean (1/0), tested != 0
-float fieldActive;      // globals.fieldTex colorModeUniform (1 when fieldTex is wired)
+float fieldActive;      // globals.heightTex colorModeUniform (1 when heightTex is wired)
 float diffuseActive;    // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
 
 // WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
@@ -107,6 +108,34 @@ float4 physarum_selectedDiffuse(float2 uv)
     float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
     int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
     return diffuseTex.Load(int3(pixel, 0));
+}
+
+// WGSL spawnColor: the color render/pointsEmit gives an agent spawned at pos.
+float4 physarum_spawnColor(float2 pos)
+{
+    uint dw, dh;
+    inputTex.GetDimensions(dw, dh);
+    int2 coord = (int2)(pos * float2((float)dw, (float)dh));
+    float4 sampled = inputTex.Load(int3(coord, 0));
+    return sampled.a > 0.0 ? sampled : float4(1.0, 1.0, 1.0, 1.0);
+}
+
+// WGSL baseColor: the agent's color without a diffuse map. baseColorTex keeps
+// it (alpha > 0) while a diffuse map is active and is cleared otherwise, so
+// this is rgba unless the agent still carries a diffuse color and has not
+// respawned.
+float4 physarum_baseColor(int2 coord, float4 rgba, float2 pos)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    if (kept.a == 0.0) return rgba;
+    float4 spawn = physarum_spawnColor(pos);
+    float4 spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawn, 0.0, 1.0) * 255.0));
+    return all(spawnDelta <= float4(1.0, 1.0, 1.0, 1.0)) ? rgba : kept;
+}
+
+float4 physarum_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
 }
 
 static const float PHYS_TAU = 6.28318530718;
@@ -156,7 +185,7 @@ float phys_sampleExternalField(float2 uv, float weight)
     if (weight <= 0.0) { return 0.0; }
     float blend = clamp(weight * 0.01, 0.0, 1.0);
     float3 field = fieldActive > 0.5
-        ? fieldTex.SampleLevel(sampler_fieldTex, uv, 0.0).rgb
+        ? heightTex.SampleLevel(sampler_heightTex, uv, 0.0).rgb
         : inputTex.SampleLevel(sampler_inputTex, uv, 0.0).rgb;
     return phys_luminance(field) * blend * 0.05;
 }
@@ -184,15 +213,18 @@ float4 frag_diffuse(NMVaryings i) : SV_Target
 }
 
 // =============================================================================
-// PASS 2: agent — sensor-based steering. MRT x3 (frag_agent, fullscreen).
-//   SV_Target0 = outXYZ, SV_Target1 = outVel, SV_Target2 = outRGBA
-//   (matches drawBuffers:3, outputs{ outXYZ:color, outVel:color1, outRGBA:color2 }).
+// PASS 2: agent — sensor-based steering. MRT x4 (frag_agent, fullscreen).
+//   SV_Target0 = outXYZ, SV_Target1 = outVel, SV_Target2 = outRGBA,
+//   SV_Target3 = outBaseColor
+//   (matches drawBuffers:4, outputs{ outXYZ:color, outVel:color1,
+//    outRGBA:color2, outBaseColor:color3 }).
 // =============================================================================
 struct PhysAgentOutputs
 {
-    float4 outXYZ  : SV_Target0;
-    float4 outVel  : SV_Target1;
-    float4 outRGBA : SV_Target2;
+    float4 outXYZ       : SV_Target0;
+    float4 outVel       : SV_Target1;
+    float4 outRGBA      : SV_Target2;
+    float4 outBaseColor : SV_Target3;
 };
 
 PhysAgentOutputs frag_agent(NMVaryings i)
@@ -212,6 +244,7 @@ PhysAgentOutputs frag_agent(NMVaryings i)
     float4 xyz  = xyzTex.Load(int3(coord, 0));
     float4 vel  = velTex.Load(int3(coord, 0));
     float4 rgba = rgbaTex.Load(int3(coord, 0));
+    float4 base = physarum_baseColor(coord, rgba, xyz.xy);
 
     float2 pos     = xyz.xy;   // normalized [0,1]
     float  heading = xyz.z;    // radians
@@ -226,6 +259,7 @@ PhysAgentOutputs frag_agent(NMVaryings i)
         o.outXYZ  = float4(pos, phys_hash((uint)(seed * 1000.0)) * PHYS_TAU, 0.0);
         o.outVel  = vel;
         o.outRGBA = rgba;
+        o.outBaseColor = physarum_keptBaseColor(base);
         return o;
     }
 
@@ -274,7 +308,7 @@ PhysAgentOutputs frag_agent(NMVaryings i)
     if (blend > 0.0)
     {
         float3 field = fieldActive > 0.5
-            ? fieldTex.SampleLevel(sampler_fieldTex, pos, 0.0).rgb
+            ? heightTex.SampleLevel(sampler_heightTex, pos, 0.0).rgb
             : inputTex.SampleLevel(sampler_inputTex, pos, 0.0).rgb;
         float localInput = phys_luminance(field);
         // Invert: slow in bright, fast in dark.
@@ -290,7 +324,8 @@ PhysAgentOutputs frag_agent(NMVaryings i)
 
     o.outXYZ  = float4(newPos, newHeading, 1.0);   // alive = 1
     o.outVel  = float4(0.0, 0.0, newAge, seed);
-    o.outRGBA = diffuseActive > 0.5 ? physarum_selectedDiffuse(o.outXYZ.xy) : rgba;                              // color unchanged
+    o.outRGBA = diffuseActive > 0.5 ? physarum_selectedDiffuse(o.outXYZ.xy) : base;
+    o.outBaseColor = physarum_keptBaseColor(base);                              // color unchanged
     return o;
 }
 

@@ -432,6 +432,7 @@ namespace Noisemaker.Hlsl.Compiler
                     if (d.Multiply.HasValue) { sb.Append(','); WriteKey(sb, "multiply"); sb.Append(JsNum(d.Multiply.Value)); }
                     if (d.Power.HasValue) { sb.Append(','); WriteKey(sb, "power"); sb.Append(JsNum(d.Power.Value)); }
                     if (d.DefaultValue.HasValue) { sb.Append(','); WriteKey(sb, "default"); sb.Append(JsNum(d.DefaultValue.Value)); }
+                    if (d.Inherit) { sb.Append(','); WriteKey(sb, "inherit"); sb.Append("true"); }
                     sb.Append('}');
                     break;
                 case DimKind.ScreenDivide:

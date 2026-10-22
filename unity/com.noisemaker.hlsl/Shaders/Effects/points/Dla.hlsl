@@ -8,15 +8,15 @@
 // WGSL sources (top-left origin, no per-effect Y flip):
 //   wgsl/initGrid.wgsl     progName "initGrid"     (frag_initGrid)   fullscreen
 //   wgsl/copyGrid.wgsl     progName "copyGrid"     (frag_copyGrid)   fullscreen
-//   wgsl/agent.wgsl        progName "agent"        (frag_agent)      fullscreen, MRT x3
+//   wgsl/agent.wgsl        progName "agent"        (frag_agent)      fullscreen, MRT x4
 //   wgsl/depositGrid.wgsl  progName "depositGrid"  (vert/frag_deposit) POINTS scatter
 //   wgsl/passthrough.wgsl  progName "passthrough"  (frag_passthrough) fullscreen
 //
 // PASS ORDER per frame (5):
 //   1. initGrid   (fullscreen)        decay/reseed the persistent anchor grid
 //   2. copyGrid   (fullscreen)        blit grid -> write buffer (post-swap refresh)
-//   3. agent      (fullscreen, MRT3)  random-walk + stick detection; MRT writes
-//                                     new xyz/vel/rgba agent state
+//   3. agent      (fullscreen, MRT4)  random-walk + stick detection; MRT writes
+//                                     new xyz/vel/rgba + baseColor agent state
 //   4. depositGrid(POINTS scatter)    Blend One One — additive deposit of agents
 //                                     that just stuck (vel.y==1) into the grid
 //   5. passthrough(fullscreen)        composite grid over input -> outputTex
@@ -62,7 +62,8 @@
 // ---- Textures (runtime rebinds per pass per definition.js inputs{}) ---------
 // initGrid:     gridTex (Load)
 // copyGrid:     gridTex (Sample)
-// agent:        xyzTex,velTex,rgbaTex,gridTex (Load); inputTex (Load)
+// agent:        xyzTex,velTex,rgbaTex,gridTex (Load); inputTex,baseColorTex (Load)
+//               heightTex, diffuseTex (Load)
 // depositGrid:  xyzTex,velTex,rgbaTex (Load, in VERTEX stage)
 // passthrough:  inputTex,gridTex (Sample)
 Texture2D xyzTex;    SamplerState sampler_xyzTex;
@@ -70,14 +71,15 @@ Texture2D velTex;    SamplerState sampler_velTex;
 Texture2D rgbaTex;   SamplerState sampler_rgbaTex;
 Texture2D gridTex;   SamplerState sampler_gridTex;
 Texture2D inputTex;  SamplerState sampler_inputTex;
-Texture2D fieldTex;  SamplerState sampler_fieldTex;
+Texture2D heightTex;  SamplerState sampler_heightTex;
 Texture2D diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 float anchorDensity;  // globals.anchorDensity default 0.5
 float stride;         // globals.stride        default 15
 float inputWeight;    // globals.inputWeight   default 15
-float fieldActive;    // globals.fieldTex colorModeUniform (1 when fieldTex is wired)
+float fieldActive;    // globals.heightTex colorModeUniform (1 when heightTex is wired)
 float diffuseActive;  // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
 
 // WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
@@ -89,6 +91,35 @@ float4 dla_selectedDiffuse(float2 uv)
     int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
     return diffuseTex.Load(int3(pixel, 0));
 }
+
+// WGSL spawnColor: the color render/pointsEmit gives an agent spawned at pos.
+float4 dla_spawnColor(float2 pos)
+{
+    uint dw, dh;
+    inputTex.GetDimensions(dw, dh);
+    int2 coord = (int2)(pos * float2((float)dw, (float)dh));
+    float4 sampled = inputTex.Load(int3(coord, 0));
+    return sampled.a > 0.0 ? sampled : float4(1.0, 1.0, 1.0, 1.0);
+}
+
+// WGSL baseColor: the agent's color without a diffuse map. baseColorTex keeps
+// it (alpha > 0) while a diffuse map is active and is cleared otherwise, so
+// this is rgba unless the agent still carries a diffuse color and has not
+// respawned.
+float4 dla_baseColor(int2 coord, float4 rgba, float2 pos)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    if (kept.a == 0.0) return rgba;
+    float4 spawn = dla_spawnColor(pos);
+    float4 spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawn, 0.0, 1.0) * 255.0));
+    return all(spawnDelta <= float4(1.0, 1.0, 1.0, 1.0)) ? rgba : kept;
+}
+
+float4 dla_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
+}
+
 float decay;          // globals.decay         default 0.25
 float deposit;        // globals.deposit       default 17.5
 float attrition;      // globals.attrition     default 7.5
@@ -225,14 +256,16 @@ float4 frag_copyGrid(NMVaryings i) : SV_Target
 }
 
 // =============================================================================
-// PASS 3: agent — random walk + stick detection. MRT x3 (fullscreen).
-//   SV_Target0 = outXYZ, SV_Target1 = outVel, SV_Target2 = outRGBA
+// PASS 3: agent — random walk + stick detection. MRT x4 (fullscreen).
+//   SV_Target0 = outXYZ, SV_Target1 = outVel, SV_Target2 = outRGBA,
+//   SV_Target3 = outBaseColor
 // =============================================================================
 struct DlaAgentOutputs
 {
-    float4 outXYZ  : SV_Target0;
-    float4 outVel  : SV_Target1;
-    float4 outRGBA : SV_Target2;
+    float4 outXYZ       : SV_Target0;
+    float4 outVel       : SV_Target1;
+    float4 outRGBA      : SV_Target2;
+    float4 outBaseColor : SV_Target3;
 };
 
 DlaAgentOutputs frag_agent(NMVaryings i)
@@ -250,6 +283,7 @@ DlaAgentOutputs frag_agent(NMVaryings i)
     float4 xyz = xyzTex.Load(int3(coord, 0));
     float4 vel = velTex.Load(int3(coord, 0));
     float4 rgba = rgbaTex.Load(int3(coord, 0));
+    float4 base = dla_baseColor(coord, rgba, xyz.xy);
 
     // Extract state.
     float2 pos = xyz.xy;
@@ -277,6 +311,7 @@ DlaAgentOutputs frag_agent(NMVaryings i)
         o.outXYZ = xyz;
         o.outVel = float4(seed, 0.0, 0.0, agentRand);
         o.outRGBA = rgba;
+        o.outBaseColor = dla_keptBaseColor(base);
         return o;
     }
 
@@ -299,11 +334,11 @@ DlaAgentOutputs frag_agent(NMVaryings i)
     if (inputW > 0.0)
     {
         uint iw, ih;
-        if (fieldActive > 0.5) { fieldTex.GetDimensions(iw, ih); }
+        if (fieldActive > 0.5) { heightTex.GetDimensions(iw, ih); }
         else { inputTex.GetDimensions(iw, ih); }
         float2 inputDimsF = float2((float)iw, (float)ih);
         int2 inputCoord = int2(dla_wrap01(pos) * inputDimsF);
-        float4 inputVal = fieldActive > 0.5 ? fieldTex.Load(int3(inputCoord, 0)) : inputTex.Load(int3(inputCoord, 0));
+        float4 inputVal = fieldActive > 0.5 ? heightTex.Load(int3(inputCoord, 0)) : inputTex.Load(int3(inputCoord, 0));
         float2 inputDir = inputVal.xy * 2.0 - 1.0;
         if (length(inputDir) > 0.01)
         {
@@ -345,21 +380,24 @@ DlaAgentOutputs frag_agent(NMVaryings i)
         // Agent stuck: mark dead for respawn, flag justStuck for deposit.
         o.outXYZ = float4(candidate, 0.0, 0.0);          // w=0 signals death
         o.outVel = float4(seed, 1.0, 0.0, agentRand);    // y=1 "just stuck"
-        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : rgba;
+        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : base;
+        o.outBaseColor = dla_keptBaseColor(base);
     }
     else if (needsRespawn)
     {
         // Attrition death: mark for respawn.
         o.outXYZ = float4(candidate, 0.0, 0.0);          // w=0 signals death
         o.outVel = float4(seed, 0.0, 0.0, agentRand);    // y=0, not stuck
-        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : rgba;
+        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : base;
+        o.outBaseColor = dla_keptBaseColor(base);
     }
     else
     {
         // Continue walking.
         o.outXYZ = float4(candidate, 0.0, 1.0);          // w=1 alive
         o.outVel = float4(seed, 0.0, 0.0, agentRand);
-        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : rgba;
+        o.outRGBA = diffuseActive > 0.5 ? dla_selectedDiffuse(candidate) : base;
+        o.outBaseColor = dla_keptBaseColor(base);
     }
     return o;
 }

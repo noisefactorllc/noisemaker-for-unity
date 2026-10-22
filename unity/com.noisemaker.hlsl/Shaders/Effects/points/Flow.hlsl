@@ -64,14 +64,16 @@ float4 _NM_ScreenResolution; // canvas size; state pass target can be smaller
 
 // ---- Input textures across both passes --------------------------------------
 // agent:       xyzTex, velTex, rgbaTex (Load); inputTex (Load by texel)
+//               heightTex, diffuseTex, baseColorTex (Load)
 // passthrough: inputTex (Sample)
 // The runtime rebinds these per pass per definition.js inputs{}.
 Texture2D    inputTex;   SamplerState sampler_inputTex;
 Texture2D    xyzTex;     SamplerState sampler_xyzTex;
 Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
-Texture2D    fieldTex;   SamplerState sampler_fieldTex;
+Texture2D    heightTex;  SamplerState sampler_heightTex;
 Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D    baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // agent uses: behavior, stride, strideDeviation, kink, quantize, inputWeight,
@@ -85,7 +87,7 @@ float strideDeviation;   // globals.strideDeviation  default 0.05
 float kink;              // globals.kink             default 1
 float quantize;          // globals.quantize         boolean (1.0/0.0), tested > 0.5
 float inputWeight;       // globals.inputWeight      default 100
-float fieldActive;       // globals.fieldTex colorModeUniform (1 when fieldTex is wired)
+float fieldActive;       // globals.heightTex colorModeUniform (1 when heightTex is wired)
 float diffuseActive;     // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
 
 // WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
@@ -98,19 +100,49 @@ float4 flow_selectedDiffuse(float2 uv)
     return diffuseTex.Load(int3(pixel, 0));
 }
 
+// WGSL spawnColor: the color render/pointsEmit gives an agent spawned at pos.
+float4 flow_spawnColor(float2 pos)
+{
+    uint dw, dh;
+    inputTex.GetDimensions(dw, dh);
+    int2 coord = (int2)(pos * float2((float)dw, (float)dh));
+    float4 sampled = inputTex.Load(int3(coord, 0));
+    return sampled.a > 0.0 ? sampled : float4(1.0, 1.0, 1.0, 1.0);
+}
+
+// WGSL baseColor: the agent's color without a diffuse map. baseColorTex keeps
+// it (alpha > 0) while a diffuse map is active and is cleared otherwise, so
+// this is rgba unless the agent still carries a diffuse color and has not
+// respawned.
+float4 flow_baseColor(int2 coord, float4 rgba, float2 pos)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    if (kept.a == 0.0) return rgba;
+    float4 spawn = flow_spawnColor(pos);
+    float4 spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawn, 0.0, 1.0) * 255.0));
+    return all(spawnDelta <= float4(1.0, 1.0, 1.0, 1.0)) ? rgba : kept;
+}
+
+float4 flow_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
+}
+
 // =============================================================================
 // PASS: agent — flow-field agent update (MRT: outXYZ/outVel/outRGBA)
 // =============================================================================
 static const float FLOW_TAU         = 6.283185307179586;
 static const float FLOW_RIGHT_ANGLE = 1.5707963267948966;
 
-// MRT output struct: location 0 = xyz, 1 = vel, 2 = rgba (matches drawBuffers:3
-// and definition.js outputs{ outXYZ:color, outVel:color1, outRGBA:color2 }).
+// MRT output struct: location 0 = xyz, 1 = vel, 2 = rgba, 3 = baseColor
+// (matches drawBuffers:4 and definition.js outputs{
+//  outXYZ:color, outVel:color1, outRGBA:color2, outBaseColor:color3 }).
 struct FlowAgentOutputs
 {
-    float4 xyz  : SV_Target0;
-    float4 vel  : SV_Target1;
-    float4 rgba : SV_Target2;
+    float4 xyz        : SV_Target0;
+    float4 vel        : SV_Target1;
+    float4 rgba       : SV_Target2;
+    float4 baseColor  : SV_Target3;
 };
 
 // Effect-local PRNG (verbatim from agent.wgsl -- do NOT substitute NMCore pcg).
@@ -204,6 +236,7 @@ FlowAgentOutputs frag_agent(NMVaryings i)
     float4 xyz  = xyzTex.Load(int3(coord, 0));
     float4 vel  = velTex.Load(int3(coord, 0));
     float4 rgba = rgbaTex.Load(int3(coord, 0));
+    float4 base = flow_baseColor(coord, rgba, xyz.xy);
 
     // Extract components (positions in normalized coords [0,1]).
     float px = xyz.x;
@@ -222,19 +255,20 @@ FlowAgentOutputs frag_agent(NMVaryings i)
         deadOut.xyz  = xyz;
         deadOut.vel  = vel;
         deadOut.rgba = rgba;
+        deadOut.baseColor = flow_keptBaseColor(base);
         return deadOut;
     }
 
     // Sample input texture at current position for flow direction (texel fetch).
-    // fieldActive > 0.5: the independent fieldTex surface drives direction
+    // fieldActive > 0.5: the independent heightTex surface drives direction
     // (reference flow/glsl/agent.glsl).
     uint tw, th;
-    if (fieldActive > 0.5) { fieldTex.GetDimensions(tw, th); }
+    if (fieldActive > 0.5) { heightTex.GetDimensions(tw, th); }
     else { inputTex.GetDimensions(tw, th); }
     int2 texSize = int2((int)tw, (int)th);
     int2 texCoord = int2((int)(px * (float)texSize.x), (int)(py * (float)texSize.y));
     texCoord = clamp(texCoord, int2(0, 0), texSize - int2(1, 1));
-    float4 texel = fieldActive > 0.5 ? fieldTex.Load(int3(texCoord, 0)) : inputTex.Load(int3(texCoord, 0));
+    float4 texel = fieldActive > 0.5 ? heightTex.Load(int3(texCoord, 0)) : inputTex.Load(int3(texCoord, 0));
     float inputLuma = flow_oklab_l(texel.rgb);
 
     // inputWeight controls how much the input texture biases the flow direction.
@@ -275,7 +309,8 @@ FlowAgentOutputs frag_agent(NMVaryings i)
     FlowAgentOutputs o;
     o.xyz  = float4(newX, newY, pz, 1.0);
     o.vel  = float4(0.0, 0.0, rotRand, strideRand);
-    o.rgba = diffuseActive > 0.5 ? flow_selectedDiffuse(o.xyz.xy) : rgba;
+    o.rgba = diffuseActive > 0.5 ? flow_selectedDiffuse(o.xyz.xy) : base;
+    o.baseColor = flow_keptBaseColor(base);
     return o;
 }
 

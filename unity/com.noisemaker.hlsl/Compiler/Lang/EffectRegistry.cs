@@ -53,6 +53,7 @@ namespace Noisemaker.Hlsl.Compiler
         public string OpName { get; set; }                // "<ns>.<func>"
         public List<ParamDef> Args { get; set; } = new List<ParamDef>();
         public EffectDefinition Effect { get; set; }      // back-reference for the Expander
+        public Dictionary<string, string> ParamAliases { get; } = new Dictionary<string, string>();
     }
 
     // The structured effect fields the Expander consumes (reference/03 §3). Raw JSON is
@@ -198,8 +199,7 @@ namespace Noisemaker.Hlsl.Compiler
         public void Register(JsonValue def)
         {
             if (def == null || def.Kind != JsonKind.Object) return;
-            if (def.Has("paramAliases"))
-                throw new ArgumentException("paramAliases is no longer supported", nameof(def));
+            var paramAliases = def.Has("paramAliases") ? def.Get("paramAliases").AsObject : null;
 
             var e = new EffectDefinition
             {
@@ -239,6 +239,13 @@ namespace Noisemaker.Hlsl.Compiler
 
             // Build the op spec exactly like registerEffectWithRuntime.
             var spec = new OpSpec { Name = func, OpName = ns + "." + func, Effect = e };
+            if (paramAliases != null)
+            {
+                foreach (var alias in paramAliases)
+                {
+                    spec.ParamAliases[alias.Key] = alias.Value.AsString;
+                }
+            }
             if (e.Globals != null && e.Globals.Kind == JsonKind.Object)
             {
                 foreach (var kv in e.Globals.AsObject)

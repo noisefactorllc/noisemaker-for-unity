@@ -87,6 +87,7 @@ Texture2D    fieldTex;     SamplerState sampler_fieldTex;
 Texture2D    densityTex;   SamplerState sampler_densityTex;
 Texture2D    inputTex;     SamplerState sampler_inputTex;
 Texture2D    diffuseTex;   SamplerState sampler_diffuseTex;
+Texture2D    baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 // deposit:    depositAmount
@@ -109,6 +110,32 @@ float4 lenia_selectedDiffuse(float2 uv)
     float2 clamped = clamp(uv, float2(0.0, 0.0), float2(0.999999, 0.999999));
     int2 pixel = clamp((int2)(clamped * float2((float)dw, (float)dh)), int2(0, 0), int2((int)dw - 1, (int)dh - 1));
     return diffuseTex.Load(int3(pixel, 0));
+}
+
+// Color render/pointsEmit gives an agent spawned at pos (WGSL spawnColor).
+float4 lenia_spawnColor(float2 pos)
+{
+    uint dw, dh;
+    inputTex.GetDimensions(dw, dh);
+    float4 sampled = inputTex.Load(int3((int2)(pos * float2((float)dw, (float)dh)), 0));
+    return sampled.a > 0.0 ? sampled : float4(1.0, 1.0, 1.0, 1.0);
+}
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise, so this is rgba
+// unless the agent still carries a diffuse color and has not respawned.
+float4 lenia_baseColor(int2 coord, float4 rgba, float2 pos)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    if (kept.a == 0.0) return rgba;
+    float4 spawn = lenia_spawnColor(pos);
+    float4 spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawn, 0.0, 1.0) * 255.0));
+    return all(spawnDelta <= float4(1.0, 1.0, 1.0, 1.0)) ? rgba : kept;
+}
+
+float4 lenia_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
 }
 float searchRadius;   // globals.searchRadius  default 25.0
 float depositAmount;  // globals.depositAmount default 3.6
@@ -260,13 +287,15 @@ float4 frag_convolve(NMVaryings i) : SV_Target
 
 // =============================================================================
 // PASS: agentField — update agent state from sampled U field (frag_agentField)
-// MRT x3: SV_Target0=outXYZ, SV_Target1=outVel, SV_Target2=outRGBA.
+// MRT x4: SV_Target0=outXYZ, SV_Target1=outVel, SV_Target2=outRGBA,
+// SV_Target3=baseColor.
 // =============================================================================
 struct AgentFieldOutput
 {
     float4 outXYZ  : SV_Target0;
     float4 outVel  : SV_Target1;
     float4 outRGBA : SV_Target2;
+    float4 baseColor : SV_Target3;
 };
 
 // Growth function G(u) = exp(-((u - mu) / sigma)^2)
@@ -305,6 +334,7 @@ AgentFieldOutput frag_agentField(NMVaryings i)
     float4 xyz = xyzTex.Load(int3(coord, 0));
     float4 vel = velTex.Load(int3(coord, 0));
     float4 rgba = rgbaTex.Load(int3(coord, 0));
+    float4 base = lenia_baseColor(coord, rgba, xyz.xy);
 
     // Sample U field at particle position — MUST be in uniform control flow.
     // Do all texture samples before any early returns.
@@ -327,6 +357,7 @@ AgentFieldOutput frag_agentField(NMVaryings i)
         o.outXYZ = xyz;
         o.outVel = vel;
         o.outRGBA = rgba;
+        o.baseColor = lenia_keptBaseColor(base);
         return o;
     }
 
@@ -372,7 +403,8 @@ AgentFieldOutput frag_agentField(NMVaryings i)
     // Output.
     o.outXYZ = float4(newPos, xyz.z, 1.0);
     o.outVel = float4(velocity, age, vel.w);
-    o.outRGBA = diffuseActive > 0.5 ? lenia_selectedDiffuse(o.outXYZ.xy) : rgba;
+    o.outRGBA = diffuseActive > 0.5 ? lenia_selectedDiffuse(o.outXYZ.xy) : base;
+    o.baseColor = lenia_keptBaseColor(base);
 
     return o;
 }

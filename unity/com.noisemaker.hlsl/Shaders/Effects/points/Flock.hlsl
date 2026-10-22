@@ -76,6 +76,7 @@ Texture2D    velTex;     SamplerState sampler_velTex;
 Texture2D    rgbaTex;    SamplerState sampler_rgbaTex;
 Texture2D    inputTex;   SamplerState sampler_inputTex;
 Texture2D    diffuseTex; SamplerState sampler_diffuseTex;
+Texture2D    baseColorTex; SamplerState sampler_baseColorTex;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) ------
 float separation;        // default 2.0
@@ -90,6 +91,33 @@ float wallMargin;        // default 50
 float noiseWeight;       // default 0.1
 float diffuseActive;     // globals.diffuseTex colorModeUniform (1 when diffuseTex is wired)
 
+// WGSL spawnColor: the color render/pointsEmit gives an agent spawned at pos.
+float4 flock_spawnColor(float2 pos)
+{
+    uint dw, dh;
+    inputTex.GetDimensions(dw, dh);
+    int2 coord = (int2)(pos * float2((float)dw, (float)dh));
+    float4 sampled = inputTex.Load(int3(coord, 0));
+    return sampled.a > 0.0 ? sampled : float4(1.0, 1.0, 1.0, 1.0);
+}
+
+// WGSL baseColor: the agent's color without a diffuse map. baseColorTex keeps
+// it (alpha > 0) while a diffuse map is active and is cleared otherwise, so
+// this is rgba unless the agent still carries a diffuse color and has not
+// respawned.
+float4 flock_baseColor(int2 coord, float4 rgba, float2 pos)
+{
+    float4 kept = baseColorTex.Load(int3(coord, 0));
+    if (kept.a == 0.0) return rgba;
+    float4 spawn = flock_spawnColor(pos);
+    float4 spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawn, 0.0, 1.0) * 255.0));
+    return all(spawnDelta <= float4(1.0, 1.0, 1.0, 1.0)) ? rgba : kept;
+}
+
+float4 flock_keptBaseColor(float4 base)
+{
+    return diffuseActive > 0.5 ? float4(base.rgb, max(base.a, 1.0 / 255.0)) : float4(0.0, 0.0, 0.0, 0.0);
+}
 // WGSL selectedDiffuse: clamp uv, convert to texel coords, textureLoad.
 float4 flock_selectedDiffuse(float2 uv)
 {
@@ -188,6 +216,7 @@ struct FlockAgentOutputs
     float4 xyz  : SV_Target0;
     float4 vel  : SV_Target1;
     float4 rgba : SV_Target2;
+    float4 baseColor : SV_Target3;
 };
 
 FlockAgentOutputs frag_agent(NMVaryings i)
@@ -203,6 +232,7 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     float4 xyz  = xyzTex.Load(int3(coord, 0));
     float4 vel  = velTex.Load(int3(coord, 0));
     float4 rgba = rgbaTex.Load(int3(coord, 0));
+    float4 base = flock_baseColor(coord, rgba, xyz.xy);
 
     // Extract components
     float px = xyz.x;   // normalized x
@@ -228,6 +258,7 @@ FlockAgentOutputs frag_agent(NMVaryings i)
         deadOut.xyz  = xyz;
         deadOut.vel  = vel;
         deadOut.rgba = rgba;
+        deadOut.baseColor = flock_keptBaseColor(base);
         return deadOut;
     }
 
@@ -440,7 +471,8 @@ FlockAgentOutputs frag_agent(NMVaryings i)
     FlockAgentOutputs o;
     o.xyz  = float4(newPx, newPy, xyz.z, 1.0);
     o.vel  = float4(velocity, age, seed);
-    o.rgba = diffuseActive > 0.5 ? flock_selectedDiffuse(o.xyz.xy) : rgba;
+    o.rgba = diffuseActive > 0.5 ? flock_selectedDiffuse(o.xyz.xy) : base;
+    o.baseColor = flock_keptBaseColor(base);
     return o;
 }
 

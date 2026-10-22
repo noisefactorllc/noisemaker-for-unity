@@ -75,18 +75,18 @@ mixer/thresholdMix	tex	type surface not swept
 mixer/uvRemap	tex	type surface not swept
 points/attractor	diffuseTex	type surface not swept
 points/buddhabrot	diffuseTex	type surface not swept
+points/dla	heightTex	type surface not swept
 points/dla	diffuseTex	type surface not swept
-points/dla	fieldTex	type surface not swept
 points/flock	diffuseTex	type surface not swept
+points/flow	heightTex	type surface not swept
 points/flow	diffuseTex	type surface not swept
-points/flow	fieldTex	type surface not swept
 points/heightGrid	-	no base program
-points/hydraulic	diffuseTex	type surface not swept
 points/hydraulic	heightTex	type surface not swept
+points/hydraulic	diffuseTex	type surface not swept
 points/lenia	diffuseTex	type surface not swept
 points/life	diffuseTex	type surface not swept
+points/physarum	heightTex	type surface not swept
 points/physarum	diffuseTex	type surface not swept
-points/physarum	fieldTex	type surface not swept
 points/physical	diffuseTex	type surface not swept
 render/meshRender	diffuseColor	type color not swept
 render/meshRender	specularColor	type color not swept

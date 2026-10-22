@@ -32,12 +32,12 @@ for arg in "$@"; do
   esac
 done
 
-# Reference authority: noisemaker 317c43cc, the pinned authority the committed
-# parity corpora are recorded against (synced from 6cb1a3c3; moved to 317c43cc
-# for the texture-input surface contracts: diffuseActive/fieldActive colorMode
-# uniforms and surface-typed diffuseTex/fieldTex/heightTex defaults "none").
+# Reference authority: noisemaker 12751c78, the pinned authority the committed
+# parity corpora are recorded against (synced from 317c43cc; moved to 12751c78
+# for the particle base-color contracts: outBaseColor MRT4 agent outputs,
+# per-effect base_color surfaces, heightTex renames, and dim inherit).
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="317c43ccb2eaaf0ea1d0dad6321c97c70edb9119"
+REFERENCE_SHA="12751c78103ec352bd359a9944bbeac5ad239a4b"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"

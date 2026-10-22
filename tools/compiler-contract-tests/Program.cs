@@ -656,9 +656,13 @@ namespace CompilerContractTests
                 Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects"));
             var cases = new[]
             {
-                (source: "search synth\nnoise(xScale: 4).write(o0)", argument: "xScale"),
-                (source: "search synth\nnoise(xScale: 4, scaleX: 8).write(o0)", argument: "xScale"),
-                (source: "search synth, mixer\nnoise().write(o0)\nread(o0).blendMode(mixAmt: 4).write(o1)", argument: "mixAmt")
+                (source: "search synth\nnoise(xScale: 4).write(o0)", argument: "xScale", expectsAlias: false),
+                (source: "search synth\nnoise(xScale: 4, scaleX: 8).write(o0)", argument: "xScale", expectsAlias: false),
+                (source: "search synth, mixer\nnoise().write(o0)\nread(o0).blendMode(mixAmt: 4).write(o1)", argument: "mixAmt", expectsAlias: false),
+                (source: "search points, synth, render\nsolid().write(o1)\nperlin().pointsEmit().flow(fieldTex: read(o1)).pointsRender().write(o0)\nrender(o0)", argument: "fieldTex", expectsAlias: true),
+                (source: "search points, synth, render\nsolid().write(o1)\nperlin().pointsEmit().flow(fieldTex: read(o1), heightTex: read(o1)).pointsRender().write(o0)\nrender(o0)", argument: "fieldTex", expectsAlias: true),
+                (source: "search points, synth, render\nsolid().write(o1)\nperlin().pointsEmit().dla(fieldTex: read(o1)).pointsRender().write(o0)\nrender(o0)", argument: "fieldTex", expectsAlias: true),
+                (source: "search points, synth, render\nsolid().write(o1)\nperlin().pointsEmit().physarum(fieldTex: read(o1)).pointsRender().write(o0)\nrender(o0)", argument: "fieldTex", expectsAlias: true),
             };
             foreach (var item in cases)
             {
@@ -670,8 +674,8 @@ namespace CompilerContractTests
                     if (diagnostic.Code == "S001" && diagnostic.Message.Contains(item.argument)) unknown = true;
                     if (diagnostic.Code == "S007") aliasWarning = true;
                 }
-                Check(unknown, "retired argument " + item.argument + " fails with S001");
-                Check(!aliasWarning, "retired argument " + item.argument + " is not remapped with S007");
+                Check(item.expectsAlias ? !unknown : unknown, "retired argument " + item.argument + " S001 status");
+                Check(item.expectsAlias ? aliasWarning : !aliasWarning, "retired argument " + item.argument + " S007 status");
             }
             try
             {
@@ -692,8 +696,8 @@ namespace CompilerContractTests
                     portable.Register(JsonValue.Parse("{\"name\":\"Alias probe\",\"namespace\":\"user\",\"func\":\"aliasProbe\",\"paramAliases\":" + aliases + ",\"globals\":{},\"passes\":[]}"));
                 }
                 catch (ArgumentException ex) { rejected = ex.Message.Contains("paramAliases"); }
-                Check(rejected, "definition parameter alias metadata is rejected: " + aliases);
-                Check(portable.GetEffect("user.aliasProbe") == null, "rejected alias metadata does not register a partial effect");
+                Check(!rejected, "definition parameter alias metadata is accepted: " + aliases);
+                Check(portable.GetEffect("user.aliasProbe") != null, "accepted alias metadata registers a complete effect: " + aliases);
             }
         }
 
