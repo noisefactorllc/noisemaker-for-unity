@@ -115,6 +115,7 @@ render__render3d	parity/programs/upstream-cases/render__render3d.dsl
 render__renderLandscape3d	parity/programs/upstream-cases/render__renderLandscape3d.dsl
 render__renderLit3d	parity/programs/upstream-cases/render__renderLit3d.dsl
 synth3d__cell3d	parity/programs/upstream-cases/synth3d__cell3d.dsl
+synth3d__cellularAutomata3d	parity/programs/upstream-cases/synth3d__cellularAutomata3d.dsl
 synth3d__flythrough3d	parity/programs/upstream-cases/synth3d__flythrough3d.dsl
 synth3d__fractal3d	parity/programs/upstream-cases/synth3d__fractal3d.dsl
 synth3d__heightmap3d	parity/programs/upstream-cases/synth3d__heightmap3d.dsl

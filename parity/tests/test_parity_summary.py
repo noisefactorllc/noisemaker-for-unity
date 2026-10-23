@@ -25,8 +25,10 @@ class ParitySummaryTests(unittest.TestCase):
 
     def test_catalog_covers_each_declared_capture_protocol(self):
         cases = self.summary.catalog(ROOT)
-        self.assertEqual(len(cases), 2514)
-        self.assertEqual(len({case.id for case in cases}), 2514)
+        self.assertEqual(len(cases), 2516)
+        self.assertEqual(len({case.id for case in cases}), 2516)
+        self.assertIn("upstream/synth3d__cellularAutomata3d", {case.id for case in cases})
+        self.assertIn("upstream-tiled/synth3d__cellularAutomata3d", {case.id for case in cases})
         by_id = {case.id: case for case in cases}
         self.assertEqual(by_id["points/points__flow"].protocol.frames, 60)
         self.assertEqual(by_id["param-sweep/points__flow__inputWeight__mid"].protocol.frames, 60)
@@ -45,7 +47,7 @@ class ParitySummaryTests(unittest.TestCase):
                 self.summary.select_cases(cases, requested)
         selected = self.summary.select_cases(cases, ["root/blendMode", "v104-tiled/mandala_tiled"])
         self.assertEqual([case.id for case in selected], ["root/blendMode", "v104-tiled/mandala_tiled"])
-        self.assertEqual(len(self.summary.select_cases(cases, [])), 2514)
+        self.assertEqual(len(self.summary.select_cases(cases, [])), 2516)
 
     def test_real_comparator_defers_bounded_near_until_visual_review(self):
         with tempfile.TemporaryDirectory() as tmp:
