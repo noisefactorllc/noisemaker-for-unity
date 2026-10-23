@@ -383,7 +383,7 @@ namespace Noisemaker.Hlsl.Editor
                 {
                     RenderGraph graph = DslCompiler.Compile(File.ReadAllText(dslPath), reg);
                     if (graph == null) { fail++; Debug.LogError("NM-DSL-FAIL " + name + ": compile returned null"); continue; }
-                    RenderGraphToPng(graph, outPng, size, time);
+                    RenderGraphToPng(graph, outPng, size, time, LoadTextureInputs(dslPath));
                     ok++; Debug.Log("[NMParity] wrote " + outPng);
                 }
                 catch (CompileException ce)
@@ -621,7 +621,8 @@ namespace Noisemaker.Hlsl.Editor
         // Core render shared by the graph.json path and the DSL path: build the pipeline
         // from an in-memory RenderGraph, advance 8 frames, read back the LINEAR RT,
         // quantise to 8-bit (no gamma — matches the golden), encode PNG.
-        public static void RenderGraphToPng(RenderGraph graph, string outPngPath, int size, float normalizedTime)
+        public static void RenderGraphToPng(RenderGraph graph, string outPngPath, int size, float normalizedTime,
+            TextureInput[] textureInputs = null)
         {
             if (graph == null) throw new Exception("RenderGraphToPng: null graph");
             if (PlayerSettings.colorSpace != ColorSpace.Linear)
@@ -640,7 +641,7 @@ namespace Noisemaker.Hlsl.Editor
             output.Create();
             try
             {
-                BuildAndRender(graph, output, size, normalizedTime);
+                BuildAndRender(graph, output, size, normalizedTime, textureInputs);
 
                 var prev = RenderTexture.active;
                 RenderTexture.active = output;
@@ -700,7 +701,8 @@ namespace Noisemaker.Hlsl.Editor
             Debug.Log("[NMParity] registered " + byName.Count + "/" + guids.Length + " package shaders by name.");
         }
 
-        private static void BuildAndRender(RenderGraph graph, RenderTexture output, int size, float normalizedTime)
+        private static void BuildAndRender(RenderGraph graph, RenderTexture output, int size, float normalizedTime,
+            TextureInput[] textureInputs = null)
         {
             // Build the runtime pipeline, warm N deterministic frames (so feedback/
             // state surfaces settle), present renderSurface -> output, dispose.
@@ -730,6 +732,9 @@ namespace Noisemaker.Hlsl.Editor
                 int verts = pipeline.LoadMeshObj("mesh0", objText);
                 Debug.Log($"[NMParity] mesh0 loaded from {meshPath}: {verts} vertices");
             }
+            // Texture fixtures bind after Init, in the golden harness's order (zero
+            // everything, load the mesh, upload the textures, then the frame loop).
+            BindTextureInputs(graph, pipeline, textureInputs);
 
             int fullWidth = ParseIntArg("-nmFullWidth", 0);
             int fullHeight = ParseIntArg("-nmFullHeight", 0);
@@ -764,6 +769,127 @@ namespace Noisemaker.Hlsl.Editor
         {
             int v = Mathf.RoundToInt(Mathf.Clamp01(linear01) * 255f);
             return (byte)Mathf.Clamp(v, 0, 255);
+        }
+
+        // ---- texture fixtures ----------------------------------------------------
+        // An authority parity case's textureInputs: raw RGBA8 texels for an effect's
+        // external texture (synth/media imageTex, filter/text textTex), read from
+        // <name>.textures.json beside the case DSL. parity/batch-golden.mjs uploads the
+        // same file on the reference side.
+        [Serializable]
+        public sealed class TextureInput
+        {
+            public string effect;
+            public string uniform;
+            public int width;
+            public int height;
+            public int[] data;
+        }
+
+        [Serializable]
+        private sealed class TextureInputList
+        {
+            public TextureInput[] items;
+        }
+
+        private static TextureInput[] LoadTextureInputs(string dslPath)
+        {
+            string path = Path.ChangeExtension(dslPath, ".textures.json");
+            if (!File.Exists(path)) return null;
+            TextureInputList list = JsonUtility.FromJson<TextureInputList>(
+                "{\"items\":" + File.ReadAllText(path) + "}");
+            if (list == null || list.items == null || list.items.Length == 0)
+                throw new Exception("texture fixture file has no inputs: " + path);
+            foreach (TextureInput input in list.items)
+            {
+                if (string.IsNullOrEmpty(input.effect) || input.effect.IndexOf('/') <= 0 ||
+                    string.IsNullOrEmpty(input.uniform) || input.width <= 0 || input.height <= 0 ||
+                    input.data == null || input.data.Length != input.width * input.height * 4)
+                    throw new Exception("invalid texture fixture in " + path);
+            }
+            return list.items;
+        }
+
+        // Mirrors the reference upload (webgl2.js updateTextureFromSource with flipY
+        // false): an rgba8 texture under the pass input's texture id, LINEAR filtering,
+        // CLAMP_TO_EDGE wrap, data row y at texel row y. The package has no texture
+        // input API, so the harness gives the graph a spec for that id and fills the
+        // texture the pipeline resolves for it.
+        private static void BindTextureInputs(RenderGraph graph, NMPipeline pipeline, TextureInput[] inputs)
+        {
+            if (inputs == null) return;
+            foreach (TextureInput input in inputs)
+            {
+                int slash = input.effect.IndexOf('/');
+                string ns = input.effect.Substring(0, slash);
+                string func = input.effect.Substring(slash + 1);
+                int bound = 0;
+                foreach (Pass pass in graph.Passes)
+                {
+                    if (pass.Func != func || (pass.Namespace != null && pass.Namespace != ns)) continue;
+                    string texId;
+                    if (pass.Inputs == null || !pass.Inputs.TryGetValue(input.uniform, out texId) ||
+                        string.IsNullOrEmpty(texId) || texId == "none")
+                        throw new Exception("texture fixture uniform is not bound: " + input.uniform);
+                    if (graph.Textures == null) graph.Textures = new OrderedMap<string, TextureSpec>();
+                    graph.Textures[texId] = new TextureSpec
+                    {
+                        Width = Dim.FromNumber(input.width),
+                        Height = Dim.FromNumber(input.height),
+                        Format = "rgba8"
+                    };
+                    RenderTexture target = pipeline.ResolveWrite(texId);
+                    if (target == null || target.width != input.width || target.height != input.height)
+                        throw new Exception("texture fixture target was not created: " + texId);
+                    UploadTexels(target, input);
+                    bound++;
+                    Debug.Log($"[NMParity] {texId} bound from texture fixture {input.effect}.{input.uniform}: {input.width}x{input.height}");
+                }
+                if (bound == 0) throw new Exception("texture fixture has no executing effect: " + input.effect);
+            }
+        }
+
+        // Staging Texture2D + Graphics.Blit, the upload path NMMeshData and the CPU
+        // overlays use: staging row y lands at Load row y. The texels are read back
+        // and compared before the frames render.
+        private static void UploadTexels(RenderTexture target, TextureInput input)
+        {
+            int count = input.width * input.height;
+            var texels = new Color32[count];
+            for (int i = 0; i < count; i++)
+                texels[i] = new Color32((byte)input.data[i * 4], (byte)input.data[i * 4 + 1],
+                    (byte)input.data[i * 4 + 2], (byte)input.data[i * 4 + 3]);
+            var staging = new Texture2D(input.width, input.height, TextureFormat.RGBA32, false, /*linear*/ true)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var check = new Texture2D(input.width, input.height, TextureFormat.RGBA32, false, /*linear*/ true);
+            RenderTexture previous = RenderTexture.active;
+            try
+            {
+                staging.SetPixels32(texels);
+                staging.Apply(false);
+                Graphics.Blit(staging, target);
+                RenderTexture.active = target;
+                check.ReadPixels(new Rect(0, 0, input.width, input.height), 0, 0);
+                check.Apply(false);
+                Color32[] actual = check.GetPixels32();
+                for (int i = 0; i < count; i++)
+                {
+                    if (actual[i].r != texels[i].r || actual[i].g != texels[i].g ||
+                        actual[i].b != texels[i].b || actual[i].a != texels[i].a)
+                        throw new Exception("texture fixture texels differ after upload: texel " + i);
+                }
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                UnityEngine.Object.DestroyImmediate(staging);
+                UnityEngine.Object.DestroyImmediate(check);
+            }
+            target.filterMode = FilterMode.Bilinear;
+            target.wrapMode = TextureWrapMode.Clamp;
         }
 
         // ---- command-line arg helpers ------------------------------------------

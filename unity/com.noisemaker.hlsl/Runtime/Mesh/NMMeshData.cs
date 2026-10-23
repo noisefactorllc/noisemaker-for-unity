@@ -60,29 +60,48 @@ namespace Noisemaker.Hlsl
         // uploadMeshData(meshId, positionData, normalData, uvData, w, h, vertexCount).
         public int UploadParsed(string meshName, NMMeshArrays mesh)
         {
-            SurfaceRecord rec = _surfaces.GetSurface(meshName);
-            if (rec == null || !rec.IsMesh)
-            {
-                Debug.LogError("[Noisemaker] uploadMeshData: no mesh surface '" +
-                    meshName + "'. Ensure a pass references global_" + meshName +
-                    "_positions so SurfaceManager allocates the triplet.");
-                return 0;
-            }
-
             int w = SurfaceManager.MeshTexSize; // 256
             int h = SurfaceManager.MeshTexSize; // 256
+
+            SurfaceRecord rec = _surfaces.GetSurface(meshName);
+            string pos, norm, uv;
+            if (rec != null && rec.IsMesh)
+            {
+                pos = rec.Positions;
+                norm = rec.Normals;
+                uv = rec.Uvs;
+            }
+            else if (rec == null)
+            {
+                // The reference uploadMeshData gets or creates the triplet textures and
+                // returns the vertex count even when no pass of the current graph reads
+                // the mesh. SurfaceManager allocates only referenced meshes, so create an
+                // unreferenced triplet here under the same ids.
+                pos = "global_" + meshName + "_positions";
+                norm = "global_" + meshName + "_normals";
+                uv = "global_" + meshName + "_uvs";
+                _store.CreateOrReuse(pos, w, h, "rgba32f", false, 1);
+                _store.CreateOrReuse(norm, w, h, "rgba32f", false, 1);
+                _store.CreateOrReuse(uv, w, h, "rgba32f", false, 1);
+            }
+            else
+            {
+                Debug.LogError("[Noisemaker] uploadMeshData: '" + meshName +
+                    "' is not a mesh surface.");
+                return 0;
+            }
 
             float[] posData, normData, uvData;
             int used;
             NMObjLoader.PackForTextures(mesh, w, h, out posData, out normData, out uvData, out used);
 
             // positions: full-precision RGBAFloat (matches rgba32f surface).
-            UploadAttr(ref _posStaging, rec.Positions, posData, w, h, TextureFormat.RGBAFloat);
+            UploadAttr(ref _posStaging, pos, posData, w, h, TextureFormat.RGBAFloat);
             // reference uploads normals as rgba32f and uvs as rgba16f; the SurfaceManager
             // allocates all three as ARGBFloat, so stage both as RGBAFloat for parity of
             // the surface contents (the VS only needs ~half precision for normals/uvs).
-            UploadAttr(ref _normStaging, rec.Normals, normData, w, h, TextureFormat.RGBAFloat);
-            UploadAttr(ref _uvStaging, rec.Uvs, uvData, w, h, TextureFormat.RGBAFloat);
+            UploadAttr(ref _normStaging, norm, normData, w, h, TextureFormat.RGBAFloat);
+            UploadAttr(ref _uvStaging, uv, uvData, w, h, TextureFormat.RGBAFloat);
 
             _vertexCounts[meshName] = used;
             return used;

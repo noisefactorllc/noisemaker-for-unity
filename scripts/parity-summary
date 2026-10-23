@@ -170,8 +170,13 @@ def validate_inputs(root, reference, cases):
     if set(upstream) != set(authoritative):
         raise ValueError("upstream manifest differs from the pinned authority case set")
     for name, case in upstream.items():
-        if Path(case.dsl).read_text() != json.loads(authoritative[name].read_text())["dsl"]:
+        authority = json.loads(authoritative[name].read_text())
+        if Path(case.dsl).read_text() != authority["dsl"]:
             raise ValueError(f"fixture differs from the pinned authority: {case.id}")
+        # Both renderers bind a case's authority textureInputs from this file.
+        textures = Path(case.dsl).with_suffix(".textures.json")
+        if (json.loads(textures.read_text()) if textures.is_file() else None) != authority.get("textureInputs"):
+            raise ValueError(f"texture inputs differ from the pinned authority: {case.id}")
     for mesh in {case.protocol.mesh for case in cases if case.protocol.mesh}:
         if Path(mesh).read_bytes() != (reference / "share/meshes" / Path(mesh).name).read_bytes():
             raise ValueError(f"mesh differs from the pinned authority: {mesh}")

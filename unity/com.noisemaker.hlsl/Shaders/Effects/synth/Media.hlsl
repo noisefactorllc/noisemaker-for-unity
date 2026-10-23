@@ -3,7 +3,7 @@
 // Normalizes camera/video/image textures, crop + tilt + tile + flip controls,
 // preserving aspect ratio. Offset remapping never samples outside the source.
 
-#include "NMFullscreen.hlsl"
+#include "../../Include/NMFullscreen.hlsl"
 
 // External texture (definition externalTexture: "imageTex"). Bound by the
 // runtime as a SetGlobalTexture under the pass input's uniform name.

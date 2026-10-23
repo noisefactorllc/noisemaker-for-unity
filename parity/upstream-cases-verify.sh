@@ -31,7 +31,7 @@ if [ -n "$reference_status" ]; then
 fi
 
 # Fail closed if a fixture is missing, extra, or differs from the pinned
-# upstream parity-case DSL. The cube is the pinned meshLoader input.
+# upstream parity-case DSL or texture inputs. The cube is the pinned meshLoader input.
 "$PYTHON" - "$ROOT" "$NM_REFERENCE_ROOT" <<'PY'
 import json
 import sys
@@ -49,7 +49,10 @@ assert {p.name for p in corpus.glob('*.dsl')} == {
 for name, path in rows:
     assert name in expected, f'unknown case {name}'
     assert path == f'parity/programs/upstream-cases/{name}.dsl', name
-    assert (root / path).read_text() == json.loads(expected[name].read_text())['dsl'], name
+    case = json.loads(expected[name].read_text())
+    assert (root / path).read_text() == case['dsl'], name
+    textures = (root / path).with_suffix('.textures.json')
+    assert (json.loads(textures.read_text()) if textures.is_file() else None) == case.get('textureInputs'), name
 assert (corpus / 'cube.obj').read_bytes() == (ref / 'share/meshes/cube.obj').read_bytes()
 assert (corpus / 'flow60-manifest.tsv').read_text() == (
     'points__flow\tparity/programs/upstream-cases/points__flow.dsl\n')

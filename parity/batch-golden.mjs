@@ -13,7 +13,7 @@
 //
 // See parity/export-and-render.mjs for the per-program driving rationale.
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { deflateSync } from 'node:zlib'
@@ -53,7 +53,7 @@ function parseArgs (argv) {
 }
 
 // Drive the demo to load one DSL and read back o0 as linear-quantised RGBA8 top-down.
-export async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null, meshText = null, expectedBackend = 'webgl2') {
+export async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null, meshText = null, expectedBackend = 'webgl2', textures = null, compiledPasses = null) {
   if (veltex && expectedBackend !== 'webgl2') throw new Error('raw velocity readback requires WebGL2')
   const baselineId = lastId
   await page.evaluate((src) => {
@@ -108,7 +108,7 @@ export async function renderOne (page, dsl, size, time, lastId, frames = 8, time
   // Together these make the golden the SAME clean N-frames-from-zero render the
   // Unity side does, and removes the warm-up pollution + cross-effect leakage that
   // made stateful goldens bimodal.
-  await page.evaluate(async ({ t, frames, ts, region, meshText }) => {
+  await page.evaluate(async ({ t, frames, ts, region, meshText, textures, compiledPasses }) => {
     const p = window.__noisemakerRenderingPipeline
     const r = window.__noisemakerCanvasRenderer
     if (region) {
@@ -181,10 +181,62 @@ export async function renderOne (page, dsl, size, time, lastId, frames = 8, time
       const res = await rr.loadOBJFromString(meshText, 'mesh0')
       if (!res || !res.success) throw new Error('mesh0 load failed: ' + (res && res.error))
     }
+    // TEXTURE FIXTURES — an authority parity case may declare textureInputs: raw
+    // RGBA8 texels for an effect's external texture (synth/media imageTex,
+    // filter/text textTex). Upload them AFTER the zeroing, like the mesh, through
+    // the reference's updateTextureFromSource with flipY false, as the authority's
+    // attestation does. An ImageBitmap with premultiplyAlpha 'none' carries the
+    // bytes unchanged; the Unity runner binds the same bytes from the same file.
+    const bound = []
+    for (const texture of textures || []) {
+      if (p?.backend?.getName?.().toLowerCase() !== 'webgl2') throw new Error('texture fixtures require the WebGL2 backend')
+      const slash = texture.effect.indexOf('/')
+      const namespace = texture.effect.slice(0, slash)
+      const func = texture.effect.slice(slash + 1)
+      const passes = (p.graph?.passes || []).filter(pass =>
+        (pass.effectFunc === func || pass.effectKey === func || pass.effectKey === texture.effect) &&
+        (pass.effectNamespace == null || pass.effectNamespace === namespace))
+      if (!passes.length) throw new Error('texture fixture has no executing effect: ' + texture.effect)
+      const bitmap = await createImageBitmap(new ImageData(new Uint8ClampedArray(texture.data), texture.width, texture.height),
+        { premultiplyAlpha: 'none', colorSpaceConversion: 'none' })
+      for (const pass of passes) {
+        const id = pass.inputs?.[texture.uniform]
+        if (typeof id !== 'string') throw new Error('texture fixture uniform is not bound: ' + texture.uniform)
+        const uploaded = r.updateTextureFromSource(id, bitmap, { flipY: false })
+        if (uploaded?.width !== texture.width || uploaded?.height !== texture.height) throw new Error('texture fixture upload dimensions differ: ' + id)
+        bound.push({ id, texture })
+        // The demo's ProgramState does not carry an effect's hidden globals (ui
+        // control false, e.g. synth/media imageSize). It pushes their defaults over
+        // the compiled DSL values, and its own media upload then sets imageSize.
+        // This upload replaces that path, so restore those uniforms from the
+        // reference compiler's graph for this DSL, the values the attestation's
+        // direct compile and the Unity runner use.
+        const compiled = (compiledPasses || []).find(c => c.id === pass.id)
+        if (!compiled) throw new Error('texture fixture pass is missing from the compiled graph: ' + pass.id)
+        const getEffect = window.__noisemakerRegistry?.getEffect
+        const def = getEffect?.(texture.effect) || getEffect?.(namespace + '.' + func) || getEffect?.(func)
+        if (!def) throw new Error('texture fixture effect definition not found: ' + texture.effect)
+        for (const spec of Object.values(def.globals || {})) {
+          if (spec?.ui?.control !== false || !spec.uniform || compiled.uniforms?.[spec.uniform] === undefined) continue
+          const value = compiled.uniforms[spec.uniform]
+          pass.uniforms[spec.uniform] = Array.isArray(value) ? value.slice() : value
+        }
+      }
+    }
     // ts>0 ADVANCES time per frame (animated input — reproduces the live demo's
     // normalized=(Time.time/dur)%1); ts=0 keeps the fixed-time deterministic render.
     for (let i = 0; i < frames; i++) { const tt = ts > 0 ? (t + i * ts) % 1 : t; if (p && p.render) p.render(tt); else if (r && r.render) r.render(tt) }
-  }, { t: time, frames, ts: timestep, region, meshText })
+    // Each fixture texture must still hold the fixture bytes after the frames.
+    // readPixels returns rows top-down; GL row 0 holds data row 0 (flipY false).
+    for (const { id, texture } of bound) {
+      const { data } = await p.backend.readPixels(id)
+      const row = texture.width * 4
+      for (let y = 0; y < texture.height; y++) {
+        const actual = Array.from(data.subarray((texture.height - 1 - y) * row, (texture.height - y) * row))
+        if (actual.join() !== texture.data.slice(y * row, (y + 1) * row).join()) throw new Error('texture fixture texels differ after rendering: ' + id)
+      }
+    }
+  }, { t: time, frames, ts: timestep, region, meshText, textures, compiledPasses })
   const result = await page.evaluate(async (expectedBackend) => {
     const pipeline = window.__noisemakerRenderingPipeline
     const backend = pipeline?.backend
@@ -299,10 +351,15 @@ async function main () {
         firstItem = false
         const dsl = readFileSync(it.dslPath, 'utf8')
         const meshText = o.meshPath ? readFileSync(o.meshPath, 'utf8') : null
+        // An authority case's textureInputs live beside its DSL (<name>.textures.json).
+        const texturesPath = it.dslPath.replace(/\.dsl$/, '.textures.json')
+        const textures = texturesPath !== it.dslPath && existsSync(texturesPath)
+          ? JSON.parse(readFileSync(texturesPath, 'utf8')) : null
         // graph.json (no browser needed; uses the reference compiler).
-        try { const g = await exportGraph(dsl); writeFileSync(join(o.outDir, `${it.name}.graph.json`), JSON.stringify(g, null, 2) + '\n') }
+        let g
+        try { g = await exportGraph(dsl); writeFileSync(join(o.outDir, `${it.name}.graph.json`), JSON.stringify(g, null, 2) + '\n') }
         catch (e) { process.stderr.write(`[batch] ${it.name} GRAPH-FAIL ${e?.message || e}\n`); fail++; continue }
-        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region, meshText, o.backend)
+        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region, meshText, o.backend, textures, g.passes)
         lastId = graphId
         writeFileSync(join(o.outDir, `${it.name}.golden.png`), png)
         if (vel) {

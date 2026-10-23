@@ -190,6 +190,31 @@ class ParitySummaryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "authority"):
                 self.summary.validate_inputs(root, ref, cases)
 
+    def test_authority_texture_inputs_must_match_the_port_fixture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, ref = Path(tmp) / "port", Path(tmp) / "reference"
+            original = ref / "shaders/effects/synth/media/parity-case.json"
+            original.parent.mkdir(parents=True)
+            texture = {"effect": "synth/media", "uniform": "imageTex", "width": 1, "height": 1,
+                       "data": [255, 0, 0, 255]}
+            original.write_text(json.dumps({"dsl": "media().write(o0)", "textureInputs": [texture]}))
+            root.mkdir()
+            dsl = root / "synth__media.dsl"
+            dsl.write_text("media().write(o0)")
+            cases = [self.summary.Case("upstream/synth__media", "synth__media", str(dsl),
+                                       self.summary.Protocol(), 1, 0)]
+            with self.assertRaisesRegex(ValueError, "texture inputs"):
+                self.summary.validate_inputs(root, ref, cases)
+            (root / "synth__media.textures.json").write_text(json.dumps([texture]))
+            self.summary.validate_inputs(root, ref, cases)
+            original.write_text(json.dumps({"dsl": "media().write(o0)",
+                                            "textureInputs": [dict(texture, data=[0, 0, 255, 255])]}))
+            with self.assertRaisesRegex(ValueError, "texture inputs"):
+                self.summary.validate_inputs(root, ref, cases)
+            original.write_text(json.dumps({"dsl": "media().write(o0)"}))
+            with self.assertRaisesRegex(ValueError, "texture inputs"):
+                self.summary.validate_inputs(root, ref, cases)
+
     def test_package_mismatch_and_extra_shader_are_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "source"

@@ -95,6 +95,62 @@ test('CLI exits nonzero when a manifest item cannot be rendered', () => {
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
+test('texture fixtures upload raw texels after clear and are checked after the frames', async () => {
+  const { page } = fakePage('webgl2')
+  const events = []
+  const pipeline = window.__noisemakerRenderingPipeline
+  const texture = { effect: 'synth/media', uniform: 'imageTex', width: 1, height: 2, data: [1, 2, 3, 4, 5, 6, 7, 8] }
+  const pass = { id: 'node_0_pass_0', effectNamespace: 'synth', effectFunc: 'media', effectKey: 'synth.media', inputs: { imageTex: 'imageTex_step_0' }, uniforms: { imageSize: [1024, 1024], scaleAmt: 50 } }
+  const compiled = [{ id: 'node_0_pass_0', uniforms: { imageSize: [64, 64], scaleAmt: 100 } }]
+  pipeline.graph.passes = [pass]
+  window.__noisemakerRegistry = {
+    getEffect: name => name === 'synth/media'
+      ? { globals: { imageSize: { uniform: 'imageSize', ui: { control: false } }, scaleAmt: { uniform: 'scaleAmt', ui: { control: 'slider' } } } }
+      : undefined
+  }
+  pipeline.backend.textures.set('stale', {})
+  pipeline.backend.clearTexture = id => events.push(['clear', id])
+  pipeline.render = () => events.push(['render'])
+  let stored = null
+  pipeline.backend.readPixels = id => {
+    events.push(['read', id])
+    // WebGL2 readPixels is top-down: data row 1 first.
+    return { width: 1, height: 2, data: Uint8Array.from([...stored.slice(4), ...stored.slice(0, 4)]) }
+  }
+  globalThis.ImageData = class { constructor (data, width, height) { Object.assign(this, { data, width, height }) } }
+  globalThis.createImageBitmap = async (image, options) => ({ image, options })
+  window.__noisemakerCanvasRenderer = {
+    updateTextureFromSource: (id, bitmap, options) => {
+      events.push(['upload', id, options.flipY, bitmap.options.premultiplyAlpha])
+      stored = Array.from(bitmap.image.data)
+      return { width: bitmap.image.width, height: bitmap.image.height }
+    }
+  }
+  try {
+    // The fake page has no GL output surface, so a WebGL2 render ends at the
+    // output readback, after the fixture steps.
+    await assert.rejects(renderOne(page, 'media()', 1, 0.25, 'old', 1, 0, null, null, null, 'webgl2', [texture], compiled),
+      /readback: no GL surface/)
+    assert.deepEqual(events, [
+      ['clear', 'stale'], ['upload', 'imageTex_step_0', false, 'none'], ['render'], ['read', 'imageTex_step_0']
+    ])
+    // The hidden imageSize returns to the compiled DSL value; visible params keep theirs.
+    assert.deepEqual(pass.uniforms, { imageSize: [64, 64], scaleAmt: 50 })
+    stored = [9, 9, 9, 9, 5, 6, 7, 8]
+    window.__noisemakerCanvasRenderer.updateTextureFromSource = () => ({ width: 1, height: 2 })
+    await assert.rejects(renderOne(page, 'media()', 1, 0.25, 'old', 1, 0, null, null, null, 'webgl2', [texture], compiled),
+      /texels differ after rendering: imageTex_step_0/)
+    pipeline.graph.passes = []
+    await assert.rejects(renderOne(page, 'media()', 1, 0.25, 'old', 1, 0, null, null, null, 'webgl2', [texture], compiled),
+      /no executing effect: synth\/media/)
+  } finally {
+    delete globalThis.ImageData
+    delete globalThis.createImageBitmap
+    delete window.__noisemakerCanvasRenderer
+    delete window.__noisemakerRegistry
+  }
+})
+
 test('CPU overlays restart after clear and settle before frame zero', async () => {
   const { page } = fakePage()
   const events = []
