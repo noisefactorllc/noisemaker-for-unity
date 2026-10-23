@@ -33,6 +33,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve, basename, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { openViewerSession } from './viewer-port.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // Reference (golden) engine lives in the sibling `noisemaker` repo. Override
@@ -144,11 +145,11 @@ async function main () {
 
   // ---- 2. Render the golden frame via the Playwright harness ---------------
   // Configure the harness via SHADE_* env (read by BrowserSession.getConfig()).
-  // The viewer server is internal transport, so never pin its port: with
-  // SHADE_VIEWER_PORT set the harness tries only that one port and aborts the
-  // render when another process already holds it (listen EADDRINUSE). Unset,
-  // the harness binds an ephemeral port and the capture is unchanged.
-  delete process.env.SHADE_VIEWER_PORT
+  // The viewer server is internal transport, so its port must not abort the
+  // render: a pinned port fails hard when another process holds it, and an
+  // ephemeral bind fails with EPERM in runners that permit only explicit
+  // loopback ports. openViewerSession tries candidates in turn (pinned port,
+  // the harness's own chain, then the permitted fixed ports).
   process.env.SHADE_VIEWER_ROOT = VIEWER_ROOT
   process.env.SHADE_VIEWER_PATH = VIEWER_PATH
   process.env.SHADE_EFFECTS_DIR = EFFECTS_DIR
@@ -156,12 +157,9 @@ async function main () {
   process.env.SHADE_HEADLESS = process.env.SHADE_HEADLESS ?? '1'
 
   const harness = await import(pathToFileURL(HARNESS).href)
-  const { BrowserSession } = harness
-
-  const session = new BrowserSession({ backend: opts.backend })
+  const session = await openViewerSession({ harness, backend: opts.backend })
   let pngBuffer
   try {
-    await session.setup()
     const page = session.page
     await session.setBackend(opts.backend)
     const globals = session.globals
