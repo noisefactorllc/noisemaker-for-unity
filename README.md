@@ -11,10 +11,11 @@
 
 A parallel port of the Noisemaker shader engine — a separate reference engine, not bundled
 with this package — to **Unity / HLSL**.
-It renders **live procedural textures from the Polymorphic DSL**, aiming to be
-**pixel-identical** to the reference engine's WebGL2 output, and exposes effects both as a
-standalone renderer and as **Shader Graph (material) nodes**. Unity 6 (`6000.0+`) is
-required.
+It renders **live procedural textures from the Polymorphic DSL**, graded against the
+reference engine's WebGL2 output (each parity case is byte-exact, within 1 per 8-bit channel,
+2 in the 3D corpora, or within its measured case-specific NEAR bound), and exposes effects
+both as a standalone renderer and as **Shader Graph (material) nodes**. Unity 6 (`6000.0+`)
+is required.
 
 ## Layout
 
