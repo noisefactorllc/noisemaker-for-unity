@@ -144,6 +144,11 @@ async function main () {
 
   // ---- 2. Render the golden frame via the Playwright harness ---------------
   // Configure the harness via SHADE_* env (read by BrowserSession.getConfig()).
+  // The viewer server is internal transport, so never pin its port: with
+  // SHADE_VIEWER_PORT set the harness tries only that one port and aborts the
+  // render when another process already holds it (listen EADDRINUSE). Unset,
+  // the harness binds an ephemeral port and the capture is unchanged.
+  delete process.env.SHADE_VIEWER_PORT
   process.env.SHADE_VIEWER_ROOT = VIEWER_ROOT
   process.env.SHADE_VIEWER_PATH = VIEWER_PATH
   process.env.SHADE_EFFECTS_DIR = EFFECTS_DIR
