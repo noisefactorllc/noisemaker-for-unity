@@ -83,8 +83,10 @@ depends on the shaders and the executor — see [ARCHITECTURE.md](ARCHITECTURE.m
 ## Coverage
 
 All 210 reference effect definitions ship as runtime `Effects/*.json`, regenerated from the
-reference by `tools/convert-definitions.mjs`. 209 ship a shader: `synth/media` is a
-definition-only stub, since external image and video input is out of scope. Each ported effect
+reference by `tools/convert-definitions.mjs`, and all 210 ship a shader. External image and
+video input is out of scope, so nothing binds the `synth/media` image: its image area renders
+transparent black and the rest of the frame shows `bgColor` at `bgAlpha` (transparent by
+default). Each ported effect
 has an `.hlsl` core and a `.shader`; single-pass effects also ship a Shader Graph Custom
 Function node. `Shaders/` also carries the `NMBlit`, `NMFrameExportResolve`, and
 `NMCubeEquirect` utility shaders.
@@ -103,7 +105,7 @@ runs against that revision.
 
 - `scripts/test` needs neither Unity nor a GPU. It runs the Node and Python unit tests, the
   C# compiler contract tests, and graph parity between the C# compiler and the reference
-  compiler for 316 programs plus the 1900-variant parameter sweep. CI runs it on every push
+  compiler for 484 programs plus the 1900-variant parameter sweep. CI runs it on every push
   without the sweep, and in full weekly and on manual dispatch.
 - The pixel gates in `parity/` render each corpus with the reference (headless Chromium,
   WebGL2) and with Unity from the same program, then grade fail-closed with

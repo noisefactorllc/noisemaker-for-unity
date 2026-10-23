@@ -114,7 +114,8 @@ Without `EffectDefinitions` (or `EffectsDirectory`, Editor-only) the live path l
 you ship. `GraphJson` takes precedence over `Dsl` when both are set.
 
 > The package has **no texture/camera/video input** — it is output-only. The `media`
-> effect is a definition-only stub with no shader and will fail to render.
+> effect ships a shader, but nothing binds its image: its image area renders transparent
+> black and the rest of the frame shows `bgColor` at `bgAlpha` (transparent by default).
 
 ## Host API (`NMRenderer`)
 
