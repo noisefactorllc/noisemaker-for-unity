@@ -35,6 +35,7 @@ namespace CompilerContractTests
             TestAudioTaggedEffectRequirements();
             TestChainedVariableAlias();
             TestFilterAdjustAndExpiredEffects();
+            TestParticleBaseColorDefaults();
             TestRetiredParameterAliases();
             TestOutputSurfaceRangeEnforcement();
             TestHlslIncludeDirectivesResolve();
@@ -647,6 +648,47 @@ namespace CompilerContractTests
             catch (Exception ex)
             {
                 Check(false, "TestFilterAdjustAndExpiredEffects: " + ex.Message);
+            }
+        }
+
+        // noisemaker@32d8d3e6: a behavior's base color memory falls back to the
+        // same size as pointsEmit's state when the runtime cannot evaluate a
+        // function-valued stateSize, so the two attachments of one agent pass
+        // keep matching. Numeric and absent stateSize values are unchanged.
+        private static void TestParticleBaseColorDefaults()
+        {
+            try
+            {
+                string effectsDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects", "points");
+                if (!Directory.Exists(effectsDir))
+                {
+                    effectsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl", "Effects", "points"));
+                }
+                string[] behaviors = { "attractor", "buddhabrot", "dla", "flock", "flow", "hydraulic", "lenia", "physarum", "physical" };
+                foreach (string behavior in behaviors)
+                {
+                    string path = Path.Combine(effectsDir, behavior + ".json");
+                    JsonValue def = JsonValue.Parse(File.ReadAllText(path));
+                    JsonValue tex = def.Get("textures") != null ? def.Get("textures").Get("global_" + behavior + "_base_color") : null;
+                    Check(tex != null, behavior + ": base color memory texture is present");
+                    if (tex == null) continue;
+                    foreach (string dim in new[] { "width", "height" })
+                    {
+                        JsonValue spec = tex.Get(dim);
+                        Check(spec != null && spec.Kind == JsonKind.Object, behavior + ": base color " + dim + " is a dim spec");
+                        if (spec == null || spec.Kind != JsonKind.Object) continue;
+                        Check(spec.Has("param") && spec.Get("param").AsString == "stateSize",
+                            behavior + ": base color " + dim + " reads stateSize");
+                        Check(spec.Has("inherit") && spec.Get("inherit").AsBool,
+                            behavior + ": base color " + dim + " inherits the pipeline stateSize");
+                        Check(spec.Has("default") && spec.Get("default").AsNumber == 256,
+                            behavior + ": base color " + dim + " falls back to 256 like pointsEmit's state");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestParticleBaseColorDefaults: " + ex.Message);
             }
         }
 

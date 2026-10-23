@@ -28,16 +28,73 @@ SKIP_SWEEP=0
 for arg in "$@"; do
   case "$arg" in
     --skip-sweep) SKIP_SWEEP=1 ;;
-    *) echo "usage: scripts/test [--skip-sweep]" >&2; exit 2 ;;
+    *) echo "usage: scripts/test [--skip-sweep]" >&2; exit 1 ;;
   esac
 done
 
-# Reference authority: noisemaker 12751c78, the pinned authority the committed
-# parity corpora are recorded against (synced from 317c43cc; moved to 12751c78
-# for the particle base-color contracts: outBaseColor MRT4 agent outputs,
-# per-effect base_color surfaces, heightTex renames, and dim inherit).
+# ---------------------------------------------------------------------------
+# Changed-path selection. With NM_CHANGED_FILES set (one repository path per
+# line), run only the suites whose inputs the changed paths can exercise; every
+# such test stays. With it unset, every suite runs exactly as before.
+# NM_SHARD_INDEX/NM_SHARD_COUNT (both or neither) split the selected suites
+# across invocations; .nm-test-shards at the repository root holds the count.
+# ---------------------------------------------------------------------------
+CHANGED_FILES=""
+if [ -n "${NM_CHANGED_FILES:-}" ]; then
+  CHANGED_FILES="$(printf '%s\n' "$NM_CHANGED_FILES" | sed '/^[[:space:]]*$/d')"
+fi
+if { [ -n "${NM_SHARD_COUNT:-}" ] && [ -z "${NM_SHARD_INDEX:-}" ]; } \
+  || { [ -n "${NM_SHARD_INDEX:-}" ] && [ -z "${NM_SHARD_COUNT:-}" ]; }; then
+  echo "scripts/test: NM_SHARD_INDEX and NM_SHARD_COUNT must be set together" >&2
+  exit 1
+fi
+
+want_suite() { # want_suite <name>: 0 when this invocation runs <name>
+  [ -z "$CHANGED_FILES" ] && return 0
+  local hit=0 p
+  while IFS= read -r p; do
+    case "$1:$p" in
+      node:parity/tests/*.test.mjs | node:parity/batch-golden.mjs) hit=1 ;;
+      python:parity/tests/*.py | python:parity/*.py | python:parity/*.sh \
+        | python:parity/*.mjs | python:unity/*) hit=1 ;;
+      contract:unity/* | contract:tools/compiler-contract-tests/*) hit=1 ;;
+      graph:unity/* | graph:tools/graphdump/* | graph:tools/export-graph.mjs \
+        | graph:parity/programs/* | graph:--selftest/* | graph:parity/graph-diff.py) hit=1 ;;
+      sweep:unity/* | sweep:parity/* | sweep:tools/graphdump/* | sweep:tools/export-graph.mjs) hit=1 ;;
+    esac
+    if [ "$hit" -eq 1 ]; then break; fi
+  done < <(printf '%s\n' "$CHANGED_FILES")
+  [ "$hit" -eq 1 ] || return 1
+  if [ -n "${NM_SHARD_COUNT:-}" ]; then
+    case "$1" in
+      node) ord=0 ;; python) ord=1 ;; contract) ord=2 ;; graph) ord=3 ;; sweep) ord=4 ;;
+    esac
+    [ $((ord % NM_SHARD_COUNT)) -eq "${NM_SHARD_INDEX:-0}" ] || return 1
+  fi
+  return 0
+}
+
+WANT_NODE=0;     if want_suite node;     then WANT_NODE=1;     fi
+WANT_PYTHON=0;   if want_suite python;   then WANT_PYTHON=1;   fi
+WANT_CONTRACT=0; if want_suite contract; then WANT_CONTRACT=1; fi
+WANT_GRAPH=0;    if want_suite graph;    then WANT_GRAPH=1;    fi
+WANT_SWEEP=0;    if want_suite sweep;    then WANT_SWEEP=1;    fi
+if [ -n "$CHANGED_FILES" ] \
+  && [ "$WANT_NODE$WANT_PYTHON$WANT_CONTRACT$WANT_GRAPH$WANT_SWEEP" = 00000 ]; then
+  echo "scripts/test: no suite exercises the changed paths (nothing to run)"
+  echo "scripts/test: PASS (changed-path selection: 0 suites)"
+  exit 0
+fi
+
+# Reference authority: noisemaker 32d8d3e6, the pinned authority the committed
+# parity corpora are recorded against (synced from 317c43cc; 12751c78 added the
+# particle base-color contracts: outBaseColor MRT4 agent outputs, per-effect
+# base_color surfaces, heightTex renames and dim inherit; 32d8d3e6 sized each
+# behavior's base_color memory like pointsEmit's state when stateSize is a
+# function). The rendered-pixel gate parity/upstream-cases-verify.sh pins its
+# own capture authority separately.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="12751c78103ec352bd359a9944bbeac5ad239a4b"
+REFERENCE_SHA="32d8d3e6a6dbb3dee2dfbcc8d31bd1c52342eca3"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"
@@ -109,7 +166,9 @@ echo "node $(node --version); $("$PYTHON" -V 2>&1); $(git --version)"
 # The tools/ projects target net8.0: the SDK restores the net8.0 reference
 # pack from NuGet, and DOTNET_ROLL_FORWARD=Major runs the built assemblies
 # on the .NET 10 runtime, the only runtime this SDK ships.
+# Needed only by the .NET-backed suites (contract, graph, sweep).
 # ---------------------------------------------------------------------------
+if [ "$WANT_CONTRACT" -eq 1 ] || [ "$WANT_GRAPH" -eq 1 ] || [ "$WANT_SWEEP" -eq 1 ]; then
 case "$(uname -s)" in
   Linux) dn_os=linux ;;
   Darwin) dn_os=osx ;;
@@ -153,10 +212,13 @@ export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 export DOTNET_ROLL_FORWARD=Major
 [ "$("$DOTNET" --version)" = "$DOTNET_SDK_VERSION" ] || die "cached .NET SDK does not report $DOTNET_SDK_VERSION"
 echo ".NET SDK $DOTNET_SDK_VERSION; runtimes: $("$DOTNET" --list-runtimes | cut -d' ' -f1-2 | paste -sd ',' -)"
+fi
 
 # ---------------------------------------------------------------------------
 # Reference authority at the pinned commit (git verifies the content by SHA)
+# Needed only by the suites that run the reference oracle (graph, sweep).
 # ---------------------------------------------------------------------------
+if [ "$WANT_GRAPH" -eq 1 ] || [ "$WANT_SWEEP" -eq 1 ]; then
 REF_DIR="$CACHE/noisemaker-$REFERENCE_SHA"
 if [ ! -d "$REF_DIR/.git" ] \
   || [ "$(git -C "$REF_DIR" rev-parse HEAD 2>/dev/null)" != "$REFERENCE_SHA" ] \
@@ -175,10 +237,13 @@ if [ ! -d "$REF_DIR/.git" ] \
 fi
 export NM_REFERENCE_ROOT="$REF_DIR"
 echo "reference: noisemaker@$(git -C "$REF_DIR" rev-parse HEAD) at $REF_DIR"
+fi
 
 # ---------------------------------------------------------------------------
 # Python venv with pinned numpy + pillow (never installed globally)
+# Needed only by the Python-backed suites (python, sweep).
 # ---------------------------------------------------------------------------
+if [ "$WANT_PYTHON" -eq 1 ] || [ "$WANT_SWEEP" -eq 1 ]; then
 log "create Python venv (numpy $NUMPY_VERSION, pillow $PILLOW_VERSION)"
 VENV="$WORK/venv"
 if "$PYTHON" -m venv "$VENV" >"$WORK/venv.log" 2>&1 && [ -x "$VENV/bin/python" ] \
@@ -199,12 +264,14 @@ fi
 export PATH="$VENV/bin:$PATH"
 export PYTHONDONTWRITEBYTECODE=1
 python3 -c 'import numpy, PIL; print("numpy", numpy.__version__, "pillow", PIL.__version__)'
+fi
 
 cd "$ROOT"
 
 # ---------------------------------------------------------------------------
 # 1. Node unit tests
 # ---------------------------------------------------------------------------
+if [ "$WANT_NODE" -eq 1 ]; then
 log "1/5 node --test parity/tests"
 node_tests=()
 while IFS= read -r f; do node_tests+=("$f"); done < <(find parity/tests -maxdepth 1 -name '*.test.mjs' | LC_ALL=C sort)
@@ -219,10 +286,12 @@ node_cancel="$(sed -n 's/^ℹ cancelled //p' "$WORK/node-test.log")"
   && [ -n "$node_pass" ] && [ "$node_pass" -gt 0 ] \
   || die "node tests: pass=$node_pass fail=$node_fail skipped=$node_skip todo=$node_todo cancelled=$node_cancel"
 SUMMARY+=("node      $node_pass passed, 0 failed, 0 skipped")
+fi
 
 # ---------------------------------------------------------------------------
 # 2. Python unit tests
 # ---------------------------------------------------------------------------
+if [ "$WANT_PYTHON" -eq 1 ]; then
 log "2/5 python -m unittest discover -s parity/tests"
 python3 -m unittest discover -s parity/tests -p 'test_*.py' 2>&1 | tee "$WORK/python-test.log"
 py_ran="$(sed -n 's/^Ran \([0-9]*\) tests\{0,1\} in .*/\1/p' "$WORK/python-test.log")"
@@ -230,10 +299,12 @@ py_result="$(tail -n 1 "$WORK/python-test.log")"
 [ "$py_result" = "OK" ] && [ -n "$py_ran" ] && [ "$py_ran" -gt 0 ] \
   || die "python tests: ran=$py_ran result='$py_result' (skips, expected failures and unexpected successes are not accepted)"
 SUMMARY+=("python    $py_ran passed, 0 failed, 0 skipped")
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Compiler contract tests (no Unity)
 # ---------------------------------------------------------------------------
+if [ "$WANT_CONTRACT" -eq 1 ]; then
 log "3/5 compiler contract tests"
 "$DOTNET" build -c Release tools/compiler-contract-tests > "$WORK/contract-build.log" 2>&1 \
   || { cat "$WORK/contract-build.log"; die "compiler contract tests failed to build"; }
@@ -241,10 +312,12 @@ log "3/5 compiler contract tests"
 grep -qx 'compiler contract tests: PASS (0 failures)' "$WORK/contract-test.log" \
   || die "compiler contract tests did not report PASS (0 failures)"
 SUMMARY+=("contract  PASS (0 failures)")
+fi
 
 # ---------------------------------------------------------------------------
 # 4. Graph parity: C# live DSL compiler vs the reference oracle (no Unity)
 # ---------------------------------------------------------------------------
+if [ "$WANT_GRAPH" -eq 1 ]; then
 log "4/5 graph parity (--selftest corpus + parity/programs fixtures)"
 GRAPH="$WORK/graph"
 mkdir -p "$GRAPH/ref" "$GRAPH/cs"
@@ -285,10 +358,12 @@ python3 parity/graph-diff.py --batch "$GRAPH/diff.tsv" --results "$GRAPH/diff-re
 [ "$cs_status" -eq 0 ] || die "graph parity: C# graphdump reported failures"
 [ "$diff_status" -eq 0 ] || die "graph parity: structural differences or missing graphs"
 SUMMARY+=("graph     $graph_total/$graph_total graph-clean ($selftest_total --selftest + $((graph_total - selftest_total)) fixtures)")
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Parameter sweep: corpus regeneration drift check + graph parity per variant
 # ---------------------------------------------------------------------------
+if [ "$WANT_SWEEP" -eq 1 ]; then
 if [ "$SKIP_SWEEP" -eq 1 ]; then
   log "5/5 parity/param-sweep-verify.sh: skipped (--skip-sweep)"
   SUMMARY+=("sweep     skipped (--skip-sweep)")
@@ -298,6 +373,7 @@ else
   sweep_line="$(grep -E '^param sweep: [0-9]+ graph-clean, 0 FAIL, 0 missing, of [0-9]+ variants$' "$WORK/param-sweep.log" || true)"
   [ -n "$sweep_line" ] || die "parameter sweep did not report a clean result"
   SUMMARY+=("sweep     ${sweep_line#param sweep: }")
+fi
 fi
 
 log "summary (reference noisemaker@$REFERENCE_SHA, $((SECONDS - START_TS))s)"

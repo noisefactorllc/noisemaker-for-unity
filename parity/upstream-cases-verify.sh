@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pixel gate for all 143 noisemaker@12751c78 effect parity cases at the
+# Pixel gate for all 143 noisemaker@32d8d3e6 effect parity cases at the
 # GAP-030 capture settings. Stage modes allow WebGL2 and Unity on separate hosts.
 set -euo pipefail
 
@@ -18,7 +18,7 @@ if [ "${1:-}" = --stage ]; then
 fi
 WORK="${1:?provide a work directory}"
 : "${NM_REFERENCE_ROOT:?set NM_REFERENCE_ROOT to pinned noisemaker checkout}"
-REFERENCE_SHA=12751c78103ec352bd359a9944bbeac5ad239a4b
+REFERENCE_SHA=32d8d3e6a6dbb3dee2dfbcc8d31bd1c52342eca3
 if [ "$(git -C "$NM_REFERENCE_ROOT" rev-parse HEAD)" != "$REFERENCE_SHA" ]; then
   echo "reference checkout must be noisemaker@$REFERENCE_SHA" >&2
   exit 2
