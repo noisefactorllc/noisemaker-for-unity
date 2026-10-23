@@ -637,8 +637,12 @@ float4 nm_moodscape(float2 globalCoord, float2 res, float2 fullRes, float timeVa
     else if (COLOR_MODE == 2)
     {
         // hsv
-        color.r = color.r * hueRange * 0.01;
-        color.r += 1.0 - (hueRotation / 360.0);
+        // `precise` keeps the hue sum rounded as written, as on WebGL2: a tiny
+        // negative hue plus 1.0 rounds to 1.0 and frac gives 0 (red). Folded to
+        // frac(hue), it gave 1.0 and nmms_hsv2rgb's grey branch.
+        precise float hue = color.r * hueRange * 0.01;
+        hue += 1.0 - (hueRotation / 360.0);
+        color.r = hue;
         if (ridges > 0)
         {
             color.b = 1.0 - abs(color.b * 2.0 - 1.0);
