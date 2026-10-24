@@ -113,9 +113,10 @@ uint3 nmg_pcg(uint3 seed_in)
 float3 nmg_prng(float3 p0)
 {
     float3 p = p0;
-    p.x = (p.x >= 0.0) ? p.x * 2.0 : -p.x * 2.0 + 1.0;
-    p.y = (p.y >= 0.0) ? p.y * 2.0 : -p.y * 2.0 + 1.0;
-    p.z = (p.z >= 0.0) ? p.z * 2.0 : -p.z * 2.0 + 1.0;
+    // Select per component, like the WGSL select(): a software rasterizer
+    // builds each float ternary as a branch, and loops of them build for minutes.
+    float3 t = step(0.0, p); // greaterThanEqual(p, vec3(0.0)) as a 0/1 mask
+    p = (-p * 2.0 + 1.0) * (1.0 - t) + (p * 2.0) * t;
     uint3 u = nmg_pcg((uint3)p);
     return float3(u) / 4294967295.0;
 }

@@ -39,9 +39,10 @@ uint3 nmsg_lensWarp_pcg(uint3 v)
 
 float3 nmsg_lensWarp_prng(float3 p)
 {
-    p.x = p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0;
-    p.y = p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0;
-    p.z = p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0;
+    // Select per component, like the WGSL select(): a software rasterizer
+    // builds each float ternary as a branch, and loops of them build for minutes.
+    float3 t = step(0.0, p); // greaterThanEqual(p, vec3(0.0)) as a 0/1 mask
+    p = (-p * 2.0 + 1.0) * (1.0 - t) + (p * 2.0) * t;
     return float3(nmsg_lensWarp_pcg((uint3)p)) / 4294967295.0;
 }
 

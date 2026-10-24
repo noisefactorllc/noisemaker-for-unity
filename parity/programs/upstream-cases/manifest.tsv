@@ -90,6 +90,7 @@ filter__zoomBlur	parity/programs/upstream-cases/filter__zoomBlur.dsl
 mixer__alphaMask	parity/programs/upstream-cases/mixer__alphaMask.dsl
 mixer__applyMode	parity/programs/upstream-cases/mixer__applyMode.dsl
 mixer__blendMode	parity/programs/upstream-cases/mixer__blendMode.dsl
+mixer__cellSplit	parity/programs/upstream-cases/mixer__cellSplit.dsl
 mixer__centerMask	parity/programs/upstream-cases/mixer__centerMask.dsl
 mixer__focusBlur	parity/programs/upstream-cases/mixer__focusBlur.dsl
 mixer__patternMix	parity/programs/upstream-cases/mixer__patternMix.dsl
@@ -133,7 +134,10 @@ synth__navierStokes	parity/programs/upstream-cases/synth__navierStokes.dsl
 synth__newton	parity/programs/upstream-cases/synth__newton.dsl
 synth__noise	parity/programs/upstream-cases/synth__noise.dsl
 synth__osc2d	parity/programs/upstream-cases/synth__osc2d.dsl
+synth__gabor	parity/programs/upstream-cases/synth__gabor.dsl
+synth__gradient	parity/programs/upstream-cases/synth__gradient.dsl
 synth__pattern	parity/programs/upstream-cases/synth__pattern.dsl
+synth__perlin	parity/programs/upstream-cases/synth__perlin.dsl
 synth__polygon	parity/programs/upstream-cases/synth__polygon.dsl
 synth__reactionDiffusion	parity/programs/upstream-cases/synth__reactionDiffusion.dsl
 synth__remap	parity/programs/upstream-cases/synth__remap.dsl

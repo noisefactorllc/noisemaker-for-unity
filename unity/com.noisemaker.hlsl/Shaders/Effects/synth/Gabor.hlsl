@@ -64,9 +64,10 @@ uint3 nmgb_pcg(uint3 seed_in)
 float3 nmgb_prng(float3 p0)
 {
     float3 p = p0;
-    if (p.x >= 0.0) { p.x = p.x * 2.0; } else { p.x = -p.x * 2.0 + 1.0; }
-    if (p.y >= 0.0) { p.y = p.y * 2.0; } else { p.y = -p.y * 2.0 + 1.0; }
-    if (p.z >= 0.0) { p.z = p.z * 2.0; } else { p.z = -p.z * 2.0 + 1.0; }
+    // Select per component, like the WGSL select(): a software rasterizer
+    // builds each float ternary as a branch, and loops of them build for minutes.
+    float3 t = step(0.0, p); // greaterThanEqual(p, vec3(0.0)) as a 0/1 mask
+    p = (-p * 2.0 + 1.0) * (1.0 - t) + (p * 2.0) * t;
     uint3 u = nmgb_pcg((uint3)p);
     return float3(u) / 4294967295.0;
 }

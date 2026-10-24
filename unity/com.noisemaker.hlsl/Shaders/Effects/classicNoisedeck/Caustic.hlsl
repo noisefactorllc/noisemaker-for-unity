@@ -78,10 +78,10 @@ uint3 nmc_pcg(uint3 v)
 float3 nmc_prng(float3 p)
 {
     float3 q = p;
-    // WGSL select(-q*2+1, q*2, q>=0) -> HLSL ternary q>=0 ? q*2 : -q*2+1
-    q.x = (q.x >= 0.0) ? q.x * 2.0 : -q.x * 2.0 + 1.0;
-    q.y = (q.y >= 0.0) ? q.y * 2.0 : -q.y * 2.0 + 1.0;
-    q.z = (q.z >= 0.0) ? q.z * 2.0 : -q.z * 2.0 + 1.0;
+    // Select per component, like the WGSL select(): a software rasterizer
+    // builds each float ternary as a branch, and loops of them build for minutes.
+    float3 t = step(0.0, q); // greaterThanEqual(q, vec3(0.0)) as a 0/1 mask
+    q = (-q * 2.0 + 1.0) * (1.0 - t) + (q * 2.0) * t;
     return float3(nmc_pcg((uint3)q)) / 4294967295.0;
 }
 

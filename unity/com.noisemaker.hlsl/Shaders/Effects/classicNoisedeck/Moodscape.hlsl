@@ -206,13 +206,13 @@ float3 nmms_linear_srgb_from_oklab(float3 c)
 }
 
 // ---- prng (this WGSL's own copy; bit-identical to NMCore nm_prng) -----------
-// q.x = select(-q.x*2+1, q.x*2, q.x >= 0) == (q.x >= 0) ? q.x*2 : -q.x*2+1
+// Select per component, like the WGSL select(): a software rasterizer
+// builds each float ternary as a branch, and loops of them build for minutes.
 float3 nmms_prng(float3 p)
 {
     float3 q = p;
-    q.x = (q.x >= 0.0) ? q.x * 2.0 : -q.x * 2.0 + 1.0;
-    q.y = (q.y >= 0.0) ? q.y * 2.0 : -q.y * 2.0 + 1.0;
-    q.z = (q.z >= 0.0) ? q.z * 2.0 : -q.z * 2.0 + 1.0;
+    float3 t = step(0.0, q); // greaterThanEqual(q, vec3(0.0)) as a 0/1 mask
+    q = (-q * 2.0 + 1.0) * (1.0 - t) + (q * 2.0) * t;
     return float3(nm_pcg((uint3)q)) / 4294967295.0;
 }
 
