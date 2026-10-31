@@ -102,7 +102,6 @@ float3 nm_tca_rgb2hsv(float3 c)
         } else {
             h = ((c.r - c.g) / delta + 4.0) / 6.0;
         }
-        h = frac(h);
     }
     // WGSL: select(0.0, delta / cmax, cmax > 0.0) — select(falseVal, trueVal, cond)
     float s = (cmax > 0.0) ? (delta / cmax) : 0.0;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pixel gate for all 148 noisemaker@d0ed94ae effect parity cases at the
+# Pixel gate for all 150 noisemaker@06070900 effect parity cases at the
 # GAP-030 capture settings. Stage modes allow WebGL2 and Unity on separate hosts.
 set -euo pipefail
 
@@ -18,7 +18,7 @@ if [ "${1:-}" = --stage ]; then
 fi
 WORK="${1:?provide a work directory}"
 : "${NM_REFERENCE_ROOT:?set NM_REFERENCE_ROOT to pinned noisemaker checkout}"
-REFERENCE_SHA=d0ed94ae19cca7328bc7d6b28902712a0838e1a9
+REFERENCE_SHA=06070900e506b6c8ff6eb7b12d33e6c1bf285108
 if [ "$(git -C "$NM_REFERENCE_ROOT" rev-parse HEAD)" != "$REFERENCE_SHA" ]; then
   echo "reference checkout must be noisemaker@$REFERENCE_SHA" >&2
   exit 2
@@ -41,9 +41,9 @@ root, ref = map(Path, sys.argv[1:])
 corpus = root / 'parity/programs/upstream-cases'
 sources = sorted((ref / 'shaders/effects').glob('*/*/parity-case.json'))
 rows = [line.split('\t') for line in (corpus / 'manifest.tsv').read_text().splitlines()]
-assert len(sources) == len(rows) == 148, 'upstream case count changed'
+assert len(sources) == len(rows) == 150, 'upstream case count changed'
 expected = {f'{p.parent.parent.name}__{p.parent.name}': p for p in sources}
-assert len(expected) == 148 and len({row[0] for row in rows}) == 148
+assert len(expected) == 150 and len({row[0] for row in rows}) == 150
 assert {p.name for p in corpus.glob('*.dsl')} == {
     f'{row[0]}.dsl' for row in rows}, 'fixture DSL set differs from manifest'
 for name, path in rows:
@@ -56,7 +56,7 @@ for name, path in rows:
 assert (corpus / 'cube.obj').read_bytes() == (ref / 'share/meshes/cube.obj').read_bytes()
 assert (corpus / 'flow60-manifest.tsv').read_text() == (
     'points__flow\tparity/programs/upstream-cases/points__flow.dsl\n')
-print('148 pinned upstream cases and cube mesh verified')
+print('150 pinned upstream cases and cube mesh verified')
 PY
 
 if [ "$STAGE" = unity ] || [ "$STAGE" = all ]; then
@@ -101,7 +101,7 @@ for mode in untiled tiled; do
         -nmManifest "$RENDER_MANIFEST" -nmSize 128 -nmTime 0.25 -nmFrames 8 \
         -nmMesh "$CORPUS/cube.obj"
     fi
-    if ! grep -Fq '[NMParity] dsl batch done: 148 ok, 0 fail' "$WORK/unity-$mode.log"; then
+    if ! grep -Fq '[NMParity] dsl batch done: 150 ok, 0 fail' "$WORK/unity-$mode.log"; then
       tail -80 "$WORK/unity-$mode.log" >&2
       exit 1
     fi
@@ -115,7 +115,7 @@ for mode in untiled tiled; do
 done
 
 # The original GAP-030 Flow miss grew over 60 updates. Keep that longer run
-# alongside the 148-case eight-frame gate so the canvas-stride fix is covered.
+# alongside the 150-case eight-frame gate so the canvas-stride fix is covered.
 FLOW60_MANIFEST="$CORPUS/flow60-manifest.tsv"
 FLOW60_GOLD="$WORK/gold-flow60"
 FLOW60_CAND="$WORK/candidate-flow60"

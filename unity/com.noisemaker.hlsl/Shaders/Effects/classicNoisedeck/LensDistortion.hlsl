@@ -105,7 +105,6 @@ float3 nm_ld_rgb2hsv(float3 rgb)
         else if (maxC == g) { h = ((b - r) / delta + 2.0) / 6.0; }
         else                { h = ((r - g) / delta + 4.0) / 6.0; }
     }
-    if (h < 0.0) { h = h + 1.0; }
 
     float s = 0.0;
     if (maxC != 0.0) { s = delta / maxC; }

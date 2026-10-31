@@ -3,6 +3,7 @@ classicNoisedeck__caustic	parity/programs/upstream-cases/classicNoisedeck__caust
 classicNoisedeck__cellNoise	parity/programs/upstream-cases/classicNoisedeck__cellNoise.dsl
 classicNoisedeck__cellRefract	parity/programs/upstream-cases/classicNoisedeck__cellRefract.dsl
 classicNoisedeck__coalesce	parity/programs/upstream-cases/classicNoisedeck__coalesce.dsl
+classicNoisedeck__colorLab	parity/programs/upstream-cases/classicNoisedeck__colorLab.dsl
 classicNoisedeck__composite	parity/programs/upstream-cases/classicNoisedeck__composite.dsl
 classicNoisedeck__effects	parity/programs/upstream-cases/classicNoisedeck__effects.dsl
 classicNoisedeck__fractal	parity/programs/upstream-cases/classicNoisedeck__fractal.dsl
@@ -74,6 +75,7 @@ filter__spinBlur	parity/programs/upstream-cases/filter__spinBlur.dsl
 filter__spiral	parity/programs/upstream-cases/filter__spiral.dsl
 filter__spookyTicker	parity/programs/upstream-cases/filter__spookyTicker.dsl
 filter__strayHair	parity/programs/upstream-cases/filter__strayHair.dsl
+filter__tetraColorArray	parity/programs/upstream-cases/filter__tetraColorArray.dsl
 filter__text	parity/programs/upstream-cases/filter__text.dsl
 filter__texture	parity/programs/upstream-cases/filter__texture.dsl
 filter__tile	parity/programs/upstream-cases/filter__tile.dsl

@@ -147,7 +147,8 @@ float3 colorLab_hsv2rgb(float3 hsv)
     return rgb + float3(m, m, m);
 }
 
-// rgb2hsv — VERBATIM from WGSL fn rgb2hsv (uses % 6.0 only on the max==r branch).
+// rgb2hsv — VERBATIM from WGSL fn rgb2hsv (upstream f0ca5193: glslMod on the
+// max==r branch, no h < 0 correction — the GLSL has neither).
 float3 colorLab_rgb2hsv(float3 rgb)
 {
     float r = rgb.r;
@@ -168,7 +169,6 @@ float3 colorLab_rgb2hsv(float3 rgb)
             h = ((r - g) / delta + 4.0) / 6.0;
         }
     }
-    if (h < 0.0) { h = h + 1.0; }
 
     float s = 0.0;
     if (maxC != 0.0) {
