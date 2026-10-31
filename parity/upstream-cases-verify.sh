@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pixel gate for all 150 noisemaker@06070900 effect parity cases at the
+# Pixel gate for the pinned noisemaker effect parity cases at the
 # GAP-030 capture settings. Stage modes allow WebGL2 and Unity on separate hosts.
 set -euo pipefail
 

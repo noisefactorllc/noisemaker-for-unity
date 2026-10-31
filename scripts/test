@@ -86,12 +86,9 @@ if [ -n "$CHANGED_FILES" ] \
   exit 0
 fi
 
-# Reference authority: noisemaker 06070900, the earliest revision that contains
-# the 27a2b58..06070900 sync range (d0ed94ae added the cellSplit, gabor,
-# gradient and perlin parity cases; f8376beb adds the colorLab and
-# tetraColorArray parity cases; f0ca5193 takes every WGSL rgb2hsv
-# red-dominant hue from the GLSL's mod). The rendered-pixel gate
-# parity/upstream-cases-verify.sh pins its own capture authority separately.
+# Reference authority: noisemaker 06070900, pinned by REFERENCE_SHA below. The
+# rendered-pixel gate parity/upstream-cases-verify.sh pins its own capture
+# authority separately.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
 REFERENCE_SHA="06070900e506b6c8ff6eb7b12d33e6c1bf285108"
 
