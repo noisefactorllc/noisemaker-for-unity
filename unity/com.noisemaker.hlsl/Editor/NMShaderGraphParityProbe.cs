@@ -34,18 +34,19 @@ namespace Noisemaker.Hlsl.Editor
                 {
                     if (name != "Snow" && name != "Polar" && name != "Tunnel" &&
                         name != "Spiral" && name != "Refract" && name != "CellRefract" &&
-                        name != "LensDistortion" &&
+                        name != "LensDistortion" && name != "LensDistortionChromatic" &&
                         name != "Kaleido" && name != "KaleidoShadow" &&
                         !name.StartsWith("Glitch") && !name.StartsWith("Effects") &&
                         !name.StartsWith("GlyphMap") && !name.StartsWith("Crt"))
                         throw new InvalidOperationException("unknown parity case " + name);
                     Shader graphShader = AssetDatabase.LoadAssetAtPath<Shader>(file.Replace('\\', '/'));
                     string family = name == "Refract" || name == "CellRefract" ||
-                        name == "LensDistortion" ||
+                        name == "LensDistortion" || name == "LensDistortionChromatic" ||
                         name.StartsWith("Kaleido") ||
                         name.StartsWith("Glitch") || name.StartsWith("Effects")
                         ? "classicNoisedeck" : "filter";
-                    string shaderName = name == "KaleidoShadow" ? "Kaleido" :
+                    string shaderName = name == "LensDistortionChromatic" ? "LensDistortion" :
+                        name == "KaleidoShadow" ? "Kaleido" :
                         name.StartsWith("Glitch") ? "Glitch" :
                         name.StartsWith("Effects") ? "Effects" :
                         name.StartsWith("GlyphMap") ? "GlyphMap" :
@@ -54,7 +55,7 @@ namespace Noisemaker.Hlsl.Editor
                         "Packages/com.noisemaker.hlsl/Shaders/Effects/" + family + "/" + shaderName + ".shader");
                     if (graphShader == null || pipelineShader == null)
                         throw new InvalidOperationException("shader asset missing");
-                    var input = MakeInput();
+                    var input = MakeInput(name == "LensDistortionChromatic");
                     var graph = new Material(graphShader);
                     var pipeline = new Material(pipelineShader);
                     try
@@ -160,7 +161,7 @@ namespace Noisemaker.Hlsl.Editor
                             pipeline.SetInt("KERNEL", 0);
                             pipeline.SetFloat("effectWidth", 0f);
                         }
-                        else if (name == "LensDistortion")
+                        else if (name == "LensDistortion" || name == "LensDistortionChromatic")
                         {
                             pipeline.SetInt("shape", 0);
                             pipeline.SetFloat("distortion", 50f);
@@ -168,15 +169,17 @@ namespace Noisemaker.Hlsl.Editor
                             pipeline.SetFloat("loopScale", 10f);
                             pipeline.SetFloat("speed", 0f);
                             pipeline.SetInt("mode", 0);
-                            pipeline.SetFloat("aberration", 0f);
+                            pipeline.SetFloat("aberration", name == "LensDistortionChromatic" ? 50f : 0f);
                             pipeline.SetInt("blendMode", 1);
                             pipeline.SetInt("modulate", 0);
                             pipeline.SetFloat("hueRotation", 180f);
                             pipeline.SetFloat("hueRange", 50f);
                             pipeline.SetFloat("saturation", 0f);
-                            pipeline.SetFloat("passthru", 0f);
+                            pipeline.SetFloat("passthru", name == "LensDistortionChromatic" ? 25f : 0f);
                             pipeline.SetFloat("vignetteAmt", 0f);
-                            pipeline.SetFloat("alpha", 1f);
+                            pipeline.SetFloat("alpha", name == "LensDistortionChromatic" ? 0f : 1f);
+                            if (name == "LensDistortionChromatic")
+                                pipeline.SetColor("tint", Color.clear);
                         }
                         else if (name == "Kaleido" || name == "KaleidoShadow")
                         {
@@ -235,6 +238,9 @@ namespace Noisemaker.Hlsl.Editor
                         }
                         Color32[] graphPixels = RenderGraph(graph, Path.Combine(captures, name + "-graph.png"));
                         Color32[] pipelinePixels = RenderPipeline(pipeline, Path.Combine(captures, name + "-pipeline.png"));
+                        if (name == "LensDistortionChromatic" &&
+                            (graphPixels.Distinct().Count() < 2 || pipelinePixels.Distinct().Count() < 2))
+                            throw new InvalidOperationException("chromatic lens output must vary across the patterned input");
                         int maxDifference = 0;
                         int mismatched = 0;
                         for (int i = 0; i < graphPixels.Length; i++)
@@ -270,7 +276,7 @@ namespace Noisemaker.Hlsl.Editor
             EditorApplication.Exit(failures == 0 ? 0 : 1);
         }
 
-        private static Texture2D MakeInput()
+        private static Texture2D MakeInput(bool chromaticLens)
         {
             var input = new Texture2D(Size, Size, TextureFormat.RGBA32, false, true)
             {
@@ -280,10 +286,12 @@ namespace Noisemaker.Hlsl.Editor
             var colors = new Color32[Size * Size];
             for (int y = 0; y < Size; y++)
             for (int x = 0; x < Size; x++)
-                colors[y * Size + x] = new Color32(
-                    (byte)((x * 17 + y * 31) & 255),
-                    (byte)((x * 53 + y * 7) & 255),
-                    (byte)((x * 11 + y * 47) & 255), 255);
+                colors[y * Size + x] = chromaticLens
+                    ? new Color32((byte)((x / 16) % 2 == 0 ? 20 : 240),
+                                  (byte)((y * 7) & 255), (byte)(255 - x), 255)
+                    : new Color32((byte)((x * 17 + y * 31) & 255),
+                                  (byte)((x * 53 + y * 7) & 255),
+                                  (byte)((x * 11 + y * 47) & 255), 255);
             input.SetPixels32(colors);
             input.Apply();
             return input;

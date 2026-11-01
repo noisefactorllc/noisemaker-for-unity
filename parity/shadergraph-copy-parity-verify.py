@@ -55,6 +55,8 @@ CASES = {
                 "OffsetX": 0, "OffsetY": 0, "Intensity": 0, "Saturation": 0},
 }
 CASES["KaleidoShadow"] = dict(CASES["Kaleido"], Kernel=6)
+CASES["LensDistortionChromatic"] = dict(CASES["LensDistortion"], Aberration=50,
+                                       Passthru=25, Alpha=0, Tint=(0, 0, 0, 0))
 CASES["GlitchActive"] = dict(CASES["Glitch"], Glitchiness=50, Aberration=25,
                              ScanlinesAmt=20, SnowAmt=20, VignetteAmt=-50,
                              Distortion=30)
@@ -267,7 +269,8 @@ def main():
     for name, defaults in CASES.items():
         wrapper_name = {"GlyphMapSmall": "GlyphMap", "GlyphMapLarge": "GlyphMap",
                         "CrtTiled": "Crt", "CrtScaled": "Crt",
-                        "KaleidoShadow": "Kaleido", "GlitchActive": "Glitch",
+                        "KaleidoShadow": "Kaleido", "LensDistortionChromatic": "LensDistortion",
+                        "GlitchActive": "Glitch",
                         "GlitchTiled": "Glitch", "GlitchTiledWide": "Glitch",
                         "GlitchLegacy": "Glitch",
                         "GlitchSaved": "Glitch",
