@@ -58,9 +58,13 @@ want_suite() { # want_suite <name>: 0 when this invocation runs <name>
       python:parity/tests/*.py | python:parity/*.py | python:parity/*.sh \
         | python:parity/*.mjs | python:unity/*) hit=1 ;;
       contract:unity/* | contract:tools/compiler-contract-tests/*) hit=1 ;;
+      # scripts/test carries REFERENCE_SHA, the oracle input of the graph and
+      # sweep suites, so its own edits select those suites too.
       graph:unity/* | graph:tools/graphdump/* | graph:tools/export-graph.mjs \
-        | graph:parity/programs/* | graph:--selftest/* | graph:parity/graph-diff.py) hit=1 ;;
-      sweep:unity/* | sweep:parity/* | sweep:tools/graphdump/* | sweep:tools/export-graph.mjs) hit=1 ;;
+        | graph:parity/programs/* | graph:--selftest/* | graph:parity/graph-diff.py \
+        | graph:scripts/test) hit=1 ;;
+      sweep:unity/* | sweep:parity/* | sweep:tools/graphdump/* | sweep:tools/export-graph.mjs \
+        | sweep:scripts/test) hit=1 ;;
     esac
     if [ "$hit" -eq 1 ]; then break; fi
   done < <(printf '%s\n' "$CHANGED_FILES")
@@ -86,11 +90,11 @@ if [ -n "$CHANGED_FILES" ] \
   exit 0
 fi
 
-# Reference authority: noisemaker 06070900, pinned by REFERENCE_SHA below. The
+# Reference authority: noisemaker 67d6e44, pinned by REFERENCE_SHA below. The
 # rendered-pixel gate parity/upstream-cases-verify.sh pins its own capture
 # authority separately.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="06070900e506b6c8ff6eb7b12d33e6c1bf285108"
+REFERENCE_SHA="67d6e44c750e4f9bebb34f88645b934e3b933a84"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"
