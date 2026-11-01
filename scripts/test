@@ -86,13 +86,9 @@ if [ -n "$CHANGED_FILES" ] \
   exit 0
 fi
 
-# Reference authority: noisemaker d0ed94ae, the earliest revision that contains
-# the 32d8d3e6..d0ed94ae sync range (32d8d3e6 recorded the committed parity
-# corpora: 12751c78 added the particle base-color contracts: outBaseColor MRT4
-# agent outputs, per-effect base_color surfaces, heightTex renames and dim
-# inherit; 32d8d3e6 sized each behavior's base_color memory like pointsEmit's
-# state when stateSize is a function; d0ed94ae adds the cellSplit, gabor,
-# gradient and perlin parity cases). The rendered-pixel gate
+# Reference authority: noisemaker 06070900, pinned by REFERENCE_SHA below. The
+# rendered-pixel gate parity/upstream-cases-verify.sh pins its own capture
+# authority separately.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
 REFERENCE_SHA="06070900e506b6c8ff6eb7b12d33e6c1bf285108"
 
