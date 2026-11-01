@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pixel gate for the pinned noisemaker effect parity cases at the
+# Pixel gate for all 148 noisemaker@d0ed94ae effect parity cases at the
 # GAP-030 capture settings. Stage modes allow WebGL2 and Unity on separate hosts.
 set -euo pipefail
 
@@ -115,7 +115,7 @@ for mode in untiled tiled; do
 done
 
 # The original GAP-030 Flow miss grew over 60 updates. Keep that longer run
-# alongside the 150-case eight-frame gate so the canvas-stride fix is covered.
+# alongside the 148-case eight-frame gate so the canvas-stride fix is covered.
 FLOW60_MANIFEST="$CORPUS/flow60-manifest.tsv"
 FLOW60_GOLD="$WORK/gold-flow60"
 FLOW60_CAND="$WORK/candidate-flow60"

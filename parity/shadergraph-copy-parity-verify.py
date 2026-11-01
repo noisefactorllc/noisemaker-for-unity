@@ -35,6 +35,12 @@ CASES = {
                 "Metric": 0, "LoopOffset": 10, "LoopScale": 1, "Speed": 5,
                 "Seed": 1, "Wrap": 1, "Direction": 2, "Kernel": 0,
                 "EffectWidth": 0},
+    "LensDistortion": {"Resolution": SIZE, "Time": 0.25, "Shape": 0,
+                      "Distortion": 50, "AspectLens": 0, "LoopScale": 10,
+                      "Speed": 0, "Mode": 0, "Aberration": 0, "BlendMode": 1,
+                      "Modulate": 0, "HueRotation": 180, "HueRange": 50,
+                      "Saturation": 0, "Passthru": 0, "VignetteAmt": 0,
+                      "Alpha": 1},
     "Glitch": {"Resolution": SIZE, "Time": 0.25, "AspectRatio": 1,
                "FullResolution": SIZE, "TileOffset": 0,
                "Glitchiness": 0, "Aberration": 0, "XChonk": 1, "YChonk": 1,
@@ -228,6 +234,10 @@ def main():
         raise ValueError("UNITY_PROJECT must be outside the repository")
     dependency = json.loads((project / "Packages/manifest.json").read_text())["dependencies"]
     PROBE.verify_source_package(dependency)
+    if len(sys.argv) > 2:
+        global CASES
+        selected = set(sys.argv[2].split(","))
+        CASES = {name: defaults for name, defaults in CASES.items() if name in selected}
     shadergraph = next((project / "Library/PackageCache").glob("com.unity.shadergraph@*"))
     template = PROBE.multi_json(shadergraph / "GraphTemplates/BuiltIn/BuiltIn Unlit Basic.shadergraph")
     uv_sample = shadergraph / "Samples~/NodeReference/UV/TilingAndOffset.shadergraph"

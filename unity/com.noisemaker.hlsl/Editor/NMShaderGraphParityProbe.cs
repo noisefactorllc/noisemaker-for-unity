@@ -34,12 +34,15 @@ namespace Noisemaker.Hlsl.Editor
                 {
                     if (name != "Snow" && name != "Polar" && name != "Tunnel" &&
                         name != "Spiral" && name != "Refract" && name != "CellRefract" &&
+                        name != "LensDistortion" &&
                         name != "Kaleido" && name != "KaleidoShadow" &&
                         !name.StartsWith("Glitch") && !name.StartsWith("Effects") &&
                         !name.StartsWith("GlyphMap") && !name.StartsWith("Crt"))
                         throw new InvalidOperationException("unknown parity case " + name);
                     Shader graphShader = AssetDatabase.LoadAssetAtPath<Shader>(file.Replace('\\', '/'));
-                    string family = name == "Refract" || name == "CellRefract" || name.StartsWith("Kaleido") ||
+                    string family = name == "Refract" || name == "CellRefract" ||
+                        name == "LensDistortion" ||
+                        name.StartsWith("Kaleido") ||
                         name.StartsWith("Glitch") || name.StartsWith("Effects")
                         ? "classicNoisedeck" : "filter";
                     string shaderName = name == "KaleidoShadow" ? "Kaleido" :
@@ -156,6 +159,24 @@ namespace Noisemaker.Hlsl.Editor
                             pipeline.SetInt("seed", 1);
                             pipeline.SetInt("KERNEL", 0);
                             pipeline.SetFloat("effectWidth", 0f);
+                        }
+                        else if (name == "LensDistortion")
+                        {
+                            pipeline.SetInt("shape", 0);
+                            pipeline.SetFloat("distortion", 50f);
+                            pipeline.SetInt("aspectLens", 0);
+                            pipeline.SetFloat("loopScale", 10f);
+                            pipeline.SetFloat("speed", 0f);
+                            pipeline.SetInt("mode", 0);
+                            pipeline.SetFloat("aberration", 0f);
+                            pipeline.SetInt("blendMode", 1);
+                            pipeline.SetInt("modulate", 0);
+                            pipeline.SetFloat("hueRotation", 180f);
+                            pipeline.SetFloat("hueRange", 50f);
+                            pipeline.SetFloat("saturation", 0f);
+                            pipeline.SetFloat("passthru", 0f);
+                            pipeline.SetFloat("vignetteAmt", 0f);
+                            pipeline.SetFloat("alpha", 1f);
                         }
                         else if (name == "Kaleido" || name == "KaleidoShadow")
                         {
