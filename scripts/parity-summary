@@ -287,10 +287,17 @@ def run_batch(root, cases, universe, work):
     # commands let one slow import finish while every command stays short.
     for import_attempt in range(1, IMPORT_ATTEMPTS + 1):
         label = "unity-import" if import_attempt == 1 else f"unity-import-{import_attempt}"
+        print(f"unity import attempt {import_attempt}/{IMPORT_ATTEMPTS}", flush=True)
         if not run([os.environ["UNITY"], "-batchmode", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
                     "-logFile", work / f"{label}.log", "-giCustomCacheLocation", gi_cache.resolve()], label):
             break
     else:
+        # The engine command log is unreachable when a runner kills the command,
+        # so echo the import log tail here: the harness surfaces this stdout.
+        import_log = work / f"{label}.log"
+        if import_log.is_file():
+            print(f"unity import log tail ({label}):", flush=True)
+            print("".join(import_log.read_text(errors="replace").splitlines(keepends=True)[-40:]), flush=True)
         return records("fail", "Unity import failed")
     if run([os.environ["UNITY"], "-batchmode", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
             "-logFile", unity_log, "-giCustomCacheLocation", gi_cache.resolve(),
