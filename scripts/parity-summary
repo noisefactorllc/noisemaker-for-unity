@@ -287,7 +287,7 @@ def run_batch(root, cases, universe, work):
     # commands let one slow import finish while every command stays short.
     for import_attempt in range(1, IMPORT_ATTEMPTS + 1):
         label = "unity-import" if import_attempt == 1 else f"unity-import-{import_attempt}"
-        if not run([os.environ["UNITY"], "-batchmode", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
+        if not run([os.environ["UNITY"], "-batchmode", "-nographics", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
                     "-logFile", work / f"{label}.log", "-giCustomCacheLocation", gi_cache.resolve()], label):
             break
     else:
