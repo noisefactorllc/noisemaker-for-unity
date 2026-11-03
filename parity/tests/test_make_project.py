@@ -54,7 +54,7 @@ class MakeProjectTests(unittest.TestCase):
         settings = (first / "ProjectSettings/ProjectSettings.asset").read_text()
         self.assertIn("m_ActiveColorSpace: 1", settings)
         self.assertEqual(json.loads((first / "Packages/manifest.json").read_text()),
-                         {"dependencies": {}})
+                         {"dependencies": {"com.unity.modules.imgui": "1.0.0"}})
         self.assertFalse((first / "ProjectVersion.txt").exists(),
                          "the generated project must not pin an editor version")
         self.assertTrue((first / "Assets").is_dir() and not any((first / "Assets").iterdir()))

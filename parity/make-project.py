@@ -8,11 +8,12 @@ platform (macOS, Windows, Linux) previously needed a hand-built one. This
 script writes that project from the current source tree, so each platform's
 qualification run starts from the same deterministic bytes.
 
-The project is minimal by design: an empty Assets folder, a manifest with no
-dependencies, a PlayerSettings asset with Linear color space, and the package
-copied into Packages/. It records no editor version, so any Unity 6000.0+
-editor can import it. After an editor imports the project,
-scripts/parity-summary's validate_project and validate_package accept it.
+The project is minimal by design: an empty Assets folder, a manifest whose
+only dependency is a built-in editor module, a PlayerSettings asset with
+Linear color space, and the package copied into Packages/. It records no
+editor version, so any Unity 6000.0+ editor can import it. After an editor
+imports the project, scripts/parity-summary's validate_project and
+validate_package accept it.
 """
 import argparse
 import hashlib
@@ -31,7 +32,11 @@ PlayerSettings:
   m_ActiveColorSpace: 1
 """
 
-MANIFEST = {"dependencies": {}}
+# A non-empty manifest keeps the Package Manager from falling back to the
+# default project template's registry packages. Importing that fallback set
+# dominates a cold project import. A built-in module resolves locally, with
+# no registry fetch.
+MANIFEST = {"dependencies": {"com.unity.modules.imgui": "1.0.0"}}
 
 
 def sha256(path):
