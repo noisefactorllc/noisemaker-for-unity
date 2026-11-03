@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIELDS = ("expected", "executed", "exact", "strict", "near", "defer", "skip", "fail", "missing")
+IMPORT_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)
@@ -281,10 +282,15 @@ def run_batch(root, cases, universe, work):
     gi_cache.mkdir()
     # A fresh project import takes minutes inside one engine command, and the
     # runner caps each engine command's duration. Import in its own command so
-    # the render command reuses the built Library and stays short.
-    import_log = work / "unity-import.log"
-    if run([os.environ["UNITY"], "-batchmode", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
-            "-logFile", import_log, "-giCustomCacheLocation", gi_cache.resolve()], "unity-import"):
+    # the render command reuses the built Library and stays short. A deadline
+    # kill mid-import still banks built assets, so a bounded number of import
+    # commands let one slow import finish while every command stays short.
+    for import_attempt in range(1, IMPORT_ATTEMPTS + 1):
+        label = "unity-import" if import_attempt == 1 else f"unity-import-{import_attempt}"
+        if not run([os.environ["UNITY"], "-batchmode", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
+                    "-logFile", work / f"{label}.log", "-giCustomCacheLocation", gi_cache.resolve()], label):
+            break
+    else:
         return records("fail", "Unity import failed")
     if run([os.environ["UNITY"], "-batchmode", "-quit", "-projectPath", os.environ["UNITY_PROJECT"],
             "-logFile", unity_log, "-giCustomCacheLocation", gi_cache.resolve(),

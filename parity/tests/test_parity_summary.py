@@ -129,6 +129,42 @@ class ParitySummaryTests(unittest.TestCase):
                              unity[unity.index("-giCustomCacheLocation") + 1])
             self.assertTrue((work / "batch/unity-import.log").is_file())
 
+    def test_dead_import_command_retries_within_the_bounded_attempt_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            cases, env = self.render_fixture(work)
+            with patch.dict(os.environ, {**env, "NM_TEST_IMPORT_FAILS": "1"}):
+                records = self.summary.run_batch(ROOT, cases, cases, work / "batch")
+            self.assertEqual(self.summary.count_results(records),
+                             dict(expected=3, executed=3, exact=1, strict=1,
+                                  near=0, defer=1, skip=0, fail=0, missing=0))
+            commands = json.loads((work / "batch/commands.json").read_text())
+            imports = [command for command in commands
+                       if "-quit" in command["argv"] and "-nmManifest" not in command["argv"]]
+            self.assertEqual(len(imports), 2)
+            self.assertEqual([command["exit_code"] for command in imports], [1, 0])
+            project = imports[0]["argv"][imports[0]["argv"].index("-projectPath") + 1]
+            cache = imports[0]["argv"][imports[0]["argv"].index("-giCustomCacheLocation") + 1]
+            for attempt in imports:
+                self.assertEqual(attempt["argv"][attempt["argv"].index("-projectPath") + 1], project)
+                self.assertEqual(attempt["argv"][attempt["argv"].index("-giCustomCacheLocation") + 1], cache)
+
+    def test_exhausted_import_attempts_fail_the_batch_without_a_render(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            cases, env = self.render_fixture(work)
+            with patch.dict(os.environ, {**env, "NM_TEST_IMPORT_FAILS": "99"}):
+                records = self.summary.run_batch(ROOT, cases, cases, work / "batch")
+            counts = self.summary.count_results(records)
+            self.assertEqual(counts["fail"], 3)
+            self.assertEqual(counts["executed"], 0)
+            commands = json.loads((work / "batch/commands.json").read_text())
+            imports = [command for command in commands
+                       if "-quit" in command["argv"] and "-nmManifest" not in command["argv"]]
+            self.assertEqual(len(imports), self.summary.IMPORT_ATTEMPTS)
+            self.assertTrue(all(command["exit_code"] == 1 for command in imports))
+            self.assertFalse((work / "batch/unity.log").is_file())
+
     def test_gamma_runtime_warning_cannot_produce_a_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
@@ -282,7 +318,13 @@ from pathlib import Path
 from PIL import Image
 args = sys.argv[1:]
 if '-quit' in args and '-nmManifest' not in args and '-projectPath' in args:
-    Path(args[args.index('-logFile') + 1]).write_text('[NMParity] import ok\\n')
+    log = Path(args[args.index('-logFile') + 1])
+    counter = log.parent / 'nm-import-count'
+    n = int(counter.read_text()) if counter.exists() else 0
+    counter.write_text(str(n + 1))
+    if n < int(os.environ.get('NM_TEST_IMPORT_FAILS', '0')):
+        sys.exit(1)
+    log.write_text('[NMParity] import ok\\n')
     sys.exit(0)
 if '-nmManifest' in args:
     mode = os.environ.get('NM_TEST_RENDER_MODE', '')
