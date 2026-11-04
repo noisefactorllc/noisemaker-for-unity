@@ -37,7 +37,7 @@ done
 # line), run only the suites whose inputs the changed paths can exercise; every
 # such test stays. With it unset, every suite runs exactly as before.
 # NM_SHARD_INDEX/NM_SHARD_COUNT (both or neither) split the selected suites
-# across invocations; .nm-test-shards at the repository root holds the count.
+# across invocations.
 # ---------------------------------------------------------------------------
 CHANGED_FILES=""
 if [ -n "${NM_CHANGED_FILES:-}" ]; then

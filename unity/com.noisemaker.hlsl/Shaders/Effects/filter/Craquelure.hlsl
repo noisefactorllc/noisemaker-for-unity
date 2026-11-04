@@ -2,12 +2,6 @@
 #define NM_CRAQUELURE_INCLUDED
 
 // filter/craquelure — global-coordinate Voronoi F1/F2 crack grooves and relief.
-//
-// The Voronoi seed jitter and the value-noise lattice values come from an
-// integer hash (PCG3D) of the integer cell or lattice coordinate (and `seed`
-// for the jitter), so all backends draw identical crack networks; the former
-// float hash rounded and fused differently per compiler and drifted apart
-// (noisemaker e3317b04).
 #include "../../Include/NMFullscreen.hlsl"
 
 float spacing;
@@ -15,22 +9,16 @@ float depth;
 float brightness;
 float seed;
 
-// PCG3D integer hash (Jarzynski & Olano 2020) — the shared nm_pcg, identical
-// mixing to the reference's pcg3d. Unsigned arithmetic wraps the same way on
-// every compiler, so all backends draw identical values.
 uint3 nm_craquelure_pcg3d(uint3 v_in)
 {
     return nm_pcg(v_in);
 }
 
-// Value-noise lattice value in [0, 1) at integer lattice point p. The top
-// 24 hash bits convert to float exactly.
 float nm_craquelure_hash12(int2 p)
 {
     return (float)(nm_craquelure_pcg3d(uint3((uint2)p, 0u)).x >> 8u) / 16777216.0;
 }
 
-// Voronoi seed jitter in [0, 1)^2 for integer cell p and seed.
 float2 nm_craquelure_hash22(int2 p, int seedVal)
 {
     uint2 h = nm_craquelure_pcg3d(uint3((uint2)p, (uint)seedVal)).xy >> uint2(8u, 8u);
