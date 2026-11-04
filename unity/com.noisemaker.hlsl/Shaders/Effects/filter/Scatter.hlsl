@@ -2,19 +2,6 @@
 #define NM_SCATTER_INCLUDED
 
 // filter/scatter — rgba8 jitter intermediate plus 3x3 tent smoothing.
-//
-// The jitter pass hashes the pixel's global (tile-aware) integer coordinate and
-// `seed` with the shared PCG3D (nm_pcg; identical mixing to the reference's
-// pcg3d). Unsigned arithmetic wraps the same way on every compiler, so all
-// backends draw identical offsets; the former float hash22 rounded and fused
-// differently per compiler and drifted apart (noisemaker 7aa54b54).
-//
-// The offset is quantized to integer 1/256 px steps in [-radius, radius) on
-// each axis (the top 16 hash bits scale the span 2 * radius * 256 in integers;
-// the 128 px radius cap keeps the product within 32 bits), and both reads are
-// texel loads of the texel nearest the offset sample position, matching the
-// reference's texelFetch / textureLoad. Outside anisotropic mode the offset is
-// a multiple of 1/256, so floor(offset + 0.5) is exact on every backend.
 #include "../../Include/NMFullscreen.hlsl"
 
 int MODE;
