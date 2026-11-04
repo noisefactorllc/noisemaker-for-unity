@@ -18,7 +18,7 @@ if [ "${1:-}" = --stage ]; then
 fi
 WORK="${1:?provide a work directory}"
 : "${NM_REFERENCE_ROOT:?set NM_REFERENCE_ROOT to pinned noisemaker checkout}"
-REFERENCE_SHA=8e0e2b36e2ea6ef9aad7966971549a53399455b6
+REFERENCE_SHA=1faed961be169863e84fd719a4ca85c27a8b1322
 if [ "$(git -C "$NM_REFERENCE_ROOT" rev-parse HEAD)" != "$REFERENCE_SHA" ]; then
   echo "reference checkout must be noisemaker@$REFERENCE_SHA" >&2
   exit 2
@@ -41,9 +41,9 @@ root, ref = map(Path, sys.argv[1:])
 corpus = root / 'parity/programs/upstream-cases'
 sources = sorted((ref / 'shaders/effects').glob('*/*/parity-case.json'))
 rows = [line.split('\t') for line in (corpus / 'manifest.tsv').read_text().splitlines()]
-assert len(sources) == len(rows) == 151, 'upstream case count changed'
+assert len(sources) == len(rows) == 153, 'upstream case count changed'
 expected = {f'{p.parent.parent.name}__{p.parent.name}': p for p in sources}
-assert len(expected) == 151 and len({row[0] for row in rows}) == 151
+assert len(expected) == 153 and len({row[0] for row in rows}) == 153
 assert {p.name for p in corpus.glob('*.dsl')} == {
     f'{row[0]}.dsl' for row in rows}, 'fixture DSL set differs from manifest'
 for name, path in rows:
@@ -56,7 +56,7 @@ for name, path in rows:
 assert (corpus / 'cube.obj').read_bytes() == (ref / 'share/meshes/cube.obj').read_bytes()
 assert (corpus / 'flow60-manifest.tsv').read_text() == (
     'points__flow\tparity/programs/upstream-cases/points__flow.dsl\n')
-print('151 pinned upstream cases and cube mesh verified')
+print('153 pinned upstream cases and cube mesh verified')
 PY
 
 if [ "$STAGE" = unity ] || [ "$STAGE" = all ]; then
@@ -101,7 +101,7 @@ for mode in untiled tiled; do
         -nmManifest "$RENDER_MANIFEST" -nmSize 128 -nmTime 0.25 -nmFrames 8 \
         -nmMesh "$CORPUS/cube.obj"
     fi
-    if ! grep -Fq '[NMParity] dsl batch done: 151 ok, 0 fail' "$WORK/unity-$mode.log"; then
+    if ! grep -Fq '[NMParity] dsl batch done: 153 ok, 0 fail' "$WORK/unity-$mode.log"; then
       tail -80 "$WORK/unity-$mode.log" >&2
       exit 1
     fi

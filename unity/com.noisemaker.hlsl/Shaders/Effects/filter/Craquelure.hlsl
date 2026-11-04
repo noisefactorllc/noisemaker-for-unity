@@ -2,6 +2,12 @@
 #define NM_CRAQUELURE_INCLUDED
 
 // filter/craquelure — global-coordinate Voronoi F1/F2 crack grooves and relief.
+//
+// The Voronoi seed jitter and the value-noise lattice values come from an
+// integer hash (PCG3D) of the integer cell or lattice coordinate (and `seed`
+// for the jitter), so all backends draw identical crack networks; the former
+// float hash rounded and fused differently per compiler and drifted apart
+// (noisemaker e3317b04).
 #include "../../Include/NMFullscreen.hlsl"
 
 float spacing;
@@ -9,35 +15,44 @@ float depth;
 float brightness;
 float seed;
 
-float nm_craquelure_hash12(float2 p)
+// PCG3D integer hash (Jarzynski & Olano 2020) — the shared nm_pcg, identical
+// mixing to the reference's pcg3d. Unsigned arithmetic wraps the same way on
+// every compiler, so all backends draw identical values.
+uint3 nm_craquelure_pcg3d(uint3 v_in)
 {
-    float3 p3 = frac(p.xyx * 0.1031);
-    p3 = p3 + dot(p3, p3.yzx + float3(33.33, 33.33, 33.33));
-    return frac((p3.x + p3.y) * p3.z);
+    return nm_pcg(v_in);
 }
 
-float2 nm_craquelure_hash22(float2 p)
+// Value-noise lattice value in [0, 1) at integer lattice point p. The top
+// 24 hash bits convert to float exactly.
+float nm_craquelure_hash12(int2 p)
 {
-    float3 p3 = frac(p.xyx * float3(0.1031, 0.1030, 0.0973));
-    p3 = p3 + dot(p3, p3.yzx + float3(33.33, 33.33, 33.33));
-    return frac((p3.xx + p3.yz) * p3.zy);
+    return (float)(nm_craquelure_pcg3d(uint3((uint2)p, 0u)).x >> 8u) / 16777216.0;
+}
+
+// Voronoi seed jitter in [0, 1)^2 for integer cell p and seed.
+float2 nm_craquelure_hash22(int2 p, int seedVal)
+{
+    uint2 h = nm_craquelure_pcg3d(uint3((uint2)p, (uint)seedVal)).xy >> uint2(8u, 8u);
+    return (float2)h / 16777216.0;
 }
 
 float nm_craquelure_vnoise(float2 p)
 {
-    float2 ip = floor(p);
+    int2 ip = (int2)floor(p);
     float2 f = frac(p);
     float2 u = f * f * (3.0 - 2.0 * f);
     return lerp(
-        lerp(nm_craquelure_hash12(ip), nm_craquelure_hash12(ip + float2(1.0, 0.0)), u.x),
-        lerp(nm_craquelure_hash12(ip + float2(0.0, 1.0)), nm_craquelure_hash12(ip + float2(1.0, 1.0)), u.x),
+        lerp(nm_craquelure_hash12(ip), nm_craquelure_hash12(ip + int2(1, 0)), u.x),
+        lerp(nm_craquelure_hash12(ip + int2(0, 1)), nm_craquelure_hash12(ip + int2(1, 1)), u.x),
         u.y);
 }
 
-float2 nm_craquelure_voronoi_f1_f2(float2 p, float jitter, float seedVal)
+float2 nm_craquelure_voronoi_f1_f2(float2 p, float jitter, int seedVal)
 {
     float2 g = floor(p);
     float2 f = p - g;
+    int2 gi = (int2)g;
     float best = 1e9;
     float second = 1e9;
     [unroll]
@@ -48,7 +63,7 @@ float2 nm_craquelure_voronoi_f1_f2(float2 p, float jitter, float seedVal)
         {
             float2 cell = float2((float)x, (float)y);
             float2 pt = cell + 0.5 +
-                (nm_craquelure_hash22(g + cell + seedVal * 101.7) - 0.5) * jitter;
+                (nm_craquelure_hash22(gi + int2(x, y), seedVal) - 0.5) * jitter;
             float d = dot(pt - f, pt - f);
             if (d < best)
             {
@@ -75,7 +90,7 @@ float nm_craquelure_relief_shade(
 }
 
 float nm_craquelure_crack_mask(
-    float2 globalCoord, float spacingPx, float depthPct, float seedVal)
+    float2 globalCoord, float spacingPx, float depthPct, int seedVal)
 {
     float2 wob = float2(
         nm_craquelure_vnoise(globalCoord / 6.0),
@@ -94,13 +109,13 @@ float4 nm_craquelure(Texture2D tex, SamplerState ss, float2 pos)
     float2 globalCoord = pos + tileOffset;
     float2 uv = pos / float2(tw, th);
     float4 src = tex.Sample(ss, uv);
-    float seedF = (float)(int)seed;
+    int seedI = (int)seed;
 
-    float kC = nm_craquelure_crack_mask(globalCoord, spacing, depth, seedF);
-    float kR = nm_craquelure_crack_mask(globalCoord + float2(1.0, 0.0), spacing, depth, seedF);
-    float kL = nm_craquelure_crack_mask(globalCoord - float2(1.0, 0.0), spacing, depth, seedF);
-    float kT = nm_craquelure_crack_mask(globalCoord + float2(0.0, 1.0), spacing, depth, seedF);
-    float kB = nm_craquelure_crack_mask(globalCoord - float2(0.0, 1.0), spacing, depth, seedF);
+    float kC = nm_craquelure_crack_mask(globalCoord, spacing, depth, seedI);
+    float kR = nm_craquelure_crack_mask(globalCoord + float2(1.0, 0.0), spacing, depth, seedI);
+    float kL = nm_craquelure_crack_mask(globalCoord - float2(1.0, 0.0), spacing, depth, seedI);
+    float kT = nm_craquelure_crack_mask(globalCoord + float2(0.0, 1.0), spacing, depth, seedI);
+    float kB = nm_craquelure_crack_mask(globalCoord - float2(0.0, 1.0), spacing, depth, seedI);
 
     float2 gradK = float2((kR - kL) * 0.5, (kT - kB) * 0.5);
     float hC = -kC;

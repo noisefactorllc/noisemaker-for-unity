@@ -29,6 +29,7 @@ filter__chromaticAberration	parity/programs/upstream-cases/filter__chromaticAber
 filter__chrome	parity/programs/upstream-cases/filter__chrome.dsl
 filter__convolutionFeedback	parity/programs/upstream-cases/filter__convolutionFeedback.dsl
 filter__corrupt	parity/programs/upstream-cases/filter__corrupt.dsl
+filter__craquelure	parity/programs/upstream-cases/filter__craquelure.dsl
 filter__crt	parity/programs/upstream-cases/filter__crt.dsl
 filter__degauss	parity/programs/upstream-cases/filter__degauss.dsl
 filter__deriv	parity/programs/upstream-cases/filter__deriv.dsl
@@ -75,6 +76,7 @@ filter__sobel	parity/programs/upstream-cases/filter__sobel.dsl
 filter__spinBlur	parity/programs/upstream-cases/filter__spinBlur.dsl
 filter__spiral	parity/programs/upstream-cases/filter__spiral.dsl
 filter__spookyTicker	parity/programs/upstream-cases/filter__spookyTicker.dsl
+filter__stipple	parity/programs/upstream-cases/filter__stipple.dsl
 filter__strayHair	parity/programs/upstream-cases/filter__strayHair.dsl
 filter__tetraColorArray	parity/programs/upstream-cases/filter__tetraColorArray.dsl
 filter__text	parity/programs/upstream-cases/filter__text.dsl
