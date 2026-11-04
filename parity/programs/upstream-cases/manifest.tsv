@@ -63,6 +63,7 @@ filter__reverb	parity/programs/upstream-cases/filter__reverb.dsl
 filter__rotate	parity/programs/upstream-cases/filter__rotate.dsl
 filter__scale	parity/programs/upstream-cases/filter__scale.dsl
 filter__scanlineError	parity/programs/upstream-cases/filter__scanlineError.dsl
+filter__scatter	parity/programs/upstream-cases/filter__scatter.dsl
 filter__scratches	parity/programs/upstream-cases/filter__scratches.dsl
 filter__scroll	parity/programs/upstream-cases/filter__scroll.dsl
 filter__sharpen	parity/programs/upstream-cases/filter__sharpen.dsl

@@ -738,12 +738,12 @@
    "mechanism": "localized float32 rounding ties (corr(gold,cand)=0.9993)"
   },
   "filter__scatter__mode__anisotropic": {
-   "max_abs_diff": 34.0,
-   "max_mean_abs_diff": 0.003814697265625,
-   "ssim_min": 0.9999911225,
-   "max_exceeded_pixels": 31,
-   "max_exceeded_channels": 81,
-   "mechanism": "localized float32 rounding ties (corr(gold,cand)=1.0)"
+   "max_abs_diff": 124.0,
+   "max_mean_abs_diff": 0.20301055908203125,
+   "ssim_min": 0.9996272623,
+   "max_exceeded_pixels": 1694,
+   "max_exceeded_channels": 4343,
+   "mechanism": "Anisotropic-only: the luminance-gradient projection leaves the offset a plain float (not a 1/256 px multiple), so floor(offset + 0.5) texel selection flips where the gradient's low-order bits round differently between the reference WebGL2 backend and Unity/Metal. Every non-anisotropic mode is integer-exact after the PCG3D reseed (noisemaker 7aa54b54)."
   },
   "filter__scratches__alpha__mid": {
    "max_abs_diff": 11.0,
