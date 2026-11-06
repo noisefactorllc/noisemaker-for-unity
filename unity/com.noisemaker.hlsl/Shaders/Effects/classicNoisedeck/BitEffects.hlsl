@@ -326,10 +326,8 @@ float3 be_hsv2rgb(float3 hsv)
         rgb = float3(0.0, x, c);
     } else if (4.0/6.0 <= h && h < 5.0/6.0) {
         rgb = float3(x, 0.0, c);
-    } else if (5.0/6.0 <= h && h < 1.0) {
-        rgb = float3(c, 0.0, x);
     } else {
-        rgb = float3(0.0, 0.0, 0.0);
+        rgb = float3(c, 0.0, x);
     }
 
     return rgb + float3(m, m, m);

@@ -103,7 +103,7 @@ float3 nmf_hsv2rgb(float3 hsv)
     else if (h >= 2.0/6.0    && h < 3.0/6.0) { rgb = float3(0.0, c, x); }
     else if (h >= 3.0/6.0    && h < 4.0/6.0) { rgb = float3(0.0, x, c); }
     else if (h >= 4.0/6.0    && h < 5.0/6.0) { rgb = float3(x, 0.0, c); }
-    else if (h >= 5.0/6.0    && h < 1.0)      { rgb = float3(c, 0.0, x); }
+    else                                    { rgb = float3(c, 0.0, x); }
     return rgb + float3(m, m, m);
 }
 

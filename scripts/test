@@ -90,11 +90,11 @@ if [ -n "$CHANGED_FILES" ] \
   exit 0
 fi
 
-# Reference authority: noisemaker 15d7719b, pinned by REFERENCE_SHA below. The
+# Reference authority: noisemaker 6f98d26a, pinned by REFERENCE_SHA below. The
 # rendered-pixel gate parity/upstream-cases-verify.sh pins its own capture
 # authority separately.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="15d7719bd3eaa859920980d18184ab45329f8bd5"
+REFERENCE_SHA="6f98d26ab84f17ba7fb154bb74252d6362736f89"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"
