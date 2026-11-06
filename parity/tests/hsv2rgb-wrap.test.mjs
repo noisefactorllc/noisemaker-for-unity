@@ -1,5 +1,5 @@
 // Source-bound contract test for the hsv2rgb hue-sector wrap that noisemaker
-// 6f98d26a applied upstream and this port carries in eight classicNoisedeck
+// 6f98d26a applied upstream and this port carries in classicNoisedeck
 // HLSL effects. Each function's last hue sector must be an unconditional else
 // assigning (c, 0, x): at h = 1.0, which frac() can produce for a hue just
 // below a whole number, x is 0 and the colour is that of h = 0.0, so the hue
