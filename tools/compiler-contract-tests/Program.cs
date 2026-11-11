@@ -59,6 +59,7 @@ namespace CompilerContractTests
             TestGap006TexturePoolability();
             TestGap016GraphPreflight();
             TestVec2Vec4CallArgs();
+            TestStatefulInstanceState();
 
             Console.WriteLine($"compiler contract tests: {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
 
@@ -2588,6 +2589,219 @@ namespace CompilerContractTests
         private static string SharedAlloc()
         {
             return "{\"_a\":\"phys_0\",\"_b\":\"phys_0\"}";
+        }
+
+        // noisemaker@cf95f49c (shaders/tests/test_stateful_instances.js): a global_
+        // texture that only one effect of a chain names, and that the effect writes,
+        // is private state. Each further instance of the effect in the chain gets its
+        // own state texture and sizing param; the first instance keeps the chain-scoped
+        // IDs. Textures that different effects share, and read-only external buffers,
+        // keep the chain scope.
+        private static void TestStatefulInstanceState()
+        {
+            try
+            {
+                string effectsDir = Path.Combine(Directory.GetCurrentDirectory(), "unity", "com.noisemaker.hlsl", "Effects");
+                if (!Directory.Exists(effectsDir))
+                {
+                    effectsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "unity", "com.noisemaker.hlsl", "Effects"));
+                }
+                var reg = EffectRegistry.LoadFromDirectory(effectsDir);
+                Func<string, RenderGraph> build = chain =>
+                    DslCompiler.Compile("search synth, mixer, filter, render\n" + chain + "\nrender(o0)\n", reg);
+
+                foreach (string chain in new[]
+                {
+                    "reactionDiffusion(zoom: x4).blendMode(tex: reactionDiffusion(zoom: x16)).write(o0)",
+                    "perlin().blendMode(tex: reactionDiffusion(zoom: x4)).blendMode(tex: reactionDiffusion(zoom: x16)).write(o0)"
+                })
+                {
+                    RenderGraph graph = build(chain);
+                    var nodes = StateInstances(graph, "reactionDiffusion", "global_rd_state", chain);
+                    Check(nodes.Count == 2, chain + ": two reactionDiffusion instances");
+                    if (nodes.Count != 2) continue;
+                    Check(nodes[0].Texture == "global_rd_state_chain_0", chain + ": the first instance keeps the chain-scoped state");
+                    Check(nodes[1].Texture == "global_rd_state_chain_0_" + nodes[1].NodeId, chain + ": the second instance owns node-scoped state");
+                    string first = SizingParam(graph, nodes[0].Texture);
+                    string second = SizingParam(graph, nodes[1].Texture);
+                    Check(first == "zoom_chain_0", chain + ": the first instance keeps the chain-scoped zoom");
+                    Check(second == "zoom_chain_0_" + nodes[1].NodeId, chain + ": the second instance sizes from its own zoom");
+                    for (int index = 0; index < 2; index++)
+                    {
+                        string param = index == 0 ? first : second;
+                        foreach (Pass pass in nodes[index].Passes)
+                        {
+                            Check(pass.ScopedParams != null && pass.ScopedParams.TryGetValue("zoom", out string scoped) && scoped == param,
+                                chain + ": " + pass.Id + " maps zoom to " + param);
+                            Check(UniformNumber(pass, param) == (index == 0 ? 4 : 16), chain + ": " + pass.Id + " carries its own zoom");
+                        }
+                    }
+                }
+
+                {
+                    string chain = "perlin().watercolor().watercolor().write(o0)";
+                    var nodes = StateInstances(build(chain), "watercolor", "global_wc_state", chain);
+                    Check(nodes.Count == 2 && nodes[0].Texture == "global_wc_state_chain_0" &&
+                          nodes[1].Texture == "global_wc_state_chain_0_" + nodes[1].NodeId,
+                        chain + ": watercolor instances have independent ping-pong state");
+                }
+
+                foreach (string chain in new[]
+                {
+                    "reactionDiffusion(zoom: x4).blendMode(tex: cellularAutomata(zoom: x16)).write(o0)",
+                    "perlin().blendMode(tex: reactionDiffusion(zoom: x4)).blendMode(tex: cellularAutomata(zoom: x16)).write(o0)"
+                })
+                {
+                    RenderGraph graph = build(chain);
+                    var rd = StateInstances(graph, "reactionDiffusion", "global_rd_state", chain);
+                    var ca = StateInstances(graph, "cellularAutomata", "global_ca_state", chain);
+                    Check(rd.Count == 1 && rd[0].Texture == "global_rd_state_chain_0", chain + ": reactionDiffusion keeps its chain-scoped state");
+                    Check(ca.Count == 1 && ca[0].Texture == "global_ca_state_chain_0", chain + ": cellularAutomata keeps its chain-scoped state");
+                    if (rd.Count != 1 || ca.Count != 1) continue;
+                    string rdParam = SizingParam(graph, rd[0].Texture);
+                    string caParam = SizingParam(graph, ca[0].Texture);
+                    Check(rdParam == "zoom_chain_0", chain + ": the first effect to size from zoom keeps zoom_chain_0");
+                    Check(caParam == "zoom_chain_0_" + ca[0].NodeId, chain + ": the other effect sizes from its own zoom");
+                    foreach (Pass pass in ca[0].Passes)
+                        Check(UniformNumber(pass, caParam) == 16, chain + ": " + pass.Id + " carries cellularAutomata's zoom");
+                }
+
+                foreach (string chain in new[]
+                {
+                    "perlin().loopBegin().loopEnd().write(o0)",
+                    "perlin().loopBegin().loopEnd().loopBegin().loopEnd().write(o0)"
+                })
+                {
+                    int accumulators = 0;
+                    foreach (Pass pass in build(chain).Passes)
+                    {
+                        if (pass.Func == "loopBegin")
+                        {
+                            Check(pass.Inputs.TryGetValue("accumTex", out string accum) && accum == "global_accum_chain_0",
+                                chain + ": " + pass.Id + " reads the shared accumulator");
+                            accumulators++;
+                        }
+                        if (pass.Func == "loopEnd" && pass.Outputs.TryGetValue("fragColor", out string written) &&
+                            written.StartsWith("global_", StringComparison.Ordinal))
+                            Check(written == "global_accum_chain_0", chain + ": " + pass.Id + " writes the shared accumulator");
+                    }
+                    Check(accumulators > 0, chain + ": loopBegin passes are present");
+                }
+
+                {
+                    string chain = "meshLoader().meshRender().meshRender().write(o0)";
+                    RenderGraph graph = build(chain);
+                    Pass loader = graph.Passes.Find(p => p.Func == "meshLoader");
+                    var renderers = graph.Passes.FindAll(p => p.Func == "meshRender" && p.Inputs.ContainsKey("meshPositions"));
+                    Check(loader != null && loader.Inputs.TryGetValue("positionsTex", out string positions) &&
+                          positions == "global_mesh0_positions_chain_0" &&
+                          loader.Inputs.TryGetValue("normalsTex", out string normals) && normals == "global_mesh0_normals_chain_0",
+                        chain + ": meshLoader keeps the chain-scoped mesh buffers");
+                    Check(renderers.Count == 2, chain + ": two meshRender draw passes");
+                    foreach (Pass renderer in renderers)
+                        Check(loader != null && renderer.Inputs["meshPositions"] == loader.Inputs["positionsTex"] &&
+                              renderer.Inputs["meshNormals"] == loader.Inputs["normalsTex"],
+                            chain + ": " + renderer.Id + " reads the loader's mesh buffers");
+                }
+
+                {
+                    string chain = "reactionDiffusion(zoom: x4).blendMode(tex: reactionDiffusion()).blendMode(tex: reactionDiffusion(zoom: x16)).write(o0)";
+                    RenderGraph graph = build(chain);
+                    var nodes = StateInstances(graph, "reactionDiffusion", "global_rd_state", chain);
+                    var textures = new HashSet<string>();
+                    var parameters = new HashSet<string>();
+                    foreach (var node in nodes)
+                    {
+                        textures.Add(node.Texture);
+                        parameters.Add(SizingParam(graph, node.Texture));
+                    }
+                    Check(nodes.Count == 3 && textures.Count == 3 && parameters.Count == 3,
+                        chain + ": each repeated instance owns its state and zoom");
+                    double[] zooms = { 4, 8, 16 };
+                    for (int index = 0; index < nodes.Count && index < 3; index++)
+                    {
+                        string param = SizingParam(graph, nodes[index].Texture);
+                        foreach (Pass pass in nodes[index].Passes)
+                            Check(UniformNumber(pass, param) == zooms[index], chain + ": " + pass.Id + " keeps its explicit or default zoom");
+                    }
+                }
+
+                {
+                    string chain = "meshLoader().write(o0)\nread(o0).meshRender().meshRender().write(o1)";
+                    var renderers = build(chain).Passes.FindAll(p => p.Func == "meshRender" && p.Inputs.ContainsKey("meshPositions"));
+                    Check(renderers.Count == 2, "mesh renderers in another chain: two meshRender draw passes");
+                    foreach (Pass renderer in renderers)
+                        Check(renderer.Inputs["meshPositions"] == "global_mesh0_positions_chain_1" &&
+                              renderer.Inputs["meshNormals"] == "global_mesh0_normals_chain_1",
+                            "mesh renderers in another chain: " + renderer.Id + " keeps the chain-scoped external buffers");
+                }
+
+                {
+                    string chain = "perlin().write(o0)\nreactionDiffusion(zoom: x4).watercolor().write(o1)";
+                    RenderGraph graph = build(chain);
+                    var rd = StateInstances(graph, "reactionDiffusion", "global_rd_state", chain);
+                    var wc = StateInstances(graph, "watercolor", "global_wc_state", chain);
+                    Check(rd.Count == 1 && rd[0].Texture == "global_rd_state_chain_1", chain + ": a single reactionDiffusion keeps its ID");
+                    Check(wc.Count == 1 && wc[0].Texture == "global_wc_state_chain_1", chain + ": a single watercolor keeps its ID");
+                    Check(rd.Count == 1 && SizingParam(graph, rd[0].Texture) == "zoom_chain_1", chain + ": a single reactionDiffusion keeps zoom_chain_1");
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "TestStatefulInstanceState: " + ex.Message);
+            }
+        }
+
+        private sealed class StateInstance
+        {
+            public string NodeId;
+            public string Texture;
+            public readonly List<Pass> Passes = new List<Pass>();
+        }
+
+        // The instances of one effect in pass order, each with the one state texture
+        // that all of its passes read or write.
+        private static List<StateInstance> StateInstances(RenderGraph graph, string func, string statePrefix, string label)
+        {
+            var nodes = new List<StateInstance>();
+            var textures = new Dictionary<string, HashSet<string>>();
+            foreach (Pass pass in graph.Passes)
+            {
+                if (pass.Func != func) continue;
+                StateInstance node = nodes.Find(n => n.NodeId == pass.NodeId);
+                if (node == null)
+                {
+                    node = new StateInstance { NodeId = pass.NodeId };
+                    nodes.Add(node);
+                    textures[pass.NodeId] = new HashSet<string>();
+                }
+                node.Passes.Add(pass);
+                foreach (var map in new[] { pass.Inputs, pass.Outputs })
+                {
+                    if (map == null) continue;
+                    foreach (var kv in map)
+                        if (kv.Value != null && kv.Value.StartsWith(statePrefix, StringComparison.Ordinal))
+                            textures[pass.NodeId].Add(kv.Value);
+                }
+            }
+            foreach (StateInstance node in nodes)
+            {
+                Check(textures[node.NodeId].Count == 1, label + ": all passes of " + node.NodeId + " use one state texture");
+                foreach (string texture in textures[node.NodeId]) { node.Texture = texture; break; }
+            }
+            return nodes;
+        }
+
+        private static string SizingParam(RenderGraph graph, string texture)
+        {
+            return texture != null && graph.Textures.TryGetValue(texture, out TextureSpec spec) && spec.Width != null
+                ? spec.Width.ScreenDivide : null;
+        }
+
+        private static double UniformNumber(Pass pass, string name)
+        {
+            return name != null && pass.Uniforms.TryGetValue(name, out UniformValue value) &&
+                   value.Kind == UniformValueKind.Number ? value.Number : double.NaN;
         }
 
         private static RenderGraph PoolGraph(string passesJson, string texturesJson,

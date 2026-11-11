@@ -71,6 +71,17 @@ namespace Noisemaker.Hlsl.Compiler
         private string _currentInput3d;
         private string _currentInputGeo;
 
+        // PRIVATE STATE (noisemaker@cf95f49c). Per chain: the effects that name each
+        // global_ texture, and the first node that sizes private state from each
+        // chain-scoped sizing param. Per effect step: its node, its instance scope (the
+        // chain scope for the first instance of an effect in the chain, else the chain
+        // scope plus its node) and the textures it owns (declared or written).
+        private Dictionary<string, HashSet<EffectDefinition>> _globalTextureUsers;
+        private Dictionary<string, string> _sizeParamOwners;
+        private string _scopeNodeId;
+        private string _instanceScopeId;
+        private HashSet<string> _ownedTextures;
+
         private Expander(List<Plan> plans, string render, EffectRegistry reg)
         {
             _plans = plans;
@@ -108,6 +119,9 @@ namespace Noisemaker.Hlsl.Compiler
             _currentParticlePipelineId = null;
             _currentInputXyz = _currentInputVel = _currentInputRgba = null;
             _currentInput3d = _currentInputGeo = null;
+            _globalTextureUsers = CollectGlobalTextureUsers(plan.Chain);
+            _sizeParamOwners = new Dictionary<string, string>();
+            var seenEffects = new HashSet<EffectDefinition>();
 
             for (int stepPos = 0; stepPos < plan.Chain.Count; stepPos++)
             {
@@ -252,6 +266,13 @@ namespace Noisemaker.Hlsl.Compiler
                 if (effectDef == null) { _result.Errors.Add("Effect '" + effectName + "' not found"); continue; }
 
                 string nodeId = "node_" + step.Temp;
+                // The first instance of an effect in the chain keeps the legacy IDs. A
+                // further instance gives its private state a node suffix; textures that
+                // different effects share keep the chain scope.
+                _scopeNodeId = nodeId;
+                _instanceScopeId = seenEffects.Contains(effectDef) ? chainScopeId + "_" + nodeId : chainScopeId;
+                seenEffects.Add(effectDef);
+                _ownedTextures = OwnedTextures(effectDef);
                 var scopedParamMap = new OrderedMap<string, string>();
 
                 // §4.4 step 1: particle-pipeline scope detection. An effect that defines
@@ -487,11 +508,11 @@ namespace Noisemaker.Hlsl.Compiler
                 bool isParticle = IsParticleTex(texName);
                 bool particleScoped = isParticle && _currentParticlePipelineId != null;
 
-                // §6.1 virtualTexId: particle+active → pipeline-scoped; global_ → chain-scoped;
-                // else node-local.
+                // §6.1 virtualTexId: particle+active → pipeline-scoped; global_ → private
+                // state gets the instance scope, shared state the chain scope; else node-local.
                 string virtualTexId;
                 if (particleScoped) virtualTexId = texName + "_" + _currentParticlePipelineId;
-                else if (texName.StartsWith("global_")) virtualTexId = texName + "_" + chainScopeId;
+                else if (texName.StartsWith("global_")) virtualTexId = texName + "_" + GlobalScope(texName, chainScopeId);
                 else virtualTexId = nodeId + "_" + texName;
 
                 TextureSpec spec = ParseTextureSpec(specJson, false);
@@ -504,8 +525,13 @@ namespace Noisemaker.Hlsl.Compiler
                 string scopeSuffix = particleScoped ? _currentParticlePipelineId : chainScopeId;
                 if (shouldScopeParams)
                 {
-                    spec.Width = ScopeDimSpec(spec.Width, scopeSuffix, scopedParamMap, texName);
-                    spec.Height = ScopeDimSpec(spec.Height, scopeSuffix, scopedParamMap, texName);
+                    // A chain-scoped sizing param is claimed by the first node that sizes
+                    // from it; a later node that sizes private state from it gets its own.
+                    bool isPrivateTex = !texName.StartsWith("global_") || IsPrivateGlobal(texName);
+                    Func<string, bool, string> chainSizeParam = (scopedParam, inherit) =>
+                        particleScoped || inherit ? scopedParam : ClaimSizeParam(scopedParam, isPrivateTex);
+                    spec.Width = ScopeDimSpec(spec.Width, scopeSuffix, scopedParamMap, texName, chainSizeParam);
+                    spec.Height = ScopeDimSpec(spec.Height, scopeSuffix, scopedParamMap, texName, chainSizeParam);
                 }
                 _result.TextureSpecs.Add(virtualTexId, spec);
             }
@@ -1262,12 +1288,105 @@ namespace Noisemaker.Hlsl.Compiler
         }
 
         // scopeChainTex (reference/03 §6.2): particle scoping takes priority; else global_
-        // textures are chain-scoped; else unchanged.
+        // textures take the scope GlobalScope gives them; else unchanged.
         private string ScopeChainTex(string texName, string chainScopeId)
         {
             if (IsParticleTex(texName)) return ScopeParticleTex(texName);
-            if (texName.StartsWith("global_")) return texName + "_" + chainScopeId;
+            if (texName.StartsWith("global_")) return texName + "_" + GlobalScope(texName, chainScopeId);
             return texName;
+        }
+
+        // collectGlobalTextureUsers (noisemaker@cf95f49c): for each global_ texture, the
+        // distinct effects of the chain (builtins and skipped steps excluded) that name
+        // it as a texture, a 3D texture, a global default, an output declaration or a
+        // pass input or output.
+        private Dictionary<string, HashSet<EffectDefinition>> CollectGlobalTextureUsers(List<Step> chain)
+        {
+            var users = new Dictionary<string, HashSet<EffectDefinition>>();
+            var effects = new HashSet<EffectDefinition>();
+            foreach (Step step in chain)
+            {
+                if (step.Builtin) continue;
+                ArgValue skip = step.Args.Get("_skip");
+                if (skip != null && skip.Kind == ArgKind.Bool && skip.Bool) continue;
+                EffectDefinition effect = _reg.GetEffect(step.Op);
+                if (effect == null || !effects.Add(effect)) continue;
+                var refs = new List<string>();
+                AddObjectKeys(effect.Textures, refs);
+                AddObjectKeys(effect.Textures3d, refs);
+                if (effect.Globals != null && effect.Globals.Kind == JsonKind.Object)
+                    foreach (var g in effect.Globals.AsObject) refs.Add(StrOf(g.Value, "default"));
+                refs.Add(effect.OutputTex);
+                refs.Add(effect.OutputTex3d);
+                refs.Add(effect.OutputGeo);
+                refs.Add(effect.OutputXyz);
+                refs.Add(effect.OutputVel);
+                refs.Add(effect.OutputRgba);
+                if (effect.Passes != null && effect.Passes.Kind == JsonKind.Array)
+                    foreach (JsonValue pass in effect.Passes.AsArray)
+                    {
+                        AddObjectStrings(pass.Get("inputs"), refs);
+                        AddObjectStrings(pass.Get("outputs"), refs);
+                    }
+                foreach (string texRef in refs)
+                {
+                    if (texRef == null || !texRef.StartsWith("global_")) continue;
+                    if (!users.TryGetValue(texRef, out HashSet<EffectDefinition> set))
+                        users[texRef] = set = new HashSet<EffectDefinition>();
+                    set.Add(effect);
+                }
+            }
+            return users;
+        }
+
+        // The textures an effect owns: its declared 2D and 3D textures and every pass output.
+        private static HashSet<string> OwnedTextures(EffectDefinition effectDef)
+        {
+            var refs = new List<string>();
+            AddObjectKeys(effectDef.Textures, refs);
+            AddObjectKeys(effectDef.Textures3d, refs);
+            if (effectDef.Passes != null && effectDef.Passes.Kind == JsonKind.Array)
+                foreach (JsonValue pass in effectDef.Passes.AsArray) AddObjectStrings(pass.Get("outputs"), refs);
+            var owned = new HashSet<string>();
+            foreach (string texRef in refs) if (texRef != null) owned.Add(texRef);
+            return owned;
+        }
+
+        private static void AddObjectKeys(JsonValue obj, List<string> refs)
+        {
+            if (obj == null || obj.Kind != JsonKind.Object) return;
+            foreach (var kv in obj.AsObject) refs.Add(kv.Key);
+        }
+
+        private static void AddObjectStrings(JsonValue obj, List<string> refs)
+        {
+            if (obj == null || obj.Kind != JsonKind.Object) return;
+            foreach (var kv in obj.AsObject)
+                if (kv.Value != null && kv.Value.Kind == JsonKind.String) refs.Add(kv.Value.AsString);
+        }
+
+        // A global_ texture that only this effect of the chain names, and that it owns,
+        // is private state. Read-only globals can be external uploads, whose bindings
+        // keep the chain scope.
+        private bool IsPrivateGlobal(string texName)
+        {
+            return _ownedTextures != null && _ownedTextures.Contains(texName) &&
+                _globalTextureUsers != null &&
+                _globalTextureUsers.TryGetValue(texName, out HashSet<EffectDefinition> users) && users.Count == 1;
+        }
+
+        private string GlobalScope(string texName, string chainScopeId)
+        {
+            return IsPrivateGlobal(texName) ? _instanceScopeId : chainScopeId;
+        }
+
+        // The first node to size from a chain-scoped param keeps its name; any other node,
+        // of the same effect or another, that sizes private state from it gets its own.
+        private string ClaimSizeParam(string scopedParam, bool isPrivate)
+        {
+            bool claimed = _sizeParamOwners.TryGetValue(scopedParam, out string owner);
+            if (!claimed) _sizeParamOwners[scopedParam] = _scopeNodeId;
+            return isPrivate && claimed && owner != _scopeNodeId ? scopedParam + "_" + _scopeNodeId : scopedParam;
         }
 
         // §4.10 effect-level agent-state passthrough. `decl` is the effect's
@@ -1302,15 +1421,20 @@ namespace Noisemaker.Hlsl.Compiler
         // pointsEmit established, not a same-named-but-different chain-scoped default. Pass
         // null (viewport dims) to skip this override; it never applies to volumeSize dims
         // (scoped separately by the caller before this function sees them).
-        private Dim ScopeDimSpec(Dim d, string scopeSuffix, OrderedMap<string, string> scopedParamMap, string texName = null)
+        // chainSizeParam (texture dims only) maps the scoped name of every other param
+        // dim, volumeSize excepted, to the name of the node that claims it.
+        private Dim ScopeDimSpec(Dim d, string scopeSuffix, OrderedMap<string, string> scopedParamMap, string texName = null,
+                                 Func<string, bool, string> chainSizeParam = null)
         {
             if (d == null) return null;
             if (d.Kind == DimKind.Param && d.Param != null)
             {
-                string dimensionScope = (d.Param == "stateSize" && _currentParticlePipelineId != null &&
-                                          texName != null && !texName.StartsWith("global_"))
-                    ? _currentParticlePipelineId : scopeSuffix;
+                bool pipelineState = d.Param == "stateSize" && _currentParticlePipelineId != null &&
+                                     texName != null && !texName.StartsWith("global_");
+                string dimensionScope = pipelineState ? _currentParticlePipelineId : scopeSuffix;
                 string scoped = d.Param + "_" + dimensionScope;
+                if (!pipelineState && d.Param != "volumeSize" && chainSizeParam != null)
+                    scoped = chainSizeParam(scoped, d.Inherit);
                 // An inherited dimension reads the scope's value and never writes
                 // this effect's own value over it (reference 27a2b58f).
                 if (!d.Inherit) scopedParamMap.Add(d.Param, scoped);
@@ -1319,6 +1443,7 @@ namespace Noisemaker.Hlsl.Compiler
             if (d.Kind == DimKind.ScreenDivide && d.ScreenDivide != null)
             {
                 string scoped = d.ScreenDivide + "_" + scopeSuffix;
+                if (chainSizeParam != null) scoped = chainSizeParam(scoped, false);
                 scopedParamMap.Add(d.ScreenDivide, scoped);
                 return Dim.FromScreenDivide(scoped, d.DefaultValue);
             }
