@@ -104,9 +104,17 @@ namespace Noisemaker.Hlsl
             _binder = new UniformBinder();
             _backend = new NMRenderBackend(_registry, this, _binder);
             _meshData = new NMMeshData(_store, _surfaces);
-            _sinkManager = new NMSinkManager();
+            _sinkManager = new NMSinkManager(ReportSinkError);
             _cmd = new CommandBuffer { name = "Noisemaker" };
             _uniformLookup = UniformLookup;
+        }
+
+        // Pass an isolated sink failure to the sink that threw it. A sink opts in
+        // by overriding OnError. NMSinkManager already counts the failure and
+        // keeps rendering; the reporter never interrupts it either.
+        private static void ReportSinkError(System.Exception error, INMOutputSink sink)
+        {
+            sink.OnError(error);
         }
 
         public System.Action AddSink(INMOutputSink sink)

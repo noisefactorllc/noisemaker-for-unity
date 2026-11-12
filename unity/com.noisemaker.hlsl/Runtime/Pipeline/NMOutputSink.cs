@@ -72,6 +72,11 @@ namespace Noisemaker.Hlsl
         bool Submit(RenderTexture texture, double timestampMilliseconds);
         void Close(NMOutputCloseOptions options = null);
         bool DeferRender() => false;
+
+        // Receive this sink's isolated failures from Configure, DeferRender and
+        // Submit, for example to end an output whose new size it cannot send.
+        // Rendering and the other sinks continue either way.
+        void OnError(Exception error) { }
     }
 
     public sealed class NMSinkStats

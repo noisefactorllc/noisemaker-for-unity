@@ -24,21 +24,31 @@ namespace Noisemaker.Hlsl.Editor
             public bool ThrowOnClose;
             public bool Defer;
             public bool ThrowOnDefer;
+            public bool Failing;
+            public Exception ThrowOnConfigure;
+            public Exception ThrowOnDeferError;
+            public Exception ThrowOnSubmit;
+            public bool ThrowOnReport;
+            public int ReporterCalls;
+            public readonly List<Exception> ReportedErrors = new List<Exception>();
 
             public bool DeferRender()
             {
+                if (Failing && ThrowOnDeferError != null) throw ThrowOnDeferError;
                 if (ThrowOnDefer) throw new InvalidOperationException("defer failure");
                 return Defer;
             }
 
             public void Configure(NMOutputDescriptor descriptor)
             {
+                if (Failing && ThrowOnConfigure != null) throw ThrowOnConfigure;
                 Descriptor = descriptor;
                 OnConfigure?.Invoke();
             }
 
             public bool Submit(RenderTexture texture, double timestampMilliseconds)
             {
+                if (Failing && ThrowOnSubmit != null) throw ThrowOnSubmit;
                 Check(texture != null, "sink received a null texture");
                 Check(timestampMilliseconds >= 0.0, "sink received a negative timestamp");
                 Submissions++;
@@ -54,6 +64,33 @@ namespace Noisemaker.Hlsl.Editor
                 CloseOptions = options;
                 if (ThrowOnClose) throw new InvalidOperationException("close failure");
             }
+
+            public void OnError(Exception error)
+            {
+                ReporterCalls++;
+                if (ThrowOnReport) throw new InvalidOperationException("reporter failure");
+                ReportedErrors.Add(error);
+            }
+        }
+
+        // A sink without its own OnError: the interface's default handler is a
+        // no-op, so its failures stay counted and isolated as before.
+        private sealed class SilentFailingSink : INMOutputSink
+        {
+            public bool Failing;
+
+            public void Configure(NMOutputDescriptor descriptor)
+            {
+                if (Failing) throw new InvalidOperationException("silent configure failed");
+            }
+
+            public bool Submit(RenderTexture texture, double timestampMilliseconds)
+            {
+                if (Failing) throw new InvalidOperationException("silent submit failed");
+                return true;
+            }
+
+            public void Close(NMOutputCloseOptions options = null) { }
         }
 
         private sealed class DefaultInterfaceSink : INMOutputSink
@@ -136,6 +173,7 @@ namespace Noisemaker.Hlsl.Editor
                 TestDeviceLimitPolicy();
                 TestNoiseTypeMaterialVariants();
                 TestPipelineSinkIntegration();
+                TestPipelineSinkErrorReporting();
                 TestMeshChainScopeResolution();
                 TestMeshRenderShadedOutput();
                 TestCpuOverlayCanvasPrimitives();
@@ -843,6 +881,107 @@ namespace Noisemaker.Hlsl.Editor
                 pipeline.Dispose();
             }
             Check(sink.Closes == 1, "pipeline did not close its sink");
+        }
+
+        // Mirrors noisemaker db2173e3: the pipeline gives its sink manager a
+        // reporter that passes each isolated failure to the optional OnError of
+        // the sink that threw it. Sinks without OnError, and sinks that do not
+        // throw, see the same calls, order and counters as before. A throwing
+        // reporter stays isolated from rendering and from the other sinks.
+        private static void TestPipelineSinkErrorReporting()
+        {
+            PreloadPackageShaders();
+            RenderGraph graph = CreateSolidGraph();
+            var pipeline = new NMPipeline(graph);
+            string failedStats = null;
+            string silentStats = null;
+            string reporterStats = null;
+            string healthyStats = null;
+
+            var configureError = new InvalidOperationException("configure failed");
+            var deferError = new InvalidOperationException("defer probe failed");
+            var submitError = new InvalidOperationException("submit failed");
+            var failed = new RecordingSink
+            {
+                ThrowOnConfigure = configureError,
+                ThrowOnDeferError = deferError,
+                ThrowOnSubmit = submitError
+            };
+            var silent = new SilentFailingSink();
+            var throwingReporter = new RecordingSink
+            {
+                ThrowOnConfigure = new InvalidOperationException("configure failed again"),
+                ThrowOnReport = true
+            };
+            var healthy = new RecordingSink();
+            pipeline.AddSink(failed);
+            pipeline.AddSink(silent);
+            pipeline.AddSink(throwingReporter);
+            pipeline.AddSink(healthy);
+
+            try
+            {
+                pipeline.Init(2, 2);
+                failed.Failing = true;
+                silent.Failing = true;
+                throwingReporter.Failing = true;
+                pipeline.Resize(640, 480);
+                Check(!pipeline.ShouldDeferRender(),
+                    "a throwing deferRender must not defer the frame");
+                pipeline.Render(0f, 7.0);
+
+                // NMSinkManager clears its stats on Close, so capture them while
+                // the pipeline is still open.
+                FieldInfo sinkManagerField = typeof(NMPipeline).GetField("_sinkManager",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                Check(sinkManagerField != null, "pipeline sink manager field was not found");
+                var stats = ((NMSinkManager)sinkManagerField.GetValue(pipeline)).Stats;
+                failedStats = Describe(stats[failed]);
+                silentStats = Describe(stats[silent]);
+                reporterStats = Describe(stats[throwingReporter]);
+                healthyStats = Describe(stats[healthy]);
+            }
+            finally
+            {
+                failed.Failing = false;
+                silent.Failing = false;
+                throwingReporter.Failing = false;
+                pipeline.Dispose();
+            }
+
+            Check(failed.ReportedErrors.Count == 3
+                && ReferenceEquals(failed.ReportedErrors[0], configureError)
+                && ReferenceEquals(failed.ReportedErrors[1], deferError)
+                && ReferenceEquals(failed.ReportedErrors[2], submitError),
+                $"each error must reach only the sink that threw it, got " +
+                $"[{string.Join(", ", failed.ReportedErrors.ConvertAll(e => e.Message))}]");
+            Check(healthy.ReportedErrors.Count == 0,
+                "a sink that does not fail must receive no report");
+            Check(throwingReporter.ReporterCalls == 1,
+                $"the throwing reporter must receive its configure error once, " +
+                $"got {throwingReporter.ReporterCalls}");
+            Check(healthy.Descriptor.Width == 640 && healthy.Descriptor.Height == 480,
+                $"a sink that does not fail must see the resized descriptor, got " +
+                $"{healthy.Descriptor.Width}x{healthy.Descriptor.Height}");
+            Check(healthy.Submissions == 1 && healthy.LastTimestamp == 7.0,
+                $"a sink that does not fail must see the same submits, got " +
+                $"{healthy.Submissions} at {healthy.LastTimestamp}");
+            Check(pipeline.Width == 640 && pipeline.Height == 480,
+                "resize did not complete after reported sink errors");
+
+            Check(failedStats == "accepted=0 dropped=0 failed=3",
+                $"failing sink counters are wrong: {failedStats}");
+            Check(silentStats == "accepted=0 dropped=0 failed=2",
+                $"silent sink counters are wrong: {silentStats}");
+            Check(reporterStats == "accepted=1 dropped=0 failed=1",
+                $"throwing-reporter sink counters are wrong: {reporterStats}");
+            Check(healthyStats == "accepted=1 dropped=0 failed=0",
+                $"healthy sink counters are wrong: {healthyStats}");
+        }
+
+        private static string Describe(NMSinkStats stats)
+        {
+            return $"accepted={stats.Accepted} dropped={stats.Dropped} failed={stats.Failed}";
         }
 
         private static RenderGraph CreateSolidGraph()
