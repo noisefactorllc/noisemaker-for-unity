@@ -75,22 +75,37 @@ namespace Noisemaker.Hlsl
             DisposePipeline();
         }
 
-        // (Re)obtain the graph and build the pipeline.
+        // (Re)obtain the graph and build the pipeline. The candidate compiles
+        // and inits BEFORE it replaces the running pipeline: a rejected source
+        // leaves the accepted graph, pipeline and output in place, so later
+        // frames keep rendering the accepted program (the reference's
+        // compileGraphFor -> compilePrograms -> swapGraph ordering).
         public void Rebuild()
         {
-            DisposePipeline();
-
-            _graph = ObtainGraph();
-            if (_graph == null)
+            RenderGraph newGraph = ObtainGraph();
+            if (newGraph == null)
             {
                 Debug.LogError("[Noisemaker] NMRenderer: no graph source (assign GraphJson or Dsl).");
                 return;
             }
 
-            _pipeline = new NMPipeline(_graph, ResolveRegistry());
-            _pipeline.SetMidiState(_midiState);
-            _pipeline.SetAudioState(_audioState);
-            _pipeline.Init(RenderWidth, RenderHeight);
+            NMPipeline candidate = new NMPipeline(newGraph, ResolveRegistry());
+            candidate.SetMidiState(_midiState);
+            candidate.SetAudioState(_audioState);
+            try
+            {
+                candidate.Init(RenderWidth, RenderHeight);
+            }
+            catch (System.Exception)
+            {
+                // Drop the half-built candidate and keep the accepted pipeline.
+                try { candidate.Dispose(); } catch (System.Exception) { }
+                throw;
+            }
+
+            DisposePipeline();
+            _graph = newGraph;
+            _pipeline = candidate;
         }
 
         private RenderGraph ObtainGraph()

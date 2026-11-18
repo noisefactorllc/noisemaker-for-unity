@@ -180,6 +180,7 @@ namespace Noisemaker.Hlsl.Editor
                 TestCpuOverlayLifecycle();
                 TestLargeCpuOverlayExplicitRender();
                 TestLargeRendererExplicitFrame();
+                TestRendererRejectedRebuild();
                 StartGpuExportTest();
             }
             catch (Exception error)
@@ -690,6 +691,58 @@ namespace Noisemaker.Hlsl.Editor
                 Check(renderer.Output != null && renderer.Output.width == 512 &&
                     renderer.Output.height == 512,
                     "explicit frame after resize exposed stale output dimensions");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(gameObject); }
+        }
+
+        // A rejected rebuild keeps the accepted program rendering (reference
+        // canvas._compile: a rejected compile keeps the previous pipeline).
+        // Before the Rebuild ordering fix, the accepted pipeline was disposed
+        // before the candidate source compiled, so a rejected DSL killed the
+        // output. Mirror of test_rejected_shader_recompile.mjs: program A
+        // renders, a rejected rebuild keeps program A's pipeline, output and
+        // frame counter, and a later valid rebuild installs program B.
+        private static void TestRendererRejectedRebuild()
+        {
+            PreloadPackageShaders();
+            var gameObject = new GameObject("NM rejected rebuild test");
+            gameObject.SetActive(false);
+            try
+            {
+                var renderer = gameObject.AddComponent<NMRenderer>();
+                renderer.Dsl = "search synth\nsolid(1.0, 0.0, 0.0).write(o0)\nrender(o0)";
+                renderer.EffectsDirectory = System.IO.Path.GetFullPath(
+                    "Packages/com.noisemaker.hlsl/Effects");
+                renderer.RenderWidth = renderer.RenderHeight = 64;
+                renderer.Animate = false;
+                gameObject.SetActive(true);
+                renderer.Rebuild();
+                Check(renderer.Pipeline != null, "the accepted program built a pipeline");
+                renderer.RenderFrame(0.25f);
+                Check(renderer.Output != null, "the accepted program rendered");
+                NMPipeline accepted = renderer.Pipeline;
+                RenderTexture acceptedOutput = renderer.Output;
+                int framesBefore = accepted.FrameIndex;
+
+                renderer.Dsl = "this is not valid noisemaker dsl";
+                renderer.Rebuild();
+                Check(ReferenceEquals(renderer.Pipeline, accepted),
+                    "a rejected rebuild must keep the accepted pipeline");
+                Check(ReferenceEquals(renderer.Output, acceptedOutput),
+                    "a rejected rebuild must keep the accepted output");
+                renderer.RenderFrame(0.5f);
+                Check(ReferenceEquals(renderer.Pipeline, accepted) &&
+                    accepted.FrameIndex == framesBefore + 1 &&
+                    renderer.Output != null,
+                    "the accepted program must keep rendering after a rejected rebuild");
+
+                renderer.Dsl = "search synth\nsolid(0.0, 0.0, 1.0).write(o0)\nrender(o0)";
+                renderer.Rebuild();
+                Check(!ReferenceEquals(renderer.Pipeline, accepted),
+                    "a later valid rebuild must install a new pipeline");
+                renderer.RenderFrame(0.75f);
+                Check(renderer.Output != null,
+                    "the later program must render after a valid rebuild");
             }
             finally { UnityEngine.Object.DestroyImmediate(gameObject); }
         }
