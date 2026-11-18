@@ -168,26 +168,44 @@ namespace Noisemaker.Hlsl.Editor
         {
             try
             {
-                TestSinkManager();
-                TestFrameExportQueue();
-                TestDeviceLimitPolicy();
-                TestNoiseTypeMaterialVariants();
-                TestPipelineSinkIntegration();
-                TestPipelineSinkErrorReporting();
-                TestMeshChainScopeResolution();
-                TestMeshRenderShadedOutput();
-                TestCpuOverlayCanvasPrimitives();
-                TestCpuOverlayLifecycle();
-                TestLargeCpuOverlayExplicitRender();
-                TestLargeRendererExplicitFrame();
-                TestRendererRejectedRebuild();
-                TestPipelineUnresolvedShaderInitFails();
+                _suiteClock = System.Diagnostics.Stopwatch.StartNew();
+                _testsPassed = 0;
+                RunTest(nameof(TestSinkManager), TestSinkManager);
+                RunTest(nameof(TestFrameExportQueue), TestFrameExportQueue);
+                RunTest(nameof(TestDeviceLimitPolicy), TestDeviceLimitPolicy);
+                RunTest(nameof(TestNoiseTypeMaterialVariants), TestNoiseTypeMaterialVariants);
+                RunTest(nameof(TestPipelineSinkIntegration), TestPipelineSinkIntegration);
+                RunTest(nameof(TestPipelineSinkErrorReporting), TestPipelineSinkErrorReporting);
+                RunTest(nameof(TestMeshChainScopeResolution), TestMeshChainScopeResolution);
+                RunTest(nameof(TestMeshRenderShadedOutput), TestMeshRenderShadedOutput);
+                RunTest(nameof(TestCpuOverlayCanvasPrimitives), TestCpuOverlayCanvasPrimitives);
+                RunTest(nameof(TestCpuOverlayLifecycle), TestCpuOverlayLifecycle);
+                RunTest(nameof(TestLargeCpuOverlayExplicitRender), TestLargeCpuOverlayExplicitRender);
+                RunTest(nameof(TestLargeRendererExplicitFrame), TestLargeRendererExplicitFrame);
+                RunTest(nameof(TestRendererRejectedRebuild), TestRendererRejectedRebuild);
+                RunTest(nameof(TestPipelineUnresolvedShaderInitFails),
+                    TestPipelineUnresolvedShaderInitFails);
+                RunTest(nameof(TestRendererUnresolvedShaderRebuild),
+                    TestRendererUnresolvedShaderRebuild);
                 StartGpuExportTest();
             }
             catch (Exception error)
             {
                 FailAndExit(error);
             }
+        }
+
+        // Per-test progress and total duration in the editor log, so a host run
+        // log shows which tests ran, that they passed, and how long they took.
+        private static System.Diagnostics.Stopwatch _suiteClock;
+        private static int _testsPassed;
+
+        private static void RunTest(string name, Action test)
+        {
+            test();
+            _testsPassed++;
+            Debug.Log("[NMOutputRuntimeTests] PASS " + name +
+                " (" + _suiteClock.ElapsedMilliseconds + " ms total)");
         }
 
         private static void TestNoiseTypeMaterialVariants()
@@ -766,6 +784,76 @@ namespace Noisemaker.Hlsl.Editor
             finally { pipeline.Dispose(); }
         }
 
+        // Mirror of test_rejected_shader_recompile.mjs's init-failure leg, driven
+        // through NMRenderer.Rebuild: a candidate whose shader does not resolve
+        // fails init (the compilePrograms analog), and Rebuild rethrows after
+        // dropping the candidate, so the accepted pipeline, output and frame
+        // counter stay usable.
+        private static void TestRendererUnresolvedShaderRebuild()
+        {
+            PreloadPackageShaders();
+            var gameObject = new GameObject("NM unresolved shader rebuild test");
+            gameObject.SetActive(false);
+            try
+            {
+                var renderer = gameObject.AddComponent<NMRenderer>();
+                renderer.Dsl = "search synth\nsolid(1.0, 0.0, 0.0).write(o0)\nrender(o0)";
+                renderer.EffectsDirectory = System.IO.Path.GetFullPath(
+                    "Packages/com.noisemaker.hlsl/Effects");
+                renderer.RenderWidth = renderer.RenderHeight = 64;
+                renderer.Animate = false;
+                gameObject.SetActive(true);
+                renderer.Rebuild();
+                Check(renderer.Pipeline != null, "the accepted program built a pipeline");
+                renderer.RenderFrame(0.25f);
+                Check(renderer.Output != null, "the accepted program rendered");
+                NMPipeline accepted = renderer.Pipeline;
+                RenderTexture acceptedOutput = renderer.Output;
+                int framesBefore = accepted.FrameIndex;
+
+                renderer.GraphJson = TextAssetFromJson(UnresolvedShaderGraphJson());
+                Throws<InvalidOperationException>(() => renderer.Rebuild(),
+                    "a rebuild whose shader does not resolve must throw");
+                Check(ReferenceEquals(renderer.Pipeline, accepted),
+                    "a failed rebuild init must keep the accepted pipeline");
+                Check(ReferenceEquals(renderer.Output, acceptedOutput),
+                    "a failed rebuild init must keep the accepted output");
+                renderer.RenderFrame(0.5f);
+                Check(ReferenceEquals(renderer.Pipeline, accepted) &&
+                    accepted.FrameIndex == framesBefore + 1 &&
+                    renderer.Output != null,
+                    "the accepted program must keep rendering after a failed rebuild");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(gameObject); }
+        }
+
+        // Graph JSON mirroring CreateSolidGraph, with an effect name no shader
+        // resolves; the pipeline source NMRenderer loads as GraphJson.
+        private static string UnresolvedShaderGraphJson()
+        {
+            return "{" +
+                "\"id\":\"unresolved-shader-rebuild-test\"," +
+                "\"renderSurface\":\"o0\"," +
+                "\"passes\":[" +
+                "{\"id\":\"solid\",\"passType\":\"effect\",\"namespace\":\"synth\"," +
+                "\"func\":\"noSuchEffect\",\"progName\":\"no_such_effect\"," +
+                "\"outputs\":{\"color\":\"solid_out\"}," +
+                "\"uniforms\":{\"color\":[0.2,0.4,0.6],\"alpha\":1.0}}," +
+                "{\"id\":\"write\",\"passType\":\"blit\",\"func\":\"blit\"," +
+                "\"progName\":\"blit\",\"inputs\":{\"src\":\"solid_out\"}," +
+                "\"outputs\":{\"color\":\"global_o0\"}}]," +
+                "\"allocations\":{\"solid_out\":\"phys_0\"}," +
+                "\"textures\":{\"solid_out\":{\"width\":\"screen\"," +
+                "\"height\":\"screen\",\"format\":\"rgba16f\"}}}";
+        }
+
+        // Editor-only TextAsset construction from JSON text (TextAsset(byte[])
+        // decodes UTF-8 for its text property).
+        private static TextAsset TextAssetFromJson(string json)
+        {
+            return new TextAsset(System.Text.Encoding.UTF8.GetBytes(json));
+        }
+
         private static ulong OverlayFingerprint(RenderTexture source, out int nonzeroAlpha)
         {
             Check(source != null, "CPU overlay texture missing");
@@ -1163,7 +1251,9 @@ namespace Noisemaker.Hlsl.Editor
                 if (_gpuCompleted)
                 {
                     CleanupGpuExport();
-                    Debug.Log("[NMOutputRuntimeTests] PASS");
+                    Debug.Log("[NMOutputRuntimeTests] PASS: " + _testsPassed +
+                        " sync tests and the GPU export test in " +
+                        _suiteClock.ElapsedMilliseconds + " ms");
                     EditorApplication.Exit(0);
                     return;
                 }
