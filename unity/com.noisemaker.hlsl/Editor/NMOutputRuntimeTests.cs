@@ -181,6 +181,7 @@ namespace Noisemaker.Hlsl.Editor
                 TestLargeCpuOverlayExplicitRender();
                 TestLargeRendererExplicitFrame();
                 TestRendererRejectedRebuild();
+                TestPipelineUnresolvedShaderInitFails();
                 StartGpuExportTest();
             }
             catch (Exception error)
@@ -745,6 +746,24 @@ namespace Noisemaker.Hlsl.Editor
                     "the later program must render after a valid rebuild");
             }
             finally { UnityEngine.Object.DestroyImmediate(gameObject); }
+        }
+
+        // The compilePrograms analog throws when a pass's shader does not
+        // resolve, so a candidate with missing shaders fails init and never
+        // replaces a pipeline that still renders.
+        private static void TestPipelineUnresolvedShaderInitFails()
+        {
+            PreloadPackageShaders();
+            RenderGraph graph = CreateSolidGraph();
+            graph.Passes[0].Func = "noSuchEffect";
+            graph.Passes[0].ProgName = "no_such_effect";
+            var pipeline = new NMPipeline(graph);
+            try
+            {
+                Throws<InvalidOperationException>(() => pipeline.Init(2, 2),
+                    "init must reject a pass whose shader does not resolve");
+            }
+            finally { pipeline.Dispose(); }
         }
 
         private static ulong OverlayFingerprint(RenderTexture source, out int nonzeroAlpha)

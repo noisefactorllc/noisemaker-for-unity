@@ -387,8 +387,11 @@ namespace Noisemaker.Hlsl
             }
         }
 
-        // "compilePrograms" analog: Unity shaders are precompiled; just verify the
-        // registry resolves a Shader for each unique pass (reference §7 dedupe).
+        // "compilePrograms" analog: Unity shaders are precompiled, so the only
+        // program failure the backend can report is an unresolvable shader.
+        // Like the reference's compilePrograms, a failed program throws: init
+        // refuses the graph, so a rejected candidate never replaces a pipeline
+        // that still renders (reference §7 dedupe).
         private void ValidatePrograms()
         {
             var seen = new HashSet<string>();
@@ -398,7 +401,8 @@ namespace Noisemaker.Hlsl
                 if (!seen.Add(name)) continue;
                 Shader sh = _registry.ResolveShader(pass);
                 if (sh == null)
-                    Debug.LogError("[Noisemaker] Shader not found: " + name +
+                    throw new System.InvalidOperationException(
+                        "[Noisemaker] Shader not found: " + name +
                         " (pass " + pass.Id + "). Ensure it is in a Resources/Always-" +
                         "Included list so Shader.Find resolves it at runtime.");
             }
