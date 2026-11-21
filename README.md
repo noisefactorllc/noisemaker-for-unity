@@ -105,8 +105,8 @@ runs against that revision.
 
 - `scripts/test` needs neither Unity nor a GPU. It runs the Node and Python unit tests, the
   C# compiler contract tests, and graph parity between the C# compiler and the reference
-  compiler for 484 programs plus the 1900-variant parameter sweep. CI runs it on every push
-  without the sweep, and in full weekly and on manual dispatch.
+  compiler for every `--selftest` and fixture program plus the 1900-variant parameter sweep.
+  CI runs it on every push without the sweep, and in full weekly and on manual dispatch.
 - The pixel gates in `parity/` render each corpus with the reference (headless Chromium,
   WebGL2) and with Unity from the same program, then grade fail-closed with
   `parity/batch-compare.py`: the root, 3D, classicNoisedeck, synth, mixer, points, filter, and

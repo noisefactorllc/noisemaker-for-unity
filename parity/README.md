@@ -116,7 +116,7 @@ exceptions.
 UNITY=... UNITY_PROJECT=... bash parity/root-verify.sh
 # 3D corpus (9 fixtures, 256px, tol 2 / SSIM 0.98 + 3d-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/3d-verify.sh
-# classicNoisedeck corpus (17 fixtures, 256px, tol 1 / SSIM 0.9999 + classic-exceptions.json):
+# classicNoisedeck corpus (256px, tol 1 / SSIM 0.9999 + classic-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/classic-verify.sh
 # synth corpus (15 fixtures, 256px, tol 1 / SSIM 0.92 + synth-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/synth-verify.sh
@@ -264,7 +264,7 @@ runtime/platform combination.
 - `graph-diff.py` — structural graph diff (ignores the `id` hash + `source`).
 - `root-verify.sh` — self-contained root-corpus pixel gate (goldens → Unity batch → fail-closed compare).
 - `3d-verify.sh` — self-contained 3D-corpus pixel gate (same shape, 3D policy).
-- `classic-verify.sh` — self-contained classicNoisedeck pixel gate (17 fixtures, tol 1 / SSIM 0.9999).
+- `classic-verify.sh` — self-contained classicNoisedeck pixel gate (tol 1 / SSIM 0.9999).
 - `synth-verify.sh` — self-contained synth pixel gate (15 fixtures, tol 1 / SSIM 0.92).
 - `mixer-verify.sh` — self-contained mixer pixel gate (12 fixtures, tol 1 / SSIM 0.9999).
 - `points-verify.sh` — self-contained points pixel gate (10 fixtures, 60 warm frames so
@@ -296,7 +296,7 @@ runtime/platform combination.
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
 - `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
-- `programs/classic-manifest.tsv` — the 17 classicNoisedeck fixtures (`classic-verify.sh` input).
+- `programs/classic-manifest.tsv` — the classicNoisedeck fixtures (`classic-verify.sh` input).
 - `programs/classic-exceptions.json` — measured tolerances for classicNoisedeck exceptions.
 - `programs/synth-manifest.tsv` — the 15 synth fixtures (`synth-verify.sh` input).
 - `programs/synth-exceptions.json` — measured tolerances for chaotic fractal/root exceptions.
