@@ -60,7 +60,7 @@ pointsBillboard pipelines, the `nm_*` minimal effect tests, `heightmap3d_landsca
 | `simpleAberration.dsl` | `filter/simpleAberration` | RGB split (unflipped Y, post-cee90aaf) |
 | `remap_zones.dsl` | `synth/remap` | polygon zone router, wired zone (64-vert layout) |
 
-`programs/manifest.tsv` lists the 30 non-3D fixtures exactly once as
+`programs/manifest.tsv` lists the non-3D fixtures exactly once as
 `<name><TAB><repo-relative-dsl-path>` and drives `root-verify.sh` (below). The
 nine 3D fixtures are listed in `programs/3d-manifest.tsv` and graded by
 `3d-verify.sh` under the 3D tolerance/exception policy.
@@ -112,7 +112,7 @@ exceptions.
 ## Gates
 
 ```bash
-# Root corpus (30 non-3D fixtures, 256px, tol 1 / SSIM 0.9999):
+# Root corpus (non-3D fixtures, 256px, tol 1 / SSIM 0.9999):
 UNITY=... UNITY_PROJECT=... bash parity/root-verify.sh
 # 3D corpus (9 fixtures, 256px, tol 2 / SSIM 0.98 + 3d-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/3d-verify.sh
@@ -125,7 +125,7 @@ UNITY=... UNITY_PROJECT=... bash parity/mixer-verify.sh
 # points corpus (10 fixtures, 256px, 60 warm frames so particle/agent behavior
 # manifests, tol 1 / SSIM 0.50 + points-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/points-verify.sh
-# filter corpus (74 fixtures across batches 1-3, bloom..zoomBlur,
+# filter corpus (fixtures across batches 1-3, bloom..zoomBlur,
 # 256px, tol 1 / SSIM 0.99 + filter-exceptions.json):
 UNITY=... UNITY_PROJECT=... bash parity/filter-verify.sh
 # render corpus (5 fixtures: loopBegin/loopEnd/renderLit3d + mesh fixtures
@@ -294,7 +294,7 @@ runtime/platform combination.
   faithfully, each with its measured reason; they are excluded from rendering and
   grading, and the gate prints their count.
 - `programs/*.dsl` — fixed-seed test programs (pixel + graph parity).
-- `programs/manifest.tsv` — the 30 non-3D root fixtures (`root-verify.sh` input).
+- `programs/manifest.tsv`: the non-3D root fixtures (`root-verify.sh` input).
 - `programs/3d-manifest.tsv` — the 9 3D fixtures (`3d-verify.sh` input).
 - `programs/classic-manifest.tsv` — the classicNoisedeck fixtures (`classic-verify.sh` input).
 - `programs/classic-exceptions.json` — measured tolerances for classicNoisedeck exceptions.

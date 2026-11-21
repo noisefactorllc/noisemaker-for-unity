@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end 30-fixture root parity gate: reference goldens, Unity candidates,
+# End-to-end root parity gate: reference goldens, Unity candidates,
 # then fail-closed grading with the repository's measured exception policy.
 # Covers every root corpus fixture NOT in 3d-manifest.tsv (the 3D fixtures are
 # graded by 3d-verify.sh with the 3D tolerance/exception policy).
