@@ -233,6 +233,30 @@ float3 land_lighting(float3 color, float3 normal, float3 viewDirection)
     return color * (ambient + max(dot(normal, light), 0.0) * diffuseIntensity) + specular;
 }
 
+// A voxel that stops the voxel ray. Cells outside the volume are empty.
+bool land_voxelOccupied(int3 cell)
+{
+    if (any(cell < int3(0, 0, 0)) || any(cell >= (int3)volumeSize)) { return false; }
+    float density = analyticalGeo.Load(int3(land_atlasTexel(cell), 0)).a;
+    return density > 0.0 && density >= threshold;
+}
+
+// A ray through a voxel edge crosses two boundaries at one distance and enters
+// the cell beyond the edge, where two of its faces meet. Rounding decides
+// whether the crossings compare equal. Where a neighboring voxel covers one of
+// those faces, the rays on either side of the edge show the other one, so the
+// cell shows the first face that its neighbors leave exposed. `toward` is the
+// ray's step along each axis, and `normal` the face of the first crossed axis
+// in y, x, z order.
+float3 land_exposedFace(int3 cell, bool3 crossed, int3 toward, float3 normal)
+{
+    if ((int)crossed.x + (int)crossed.y + (int)crossed.z < 2) { return normal; }
+    if (crossed.y && !land_voxelOccupied(cell - int3(0, toward.y, 0))) { return float3(0.0, -(float)toward.y, 0.0); }
+    if (crossed.x && !land_voxelOccupied(cell - int3(toward.x, 0, 0))) { return float3(-(float)toward.x, 0.0, 0.0); }
+    if (crossed.z && !land_voxelOccupied(cell - int3(0, 0, toward.z))) { return float3(0.0, 0.0, -(float)toward.z); }
+    return normal;
+}
+
 // Inverse of the billboard renderer's X -> Y -> Z rotation.
 float3 land_inverseRotation(float3 inputVec)
 {
@@ -327,6 +351,7 @@ LandscapeOutput land_renderPerspective(float2 uv)
         result.geoOut = float4(worldNormal * 0.5 + 0.5, clamp(hit.distance / 320.0, 0.0, 1.0));
         return result;
     }
+    bool3 crossed = bool3(false, false, false);
     [loop]
     for (int step = 0; step < volumeSize * 3; step++)
     {
@@ -335,13 +360,13 @@ LandscapeOutput land_renderPerspective(float2 uv)
         float density = analyticalGeo.Load(int3(atlas, 0)).a;
         if (density > 0.0 && density >= threshold)
         {
-            float3 worldNormal = land_forwardRotation(normal);
+            float3 worldNormal = land_forwardRotation(land_exposedFace(cell, crossed, stepDir, normal));
             result.fragColor = float4(land_lighting(volumeCache.Load(int3(atlas, 0)).rgb, worldNormal, viewDirection), 1.0);
             result.geoOut = float4(worldNormal * 0.5 + 0.5, clamp(distance / 320.0, 0.0, 1.0));
             return result;
         }
         distance = min(min(nextT.x, nextT.y), nextT.z);
-        bool3 crossed = nextT <= distance;
+        crossed = nextT <= distance;
         normal = float3(0.0, 0.0, 0.0);
         if (crossed.y) { normal.y = -(float)stepDir.y; }
         else if (crossed.x) { normal.x = -(float)stepDir.x; }
@@ -410,6 +435,7 @@ Land_FragmentOutput frag_render(NMVaryings i)
         return o;
     }
 
+    bool3 crossed = bool3(false, false, false);
     [loop]
     for (int step = 0; step < volumeSize * 3; step++)
     {
@@ -418,13 +444,14 @@ Land_FragmentOutput frag_render(NMVaryings i)
         float density = analyticalGeo.Load(int3(atlas, 0)).a;
         if (density > 0.0 && density >= threshold)
         {
+            normal = land_exposedFace(cell, crossed, int3(-1, -1, -1), normal);
             float3 color = volumeCache.Load(int3(atlas, 0)).rgb;
             o.color = float4(land_lighting(color, normal, float3(0.5773502692, 0.5773502692, 0.5773502692)), 1.0);
             o.geoOut = float4(normal * 0.5 + 0.5, clamp(distance / (size * 4.0), 0.0, 1.0));
             return o;
         }
         distance = min(min(nextT.x, nextT.y), nextT.z);
-        bool3 crossed = nextT <= distance;
+        crossed = nextT <= distance;
         if (crossed.y) { normal = float3(0.0, 1.0, 0.0); }
         else if (crossed.x) { normal = float3(1.0, 0.0, 0.0); }
         else { normal = float3(0.0, 0.0, 1.0); }
