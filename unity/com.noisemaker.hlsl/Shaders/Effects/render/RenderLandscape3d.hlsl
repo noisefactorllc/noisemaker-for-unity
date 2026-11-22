@@ -233,7 +233,6 @@ float3 land_lighting(float3 color, float3 normal, float3 viewDirection)
     return color * (ambient + max(dot(normal, light), 0.0) * diffuseIntensity) + specular;
 }
 
-// A voxel that stops the voxel ray. Cells outside the volume are empty.
 bool land_voxelOccupied(int3 cell)
 {
     if (any(cell < int3(0, 0, 0)) || any(cell >= (int3)volumeSize)) { return false; }
@@ -241,13 +240,6 @@ bool land_voxelOccupied(int3 cell)
     return density > 0.0 && density >= threshold;
 }
 
-// A ray through a voxel edge crosses two boundaries at one distance and enters
-// the cell beyond the edge, where two of its faces meet. Rounding decides
-// whether the crossings compare equal. Where a neighboring voxel covers one of
-// those faces, the rays on either side of the edge show the other one, so the
-// cell shows the first face that its neighbors leave exposed. `toward` is the
-// ray's step along each axis, and `normal` the face of the first crossed axis
-// in y, x, z order.
 float3 land_exposedFace(int3 cell, bool3 crossed, int3 toward, float3 normal)
 {
     if ((int)crossed.x + (int)crossed.y + (int)crossed.z < 2) { return normal; }
