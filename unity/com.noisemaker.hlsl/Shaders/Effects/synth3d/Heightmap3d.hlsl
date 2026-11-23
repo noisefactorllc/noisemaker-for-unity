@@ -42,14 +42,6 @@ struct Heightmap3dFragmentOutput
     float4 geoOut    : SV_Target1;   // -> geoBuffer  (geoOut)
 };
 
-// The terrain keeps the frame's proportions inside the square footprint of the
-// volume. On a wide frame it spans the volume's width and a part of its depth,
-// on a tall frame the depth and a part of the width, and on a square frame all
-// of both. Each span is a whole, even count of columns, so the terrain is
-// centered. aspectRatio and aspectInv are the frame's width over its height and
-// the inverse. They are computed outside the shader and the volume size is a
-// power of two, so both backends get the same counts (reference 478f94ea).
-// aspectRatio is the NMFullscreen alias for the reference `aspect` global.
 int2 hm3d_terrainSpan()
 {
     float halfSize = (float)volumeSize * 0.5;
@@ -58,12 +50,6 @@ int2 hm3d_terrainSpan()
         aspectInv < 1.0 ? max(2, 2 * (int)floor(halfSize * aspectInv + 0.5)) : volumeSize);
 }
 
-// The place of an XZ voxel column in the terrain, counted in columns from the
-// terrain's own corner. Volume z = 0 is toward the image's top row, so a view
-// from above along -Y, screen right on +X, shows the image as authored rather
-// than mirrored (reference 8fa067f6; GLSL and WGSL agree). Texel row 0 is the
-// image's bottom row in the shared logical coordinates, so z = 0 samples the
-// last texel row.
 int2 hm3d_terrainColumn(int2 column)
 {
     return int2(column.x, volumeSize - 1 - column.y)
@@ -77,8 +63,11 @@ bool hm3d_inTerrain(int2 column)
 }
 
 // Native atlases and 2D surfaces use the same logical texel coordinates on
-// both backends. Sample each image independently at the center of the XZ voxel
-// column (reference 0ed489ec, verbatim).
+// both backends (reference 0ed489ec, verbatim).
+// Volume z = 0 holds the image's top row, so a view from above along -Y,
+// screen right on +X, shows the image as authored rather than mirrored
+// (reference 8fa067f6; GLSL and WGSL agree). Texel row 0 is the image's bottom
+// row in the shared logical coordinates, so z = 0 samples the last texel row.
 int2 hm3d_imageTexel(int2 column, int2 size)
 {
     return clamp(((hm3d_terrainColumn(column) * 2 + 1) * size) / (hm3d_terrainSpan() * 2),
