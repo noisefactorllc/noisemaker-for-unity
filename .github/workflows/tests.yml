@@ -25,7 +25,7 @@ on:
       - '.github/FUNDING.yml'
       - '.github/dependabot.yml'
       - '.editorconfig'
-    branches: [main]
+    branches: [main, 2.x]
   schedule:
     - cron: '17 8 * * 1'
 
