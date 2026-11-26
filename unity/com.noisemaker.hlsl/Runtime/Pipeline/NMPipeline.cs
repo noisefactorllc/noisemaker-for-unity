@@ -489,7 +489,7 @@ namespace Noisemaker.Hlsl
                 try { Graphics.Blit(source, target); }
                 finally { RenderTexture.active = previousActive; }
             }
-            finally { DestroyOverlayUpload(source); }
+            finally { DestroyTexture(source); }
         }
 
         private void CancelCpuOverlayJobs()
@@ -595,7 +595,7 @@ namespace Noisemaker.Hlsl
                    value.Kind == UniformValueKind.Number ? value.Number : fallback;
         }
 
-        private static void DestroyOverlayUpload(Texture2D texture)
+        private static void DestroyTexture(Texture texture)
         {
             if (texture == null) return;
 #if UNITY_EDITOR
@@ -1186,8 +1186,6 @@ namespace Noisemaker.Hlsl
             bool flipU = true, bool flipV = true)
         {
             int prevW = _width, prevH = _height;
-            if (_width != faceSize || _height != faceSize) Resize(faceSize, faceSize);
-
             string surf = string.IsNullOrEmpty(surfaceName) ? Graph.RenderSurface : surfaceName;
 
             var cube = new RenderTexture(faceSize, faceSize, 0,
@@ -1200,40 +1198,57 @@ namespace Noisemaker.Hlsl
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
-            cube.Create();
-
-            // Reference faces are rendered with cubeCamera's (right,up,forward) basis and
-            // stored top-down; Unity samples cube faces with the D3D (sc,tc) convention,
-            // whose in-face axes run opposite the reference's on every face (derived from
-            // the per-face sc/tc table vs cubeCamera). Reconcile with a uniform per-face
-            // flip (flipU/flipV) applied via a Blit before the face copy, so the assembled
-            // TextureCube samples seamlessly under Unity's hardware cube sampler.
-            RenderTexture flipTmp = (flipU || flipV)
-                ? RenderTexture.GetTemporary(faceSize, faceSize, 0,
-                    RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear)
-                : null;
-            Vector2 scale = new Vector2(flipU ? -1f : 1f, flipV ? -1f : 1f);
-            Vector2 offset = new Vector2(flipU ? 1f : 0f, flipV ? 1f : 0f);
-
-            for (int face = 0; face < NMCubeCamera.FaceCount; face++)
+            RenderTexture flipTmp = null;
+            try
             {
-                SetCubeBasis(NMCubeCamera.FaceBases[face]);
-                Render(time);
-                RenderTexture faceRT = GetOutput(surf);
-                if (faceRT == null) continue;
-                if (flipTmp != null)
+                try
                 {
-                    Graphics.Blit(faceRT, flipTmp, scale, offset);
-                    Graphics.CopyTexture(flipTmp, 0, 0, cube, face, 0);
+                    if (_width != faceSize || _height != faceSize) Resize(faceSize, faceSize);
+                    if (!cube.Create())
+                        throw new System.InvalidOperationException($"Could not create a cubemap with {faceSize}-pixel faces.");
+
+                    // Reference faces are rendered with cubeCamera's (right,up,forward) basis and
+                    // stored top-down; Unity samples cube faces with the D3D (sc,tc) convention,
+                    // whose in-face axes run opposite the reference's on every face (derived from
+                    // the per-face sc/tc table vs cubeCamera). Reconcile with a uniform per-face
+                    // flip (flipU/flipV) applied via a Blit before the face copy, so the assembled
+                    // TextureCube samples seamlessly under Unity's hardware cube sampler.
+                    flipTmp = (flipU || flipV)
+                        ? RenderTexture.GetTemporary(faceSize, faceSize, 0,
+                            RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear)
+                        : null;
+                    Vector2 scale = new Vector2(flipU ? -1f : 1f, flipV ? -1f : 1f);
+                    Vector2 offset = new Vector2(flipU ? 1f : 0f, flipV ? 1f : 0f);
+
+                    for (int face = 0; face < NMCubeCamera.FaceCount; face++)
+                    {
+                        SetCubeBasis(NMCubeCamera.FaceBases[face]);
+                        Render(time);
+                        RenderTexture faceRT = GetOutput(surf);
+                        if (faceRT == null)
+                            throw new System.InvalidOperationException($"Cubemap output surface '{surf}' is missing.");
+                        if (flipTmp != null)
+                        {
+                            Graphics.Blit(faceRT, flipTmp, scale, offset);
+                            Graphics.CopyTexture(flipTmp, 0, 0, cube, face, 0);
+                        }
+                        else
+                        {
+                            Graphics.CopyTexture(faceRT, 0, 0, cube, face, 0);
+                        }
+                    }
                 }
-                else
+                finally
                 {
-                    Graphics.CopyTexture(faceRT, 0, 0, cube, face, 0);
+                    if (flipTmp != null) RenderTexture.ReleaseTemporary(flipTmp);
+                    if (_width != prevW || _height != prevH) Resize(prevW, prevH);
                 }
             }
-
-            if (flipTmp != null) RenderTexture.ReleaseTemporary(flipTmp);
-            if (prevW != faceSize || prevH != faceSize) Resize(prevW, prevH);
+            catch
+            {
+                DestroyTexture(cube);
+                throw;
+            }
             return cube;
         }
 

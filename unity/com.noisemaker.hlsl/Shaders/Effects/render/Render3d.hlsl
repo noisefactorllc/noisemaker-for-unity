@@ -71,13 +71,7 @@ struct Render3dFragmentOutput
 };
 
 // ---- Volume input (vol-tier atlas, read by integer texel fetch) -------------
-// definition.js passes[0].inputs: volumeCache <- inputTex3d, analyticalGeo <-
-// inputGeo. The fragment samples ONLY volumeCache (the .r density / .rgb color).
-// analyticalGeo is bound by the runtime per the inputs map but is not read by
-// the shader body (the WGSL declares only volumeCache); declared here for the
-// runtime binding contract but unreferenced — matches the WGSL.
 Texture2D volumeCache;    SamplerState sampler_volumeCache;
-Texture2D analyticalGeo;  SamplerState sampler_analyticalGeo;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 // WGSL bindings: resolution(0), time(1), threshold(2), volumeSize(3),

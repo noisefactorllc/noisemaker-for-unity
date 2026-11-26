@@ -9,6 +9,7 @@
 //   S005 error  Illegal chain structure
 //   S006 error  Starter chain missing write() call
 //   S008 warning Deprecated effect
+//   S009 warning Too many positional arguments
 //
 // Pure C#, no UnityEngine.
 
@@ -97,6 +98,7 @@ namespace Noisemaker.Hlsl.Compiler
                 { "S006", new Entry("Starter chain missing write() call", DiagnosticSeverity.Error, "semantic") },
                 { "S007", new Entry("Deprecated parameter alias", DiagnosticSeverity.Warning, "semantic") },
                 { "S008", new Entry("Deprecated effect", DiagnosticSeverity.Warning, "semantic") },
+                { "S009", new Entry("Too many positional arguments", DiagnosticSeverity.Warning, "semantic") },
                 { "R001", new Entry("Runtime error", DiagnosticSeverity.Error, "runtime") },
             };
 

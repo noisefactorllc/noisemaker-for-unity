@@ -175,6 +175,7 @@ namespace Noisemaker.Hlsl.Editor
                 RunTest(nameof(TestDeviceLimitPolicy), TestDeviceLimitPolicy);
                 RunTest(nameof(TestNoiseTypeMaterialVariants), TestNoiseTypeMaterialVariants);
                 RunTest(nameof(TestPipelineSinkIntegration), TestPipelineSinkIntegration);
+                RunTest(nameof(TestCubemapMissingSurface), TestCubemapMissingSurface);
                 RunTest(nameof(TestPipelineSinkErrorReporting), TestPipelineSinkErrorReporting);
                 RunTest(nameof(TestMeshChainScopeResolution), TestMeshChainScopeResolution);
                 RunTest(nameof(TestMeshRenderShadedOutput), TestMeshRenderShadedOutput);
@@ -1007,6 +1008,29 @@ namespace Noisemaker.Hlsl.Editor
                 BindingFlags.NonPublic | BindingFlags.Static);
             Check(method != null, "NMParityRunner.LoadRegistryFromPackage is not reachable");
             return (Noisemaker.Hlsl.Compiler.EffectRegistry)method.Invoke(null, null);
+        }
+
+        private static void TestCubemapMissingSurface()
+        {
+            PreloadPackageShaders();
+            var pipeline = new NMPipeline(CreateSolidGraph());
+            RenderTexture unexpected = null;
+            try
+            {
+                pipeline.Init(8, 4);
+                bool rejected = false;
+                try { unexpected = pipeline.RenderCubemap(16, "missing-surface", 0f); }
+                catch (InvalidOperationException error) { rejected = error.Message.Contains("missing-surface"); }
+                Check(rejected, "cubemap export should identify a missing output surface");
+                var output = pipeline.GetOutput();
+                Check(output != null && output.width == 8 && output.height == 4,
+                    "a failed cubemap export must restore the original render size");
+            }
+            finally
+            {
+                if (unexpected != null) UnityEngine.Object.DestroyImmediate(unexpected);
+                pipeline.Dispose();
+            }
         }
 
         private static void TestPipelineSinkIntegration()

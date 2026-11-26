@@ -51,13 +51,7 @@ struct RenderCubemap3dFragmentOutput
 };
 
 // ---- Volume input (vol-tier atlas, read by integer texel fetch) -------------
-// definition.js passes[0].inputs: volumeCache <- inputTex3d, analyticalGeo <-
-// inputGeo. The fragment samples ONLY volumeCache (.r density / .rgb color).
-// analyticalGeo is bound by the runtime per the inputs map but is not read by the
-// shader body (the WGSL declares only volumeCache); declared for the runtime
-// binding contract but unreferenced — matches the WGSL/render3d.
 Texture2D volumeCache;    SamplerState sampler_volumeCache;
-Texture2D analyticalGeo;  SamplerState sampler_analyticalGeo;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 // vs render3d: orbitSpeed/time dropped (no orbit camera), cubeBasis added.

@@ -462,7 +462,7 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     if (e is CallNode call)
                     {
-                        var mapped = new CallNode { Name = call.Name };
+                        var mapped = CopyCallLocation(new CallNode { Name = call.Name, Namespace = call.Namespace }, call);
                         foreach (Node a in call.Args) mapped.Args.Add(Substitute(a, resolving));
                         if (call.Kwargs != null)
                         {
@@ -477,7 +477,7 @@ namespace Noisemaker.Hlsl.Compiler
             }
             if (node is CallNode cn)
             {
-                var mapped = new CallNode { Name = cn.Name, Namespace = cn.Namespace };
+                var mapped = CopyCallLocation(new CallNode { Name = cn.Name, Namespace = cn.Namespace }, cn);
                 foreach (Node a in cn.Args) mapped.Args.Add(Substitute(a, resolving));
                 if (cn.Kwargs != null)
                 {
@@ -502,13 +502,23 @@ namespace Noisemaker.Hlsl.Compiler
             }
         }
 
+        private static CallNode CopyCallLocation(CallNode target, CallNode source)
+        {
+            target.LocLine = source.LocLine;
+            target.LocCol = source.LocCol;
+            target.LocColumn = source.LocColumn;
+            return target;
+        }
+
         // variable substitution & partial application (reference/02 §2.8).
         private Node ResolveCall(CallNode call)
         {
             if (_symbols.TryGetValue(call.Name, out Node val))
             {
                 if (val is IdentNode vi)
-                    return new CallNode { Name = vi.Name, Args = call.Args, Kwargs = call.Kwargs, Namespace = call.Namespace };
+                    return CopyCallLocation(new CallNode {
+                        Name = vi.Name, Args = call.Args, Kwargs = call.Kwargs, Namespace = call.Namespace
+                    }, call);
                 if (val is CallNode vc)
                 {
                     var mergedArgs = new List<Node>(vc.Args ?? new List<Node>());
@@ -526,7 +536,7 @@ namespace Noisemaker.Hlsl.Compiler
                     }
                     var merged = new CallNode { Name = vc.Name, Args = mergedArgs, Kwargs = mergedKw };
                     merged.Namespace = call.Namespace ?? vc.Namespace;
-                    return merged;
+                    return CopyCallLocation(merged, call.LocLine.HasValue ? call : vc);
                 }
             }
             return call;
@@ -957,6 +967,11 @@ namespace Noisemaker.Hlsl.Compiler
                 foreach (string key in kw.Keys)
                     if (!seen.Contains(key))
                         PushDiag("S001", kw.Get(key), "Unknown argument '" + key + "' for " + call.Name + "()");
+            if (call.Args.Count > specArgs.Count)
+            {
+                PushDiag("S009", call.Args[specArgs.Count],
+                    $"Too many positional arguments for {call.Name}(): '{call.Name}' takes {specArgs.Count}");
+            }
         }
 
         // 6.1 surface

@@ -25,8 +25,41 @@ namespace Noisemaker.Hlsl.Compiler
         private struct Lifetime { public int Start; public int End; }
         private struct FreeSlot { public string Id; public int AvailableAfter; }
 
+        private static readonly System.Text.RegularExpressions.Regex NodeOutput =
+            new System.Text.RegularExpressions.Regex(@"^node_[0-9]+_out$");
+
+        private static Dictionary<string, string> ColorInputAliases(IReadOnlyList<Pass> passes)
+        {
+            var written = new HashSet<string>();
+            foreach (Pass pass in passes)
+                if (pass.Outputs != null) written.UnionWith(pass.Outputs.Values);
+
+            var aliases = new Dictionary<string, string>();
+            for (int i = 0; i < passes.Count; i++)
+            {
+                Pass pass = passes[i];
+                if (pass.Inputs == null || string.IsNullOrEmpty(pass.NodeId)) continue;
+                foreach (string input in pass.Inputs.Values)
+                {
+                    if (input != pass.NodeId + "_inputColor" && input != pass.NodeId + "_inputTex") continue;
+                    if (written.Contains(input) || aliases.ContainsKey(input)) continue;
+                    for (int j = i - 1; j >= 0 && !aliases.ContainsKey(input); j--)
+                    {
+                        if (passes[j].Outputs == null) continue;
+                        foreach (string output in passes[j].Outputs.Values)
+                        {
+                            if (output == null || output == pass.NodeId + "_out" || !NodeOutput.IsMatch(output)) continue;
+                            aliases.Add(input, output);
+                            break;
+                        }
+                    }
+                }
+            }
+            return aliases;
+        }
+
         // reference/04 §1.1 analyzeLiveness.
-        private static Dictionary<string, Lifetime> AnalyzeLiveness(IReadOnlyList<Pass> passes)
+        private static Dictionary<string, Lifetime> AnalyzeLiveness(IReadOnlyList<Pass> passes, Dictionary<string, string> aliases)
         {
             var lifetime = new Dictionary<string, Lifetime>();
             void Touch(string texId, int index)
@@ -48,7 +81,8 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 Pass pass = passes[index];
                 if (pass.Inputs != null)
-                    foreach (string tex in pass.Inputs.Values) Touch(tex, index);
+                    foreach (string tex in pass.Inputs.Values)
+                        Touch(tex != null && aliases.TryGetValue(tex, out string source) ? source : tex, index);
                 if (pass.Outputs != null)
                     foreach (string tex in pass.Outputs.Values) Touch(tex, index);
             }
@@ -58,7 +92,9 @@ namespace Noisemaker.Hlsl.Compiler
         // reference/04 §1.2 allocateResources. Returns texId -> "phys_N".
         public static OrderedMap<string, string> AllocateResources(IReadOnlyList<Pass> passes)
         {
-            Dictionary<string, Lifetime> lifetime = AnalyzeLiveness(passes);
+            var aliases = ColorInputAliases(passes);
+            Dictionary<string, Lifetime> lifetime = AnalyzeLiveness(passes, aliases);
+            var released = new HashSet<string>();
             var allocations = new OrderedMap<string, string>();
             var freeList = new List<FreeSlot>();
             int physicalCount = 0;
@@ -97,9 +133,12 @@ namespace Noisemaker.Hlsl.Compiler
                 // 2. Release inputs (last uses).
                 if (pass.Inputs != null)
                 {
-                    foreach (string texId in pass.Inputs.Values)
+                    released.Clear();
+                    foreach (string input in pass.Inputs.Values)
                     {
-                        if (texId == null) continue;
+                        if (input == null) continue;
+                        string texId = aliases.TryGetValue(input, out string source) ? source : input;
+                        if (!released.Add(texId)) continue;
                         if (texId.StartsWith("global_")) continue;
                         Lifetime l;
                         if (lifetime.TryGetValue(texId, out l) && l.End == i)

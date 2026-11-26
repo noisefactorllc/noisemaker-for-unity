@@ -118,6 +118,8 @@ render__pointsBillboardRender	parity/programs/upstream-cases/render__pointsBillb
 render__pointsEmit	parity/programs/upstream-cases/render__pointsEmit.dsl
 render__pointsRender	parity/programs/upstream-cases/render__pointsRender.dsl
 render__render3d	parity/programs/upstream-cases/render__render3d.dsl
+render__renderCubemap3d	parity/programs/upstream-cases/render__renderCubemap3d.dsl
+render__renderCubemapSurface	parity/programs/upstream-cases/render__renderCubemapSurface.dsl
 render__renderLandscape3d	parity/programs/upstream-cases/render__renderLandscape3d.dsl
 render__renderLit3d	parity/programs/upstream-cases/render__renderLit3d.dsl
 synth3d__cell3d	parity/programs/upstream-cases/synth3d__cell3d.dsl

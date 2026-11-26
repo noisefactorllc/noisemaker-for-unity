@@ -127,6 +127,11 @@ namespace Noisemaker.Hlsl.Compiler
             throw ParserErrorAt(code, msg, t);
         }
 
+        private void SkipComments()
+        {
+            while (Peek().Type == TokenType.COMMENT) Advance();
+        }
+
         private List<string> CollectComments()
         {
             var comments = new List<string>();
@@ -638,6 +643,7 @@ namespace Noisemaker.Hlsl.Compiler
             bool keyword = false;
             bool positional = false;
             bool allowMixed = nameToken.Lexeme == "midi" || nameToken.Lexeme == "audio";
+            SkipComments();
             if (Peek().Type != TokenType.RPAREN)
             {
                 while (true)
@@ -663,14 +669,16 @@ namespace Noisemaker.Hlsl.Compiler
                         positional = true;
                         args.Add(ParseArg());
                     }
+                    SkipComments();
                     if (Peek().Type != TokenType.COMMA) break;
                     Advance();
+                    SkipComments();
                     if (Peek().Type == TokenType.RPAREN) break;
                 }
             }
             Expect(TokenType.RPAREN, "Expect ')'");
 
-            var call = new CallNode { Name = nameToken.Lexeme, Args = args };
+            var call = new CallNode { Name = nameToken.Lexeme, Args = args, LocLine = nameToken.Line, LocCol = nameToken.Col };
             if (keyword) call.Kwargs = kwargs;
 
             // Special-form transforms (reference/01 §4.2, in this order).
@@ -724,6 +732,7 @@ namespace Noisemaker.Hlsl.Compiler
         {
             string key = Expect(TokenType.IDENT, "Expected identifier").Lexeme;
             Expect(TokenType.COLON, "Expect ':'");
+            SkipComments();
             if (!ExprStart.Contains(Peek().Type))
             {
                 Token t = Peek();
@@ -756,6 +765,7 @@ namespace Noisemaker.Hlsl.Compiler
             var replacement = new CallNode
             {
                 Name = targetCall.Name,
+                LocLine = targetCall.LocLine, LocCol = targetCall.LocCol, LocColumn = targetCall.LocColumn,
                 Args = new List<Node>(targetCall.Args)
             };
             if (targetCall.Kwargs != null)
@@ -945,7 +955,7 @@ namespace Noisemaker.Hlsl.Compiler
                 Node right = ParseMultiplicative();
                 double l = ToNumber(node);
                 double r = ToNumber(right);
-                node = new NumberNode { Value = op == TokenType.PLUS ? l + r : l - r };
+                node = new NumberNode { Value = op == TokenType.PLUS ? l + r : l - r, LocLine = node.LocLine, LocCol = node.LocCol };
             }
             return node;
         }
@@ -959,7 +969,7 @@ namespace Noisemaker.Hlsl.Compiler
                 Node right = ParseUnary();
                 double l = ToNumber(node);
                 double r = ToNumber(right);
-                node = new NumberNode { Value = op == TokenType.STAR ? l * r : l / r };
+                node = new NumberNode { Value = op == TokenType.STAR ? l * r : l / r, LocLine = node.LocLine, LocCol = node.LocCol };
             }
             return node;
         }
@@ -971,7 +981,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 Advance();
                 Node val = ParseUnary();
-                return new NumberNode { Value = -ToNumber(val) };
+                return new NumberNode { Value = -ToNumber(val), LocLine = val.LocLine, LocCol = val.LocCol };
             }
             return ParsePrimary();
         }
@@ -993,22 +1003,31 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 case TokenType.NUMBER:
                     Advance();
-                    return new NumberNode { Value = ParseFloatJs(token.Lexeme) };
+                    return new NumberNode { Value = ParseFloatJs(token.Lexeme), LocLine = token.Line, LocCol = token.Col };
                 case TokenType.STRING:
                     Advance();
-                    return new StringNode { Value = token.Lexeme };
+                    return new StringNode { Value = token.Lexeme, LocLine = token.Line, LocCol = token.Col };
                 case TokenType.HEX:
                     Advance();
-                    return ParseHex(token.Lexeme);
+                    return ParseHex(token);
                 case TokenType.LBRACKET:
                 {
                     int sl = token.Line, sc = token.Col;
                     Advance();
                     var elements = new List<Node>();
+                    SkipComments();
                     if (Peek().Type != TokenType.RBRACKET)
                     {
                         elements.Add(ParseArg());
-                        while (Peek().Type == TokenType.COMMA) { Advance(); elements.Add(ParseArg()); }
+                        SkipComments();
+                        while (Peek().Type == TokenType.COMMA)
+                        {
+                            Advance();
+                            SkipComments();
+                            if (Peek().Type == TokenType.RBRACKET) break;
+                            elements.Add(ParseArg());
+                            SkipComments();
+                        }
                     }
                     if (Peek().Type != TokenType.RBRACKET)
                     {
@@ -1023,10 +1042,10 @@ namespace Noisemaker.Hlsl.Compiler
                     return new FuncNode { Src = token.Lexeme };
                 case TokenType.TRUE:
                     Advance();
-                    return new BooleanNode { Value = true };
+                    return new BooleanNode { Value = true, LocLine = token.Line, LocCol = token.Col };
                 case TokenType.FALSE:
                     Advance();
-                    return new BooleanNode { Value = false };
+                    return new BooleanNode { Value = false, LocLine = token.Line, LocCol = token.Col };
                 case TokenType.IDENT:
                 {
                     // Math.PI
@@ -1034,7 +1053,7 @@ namespace Noisemaker.Hlsl.Compiler
                         TokenAt(_current + 2)?.Type == TokenType.IDENT && TokenAt(_current + 2).Lexeme == "PI")
                     {
                         Advance(); Advance(); Advance();
-                        return new NumberNode { Value = 3.141592653589793 };
+                        return new NumberNode { Value = 3.141592653589793, LocLine = token.Line, LocCol = token.Col };
                     }
                     // member-then-call OR direct call -> parse as chain (expression context)
                     if (TokenAt(_current + 1)?.Type == TokenType.LPAREN || HasCallAfterDot(_current))
@@ -1096,9 +1115,9 @@ namespace Noisemaker.Hlsl.Compiler
         }
 
         // HEX -> Color (reference/01 §5). parseInt(pair,16)/255 in double.
-        private static ColorNode ParseHex(string lexeme)
+        private static ColorNode ParseHex(Token token)
         {
-            string hex = lexeme.Substring(1);
+            string hex = token.Lexeme.Substring(1);
             double r, g, b, a = 1.0;
             if (hex.Length == 3)
             {
@@ -1119,7 +1138,7 @@ namespace Noisemaker.Hlsl.Compiler
                 b = HexPair(hex.Substring(4, 2));
                 a = HexPair(hex.Substring(6, 2)) / 255.0;
             }
-            return new ColorNode { Value = new[] { r / 255.0, g / 255.0, b / 255.0, a } };
+            return new ColorNode { LocLine = token.Line, LocCol = token.Col, Value = new[] { r / 255.0, g / 255.0, b / 255.0, a } };
         }
 
         private static int HexPair(string pair)

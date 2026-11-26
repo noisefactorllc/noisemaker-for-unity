@@ -136,7 +136,7 @@ namespace Noisemaker.Hlsl
             }
             try
             {
-                return DslCompiler.Compile(dsl, reg);
+                return DslCompiler.Compile(dsl, reg, null, Debug.LogWarning);
             }
             catch (System.Exception e)
             {

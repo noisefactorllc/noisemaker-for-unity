@@ -46,12 +46,7 @@ struct RenderCubemapSurfaceFragmentOutput
 };
 
 // ---- Volume input (vol-tier atlas, read by integer texel fetch) -------------
-// definition.js passes[0].inputs: volumeCache <- inputTex3d, analyticalGeo <-
-// inputGeo. The fragment samples ONLY volumeCache; analyticalGeo is bound by the
-// runtime per the inputs map but unreferenced (the GLSL/WGSL declare only
-// volumeCache) — declared for the runtime binding contract, matching render3d.
 Texture2D volumeCache;    SamplerState sampler_volumeCache;
-Texture2D analyticalGeo;  SamplerState sampler_analyticalGeo;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 int      volumeSize;   // globals.volumeSize  default 64  (inherited from upstream)

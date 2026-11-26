@@ -12,15 +12,13 @@ Shader "Noisemaker/render/renderLit3d"
     //                                  volumeSize^2, default 64x4096, rgba16f
     //                                  LINEAR). Read via Load (point fetch);
     //                                  trilinear filtering done MANUALLY.
-    //   analyticalGeo <- inputGeo    : geo-tier atlas, BOUND but never sampled
-    //                                  by the body (declared for parity only).
     //
     // This is a fullscreen volume CONSUMER (no geometry rasterization, no
     // feedback). Depth is written into the geo buffer's w channel, NOT the GPU
     // depth buffer — so standard fullscreen render state applies (ZWrite Off /
     // ZTest Always / Cull Off). Half-float linear RTs (ARGBHalf). The runtime
     // binds the two MRT color attachments and sets named uniforms (and the
-    // volumeCache/analyticalGeo samplers) via MaterialPropertyBlock.
+    // volumeCache sampler) via MaterialPropertyBlock.
 
 
     SubShader

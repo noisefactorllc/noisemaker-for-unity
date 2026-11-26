@@ -45,6 +45,11 @@ namespace Noisemaker.Hlsl.Compiler
         // CompileException on validator error-diagnostics or expansion errors (reference/02 §1.2).
         public static RenderGraph Compile(string dsl, EffectRegistry reg, ParserOptions options = null)
         {
+            return Compile(dsl, reg, options, message => Console.Error.WriteLine(message));
+        }
+
+        public static RenderGraph Compile(string dsl, EffectRegistry reg, ParserOptions options, Action<string> reportWarning)
+        {
             List<Token> tokens = Lexer.Lex(dsl);
             ProgramNode ast = Parser.Parse(tokens, reg, options);
             ValidateResult validated = Validator.Validate(ast, reg);
@@ -52,7 +57,10 @@ namespace Noisemaker.Hlsl.Compiler
             // reference compiler.js: error-severity diagnostics abort compilation.
             var errors = new List<Diagnostic>();
             foreach (Diagnostic d in validated.Diagnostics)
+            {
                 if (d.Severity == DiagnosticSeverity.Error) errors.Add(d);
+                else if (d.Severity == DiagnosticSeverity.Warning) reportWarning?.Invoke($"[noisemaker] {d.Code}: {d.Message}");
+            }
             if (errors.Count > 0)
                 throw new CompileException("ERR_COMPILATION_FAILED", validated.Diagnostics, null);
 

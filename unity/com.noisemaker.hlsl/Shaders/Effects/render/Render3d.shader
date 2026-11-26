@@ -9,7 +9,7 @@ Shader "Noisemaker/render/render3d"
     //
     // MRT (drawBuffers:2): SV_Target0 -> color (outputTex), SV_Target1 ->
     // geoOut (screenGeoBuffer): xyz = normal*0.5+0.5, w = depth. The runtime
-    // binds both MRT targets and the volumeCache/analyticalGeo inputs, and sets
+    // binds both MRT targets and the volumeCache input, and sets
     // named uniforms via MaterialPropertyBlock by reference name. volumeSize is
     // INHERITED from the upstream volume effect (definition.js control=false).
     //

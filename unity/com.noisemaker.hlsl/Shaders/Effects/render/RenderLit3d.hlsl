@@ -20,9 +20,6 @@
 //     Sampled via textureLoad -> .Load(int3(coord,0)) (integer texel fetch,
 //     point, NO filtering). Trilinear filtering is done MANUALLY in sampleVolume
 //     by fetching all 8 corners and lerping — reproduced verbatim.
-//   * INPUT analyticalGeo (<- inputGeo): bound by the runtime but the WGSL body
-//     NEVER samples it (normals come from finite-difference calcNormal on the
-//     density field, or calcBoundaryNormal). Declared for binding parity only.
 //
 // PORTING-GUIDE / parity notes:
 //  * Ported from WGSL (golden rule #1). The GLSL bisection loop MUTATES
@@ -43,9 +40,7 @@
 
 // ---- Input textures (runtime binds per definition.js inputs{}) --------------
 // volumeCache  <- inputTex3d  : vol-tier atlas (read via Load, point fetch).
-// analyticalGeo <- inputGeo   : geo-tier atlas (bound, NOT sampled by body).
 Texture2D    volumeCache;   SamplerState sampler_volumeCache;
-Texture2D    analyticalGeo; SamplerState sampler_analyticalGeo;
 
 // ---- Per-effect named uniforms (match definition.js globals[*].uniform) -----
 int    volumeSize;          // globals.volumeSize        default 64

@@ -19,6 +19,10 @@ namespace CompilerContractTests
             TestInvalidSelectors();
             TestOrdinaryCallStillRejectsMixedArguments();
             TestUnknownKeywordOrder();
+            TestExcessPositionalWarning();
+            TestColorInputLifetimes();
+            TestSubstitutedCallLocation();
+            TestCommentsInsideArguments();
             TestRawEnum();
             TestOwnChoicePrecedence();
             TestMidiExpressionCompiler();
@@ -264,6 +268,85 @@ namespace CompilerContractTests
             CheckError(
                 "audio(audioBand.low, zzz: 1, aaa: 2)",
                 "audio() unknown parameter 'zzz' at line 2 col 13. Valid: band, min, max, channel, name, id");
+        }
+
+        private static void TestColorInputLifetimes()
+        {
+            var passes = new List<Pass> {
+                new Pass { NodeId = "node_0", Outputs = new OrderedMap<string, string> { { "color", "node_0_out" } } },
+                new Pass { NodeId = "node_1", Inputs = new OrderedMap<string, string> {
+                    { "inputTex", "node_1_inputColor" }, { "heightMap", "node_0_out" } } },
+                new Pass { NodeId = "node_2", Outputs = new OrderedMap<string, string> {
+                    { "left", "left" }, { "right", "right" } } }
+            };
+            var slots = Resources.AllocateResources(passes);
+            Check(slots["left"] == slots["node_0_out"] && slots["right"] != slots["left"],
+                "a canonical input and its colour alias release one physical slot");
+            passes[1].Inputs = new OrderedMap<string, string> { { "inputTex", "node_1_inputTex" } };
+            Check(Resources.AllocateResources(passes)["left"] == slots["node_0_out"],
+                "an unwritten node input aliases the previous node output");
+            passes[1].Inputs = new OrderedMap<string, string> { { "a", "node_0_out" }, { "b", "node_0_out" } };
+            slots = Resources.AllocateResources(passes);
+            Check(slots["left"] != slots["right"], "a texture read by two inputs is released once");
+        }
+
+        private static void TestSubstitutedCallLocation()
+        {
+            var registry = ProbeRegistry();
+            const string source = "search synth\nlet p = automationProbe().diagFilter()";
+            var result = Validator.Validate(Parser.Parse(Lexer.Lex(source), registry), registry);
+            Check(result.Diagnostics.Exists(d => d.Code == "S006" && d.Line == 2 && d.Column == 9),
+                "a substituted starter chain reports the original call position");
+            const string alias = "search synth\nlet p = automationProbe\nlet q = p().diagFilter()";
+            result = Validator.Validate(Parser.Parse(Lexer.Lex(alias), registry), registry);
+            Check(result.Diagnostics.Exists(d => d.Code == "S006" && d.Line == 3 && d.Column == 9),
+                "an identifier alias reports the position where it is called");
+            var customAst = Parser.Parse(Lexer.Lex(alias), registry);
+            ((ChainNode)customAst.Vars[1].Expr).Chain[0].LocColumn = 17;
+            result = Validator.Validate(customAst, registry);
+            Check(result.Diagnostics.Exists(d => d.Code == "S006" && d.Line == 3 && d.Column == 17),
+                "a substituted call preserves the caller-supplied column");
+            var wrapped = ParseExpression("from(synth, probe())") as CallNode;
+            Check(wrapped != null && wrapped.LocLine == 2 && wrapped.LocCol == 25,
+                "from() keeps the position of its nested call");
+        }
+
+        private static void TestExcessPositionalWarning()
+        {
+            var registry = ProbeRegistry();
+            const string source = "search synth\nautomationProbe(17, 91, 92).write(o0)\nrender(o0)";
+            var result = Validator.Validate(Parser.Parse(Lexer.Lex(source), registry), registry);
+            var warnings = result.Diagnostics.FindAll(d => d.Code == "S009");
+            Check(warnings.Count == 1 && warnings[0].Severity == DiagnosticSeverity.Warning
+                && warnings[0].Line == 2 && warnings[0].Column == 21
+                && warnings[0].Message == "Too many positional arguments for automationProbe(): 'automationProbe' takes 1",
+                "first unbound positional gets a single S009 warning");
+            var messages = new StringWriter();
+            var originalError = Console.Error;
+            RenderGraph graph;
+            try
+            {
+                Console.SetError(messages);
+                graph = DslCompiler.Compile(source, registry);
+            }
+            finally { Console.SetError(originalError); }
+            Check(messages.ToString().Contains("S009: Too many positional arguments for automationProbe()"),
+                "ordinary compilation reports the warning");
+            Check(graph.Passes[0].Uniforms["amount"].Number == 17, "extra positionals preserve the bound value");
+        }
+
+        private static void TestCommentsInsideArguments()
+        {
+            try
+            {
+                var registry = ProbeRegistry();
+                const string source = "search synth\nautomationProbe(/* before */ amount: /* value */ 17 /* after */, /* trailing */).write(o0)\nrender(o0)";
+                var graph = DslCompiler.Compile(source, registry);
+                Check(graph.Passes[0].Uniforms["amount"].Number == 17, "comments preserve the argument value");
+                var array = ParseExpression("[/* first */ 1, /* next */ 2 /* last */, /* trailing */]") as ArrayLiteralNode;
+                Check(array != null && array.Elements.Count == 2, "comments and a trailing comma in an array literal");
+            }
+            catch (DslSyntaxError error) { Check(false, "comments inside arguments: " + error.Message); }
         }
 
         private static void TestOrdinaryCallStillRejectsMixedArguments()
@@ -884,7 +967,7 @@ namespace CompilerContractTests
                 Check(result2.Diagnostics[0].Location != null && result2.Diagnostics[0].Location.Column == 9,
                     "diag location column overridden to 9");
 
-                // Test unlocated node does not invent location
+                // A call carries the location of its name.
                 string missingSource = "search synth\n  missing().write(o0)";
                 var missingProg = Parser.Parse(Lexer.Lex(missingSource), reg);
                 var missingResult = Validator.Validate(missingProg, reg);
@@ -895,9 +978,8 @@ namespace CompilerContractTests
                 }
                 Check(missingDiag != null, "missing diagnostic found");
                 Check(missingDiag.Code == "S001", "missing diagnostic code S001");
-                Check(missingDiag.Location == null, "unlocated diagnostic has no Location");
-                Check(missingDiag.Line == null, "unlocated diagnostic has no Line");
-                Check(missingDiag.Column == null, "unlocated diagnostic has no Column");
+                Check(missingDiag.Location?.Line == 2 && missingDiag.Location.Column == 3, "unknown call location");
+                Check(missingDiag.Line == 2 && missingDiag.Column == 3, "unknown call source coordinates");
             }
             catch (Exception ex)
             {
@@ -2015,18 +2097,18 @@ namespace CompilerContractTests
 
         private static void TestNumberCoercionDiagnostics()
         {
-            var unlocatedSources = new string[]
+            var sources = new (string source, int? column)[]
             {
-                "search synth\nlet x = 1 + o0",
-                "search synth\nlet x = diagProbe() + 1"
+                ("search synth\nlet x = 1 + o0", null),
+                ("search synth\nlet x = diagProbe() + 1", 9)
             };
 
-            foreach (var src in unlocatedSources)
+            foreach (var (src, column) in sources)
             {
                 try
                 {
                     Parser.Parse(Lexer.Lex(src), ProbeRegistry());
-                    Check(false, "expected number coercion error for unlocated: " + src);
+                    Check(false, "expected number coercion error for: " + src);
                 }
                 catch (DslSyntaxError ex)
                 {
@@ -2037,7 +2119,8 @@ namespace CompilerContractTests
                         Check(ex.Diagnostic.Code == "P001", "number coercion diag code P001");
                         Check(ex.Diagnostic.Stage == "parser", "number coercion diag stage parser");
                         Check(ex.Diagnostic.Severity == DiagnosticSeverity.Error, "number coercion diag severity error");
-                        Check(ex.Diagnostic.Location == null, "number coercion diag location null");
+                        Check(column.HasValue ? ex.Diagnostic.Location?.Line == 2 && ex.Diagnostic.Location.Column == column
+                            : ex.Diagnostic.Location == null, "number coercion diagnostic location for " + src);
                         Check(ex.Diagnostic.Span == null, "number coercion diag span null");
                     }
                 }

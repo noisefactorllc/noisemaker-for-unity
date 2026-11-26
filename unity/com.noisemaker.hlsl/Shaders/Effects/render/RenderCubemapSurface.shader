@@ -11,8 +11,8 @@ Shader "Noisemaker/render/renderCubemapSurface"
     //
     // MRT (drawBuffers:2): SV_Target0 -> color (outputTex), SV_Target1 -> geoOut
     // (screenGeoBuffer). The Surface renderer has no surface, so geoOut is the constant
-    // (0.5,0.5,0.5,1.0). The runtime binds both MRT targets and the volumeCache/
-    // analyticalGeo inputs, and sets named uniforms via MaterialPropertyBlock by
+    // (0.5,0.5,0.5,1.0). The runtime binds both MRT targets and the volumeCache
+    // input, and sets named uniforms via MaterialPropertyBlock by
     // reference name (cubeBasis is a mat3 bound as float4x4; see UniformBinder.
     // BindMatrix3). volumeSize is INHERITED from the upstream volume effect.
     //
