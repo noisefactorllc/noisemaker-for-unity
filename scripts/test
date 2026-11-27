@@ -94,7 +94,7 @@ fi
 # rendered-pixel gate parity/upstream-cases-verify.sh pins its own capture
 # authority separately.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="688794aca5998d9573afa5601c2b9b023c896007"
+REFERENCE_SHA="f4a1382a1dc863bebe5a3204acfdec425a19c983"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"
