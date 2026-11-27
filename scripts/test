@@ -56,7 +56,7 @@ want_suite() { # want_suite <name>: 0 when this invocation runs <name>
     case "$1:$p" in
       node:parity/tests/*.test.mjs | node:parity/batch-golden.mjs) hit=1 ;;
       python:parity/tests/*.py | python:parity/*.py | python:parity/*.sh \
-        | python:parity/*.mjs | python:unity/*) hit=1 ;;
+        | python:parity/*.mjs | python:scripts/parity-summary | python:unity/*) hit=1 ;;
       contract:unity/* | contract:tools/compiler-contract-tests/*) hit=1 ;;
       # scripts/test carries REFERENCE_SHA, the oracle input of the graph and
       # sweep suites, so its own edits select those suites too.

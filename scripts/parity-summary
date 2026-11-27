@@ -261,8 +261,13 @@ def run_batch(root, cases, universe, work):
 
     def run(argv, label):
         started = time.time()
+        # Surface each command's start and result on stdout: a runner deadline
+        # kill mid-command leaves only this tail, which must name the command.
+        print(f"[parity-summary] {label}: start", flush=True)
         with (work / f"{label}.log").open("w") as log:
             result = subprocess.run(list(map(str, argv)), cwd=root, stdout=log, stderr=subprocess.STDOUT)
+        print(f"[parity-summary] {label}: exit {result.returncode} "
+              f"in {round(time.time() - started, 1)}s", flush=True)
         commands.append({"argv": list(map(str, argv)), "exit_code": result.returncode,
                          "seconds": round(time.time() - started, 1), "log": f"{label}.log"})
         (work / "commands.json").write_text(json.dumps(commands, indent=2) + "\n")
