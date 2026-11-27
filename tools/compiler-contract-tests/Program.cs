@@ -3117,12 +3117,12 @@ namespace CompilerContractTests
                 "GAP-016 clamp prediction does not mutate uniforms");
         }
 
-        // GAP-009 (noisemaker bf66e1b8): vec2(x, y) resolves on a vec2
-        // parameter, and vec4(x, y, z, w) on a color parameter whose default
-        // keeps four components (the loader registers vec4 parameters as
-        // `color`). Any other form, including a wrong component count, takes
-        // the per-type branches (numeric fall-through for vec2, S002 for
-        // color) exactly as before.
+        // GAP-009 (noisemaker bf66e1b8), extended by noisemaker 688794aca5:
+        // vec2(x, y) resolves on a vec2 parameter, and vec3(x, y, z) /
+        // vec4(x, y, z, w) resolve on a color parameter whatever its default
+        // length. Any other form, including a wrong component count, takes
+        // the per-type branches (numeric fall-through for vec2, S002 + the
+        // default for color) exactly as before.
         private static void TestVec2Vec4CallArgs()
         {
             var reg = new EffectRegistry();
@@ -3139,10 +3139,16 @@ namespace CompilerContractTests
                 ("search synth\nvecProbe(size2: vec2(1, 2)).write(o0)", "size2", new[] { 1.0, 2.0 }, 0),
                 ("search synth\nvecProbe(vec2(3, 4)).write(o0)", "size2", new[] { 3.0, 4.0 }, 0),
                 ("search synth\nvecProbe(tint4: vec4(0.25, 0.5, 0.75, 1)).write(o0)", "tint4", new[] { 0.25, 0.5, 0.75, 1.0 }, 0),
+                ("search synth\nvecProbe(tint4: vec3(0.3, 0.2, 0.25)).write(o0)", "tint4", new[] { 0.3, 0.2, 0.25 }, 0),
+                ("search synth\nvecProbe(tint4: vec4(0.3, 0.2, 0.25, 0.4)).write(o0)", "tint4", new[] { 0.3, 0.2, 0.25, 0.4 }, 0),
+                ("search synth\nvecProbe(bg3: vec3(0.3, 0.2, 0.25)).write(o0)", "bg3", new[] { 0.3, 0.2, 0.25 }, 0),
+                ("search synth\nvecProbe(bg3: vec4(1, 1, 1, 1)).write(o0)", "bg3", new[] { 1.0, 1.0, 1.0, 1.0 }, 0),
                 ("search synth\nvecProbe(size2: vec2(1, 2, 3)).write(o0)", "size2", new[] { 1024.0, 1024.0 }, 1),
                 ("search synth\nvecProbe(size2: vec3(1, 2, 3)).write(o0)", "size2", new[] { 1024.0, 1024.0 }, 1),
                 ("search synth\nvecProbe(size2: vec4(1, 2, 3, 4)).write(o0)", "size2", new[] { 1024.0, 1024.0 }, 1),
-                ("search synth\nvecProbe(bg3: vec4(1, 1, 1, 1)).write(o0)", "bg3", new[] { 1.0, 1.0, 1.0 }, 1)
+                ("search synth\nvecProbe(tint4: vec3(0.3, 0.2)).write(o0)", "tint4", new[] { 0.0, 0.0, 1.0, 1.0 }, 1),
+                ("search synth\nvecProbe(tint4: vec4(0.3, 0.2, 0.25)).write(o0)", "tint4", new[] { 0.0, 0.0, 1.0, 1.0 }, 1),
+                ("search synth\nvecProbe(bg3: vec3(1, 1, 1, 1)).write(o0)", "bg3", new[] { 1.0, 1.0, 1.0 }, 1)
             };
 
             foreach (var item in cases)

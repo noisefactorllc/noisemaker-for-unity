@@ -955,16 +955,17 @@ namespace Noisemaker.Hlsl.Compiler
                     continue;
                 }
 
-                // vec2(x, y) on a vec2 parameter, and vec4(x, y, z, w) on a
-                // vec4 parameter. The loader registers vec4 parameters as
-                // `color` (EffectRegistry's only type rewrite); their default
-                // keeps its four components. Any other form, including a
-                // wrong component count, takes the per-type branches below.
-                if (node is CallNode vecCall && vecCall.Args.Count == (vecCall.Name == "vec2" ? 2 : 4)
+                // vec2(x, y) on a vec2 parameter, and vec3(x, y, z) / vec4(x,
+                // y, z, w) color constructors preserve the supplied
+                // components, independently of the parameter's default
+                // length. The loader registers vec4 parameters as `color`
+                // (EffectRegistry's only type rewrite). Invalid constructor
+                // arity or keyword arguments take the per-type branches
+                // below.
+                if (node is CallNode vecCall && vecCall.Args.Count == (vecCall.Name == "vec2" ? 2 : vecCall.Name == "vec3" ? 3 : 4)
                     && ((def.Type == "vec2" && vecCall.Name == "vec2")
-                        || (def.Type == "color" && vecCall.Name == "vec4"
-                            && def.Default != null && def.Default.Kind == JsonKind.Array
-                            && def.Default.AsArray.Count == 4)))
+                        || (def.Type == "color" && vecCall.Kwargs == null
+                            && (vecCall.Name == "vec3" || vecCall.Name == "vec4"))))
                 {
                     var components = new List<double>();
                     foreach (Node arg in vecCall.Args)

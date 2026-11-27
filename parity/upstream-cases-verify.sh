@@ -18,7 +18,7 @@ if [ "${1:-}" = --stage ]; then
 fi
 WORK="${1:?provide a work directory}"
 : "${NM_REFERENCE_ROOT:?set NM_REFERENCE_ROOT to pinned noisemaker checkout}"
-REFERENCE_SHA=5596e69fd6e3b9014e9df0f8674e10e70c332e11
+REFERENCE_SHA=688794aca5998d9573afa5601c2b9b023c896007
 if [ "$(git -C "$NM_REFERENCE_ROOT" rev-parse HEAD)" != "$REFERENCE_SHA" ]; then
   echo "reference checkout must be noisemaker@$REFERENCE_SHA" >&2
   exit 2
