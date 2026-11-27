@@ -113,6 +113,7 @@ points__lenia	parity/programs/upstream-cases/points__lenia.dsl
 points__life	parity/programs/upstream-cases/points__life.dsl
 points__physarum	parity/programs/upstream-cases/points__physarum.dsl
 points__physical	parity/programs/upstream-cases/points__physical.dsl
+render__meshLoader	parity/programs/upstream-cases/render__meshLoader.dsl
 render__meshRender	parity/programs/upstream-cases/render__meshRender.dsl
 render__pointsBillboardRender	parity/programs/upstream-cases/render__pointsBillboardRender.dsl
 render__pointsEmit	parity/programs/upstream-cases/render__pointsEmit.dsl
@@ -132,6 +133,8 @@ synth3d__shape3d	parity/programs/upstream-cases/synth3d__shape3d.dsl
 synth__cell	parity/programs/upstream-cases/synth__cell.dsl
 synth__cellularAutomata	parity/programs/upstream-cases/synth__cellularAutomata.dsl
 synth__curl	parity/programs/upstream-cases/synth__curl.dsl
+synth__gabor	parity/programs/upstream-cases/synth__gabor.dsl
+synth__gradient	parity/programs/upstream-cases/synth__gradient.dsl
 synth__julia	parity/programs/upstream-cases/synth__julia.dsl
 synth__mandelbrot	parity/programs/upstream-cases/synth__mandelbrot.dsl
 synth__media	parity/programs/upstream-cases/synth__media.dsl
@@ -141,13 +144,12 @@ synth__navierStokes	parity/programs/upstream-cases/synth__navierStokes.dsl
 synth__newton	parity/programs/upstream-cases/synth__newton.dsl
 synth__noise	parity/programs/upstream-cases/synth__noise.dsl
 synth__osc2d	parity/programs/upstream-cases/synth__osc2d.dsl
-synth__gabor	parity/programs/upstream-cases/synth__gabor.dsl
-synth__gradient	parity/programs/upstream-cases/synth__gradient.dsl
 synth__pattern	parity/programs/upstream-cases/synth__pattern.dsl
 synth__perlin	parity/programs/upstream-cases/synth__perlin.dsl
 synth__polygon	parity/programs/upstream-cases/synth__polygon.dsl
 synth__reactionDiffusion	parity/programs/upstream-cases/synth__reactionDiffusion.dsl
 synth__remap	parity/programs/upstream-cases/synth__remap.dsl
+synth__roll	parity/programs/upstream-cases/synth__roll.dsl
 synth__scope	parity/programs/upstream-cases/synth__scope.dsl
 synth__shape	parity/programs/upstream-cases/synth__shape.dsl
 synth__spectrum	parity/programs/upstream-cases/synth__spectrum.dsl

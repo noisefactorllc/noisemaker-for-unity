@@ -53,7 +53,7 @@ function parseArgs (argv) {
 }
 
 // Drive the demo to load one DSL and read back o0 as linear-quantised RGBA8 top-down.
-export async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null, meshText = null, expectedBackend = 'webgl2', textures = null, compiledPasses = null) {
+export async function renderOne (page, dsl, size, time, lastId, frames = 8, timestep = 0, veltex = null, region = null, meshText = null, expectedBackend = 'webgl2', textures = null, compiledPasses = null, midiInputs = null) {
   if (veltex && expectedBackend !== 'webgl2') throw new Error('raw velocity readback requires WebGL2')
   const baselineId = lastId
   await page.evaluate((src) => {
@@ -108,7 +108,7 @@ export async function renderOne (page, dsl, size, time, lastId, frames = 8, time
   // Together these make the golden the SAME clean N-frames-from-zero render the
   // Unity side does, and removes the warm-up pollution + cross-effect leakage that
   // made stateful goldens bimodal.
-  await page.evaluate(async ({ t, frames, ts, region, meshText, textures, compiledPasses }) => {
+  await page.evaluate(async ({ t, frames, ts, region, meshText, textures, compiledPasses, midiInputs }) => {
     const p = window.__noisemakerRenderingPipeline
     const r = window.__noisemakerCanvasRenderer
     if (region) {
@@ -151,12 +151,10 @@ export async function renderOne (page, dsl, size, time, lastId, frames = 8, time
         }
       }
       // Reset the frame/time accumulators to a freshly-Init'd state. A fresh
-      // pipeline has frameIndex=0 and lastTime=0; with lastTime=0 the first
-      // render() computes deltaTime=0 (the `lastTime>0` guard), and every later
-      // frame is at the same fixed `time`, so deltaTime stays 0 throughout —
-      // identical to the Unity 8×Render(0.25)-from-zero contract.
+      // pipeline has no prior time reference, so its first render has zero delta.
       p.frameIndex = 0
       p.lastTime = 0
+      p._hasTimeReference = false
 
       // Async CPU overlays are textures too. Clearing the backend above erases
       // any upload that began during compile/resize, while an in-flight trace
@@ -223,6 +221,26 @@ export async function renderOne (page, dsl, size, time, lastId, frames = 8, time
         }
       }
     }
+    // The renderer retains MIDI state when swapping graphs between cases.
+    const midi = (midiInputs?.length || r?._midiState) ? r.setMidiState() : null
+    if (midiInputs?.length) {
+      const now = Date.now
+      Date.now = () => 0
+      try {
+        for (const input of midiInputs) {
+          const effectKey = input.effect.replace('/', '.')
+          if (!p.graph.passes.some(pass => pass.effectKey === effectKey &&
+              Object.values(pass.inputs || {}).includes('midiNoteGrid'))) {
+            throw new Error('MIDI fixture has no executing effect: ' + input.effect)
+          }
+          for (const note of input.notes) {
+            midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]))
+          }
+        }
+      } finally {
+        Date.now = now
+      }
+    }
     // ts>0 ADVANCES time per frame (animated input — reproduces the live demo's
     // normalized=(Time.time/dur)%1); ts=0 keeps the fixed-time deterministic render.
     for (let i = 0; i < frames; i++) { const tt = ts > 0 ? (t + i * ts) % 1 : t; if (p && p.render) p.render(tt); else if (r && r.render) r.render(tt) }
@@ -236,7 +254,7 @@ export async function renderOne (page, dsl, size, time, lastId, frames = 8, time
         if (actual.join() !== texture.data.slice(y * row, (y + 1) * row).join()) throw new Error('texture fixture texels differ after rendering: ' + id)
       }
     }
-  }, { t: time, frames, ts: timestep, region, meshText, textures, compiledPasses })
+  }, { t: time, frames, ts: timestep, region, meshText, textures, compiledPasses, midiInputs })
   const result = await page.evaluate(async (expectedBackend) => {
     const pipeline = window.__noisemakerRenderingPipeline
     const backend = pipeline?.backend
@@ -355,11 +373,14 @@ async function main () {
         const texturesPath = it.dslPath.replace(/\.dsl$/, '.textures.json')
         const textures = texturesPath !== it.dslPath && existsSync(texturesPath)
           ? JSON.parse(readFileSync(texturesPath, 'utf8')) : null
+        const midiPath = it.dslPath.replace(/\.dsl$/, '.midi.json')
+        const midiInputs = midiPath !== it.dslPath && existsSync(midiPath)
+          ? JSON.parse(readFileSync(midiPath, 'utf8')) : null
         // graph.json (no browser needed; uses the reference compiler).
         let g
         try { g = await exportGraph(dsl); writeFileSync(join(o.outDir, `${it.name}.graph.json`), JSON.stringify(g, null, 2) + '\n') }
         catch (e) { process.stderr.write(`[batch] ${it.name} GRAPH-FAIL ${e?.message || e}\n`); fail++; continue }
-        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region, meshText, o.backend, textures, g.passes)
+        const { png, graphId, vel } = await renderOne(page, dsl, o.size, o.time, lastId, o.frames, o.timestep, o.veltex, region, meshText, o.backend, textures, g.passes, midiInputs)
         lastId = graphId
         writeFileSync(join(o.outDir, `${it.name}.golden.png`), png)
         if (vel) {

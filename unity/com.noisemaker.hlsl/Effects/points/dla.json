@@ -185,5 +185,8 @@
   },
   "paramAliases": {
     "fieldTex": "heightTex"
-  }
+  },
+  "outputXyz": "global_xyz",
+  "outputVel": "global_vel",
+  "outputRgba": "global_rgba"
 }

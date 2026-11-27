@@ -26,13 +26,8 @@
 // rendered Texture2D. No Shader Graph Custom Function wrapper is provided.
 //
 // PORTING-GUIDE notes / hazards handled:
-//  * Ported from WGSL (top-left, canonical). roll.wgsl uses `uv = pos.xy /
-//    resolution` (per-tile resolution, NO tileOffset). The GLSL variant instead
-//    uses globalCoord = gl_FragCoord + tileOffset over fullResolution AND a
-//    dynamic neighbour spread (`spread = ceil(keysPerPixel)`, loop -spread..spread).
-//    Per Golden Rule 1 we port the WGSL: NM_FragCoord(i)/resolution and the FIXED
-//    spread loop dk = -2..2. // TODO(verify) parity vs GLSL when tiled (tileOffset
-//    != 0) or when renderScale changes the lane-pixel density.
+//  * The WebGL2 reference uses global UVs for the scroll, lanes and note entry.
+//    The note spread covers every key under a full-resolution lane pixel.
 //  * copy.wgsl: uv = pos.xy / textureDimensions(inputTex) (the input texture's own
 //    size). Mirrored as NM_FragCoord(i)/inputTex size.
 //  * step(0.0, x) -> HLSL step(0.0, x) (1 if x>=0 else 0); matches WGSL.
@@ -63,26 +58,18 @@ float  gain;      // globals.gain.uniform="gain",       default 1.0  [0.1,5.0]
 float  speed;     // globals.speed.uniform="speed",     default 1.0  [0.5,5.0]
 
 // -----------------------------------------------------------------------------
-// frag_roll — verbatim port of roll.wgsl main() (pass "scroll", program "roll").
-//
-// WGSL:
-//   let uv = pos.xy / resolution;
-//   let scrollAmount = speed * deltaTime * 0.5;
-//   let scrollUv = vec2<f32>(max(uv.x - scrollAmount, 0.0), uv.y);
-//   var prev = textureSample(feedbackTex, feedbackSampler, scrollUv) * 0.997;
-//   prev *= step(0.0, uv.x - scrollAmount);
-//   ... 16 lanes, keys 36-84, fixed spread -2..2, edge write, lane separators ...
-//   return vec4<f32>(lineColor * brightness, 1.0);
+// frag_roll mirrors the WebGL2 scroll pass, including tiled capture coordinates.
 // -----------------------------------------------------------------------------
 float4 frag_roll(NMVaryings i) : SV_Target
 {
-    float2 uv = NM_FragCoord(i) / resolution;
+    float2 uv = NM_GlobalCoord(i) / fullResolution;
 
     // Scroll feedback right (notes enter at left)
     float scrollAmount = speed * deltaTime * 0.5;
-    float2 scrollUv = float2(max(uv.x - scrollAmount, 0.0), uv.y);
-    float4 prev = feedbackTex.Sample(sampler_feedbackTex, scrollUv) * 0.997;
-    prev *= step(0.0, uv.x - scrollAmount);
+    float2 scrollUv = float2(uv.x - scrollAmount, uv.y);
+    float4 prev = 0.0;
+    if (scrollUv.x >= 0.0)
+        prev = feedbackTex.Sample(sampler_feedbackTex, scrollUv) * 0.997;
 
     // 16 MIDI channels as horizontal swim lanes
     float laneF = uv.y * 16.0;
@@ -95,10 +82,13 @@ float4 frag_roll(NMVaryings i) : SV_Target
     float keyExact = (float)keyLow + laneLocal * (float)keyRange;
     int key = (int)floor(keyExact);
 
-    // Sample note grid with fixed spread for visibility
+    // Sample every key covered by this lane pixel, matching WebGL2.
     float maxVel = 0.0;
+    float lanePixels = fullResolution.y / 16.0;
+    float keysPerPixel = (float)keyRange / lanePixels;
+    int spread = max(1, (int)ceil(keysPerPixel));
     [loop]
-    for (int dk = -2; dk <= 2; dk++)
+    for (int dk = -spread; dk <= spread; dk++)
     {
         int k = clamp(key + dk, 0, 127);
         float2 gridUv = float2(((float)k + 0.5) / 128.0, ((float)channel + 0.5) / 16.0);
@@ -110,7 +100,7 @@ float4 frag_roll(NMVaryings i) : SV_Target
     }
 
     // Write new note data at the left edge
-    float edgeWidth = 4.0 / resolution.x;
+    float edgeWidth = 4.0 / fullResolution.x;
     float noteVal = 0.0;
     if (uv.x < edgeWidth && maxVel > 0.0)
     {

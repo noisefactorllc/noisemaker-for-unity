@@ -443,8 +443,9 @@ namespace Noisemaker.Hlsl.Compiler
                             throw ParserErrorAt("P005", "write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none)", Peek());
                         break;
                 }
+                Node id = ParseWriteId();
                 Expect(TokenType.RPAREN, "Expect ')'");
-                return new WriteNode { Surface = surface, LocLine = tokenLine, LocCol = tokenCol };
+                return new WriteNode { Surface = surface, ElementId = id, LocLine = tokenLine, LocCol = tokenCol };
             }
             // WRITE3D
             Advance();
@@ -460,8 +461,21 @@ namespace Noisemaker.Hlsl.Compiler
             else if (Peek().Type == TokenType.GEO_REF) geo = new SurfaceRefNode(NodeKind.GeoRef) { Name = Advance().Lexeme };
             else if (Peek().Type == TokenType.IDENT) geo = new IdentNode { Name = Advance().Lexeme };
             else throw ParserErrorAt("P005", "Expected geo reference in write3d()", Peek());
+            Node id3d = ParseWriteId();
             Expect(TokenType.RPAREN, "Expect ')'");
-            return new Write3DNode { Tex3d = tex3d, Geo = geo, LocLine = tokenLine, LocCol = tokenCol };
+            return new Write3DNode { Tex3d = tex3d, Geo = geo, ElementId = id3d, LocLine = tokenLine, LocCol = tokenCol };
+        }
+
+        private Node ParseWriteId()
+        {
+            var key = TokenAt(_current + 1);
+            if (Peek().Type != TokenType.COMMA || key?.Type != TokenType.IDENT ||
+                key.Lexeme != "_id" || TokenAt(_current + 2)?.Type != TokenType.COLON)
+                return null;
+            Advance();
+            var kwargs = new OrderedKwargs();
+            ParseKwarg(kwargs);
+            return kwargs.Get("_id");
         }
 
         private Node ParseSubchainCall()
@@ -650,12 +664,13 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     if (Peek().Type == TokenType.IDENT && TokenAt(_current + 1)?.Type == TokenType.COLON)
                     {
-                        if (positional && !allowMixed)
+                        bool elementId = Peek().Lexeme == "_id";
+                        if (positional && !allowMixed && !elementId)
                         {
                             Token t = Peek();
                             throw ParserErrorAt("P007", "Cannot mix positional and keyword arguments", t);
                         }
-                        keyword = true;
+                        if (!elementId) keyword = true;
                         if (kwargs == null) kwargs = new OrderedKwargs();
                         ParseKwarg(kwargs);
                     }
@@ -679,7 +694,7 @@ namespace Noisemaker.Hlsl.Compiler
             Expect(TokenType.RPAREN, "Expect ')'");
 
             var call = new CallNode { Name = nameToken.Lexeme, Args = args, LocLine = nameToken.Line, LocCol = nameToken.Col };
-            if (keyword) call.Kwargs = kwargs;
+            call.Kwargs = kwargs;
 
             // Special-form transforms (reference/01 §4.2, in this order).
             if (nameToken.Lexeme == "from") return TransformFrom(call, nameToken);
@@ -700,7 +715,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 Node surface = args.Count > 0 ? args[0]
                     : (kwargs != null ? (kwargs.Get("tex") ?? kwargs.Get("surface")) : null);
-                var node = new ReadNode { Surface = surface, LocLine = nameToken.Line, LocCol = nameToken.Col };
+                var node = new ReadNode { Surface = surface, ElementId = kwargs?.Get("_id"), LocLine = nameToken.Line, LocCol = nameToken.Col };
                 Node skip = kwargs?.Get("_skip");
                 if (skip is BooleanNode sb && sb.Value) node.Skip = true;
                 return node;
@@ -709,7 +724,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 Node tex3d = args.Count > 0 ? args[0] : (kwargs != null ? kwargs.Get("tex3d") : null);
                 Node geo = args.Count > 1 ? args[1] : (kwargs != null ? kwargs.Get("geo") : null);
-                var node = new Read3DNode { Tex3d = tex3d, Geo = geo, LocLine = nameToken.Line, LocCol = nameToken.Col };
+                var node = new Read3DNode { Tex3d = tex3d, Geo = geo, ElementId = kwargs?.Get("_id"), LocLine = nameToken.Line, LocCol = nameToken.Col };
                 Node skip = kwargs?.Get("_skip");
                 if (skip is BooleanNode sb && sb.Value) node.Skip = true;
                 return node;

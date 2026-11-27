@@ -18,7 +18,7 @@ if [ "${1:-}" = --stage ]; then
 fi
 WORK="${1:?provide a work directory}"
 : "${NM_REFERENCE_ROOT:?set NM_REFERENCE_ROOT to pinned noisemaker checkout}"
-REFERENCE_SHA=084176b716a1bc779f24de79069f3e76b86277c1
+REFERENCE_SHA=5596e69fd6e3b9014e9df0f8674e10e70c332e11
 if [ "$(git -C "$NM_REFERENCE_ROOT" rev-parse HEAD)" != "$REFERENCE_SHA" ]; then
   echo "reference checkout must be noisemaker@$REFERENCE_SHA" >&2
   exit 2
@@ -41,9 +41,9 @@ root, ref = map(Path, sys.argv[1:])
 corpus = root / 'parity/programs/upstream-cases'
 sources = sorted((ref / 'shaders/effects').glob('*/*/parity-case.json'))
 rows = [line.split('\t') for line in (corpus / 'manifest.tsv').read_text().splitlines()]
-assert len(sources) == len(rows) == 155, 'upstream case count changed'
+assert len(sources) == len(rows) == 157, 'upstream case count changed'
 expected = {f'{p.parent.parent.name}__{p.parent.name}': p for p in sources}
-assert len(expected) == 155 and len({row[0] for row in rows}) == 155
+assert len(expected) == 157 and len({row[0] for row in rows}) == 157
 assert {p.name for p in corpus.glob('*.dsl')} == {
     f'{row[0]}.dsl' for row in rows}, 'fixture DSL set differs from manifest'
 for name, path in rows:
@@ -53,10 +53,14 @@ for name, path in rows:
     assert (root / path).read_text() == case['dsl'], name
     textures = (root / path).with_suffix('.textures.json')
     assert (json.loads(textures.read_text()) if textures.is_file() else None) == case.get('textureInputs'), name
+    midi = (root / path).with_suffix('.midi.json')
+    assert (json.loads(midi.read_text()) if midi.is_file() else None) == case.get('midiInputs'), name
+    for mesh in case.get('meshInputs', []):
+        assert mesh == {'mesh': 'mesh0', 'path': 'share/meshes/cube.obj'}, name
 assert (corpus / 'cube.obj').read_bytes() == (ref / 'share/meshes/cube.obj').read_bytes()
 assert (corpus / 'flow60-manifest.tsv').read_text() == (
     'points__flow\tparity/programs/upstream-cases/points__flow.dsl\n')
-print('155 pinned upstream cases and cube mesh verified')
+print('157 pinned upstream cases, input fixtures, and cube mesh verified')
 PY
 
 if [ "$STAGE" = unity ] || [ "$STAGE" = all ]; then
@@ -101,7 +105,7 @@ for mode in untiled tiled; do
         -nmManifest "$RENDER_MANIFEST" -nmSize 128 -nmTime 0.25 -nmFrames 8 \
         -nmMesh "$CORPUS/cube.obj"
     fi
-    if ! grep -Fq '[NMParity] dsl batch done: 155 ok, 0 fail' "$WORK/unity-$mode.log"; then
+    if ! grep -Fq '[NMParity] dsl batch done: 157 ok, 0 fail' "$WORK/unity-$mode.log"; then
       tail -80 "$WORK/unity-$mode.log" >&2
       exit 1
     fi

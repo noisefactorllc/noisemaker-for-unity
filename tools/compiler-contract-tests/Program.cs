@@ -18,6 +18,10 @@ namespace CompilerContractTests
             TestAudioSelector();
             TestInvalidSelectors();
             TestOrdinaryCallStillRejectsMixedArguments();
+            TestStableElementIds();
+            TestLetBoundColorOverrides();
+            TestChainArgumentRejectsRead();
+            TestParticleHandoffUsesEmitterScope();
             TestUnknownKeywordOrder();
             TestExcessPositionalWarning();
             TestColorInputLifetimes();
@@ -355,6 +359,93 @@ namespace CompilerContractTests
             try { ParseExpression("noise(1, scaleY: 2)"); }
             catch (DslSyntaxError) { threw = true; }
             Check(threw, "ordinary calls reject mixed positional and keyword arguments");
+        }
+
+        private static void TestStableElementIds()
+        {
+            var registry = ProbeRegistry();
+            const string source = "search synth\nautomationProbe(17, _id: \"seed\").write(o0, _id: \"out\")\n" +
+                "read(o0, _id: \"copy\").write(o1)\nrender(o1)";
+            var result = Validator.Validate(Parser.Parse(Lexer.Lex(source), registry), registry);
+            Check(result.Diagnostics.Count == 0, "effect and builtin element IDs validate");
+            Check(result.Plans[0].Chain[0].Args.Get("_id")?.String == "seed" &&
+                result.Plans[0].Chain[1].Args.Get("_id")?.String == "out" &&
+                result.Plans[1].Chain[0].Args.Get("_id")?.String == "copy",
+                "the validated effect, write and read keep literal IDs");
+            RenderGraph graph = DslCompiler.Compile(source, registry);
+            Check(graph.Passes[0].Uniforms["amount"].Number == 17, "element ID did not consume a parameter");
+            foreach (Pass pass in graph.Passes)
+                Check(!pass.Uniforms.ContainsKey("_id"), "element IDs stay out of render uniforms");
+
+            const string source3d = "search synth\nread3d(vol0, geo0, _id: \"volume\")" +
+                ".write3d(vol1, geo1, _id: \"stored\")";
+            var result3d = Validator.Validate(Parser.Parse(Lexer.Lex(source3d), registry), registry);
+            Check(result3d.Diagnostics.Count == 0 && result3d.Plans[0].Chain[0].Args.Get("_id")?.String == "volume" &&
+                result3d.Plans[0].Chain[1].Args.Get("_id")?.String == "stored",
+                "read3d and write3d retain element IDs");
+
+            foreach (string invalid in new[] { "\"bad-id\"", "\"1bad\"", "42", "saved" })
+            {
+                string input = "search synth\nlet saved = \"Valid\"\nlet p = automationProbe(_id: " +
+                    invalid + ")\np().write(o0)\nrender(o0)";
+                var ignored = Validator.Validate(Parser.Parse(Lexer.Lex(input), registry), registry);
+                Check(ignored.Diagnostics.Count == 0 && !ignored.Plans[0].Chain[0].Args.Has("_id"),
+                    "invalid or variable element ID is ignored: " + invalid);
+            }
+        }
+
+        private static void TestLetBoundColorOverrides()
+        {
+            var registry = ProbeRegistry();
+            registry.Register(JsonValue.Parse(
+                "{\"name\":\"RGB Probe\",\"namespace\":\"synth\",\"func\":\"rgbProbe\",\"starter\":true," +
+                "\"globals\":{\"r\":{\"type\":\"float\",\"default\":0},\"g\":{\"type\":\"float\",\"default\":0}," +
+                "\"b\":{\"type\":\"float\",\"default\":0},\"alpha\":{\"type\":\"float\",\"default\":1}}," +
+                "\"passes\":[{\"name\":\"render\",\"program\":\"rgbProbe\",\"outputs\":{\"fragColor\":\"outputTex\"}}],\"textures\":{}}"));
+            const string source = "search synth\nlet t = rgbProbe(#804020)\n" +
+                "t(r: 0.25).write(o0)\nt(g: 0.125).write(o1)\nrender(o0)";
+            var result = Validator.Validate(Parser.Parse(Lexer.Lex(source), registry), registry);
+            Check(result.Diagnostics.Count == 0, "partial RGB calls validate");
+            StepArgs first = result.Plans[0].Chain[0].Args;
+            StepArgs second = result.Plans[1].Chain[0].Args;
+            Check(first.Get("r")?.Number == 0.25 && first.Get("g")?.Number == 64.0 / 255.0 &&
+                first.Get("b")?.Number == 32.0 / 255.0 && second.Get("r")?.Number == 128.0 / 255.0 &&
+                second.Get("g")?.Number == 0.125 && second.Get("b")?.Number == 32.0 / 255.0,
+                "partial RGB keywords replace only their own color component");
+        }
+
+        private static void TestChainArgumentRejectsRead()
+        {
+            var registry = ProbeRegistry();
+            const string source = "search synth\nautomationProbe(amount: read(o1).automationProbe()).write(o0)";
+            var result = Validator.Validate(Parser.Parse(Lexer.Lex(source), registry), registry);
+            Check(result.Diagnostics.Count == 1 && result.Diagnostics[0].Code == "S001" &&
+                result.Diagnostics[0].Message == "Chain for argument 'amount' in automationProbe() may contain only effect calls" &&
+                result.Plans[0].Chain[0].Args.Get("amount") == null,
+                "a builtin in an argument chain is rejected before graph expansion");
+        }
+
+        private static void TestParticleHandoffUsesEmitterScope()
+        {
+            var registry = EffectRegistry.LoadFromDirectory(Path.Combine("unity", "com.noisemaker.hlsl", "Effects"));
+            registry.Register(JsonValue.Parse(
+                "{\"name\":\"Reader\",\"namespace\":\"test\",\"func\":\"reader\",\"globals\":{},\"passes\":[" +
+                "{\"name\":\"render\",\"program\":\"reader\",\"inputs\":{\"xyzTex\":\"inputXyz\"," +
+                "\"velTex\":\"inputVel\",\"rgbaTex\":\"inputRgba\"},\"outputs\":{\"color\":\"outputTex\"}}]}"));
+            RenderGraph graph = DslCompiler.Compile("search synth, render, points, test\n" +
+                "noise().pointsEmit().attractor().reader().pointsEmit().attractor().reader().write(o0)", registry);
+            var producers = graph.Passes.FindAll(pass => pass.Func == "attractor" && pass.Outputs.ContainsKey("outXYZ"));
+            var readers = graph.Passes.FindAll(pass => pass.Func == "reader");
+            Check(producers.Count == 2 && readers.Count == 2, "both emitter chains compile their attractor and reader");
+            if (producers.Count != 2 || readers.Count != 2) return;
+            for (int i = 0; i < readers.Count; i++)
+            {
+                Check(readers[i].Inputs["xyzTex"] == producers[i].Outputs["outXYZ"] &&
+                    readers[i].Inputs["velTex"] == producers[i].Outputs["outVel"] &&
+                    readers[i].Inputs["rgbaTex"] == producers[i].Outputs["outRGBA"],
+                    "the reader consumes its own emitter's particle textures");
+            }
+            Check(readers[0].Inputs["xyzTex"] != readers[1].Inputs["xyzTex"], "the emitter scopes remain distinct");
         }
 
         private static void TestRawEnum()

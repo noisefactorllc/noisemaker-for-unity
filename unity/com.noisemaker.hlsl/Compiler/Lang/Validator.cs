@@ -34,6 +34,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 using Noisemaker.Hlsl.Compiler.Graph;
 
 namespace Noisemaker.Hlsl.Compiler
@@ -330,8 +331,8 @@ namespace Noisemaker.Hlsl.Compiler
                     break;
                 }
                 case FuncNode f: copy = new FuncNode { Src = f.Src }; break;
-                case ReadNode r: copy = new ReadNode { Surface = Clone(r.Surface), Skip = r.Skip }; break;
-                case Read3DNode r3: copy = new Read3DNode { Tex3d = Clone(r3.Tex3d), Geo = Clone(r3.Geo), Skip = r3.Skip }; break;
+                case ReadNode r: copy = new ReadNode { Surface = Clone(r.Surface), Skip = r.Skip, ElementId = Clone(r.ElementId) }; break;
+                case Read3DNode r3: copy = new Read3DNode { Tex3d = Clone(r3.Tex3d), Geo = Clone(r3.Geo), Skip = r3.Skip, ElementId = Clone(r3.ElementId) }; break;
                 case CallNode call: copy = CloneCall(call); break;
                 case ChainNode chain:
                 {
@@ -381,7 +382,7 @@ namespace Noisemaker.Hlsl.Compiler
 
         private CallNode CloneCall(CallNode call)
         {
-            var c = new CallNode { Name = call.Name, Namespace = call.Namespace };
+            var c = new CallNode { Name = call.Name, Namespace = call.Namespace, ColorSplatLimit = call.ColorSplatLimit };
             foreach (Node a in call.Args) c.Args.Add(Clone(a));
             if (call.Kwargs != null)
             {
@@ -462,12 +463,13 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     if (e is CallNode call)
                     {
-                        var mapped = CopyCallLocation(new CallNode { Name = call.Name, Namespace = call.Namespace }, call);
+                        var mapped = CopyCallLocation(new CallNode { Name = call.Name, Namespace = call.Namespace, ColorSplatLimit = call.ColorSplatLimit }, call);
                         foreach (Node a in call.Args) mapped.Args.Add(Substitute(a, resolving));
                         if (call.Kwargs != null)
                         {
                             mapped.Kwargs = new OrderedKwargs();
-                            foreach (string k in call.Kwargs.Keys) mapped.Kwargs.Set(k, Substitute(call.Kwargs.Get(k), resolving));
+                            foreach (string k in call.Kwargs.Keys)
+                                mapped.Kwargs.Set(k, k == "_id" ? call.Kwargs.Get(k) : Substitute(call.Kwargs.Get(k), resolving));
                         }
                         c.Chain.Add(ResolveCall(mapped));
                     }
@@ -477,12 +479,13 @@ namespace Noisemaker.Hlsl.Compiler
             }
             if (node is CallNode cn)
             {
-                var mapped = CopyCallLocation(new CallNode { Name = cn.Name, Namespace = cn.Namespace }, cn);
+                var mapped = CopyCallLocation(new CallNode { Name = cn.Name, Namespace = cn.Namespace, ColorSplatLimit = cn.ColorSplatLimit }, cn);
                 foreach (Node a in cn.Args) mapped.Args.Add(Substitute(a, resolving));
                 if (cn.Kwargs != null)
                 {
                     mapped.Kwargs = new OrderedKwargs();
-                    foreach (string k in cn.Kwargs.Keys) mapped.Kwargs.Set(k, Substitute(cn.Kwargs.Get(k), resolving));
+                    foreach (string k in cn.Kwargs.Keys)
+                        mapped.Kwargs.Set(k, k == "_id" ? cn.Kwargs.Get(k) : Substitute(cn.Kwargs.Get(k), resolving));
                 }
                 return ResolveCall(mapped);
             }
@@ -517,7 +520,8 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 if (val is IdentNode vi)
                     return CopyCallLocation(new CallNode {
-                        Name = vi.Name, Args = call.Args, Kwargs = call.Kwargs, Namespace = call.Namespace
+                        Name = vi.Name, Args = call.Args, Kwargs = call.Kwargs, Namespace = call.Namespace,
+                        ColorSplatLimit = call.ColorSplatLimit
                     }, call);
                 if (val is CallNode vc)
                 {
@@ -535,6 +539,15 @@ namespace Noisemaker.Hlsl.Compiler
                         foreach (string k in call.Kwargs.Keys) mergedKw.Set(k, call.Kwargs.Get(k)); // call-site wins
                     }
                     var merged = new CallNode { Name = vc.Name, Args = mergedArgs, Kwargs = mergedKw };
+                    if (mergedKw != null && mergedArgs.Count > 0)
+                    {
+                        bool hasBoundKeyword = false;
+                        if (vc.Kwargs != null)
+                            foreach (string key in vc.Kwargs.Keys)
+                                if (key != "_skip" && key != "_id") { hasBoundKeyword = true; break; }
+                        merged.ColorSplatLimit = hasBoundKeyword
+                            ? vc.ColorSplatLimit ?? vc.Args.Count : mergedArgs.Count;
+                    }
                     merged.Namespace = call.Namespace ?? vc.Namespace;
                     return CopyCallLocation(merged, call.LocLine.HasValue ? call : vc);
                 }
@@ -662,6 +675,7 @@ namespace Noisemaker.Hlsl.Compiler
                     var rdArgs = new StepArgs();
                     rdArgs.Set("tex", ArgValue.OfSurface(surface));
                     if (rd.Skip) rdArgs.Set("_skip", ArgValue.Of(true));
+                    KeepElementId(rd.ElementId, rdArgs);
                     var rdStep = new Step { Op = "_read", Args = rdArgs, From = null, Temp = rdIdx, Builtin = true, LeadingComments = original.LeadingComments };
                     chain.Add(rdStep);
                     current = rdIdx;
@@ -690,6 +704,7 @@ namespace Noisemaker.Hlsl.Compiler
                     rd3Args.Set("tex3d", ArgValue.OfSurface(tex3d));
                     rd3Args.Set("geo", ArgValue.OfSurface(geo));
                     if (r3.Skip) rd3Args.Set("_skip", ArgValue.Of(true));
+                    KeepElementId(r3.ElementId, rd3Args);
                     var rd3Step = new Step { Op = "_read3d", Args = rd3Args, From = null, Temp = rd3Idx, Builtin = true, LeadingComments = original.LeadingComments };
                     chain.Add(rd3Step);
                     current = rd3Idx;
@@ -703,6 +718,7 @@ namespace Noisemaker.Hlsl.Compiler
                     int wrIdx = _tempIndex++;
                     var wrArgs = new StepArgs();
                     wrArgs.Set("tex", ArgValue.OfSurface(surface));
+                    KeepElementId(wn.ElementId, wrArgs);
                     var wrStep = new Step { Op = "_write", Args = wrArgs, From = current, Temp = wrIdx, Builtin = true, LeadingComments = original.LeadingComments };
                     chain.Add(wrStep);
                     current = wrIdx;
@@ -729,6 +745,7 @@ namespace Noisemaker.Hlsl.Compiler
                     var wr3Args = new StepArgs();
                     wr3Args.Set("tex3d", ArgValue.OfSurface(tex3d));
                     wr3Args.Set("geo", ArgValue.OfSurface(geo));
+                    KeepElementId(w3.ElementId, wr3Args);
                     var wr3Step = new Step { Op = "_write3d", Args = wr3Args, From = current, Temp = wr3Idx, Builtin = true, LeadingComments = original.LeadingComments };
                     chain.Add(wr3Step);
                     current = wr3Idx;
@@ -863,6 +880,14 @@ namespace Noisemaker.Hlsl.Compiler
 
         // --- argument resolution (reference/02 §6) --------------------------
 
+        private static readonly Regex ElementId = new Regex(@"\A[A-Za-z][A-Za-z0-9_]*\z");
+
+        private static void KeepElementId(Node node, StepArgs args)
+        {
+            if (node is StringNode id && id.Value != null && ElementId.IsMatch(id.Value))
+                args.Set("_id", ArgValue.OfString(id.Value));
+        }
+
         private void ResolveArgs(List<Step> chain, OpSpec spec, CallNode call, string opName, Node original, StepArgs args, string writeName)
         {
             OrderedKwargs kw = call.Kwargs;
@@ -886,25 +911,36 @@ namespace Noisemaker.Hlsl.Compiler
                 }
             }
 
+            double[] splatValues = null;
+            int splatStart = -1;
+            int splatLimit = call.ColorSplatLimit ?? int.MaxValue;
             for (int i = 0; i < specArgs.Count; i++)
             {
                 ParamDef def = specArgs[i];
-                Node node = (kw != null && kw.Has(def.Name)) ? kw.Get(def.Name)
-                    : (i < call.Args.Count ? call.Args[i] : null);
-                node = Substitute(node);
-                string argKey = def.Name;
-
-                // Color-splat special case (reference/02 §6 before per-type branch).
-                if (kw == null && node is ColorNode cnode && def.Type != "color" && def.Name == "r"
-                    && i + 2 < specArgs.Count && specArgs[i + 1].Name == "g" && specArgs[i + 2].Name == "b")
+                bool named = kw != null && kw.Has(def.Name);
+                if (i < call.Args.Count && i < splatLimit && def.Type != "color" &&
+                    def.Name == "r" && i + 2 < specArgs.Count && specArgs[i + 1].Name == "g" &&
+                    specArgs[i + 2].Name == "b" && Substitute(call.Args[i]) is ColorNode color)
                 {
-                    args.Set("r", ArgValue.Of(cnode.Value[0]));
-                    args.Set(specArgs[i + 1].Name, ArgValue.Of(cnode.Value[1]));
-                    args.Set(specArgs[i + 2].Name, ArgValue.Of(cnode.Value[2]));
-                    i += 2;
+                    splatValues = color.Value;
+                    splatStart = i;
+                }
+                if (!named && splatValues != null && i < splatStart + 3)
+                {
+                    args.Set(def.Name, ArgValue.Of(splatValues[i - splatStart]));
                     continue;
                 }
-                if (kw != null && kw.Has(def.Name)) seen.Add(def.Name);
+                Node node = named ? kw.Get(def.Name) : (i < call.Args.Count ? call.Args[i] : null);
+                node = Substitute(node);
+                string argKey = def.Name;
+                if (named) seen.Add(def.Name);
+                if (node is ChainNode argChain && argChain.Chain.Exists(item => !(item is CallNode)))
+                {
+                    PushDiag("S001", argChain.Chain[0],
+                        "Chain for argument '" + def.Name + "' in " + call.Name + "() may contain only effect calls");
+                    args.Set(argKey, null);
+                    continue;
+                }
 
                 // ArrayLiteral (reference/02 §6 array-literal branch).
                 if (node is ArrayLiteralNode al)
@@ -955,6 +991,11 @@ namespace Noisemaker.Hlsl.Compiler
                 }
             }
 
+            if (kw != null && kw.Has("_id"))
+            {
+                KeepElementId(kw.Get("_id"), args);
+                seen.Add("_id");
+            }
             // _skip meta-arg (reference/02 §6.14).
             if (kw != null && kw.Has("_skip"))
             {

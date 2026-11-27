@@ -418,27 +418,27 @@ namespace Noisemaker.Hlsl
                 // SV_VertexID -> Texture2D.Load). Depth state (ZWrite/ZTest/Cull + depth
                 // clear) is enabled in ExecutePass for this mode and baked in the .shader.
                 topo = MeshTopology.Triangles;
-                int count;
+                int count = pass.Count.GetValueOrDefault();
+                if (count == 0) count = 3;
+                double? uniform = null;
                 if (!string.IsNullOrEmpty(pass.CountUniform))
                 {
-                    double? u = uniformLookup != null ? uniformLookup(pass.CountUniform) : null;
-                    count = u.HasValue && u.Value > 0 ? (int)u.Value : 3;
+                    if (pass.Uniforms.TryGetValue(pass.CountUniform, out UniformValue value))
+                        uniform = value.Kind == UniformValueKind.Number ? (double?)value.Number : null;
+                    else
+                        uniform = uniformLookup?.Invoke(pass.CountUniform);
                 }
-                else if (pass.Count.HasValue)
+                if (uniform.HasValue && uniform.Value > 0)
                 {
-                    count = pass.Count.Value;
+                    count = (int)uniform.Value;
                 }
-                else if (pass.CountMode == "input" || pass.CountMode == "auto")
+                else if (pass.CountMode == "input" || pass.CountMode == "auto" || pass.CountMode == "screen")
                 {
                     // mesh position texture dims (meshPositions ?? inputTex), else 1 tri.
                     RenderTexture refTex = ResolveMeshCountTex(pass);
                     count = (refTex != null && refTex.width > 0 && refTex.height > 0)
                         ? refTex.width * refTex.height
                         : 3;
-                }
-                else
-                {
-                    count = 3; // reference fallback: 1 triangle.
                 }
                 vertexCount = Mathf.Max(1, count);
                 return;
@@ -496,7 +496,7 @@ namespace Noisemaker.Hlsl
             return _resolver.ResolveRead(texId);
         }
 
-        // For drawMode "triangles" (meshRender) count "input"/"auto": resolve the mesh
+        // For drawMode "triangles" (meshRender) count "input"/"auto"/"screen": resolve the mesh
         // position texture (meshPositions ?? inputTex) whose dims give the vertex count
         // (reference webgl2.js triangles branch). 256x256 mesh data => 65536 verts.
         private RenderTexture ResolveMeshCountTex(Pass pass)

@@ -165,6 +165,7 @@ namespace Noisemaker.Hlsl.Compiler
         public List<Node> Args { get; set; } = new List<Node>();
         // null when the call used positional args; an ordered map when keyword args.
         public OrderedKwargs Kwargs { get; set; }
+        public int? ColorSplatLimit { get; set; }
         public NamespaceOverride Namespace { get; set; }   // from `from(...)`; else null
     }
 
@@ -211,6 +212,7 @@ namespace Noisemaker.Hlsl.Compiler
     {
         public override NodeKind Kind { get { return NodeKind.Write; } }
         public Node Surface { get; set; }   // OutputRef|Xyz|Vel|Rgba|Mesh, or OutputRef{none}
+        public Node ElementId { get; set; }
     }
 
     public sealed class Write3DNode : Node
@@ -218,6 +220,7 @@ namespace Noisemaker.Hlsl.Compiler
         public override NodeKind Kind { get { return NodeKind.Write3D; } }
         public Node Tex3d { get; set; }
         public Node Geo { get; set; }
+        public Node ElementId { get; set; }
     }
 
     public sealed class SubchainNode : Node
@@ -239,6 +242,7 @@ namespace Noisemaker.Hlsl.Compiler
         public override NodeKind Kind { get { return NodeKind.Read; } }
         public Node Surface { get; set; }   // ExprNode | null
         public bool Skip { get; set; }      // _skip
+        public Node ElementId { get; set; }
     }
 
     public sealed class Read3DNode : Node
@@ -247,6 +251,7 @@ namespace Noisemaker.Hlsl.Compiler
         public Node Tex3d { get; set; }
         public Node Geo { get; set; }       // null for single-arg form
         public bool Skip { get; set; }
+        public Node ElementId { get; set; }
     }
 
     // ---- Expression value nodes (reference/01 §6.4) --------------------------

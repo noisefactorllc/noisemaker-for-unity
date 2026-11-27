@@ -1,5 +1,5 @@
 // NMPipeline.cs — the per-frame executor. Ports reference/04 §10 (render(time))
-// control flow EXACTLY: normalized 0..1 time, deltaTime wrap = 1/60/10,
+// control flow EXACTLY: normalized 0..1 time and elapsed frame delta across wraps,
 // updateGlobalUniforms, per-frame frameRead/Write seeding, per-pass
 // shouldSkipPass + resolveRepeatCount + iterate + within-frame ping-pong,
 // present renderSurface, end-of-frame swapBuffers.
@@ -26,9 +26,6 @@ namespace Noisemaker.Hlsl
 {
     public sealed class NMPipeline : ITextureResolver
     {
-        // Normalized wrap delta: one 60fps frame mapped onto a 10s loop (reference §10.2).
-        private const float WrapDelta = 1f / 60f / 10f;
-
         public RenderGraph Graph { get; private set; }
 
         private readonly TextureStore _store;
@@ -59,6 +56,7 @@ namespace Noisemaker.Hlsl
 
         public int FrameIndex { get; private set; }
         private float _lastTime;
+        private bool _hasTimeReference;
 
         // Tile / scale state (tiled hi-res export). Defaults: no tiling.
         private Vector2? _tileOffset;
@@ -746,9 +744,9 @@ namespace Noisemaker.Hlsl
             _binder.WallTimeMilliseconds = wallTimeMilliseconds;
 
             // 2. deltaTime + wrap.
-            float deltaTime = _lastTime > 0f ? time - _lastTime : 0f;
-            if (deltaTime < 0f) deltaTime = WrapDelta; // time wrapped
-            _lastTime = time;
+            float deltaTime = _hasTimeReference ? time - _lastTime : 0f;
+            if (deltaTime < 0f) deltaTime += 1f;
+            SyncTime(time);
 
             // 3. updateGlobalUniforms.
             float frX = _fullResolution.HasValue ? _fullResolution.Value.x : _width;
@@ -1282,7 +1280,11 @@ namespace Noisemaker.Hlsl
             _renderScale = 1f;
         }
 
-        public void SyncTime(float t) { _lastTime = t; }
+        public void SyncTime(float t)
+        {
+            _lastTime = t;
+            _hasTimeReference = true;
+        }
 
         // ---- teardown ------------------------------------------------------
         public void Dispose(bool backendLost = false)

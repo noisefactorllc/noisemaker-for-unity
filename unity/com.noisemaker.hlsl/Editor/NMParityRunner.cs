@@ -383,7 +383,7 @@ namespace Noisemaker.Hlsl.Editor
                 {
                     RenderGraph graph = DslCompiler.Compile(File.ReadAllText(dslPath), reg);
                     if (graph == null) { fail++; Debug.LogError("NM-DSL-FAIL " + name + ": compile returned null"); continue; }
-                    RenderGraphToPng(graph, outPng, size, time, LoadTextureInputs(dslPath));
+                    RenderGraphToPng(graph, outPng, size, time, LoadTextureInputs(dslPath), LoadMidiInputs(dslPath));
                     ok++; Debug.Log("[NMParity] wrote " + outPng);
                 }
                 catch (CompileException ce)
@@ -624,6 +624,12 @@ namespace Noisemaker.Hlsl.Editor
         public static void RenderGraphToPng(RenderGraph graph, string outPngPath, int size, float normalizedTime,
             TextureInput[] textureInputs = null)
         {
+            RenderGraphToPng(graph, outPngPath, size, normalizedTime, textureInputs, null);
+        }
+
+        private static void RenderGraphToPng(RenderGraph graph, string outPngPath, int size, float normalizedTime,
+            TextureInput[] textureInputs, MidiInput[] midiInputs)
+        {
             if (graph == null) throw new Exception("RenderGraphToPng: null graph");
             if (PlayerSettings.colorSpace != ColorSpace.Linear)
                 Debug.LogWarning("[NMParity] Project color space is not Linear; parity requires Linear color.");
@@ -641,7 +647,7 @@ namespace Noisemaker.Hlsl.Editor
             output.Create();
             try
             {
-                BuildAndRender(graph, output, size, normalizedTime, textureInputs);
+                BuildAndRender(graph, output, size, normalizedTime, textureInputs, midiInputs);
 
                 var prev = RenderTexture.active;
                 RenderTexture.active = output;
@@ -702,7 +708,7 @@ namespace Noisemaker.Hlsl.Editor
         }
 
         private static void BuildAndRender(RenderGraph graph, RenderTexture output, int size, float normalizedTime,
-            TextureInput[] textureInputs = null)
+            TextureInput[] textureInputs = null, MidiInput[] midiInputs = null)
         {
             // Build the runtime pipeline, warm N deterministic frames (so feedback/
             // state surfaces settle), present renderSurface -> output, dispose.
@@ -735,6 +741,7 @@ namespace Noisemaker.Hlsl.Editor
             // Texture fixtures bind after Init, in the golden harness's order (zero
             // everything, load the mesh, upload the textures, then the frame loop).
             BindTextureInputs(graph, pipeline, textureInputs);
+            BindMidiInputs(graph, pipeline, midiInputs);
 
             int fullWidth = ParseIntArg("-nmFullWidth", 0);
             int fullHeight = ParseIntArg("-nmFullHeight", 0);
@@ -769,6 +776,84 @@ namespace Noisemaker.Hlsl.Editor
         {
             int v = Mathf.RoundToInt(Mathf.Clamp01(linear01) * 255f);
             return (byte)Mathf.Clamp(v, 0, 255);
+        }
+
+        [Serializable]
+        private sealed class MidiInput
+        {
+            public string effect;
+            public MidiFixtureNote[] notes;
+        }
+
+        [Serializable]
+        private sealed class MidiFixtureNote
+        {
+            public int channel, key, velocity;
+        }
+
+        [Serializable]
+        private sealed class MidiInputList
+        {
+            public MidiInput[] items;
+        }
+
+        private static MidiInput[] LoadMidiInputs(string dslPath)
+        {
+            string path = Path.ChangeExtension(dslPath, ".midi.json");
+            if (!File.Exists(path)) return null;
+            MidiInputList list = JsonUtility.FromJson<MidiInputList>("{\"items\":" + File.ReadAllText(path) + "}");
+            if (list?.items == null || list.items.Length == 0)
+                throw new Exception("MIDI fixture file has no inputs: " + path);
+            foreach (MidiInput input in list.items)
+            {
+                if (input?.effect == null || input.effect.IndexOf('/') <= 0 || input.notes == null || input.notes.Length == 0)
+                    throw new Exception("invalid MIDI fixture in " + path);
+                foreach (MidiFixtureNote note in input.notes)
+                    if (note == null || note.channel < 1 || note.channel > 16 || note.key < 0 || note.key > 127 ||
+                        note.velocity < 1 || note.velocity > 127)
+                        throw new Exception("invalid MIDI note in " + path);
+            }
+            return list.items;
+        }
+
+        // Supply the same float note grid as the reference browser. This is an
+        // editor fixture input, with the texture scoped to the render pipeline.
+        private static void BindMidiInputs(RenderGraph graph, NMPipeline pipeline, MidiInput[] inputs)
+        {
+            if (inputs == null) return;
+            const string textureId = "midiNoteGrid";
+            const int width = 128, height = 16;
+            var texels = new Color[width * height];
+            foreach (MidiInput input in inputs)
+            {
+                bool bound = graph.Passes.Exists(pass => pass.Namespace + "/" + pass.Func == input.effect &&
+                    pass.Inputs.GetOrDefault("noteGridTex", null) == textureId);
+                if (!bound) throw new Exception("MIDI fixture has no executing effect: " + input.effect);
+                foreach (MidiFixtureNote note in input.notes)
+                    texels[(note.channel - 1) * width + note.key] = new Color(note.velocity / 127f, 1, 0, 0);
+            }
+            graph.Textures[textureId] = new TextureSpec
+            {
+                Width = Dim.FromNumber(width), Height = Dim.FromNumber(height), Format = "rgba32f"
+            };
+            RenderTexture target = pipeline.ResolveRead(textureId);
+            if (target == null || target.width != width || target.height != height)
+                throw new Exception("MIDI fixture texture was not created");
+            target.filterMode = FilterMode.Point;
+            var staging = new Texture2D(width, height, TextureFormat.RGBAFloat, false, true)
+            {
+                filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
+            };
+            try
+            {
+                staging.SetPixels(texels);
+                staging.Apply(false);
+                Graphics.Blit(staging, target);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(staging);
+            }
         }
 
         // ---- texture fixtures ----------------------------------------------------

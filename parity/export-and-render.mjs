@@ -261,6 +261,7 @@ async function main () {
       }
       p.frameIndex = 0
       p.lastTime = 0
+      p._hasTimeReference = false
       return { textureCount: textureIds.length, normalizedSurfaces }
     })
     if (reset.error) throw new Error(`state reset failed: ${reset.error}`)

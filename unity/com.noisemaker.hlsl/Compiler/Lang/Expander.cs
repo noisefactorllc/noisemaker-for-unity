@@ -615,7 +615,7 @@ namespace Noisemaker.Hlsl.Compiler
             {
                 ArgValue arg = step.Args.Get(argName);
                 if (arg != null && arg.Kind == ArgKind.Surface && IsTextureArgKind(arg.Surface.Kind)) continue;
-                if (argName == "_skip") continue;
+                if (argName == "_skip" || argName == "_id") continue;
                 string uniformName = GlobalUniformName(effectDef, argName) ?? argName;
                 if (colorModeControlled.Contains(uniformName)) continue;
                 // §4.8 / §9 hazard 9: inherit upstream volumeSize when this effect reads a 3D
@@ -871,7 +871,7 @@ namespace Noisemaker.Hlsl.Compiler
                 {
                     ArgValue arg = step.Args.Get(argName);
                     if (arg != null && arg.Kind == ArgKind.Surface && IsTextureArgKind(arg.Surface.Kind)) continue;
-                    if (argName == "_skip") continue;
+                    if (argName == "_skip" || argName == "_id") continue;
                     string uniformName = GlobalUniformName(effectDef, argName) ?? argName;
                     if (IsColorModeControlled(effectDef, uniformName)) continue;
                     // define-tagged globals are COMPILE-TIME defines, never runtime uniforms

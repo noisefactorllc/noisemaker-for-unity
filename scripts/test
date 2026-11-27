@@ -90,11 +90,11 @@ if [ -n "$CHANGED_FILES" ] \
   exit 0
 fi
 
-# Reference authority: noisemaker 1.5.0, pinned by REFERENCE_SHA below. The
+# Reference authority: noisemaker 1.5.17, pinned by REFERENCE_SHA below. The
 # rendered-pixel gate parity/upstream-cases-verify.sh pins its own capture
 # authority separately.
 REFERENCE_REPO="https://github.com/noisefactorllc/noisemaker.git"
-REFERENCE_SHA="084176b716a1bc779f24de79069f3e76b86277c1"
+REFERENCE_SHA="5596e69fd6e3b9014e9df0f8674e10e70c332e11"
 
 DOTNET_SDK_VERSION="10.0.401"
 NUMPY_VERSION="2.4.6"
@@ -230,7 +230,7 @@ if [ ! -d "$REF_DIR/.git" ] \
   # A stalled transfer aborts after 60 s below 1 KB/s instead of hanging.
   git -C "$staging" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 \
     fetch -q --depth 1 origin "$REFERENCE_SHA"
-  git -C "$staging" -c advice.detachedHead=false checkout -q FETCH_HEAD
+  git -C "$staging" -c core.symlinks=false -c advice.detachedHead=false checkout -q FETCH_HEAD
   [ "$(git -C "$staging" rev-parse HEAD)" = "$REFERENCE_SHA" ] || die "reference checkout is not $REFERENCE_SHA"
   rm -rf "$REF_DIR"
   mv "$staging" "$REF_DIR"
@@ -246,7 +246,8 @@ fi
 if [ "$WANT_PYTHON" -eq 1 ] || [ "$WANT_SWEEP" -eq 1 ]; then
 log "create Python venv (numpy $NUMPY_VERSION, pillow $PILLOW_VERSION)"
 VENV="$WORK/venv"
-if "$PYTHON" -m venv "$VENV" >"$WORK/venv.log" 2>&1 && [ -x "$VENV/bin/python" ] \
+mkdir -p "$VENV/lib64"
+if "$PYTHON" -m venv --copies "$VENV" >"$WORK/venv.log" 2>&1 && [ -x "$VENV/bin/python" ] \
   && "$VENV/bin/python" -m pip --version >/dev/null 2>&1; then
   "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --no-input \
     --only-binary=:all: "numpy==$NUMPY_VERSION" "pillow==$PILLOW_VERSION"

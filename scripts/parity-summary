@@ -178,6 +178,12 @@ def validate_inputs(root, reference, cases):
         textures = Path(case.dsl).with_suffix(".textures.json")
         if (json.loads(textures.read_text()) if textures.is_file() else None) != authority.get("textureInputs"):
             raise ValueError(f"texture inputs differ from the pinned authority: {case.id}")
+        midi = Path(case.dsl).with_suffix(".midi.json")
+        if (json.loads(midi.read_text()) if midi.is_file() else None) != authority.get("midiInputs"):
+            raise ValueError(f"MIDI inputs differ from the pinned authority: {case.id}")
+        for mesh in authority.get("meshInputs", []):
+            if mesh != {"mesh": "mesh0", "path": "share/meshes/cube.obj"} or not case.protocol.mesh:
+                raise ValueError(f"mesh input differs from the pinned authority: {case.id}")
     for mesh in {case.protocol.mesh for case in cases if case.protocol.mesh}:
         if Path(mesh).read_bytes() != (reference / "share/meshes" / Path(mesh).name).read_bytes():
             raise ValueError(f"mesh differs from the pinned authority: {mesh}")

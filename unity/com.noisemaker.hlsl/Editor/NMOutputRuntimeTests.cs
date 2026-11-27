@@ -178,7 +178,9 @@ namespace Noisemaker.Hlsl.Editor
                 RunTest(nameof(TestCubemapMissingSurface), TestCubemapMissingSurface);
                 RunTest(nameof(TestPipelineSinkErrorReporting), TestPipelineSinkErrorReporting);
                 RunTest(nameof(TestMeshChainScopeResolution), TestMeshChainScopeResolution);
+                RunTest(nameof(TestTriangleCountFallback), TestTriangleCountFallback);
                 RunTest(nameof(TestMeshRenderShadedOutput), TestMeshRenderShadedOutput);
+                RunTest(nameof(TestNormalizedFrameDelta), TestNormalizedFrameDelta);
                 RunTest(nameof(TestCpuOverlayCanvasPrimitives), TestCpuOverlayCanvasPrimitives);
                 RunTest(nameof(TestCpuOverlayLifecycle), TestCpuOverlayLifecycle);
                 RunTest(nameof(TestLargeCpuOverlayExplicitRender), TestLargeCpuOverlayExplicitRender);
@@ -532,6 +534,91 @@ namespace Noisemaker.Hlsl.Editor
             finally
             {
                 pipeline.Dispose();
+            }
+        }
+
+        private static void TestTriangleCountFallback()
+        {
+            PreloadPackageShaders();
+            RenderGraph graph = Noisemaker.Hlsl.Compiler.DslCompiler.Compile(
+                "search render\nmeshLoader().meshRender().write(o0)\nrender(o0)",
+                LoadEffectRegistry());
+            var pipeline = new NMPipeline(graph);
+            try
+            {
+                pipeline.Init(64, 64);
+                var mesh = pipeline.GetStoredTexture("global_mesh0_positions");
+                Check(mesh != null, "mesh position texture is absent");
+                var backend = new NMRenderBackend(null, pipeline, null);
+                var resolve = typeof(NMRenderBackend).GetMethod("ResolveDraw",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Check(resolve != null, "triangle draw resolver is absent");
+                var pass = new Pass { DrawMode = "triangles", CountUniform = "vertices" };
+                pass.Inputs.Add("meshPositions", "global_mesh0_positions");
+
+                void CheckCount(double? uniform, int expected)
+                {
+                    object[] args = { pass, (Func<string, double?>)(_ => uniform), null,
+                        MeshTopology.Triangles, 0 };
+                    resolve.Invoke(backend, args);
+                    Check((MeshTopology)args[3] == MeshTopology.Triangles &&
+                        (int)args[4] == expected, $"{pass.CountMode}: expected {expected}, got {args[4]}");
+                }
+
+                foreach (string mode in new[] { "input", "auto", "screen" })
+                {
+                    pass.CountMode = mode;
+                    CheckCount(0, mesh.width * mesh.height);
+                    CheckCount(null, mesh.width * mesh.height);
+                    CheckCount(6, 6);
+                }
+                pass.Uniforms.Add("vertices", UniformValue.Of(9.0));
+                CheckCount(6, 9);
+                pass.Uniforms.Add("vertices", UniformValue.Of("9"));
+                CheckCount(6, mesh.width * mesh.height);
+                pass.Uniforms = new OrderedMap<string, UniformValue>();
+                pass.CountMode = null;
+                pass.Count = 12;
+                CheckCount(0, 12);
+                CheckCount(6, 6);
+                pass.Count = null;
+                pass.CountMode = "screen";
+                pass.Inputs = new OrderedMap<string, string>();
+                CheckCount(0, 3);
+            }
+            finally
+            {
+                pipeline.Dispose();
+            }
+        }
+
+        private static void TestNormalizedFrameDelta()
+        {
+            PreloadPackageShaders();
+            var pipeline = new NMPipeline(CreateSolidGraph());
+            float previous = Shader.GetGlobalFloat("_NM_DeltaTime");
+            try
+            {
+                pipeline.Init(2, 2);
+                void CheckDelta(float t, float expected)
+                {
+                    pipeline.Render(t);
+                    float actual = Shader.GetGlobalFloat("_NM_DeltaTime");
+                    Check(Mathf.Abs(actual - expected) < 1e-6f,
+                        $"delta at time {t}: expected {expected}, got {actual}");
+                }
+
+                CheckDelta(0f, 0f);
+                CheckDelta(0.25f, 0.25f);
+                CheckDelta(0.9f, 0.65f);
+                CheckDelta(0.1f, 0.2f);
+                pipeline.SyncTime(0f);
+                CheckDelta(0.125f, 0.125f);
+            }
+            finally
+            {
+                pipeline.Dispose();
+                Shader.SetGlobalFloat("_NM_DeltaTime", previous);
             }
         }
 

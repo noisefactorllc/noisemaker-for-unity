@@ -197,6 +197,7 @@ function convertEffect (instance, namespace, name) {
   // this pass input to "<name>_step_<temp>" (per-instance texture id). Dropping it
   // made the C# graph emit node_N_<name> and diverge from the oracle.
   if (instance.externalTexture !== undefined) def.externalTexture = instance.externalTexture
+  if (instance.paramAliases !== undefined) def.paramAliases = instance.paramAliases
   // Output-surface passthrough declarations (reference/03 §4.10). The expander uses
   // these to update the 2D/agent-state cursors so downstream effects read the right
   // surface. The particle pipeline (pointsEmit/flow/physical/lenia/pointsRender) relies

@@ -28,11 +28,8 @@
 // (Shader Graph cannot drive the mesh-data upload or the surface-triplet binding).
 //
 // PORTING-GUIDE / parity notes:
-//  * Ported from WGSL (golden rule #1). The WGSL computes a SINGLE uv from the
-//    GLOBAL coord and uses it BOTH to sample the mesh textures AND for the
-//    left/right split decision: uv = (position.xy + tileOffset) / fullResolution.
-//    The GLSL variant samples the mesh textures with gl_FragCoord.xy/textureSize
-//    and splits on a separate globalUV — DO NOT use that; WGSL is canonical.
+//  * WebGL2 and WGSL sample packed mesh textures with local pixel coordinates
+//    normalized by each texture's dimensions. Only the split uses global UV.
 //  * fragCoord = position.xy (@builtin(position), top-left, +0.5 centered) ->
 //    NM_FragCoord(i). globalCoord = fragCoord + tileOffset -> NM_GlobalCoord(i).
 //  * textureSample(t, s, uv) -> t.Sample(sampler_t, uv) (bilinear, clamp-to-edge,
@@ -59,15 +56,17 @@ Texture2D    normalsTex;     SamplerState sampler_normalsTex;
 // =============================================================================
 float4 frag_preview(NMVaryings i) : SV_Target
 {
-    // WGSL: let uv = (position.xy + u.tileOffset) / u.fullResolution;
-    float2 uv = NM_GlobalCoord(i) / fullResolution;
-
-    // Sample mesh textures using UV coordinates.
-    float4 pos    = positionsTex.Sample(sampler_positionsTex, uv);
-    float4 normal = normalsTex.Sample(sampler_normalsTex, uv);
+    float2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float2 globalUV = NM_GlobalCoord(i) / fullRes;
+    float2 pixel = NM_FragCoord(i);
+    uint positionWidth, positionHeight, normalWidth, normalHeight;
+    positionsTex.GetDimensions(positionWidth, positionHeight);
+    normalsTex.GetDimensions(normalWidth, normalHeight);
+    float4 pos = positionsTex.Sample(sampler_positionsTex, pixel / float2(positionWidth, positionHeight));
+    float4 normal = normalsTex.Sample(sampler_normalsTex, pixel / float2(normalWidth, normalHeight));
 
     float3 color;
-    if (uv.x < 0.5)
+    if (globalUV.x < 0.5)
     {
         // Position visualization: map -1..1 to 0..1
         color = pos.xyz * 0.5 + 0.5;

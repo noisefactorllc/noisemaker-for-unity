@@ -61,6 +61,38 @@ test('a fallback backend cannot be labeled as a WebGPU golden', async () => {
   await assert.rejects(renderOne(page, 'shape()', 1, 0.25, 'old', 8, 0, null, null, null, 'webgpu'), /requested webgpu.*active webgl2/)
 })
 
+test('authored MIDI inputs reach the note grid before a fresh first frame', async () => {
+  const { page } = fakePage()
+  const pipeline = window.__noisemakerRenderingPipeline
+  pipeline.graph.passes = [{ effectKey: 'synth.roll', inputs: { noteGridTex: 'midiNoteGrid' } }]
+  pipeline._hasTimeReference = true
+  let received
+  const clock = Date.now
+  window.__noisemakerCanvasRenderer = {
+    setMidiState () {
+      received = []
+      this._midiState = { handleMessage: bytes => received.push([[...bytes], Date.now()]) }
+      return this._midiState
+    }
+  }
+  pipeline.render = () => {
+    assert.equal(pipeline._hasTimeReference, false)
+    assert.equal(Date.now, clock)
+    assert.deepEqual(received, [[[0x90, 40, 110], 0], [[0x9f, 67, 90], 0]])
+  }
+  const inputs = [
+    { effect: 'synth/roll', notes: [{ channel: 1, key: 40, velocity: 110 }] },
+    { effect: 'synth/roll', notes: [{ channel: 16, key: 67, velocity: 90 }] }
+  ]
+  await renderOne(page, 'roll()', 1, 0.25, 'old', 1, 0, null, null, null, 'webgpu', null, null, inputs)
+  pipeline.render = () => assert.deepEqual(received, [])
+  await renderOne(page, 'roll()', 1, 0.25, 'compiled', 1, 0, null, null, null, 'webgpu')
+  pipeline.graph.passes = []
+  await assert.rejects(renderOne(page, 'roll()', 1, 0.25, 'old', 1, 0, null, null, null,
+    'webgpu', null, null, inputs), /MIDI fixture has no executing effect/)
+  assert.equal(Date.now, clock)
+})
+
 test('backend is selected again after page reload', async () => {
   const { page, calls } = fakePage()
   const session = { page, setBackend: async name => calls.push(name) }
